@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/stripe_setup.php --- 2026.10.26
+// --- admin/stripe_setup.php --- 2026.11.27
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -52,6 +52,8 @@
 // Exit codes: 0 = clean, 1 = completed with warnings, 2 = errors.
 // 20260818 CL/LH Anchored branch-added include paths to __DIR__.
 // 20261026 CL/NTR Multi-ledger: --db selects any open ledger instead of having to match the pinned one.
+// 20261126 CL/ASR Stripe port (#889): --db is checked by stripe_ledger_db() (unknown or closed ledgers are refused); the pinned ledger syncs as before.
+// 20261127 ASR With $allowedLedgers in includes/connect.php the ledger named for one run must be listed, the master database too (saldi_ledger_guard()); the master stays connected for the registry.
 
 if (php_sapi_name() !== 'cli') {
 	header('HTTP/1.1 403 Forbidden');
@@ -87,6 +89,7 @@ include(__DIR__ . '/../includes/db_query.php');
 include(__DIR__ . '/../includes/connect.php');
 include(__DIR__ . '/../includes/stripeIncludes/stripeSettings.php');
 include(__DIR__ . '/../includes/stripeIncludes/stripeHttp.php');
+saldi_ledger_guard($argDb);
 
 // Tenant: --db, validated against the master locator (unknown or closed ledgers are refused).
 $target = stripe_ledger_db($argDb);

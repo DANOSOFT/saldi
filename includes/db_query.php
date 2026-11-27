@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---ver 5.0.0 ----2026-10-23--------------
+// --- includes/db_query.php ---ver 5.1.1 ----2026-11-27--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -57,10 +57,91 @@
 //                engines that need it after db_connect() (MySQLi; no-op on Postgres). Callers
 //                that reconnect to switch tenant/master keep their own error handling; this
 //                just gives them one place to call instead of hand-rolling the mysqli check.
+// 20261027 CL/NTR db_select_database(): also select on $db_type 'mysql', which db_connect()
+//                serves with a mysqli connection too (still supported, not actively used).
+// 20261029 CDX/NTR Use shared permissions for database logs and tenant temporary directories.
+// 20261029 CDX/NTR Document query and path helpers affected by shared runtime logging.
+// 20261103 CDX/NTR Attempt every database log line even when an earlier write is incomplete.
+// 20261103 CDX/NTR Report incomplete database log writes through non-throwing server diagnostics.
+// 20261103 CL/ASR db_cast() and saldi_schema_filter() added for the settings system (PR #803 review): one cast and one information_schema filter that MySQL and PostgreSQL both accept.
+// 20261104 CL/ASR A failed query shows the error box of includes/errorReport.php (saldi_error_box()) instead of the alert that told everyone to call 4690 2208.
+//                 Logging, the automatic mail to fejl@saldi.dk with its rate limit, the webservice return value and exit/continue are unchanged; the mail now carries the box's reference (F-...).
+//                 Without a browser session (CLI, cron, API, webservice) the old alert stays.
+// 20261105 CL/LH db_query_connection() selects the master database on the master connection it opens, which db_connect() does not do on MySQL/MariaDB.
+//                A global query there failed with "No database selected", so tjek4opdat() could not read the version another login had reached.
+// 20261105 CL/LH db_escape_string() escapes for $db_type 'mysql' through mysqli_real_escape_string() on the mysqli connection db_connect() opens for it, as for 'mysqli'.
+//                It called mysql_real_escape_string(), which PHP 7 removed, so every escaped value was a fatal error there.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261114 CL/ASR db_modify() puts changes to master data (varer, adresser, kontoplan) in the activity log through includes/dataAudit.php: a look at the rows just before and after the statement, never in its way.
 // 20261022 CDX/LH Return the transaction query result so Stripe booking can check BEGIN and COMMIT failures.
 // 20261023 CDX/LH Handle absent PostgreSQL optional tables without indexing an empty query result.
+// 20261126 CL/ASR Stripe port (#850): transaktion() returns its query result and tbl_exists() tests the fetched row on PostgreSQL.
+// 20261126 ASR Review GPT-F-2: db_checked() runs work in which a failed db_modify() or db_select() throws SaldiDbStatementError, after its usual log line and error mail.
+//              Outside db_checked() nothing changes: the error box, the webservice return value and exit/continue are as before.
+//              Reminder creation uses it, so a debtor whose statement fails is rolled back to its savepoint instead of ending the request.
+// 20261127 ASR db_connect() opens only the master database and the ledgers in $allowedLedgers when includes/connect.php sets it (includes/ledgerAllowList.php); any other database is refused before it is opened.
+// 20261127 ASR db_select_database() follows the same rule, as it selects the database on MySQL/MariaDB.
+require_once __DIR__ . '/sharedFile.php';
+require_once __DIR__ . '/ledgerAllowList.php';
+
+if (!class_exists('SaldiDbStatementError')) {
+	/** A statement that failed inside db_checked(). getRef() is the error reference the log and the error mail carry. */
+	class SaldiDbStatementError extends RuntimeException {
+		private string $ref;
+
+		public function __construct(string $ref) {
+			$this->ref = $ref;
+			parent::__construct('Databasefejl (fejlreference ' . $ref . ').');
+		}
+
+		/** @return string The error reference (F-...). */
+		public function getRef(): string {
+			return $this->ref;
+		}
+	}
+}
+
+if (!function_exists('db_checked')) {
+	/**
+	 * Run $work so that a failed db_modify() or db_select() throws SaldiDbStatementError instead of showing the error box
+	 * and ending the request (or returning an error string in webservice mode). The statement is still logged and the
+	 * error mailed. The caller rolls back: on PostgreSQL the failed statement has aborted the transaction (or savepoint).
+	 *
+	 * @param callable $work The statements to check.
+	 * @return mixed What $work returns.
+	 */
+	function db_checked(callable $work) {
+		$previous = (int)($GLOBALS['db_checked_depth'] ?? 0);
+		$GLOBALS['db_checked_depth'] = $previous + 1;
+		try {
+			return $work();
+		} finally {
+			$GLOBALS['db_checked_depth'] = $previous;
+		}
+	}
+}
+
+if (!function_exists('db_checked_fail')) {
+	/**
+	 * Inside db_checked(): record the failure ($db_modify_fejl) and throw it. Outside it: nothing.
+	 *
+	 * @return void
+	 * @throws SaldiDbStatementError Inside db_checked().
+	 */
+	function db_checked_fail(): void {
+		if (empty($GLOBALS['db_checked_depth'])) return;
+		$GLOBALS['db_modify_fejl'] = true;
+		if (!function_exists('saldi_error_ref')) include_once(__DIR__ . '/errorReport.php');
+		throw new SaldiDbStatementError(saldi_error_ref());
+	}
+}
 
 if (!function_exists('get_relative')) {
+    /**
+     * Derive the application-relative prefix from the current request path.
+     *
+     * @return string Parent-directory prefix for runtime paths.
+     */
     function get_relative() {
         $url = $_SERVER['REQUEST_URI'];
         $questionMarkPos = strpos($url, '?');
@@ -77,12 +158,33 @@ if (!function_exists('get_relative')) {
 }
 
 if (!function_exists('db_log_append')) {
+    /**
+     * Write database log lines with permissions shared with the web server.
+     *
+     * @param string $path Local log path.
+     * @param string|string[] $lines Log text or lines to write.
+     * @param string $mode Writable fopen mode.
+     * @return bool Whether all lines were written successfully.
+     */
     function db_log_append($path, $lines, $mode = 'a') {
-        $fp = @fopen($path, $mode);
-        if ($fp === false) return false;
-        foreach ((array)$lines as $line) fwrite($fp, $line);
-        fclose($fp);
-        return true;
+        $fp = sharedFileOpen($path, $mode);
+        if ($fp === false) {
+            return false;
+        }
+        try {
+            $complete = true;
+            foreach ((array)$lines as $line) {
+                if (fwrite($fp, $line) !== strlen($line)) {
+                    $complete = false;
+                }
+            }
+            if (!$complete) {
+                sharedFileWarning("Incomplete write to database log: $path");
+            }
+            return $complete;
+        } finally {
+            fclose($fp);
+        }
     }
 }
 
@@ -109,6 +211,10 @@ if (!function_exists('db_connect')) {
 					($l_spor ? " (spor: " . htmlspecialchars($l_spor) . ")" : "") . "</p>";
 			print $errTxt;
 			die;
+		}
+		// An installation with $allowedLedgers (includes/connect.php) opens the master database and the listed ledgers only.
+		if ($l_database && !saldi_ledger_connect_allowed($l_database)) {
+			saldi_ledger_refuse($l_database);
 		}
 
 		if (strtolower($db_type) == 'mysql' || strtolower($db_type) == 'mysqli') {
@@ -166,7 +272,7 @@ if (!function_exists('db_select_database')) {
 	/**
 	 * Select a database on an existing connection, for engines that need it.
 	 *
-	 * db_connect() never selects a database on MySQLi - it only opens the server
+	 * db_connect() never selects a database on MySQL/MySQLi - it only opens the server
 	 * connection - so a caller that reconnects to switch tenant/master on that engine
 	 * must select explicitly afterward (see includes/online.php's own
 	 * mysqli_select_db() calls). On Postgres, db_connect() already connects straight
@@ -182,8 +288,13 @@ if (!function_exists('db_select_database')) {
 	 */
 	function db_select_database($l_connection, $l_database) {
 		global $db_type;
+		// As in db_connect(): an installation with $allowedLedgers selects the master database and the listed ledgers only.
+		if ($l_database && !saldi_ledger_connect_allowed($l_database)) {
+			saldi_ledger_refuse($l_database);
+		}
 
-		if (strtolower($db_type) == 'mysqli') {
+		// 'mysql' gets a mysqli connection from db_connect() as well.
+		if (strtolower($db_type) == 'mysql' || strtolower($db_type) == 'mysqli') {
 			return mysqli_select_db($l_connection, $l_database);
 		}
 
@@ -201,6 +312,7 @@ if (!function_exists('db_query_connection')) {
 			if (empty($global_connection)) {
 				$current_connection = $connection;
 				$global_connection = db_connect($sqhost, $squser, $sqpass, $sqdb);
+				db_select_database($global_connection, $sqdb);
 				$connection = $current_connection;
 			}
 			return $global_connection;
@@ -243,6 +355,13 @@ if (!function_exists('db_modify')) {
 		// When $global=true, run the query against the global database instead of the user's database.
 		$use_connection = db_query_connection($global);
 
+		// 20261114 the activity log of master data (includes/dataAudit.php): only for a write in the company's own database
+		$dataAudit = null;
+		if (!$global && preg_match('/^\s*(update|insert|delete)\b/i', $qtext)) {
+			if (!function_exists('data_audit_before')) include_once(__DIR__ . '/dataAudit.php');
+			$dataAudit = data_audit_before((string) $qtext, false, $use_connection);
+		}
+
 		#20190704 START
 		if ($db_type == "mysql" || $db_type == "mysqli") {
 
@@ -258,6 +377,7 @@ if (!function_exists('db_modify')) {
 			$db_query=pg_query($use_connection, $qtext);
 		}
 		#20190704 END
+		if ($dataAudit && $db_query) data_audit_after($dataAudit, $db_query);
 		
 		(isset($db)) ? $db=trim($db) : $db='';
 		if ($db_skriv_id>1 && $db != $sqdb) {
@@ -289,7 +409,10 @@ if (!function_exists('db_modify')) {
 					}
 					db_log_append("$temp/opdatfejl.txt", date("U")."\n", 'w');
 				} 
+				db_checked_fail(); # 20261126 ASR Review GPT-F-2
 			} else {
+				if (!function_exists('saldi_error_box')) include_once(__DIR__ . '/errorReport.php');
+				$message .= " | ".saldi_error_ref(); #20261104 the error box's reference, so a customer's report can be matched to this mail
 				if (file_exists("$temp/modifyfejl.txt")) {
 					$ff=fopen("$temp/modifyfejl.txt","r");
 					$lastmail=trim(fgets($ff));
@@ -303,6 +426,7 @@ if (!function_exists('db_modify')) {
 					}
 					db_log_append("$temp/modifyfejl.txt", date("U")."\n", 'w');
 				} 
+				db_checked_fail(); # 20261126 ASR Review GPT-F-2: inside db_checked() the caller rolls back; no box, no exit
 				// if ($db_type=="mysql") {
 				// 	mysql_query("ROLLBACK");
 				// } elseif ($db_type=="mysqli") { #20190704
@@ -318,7 +442,9 @@ if (!function_exists('db_modify')) {
 					$db_modify_fejl = true;
 					return ('1'.chr(9)."$alerttekst");
 				}
-				alert("$alerttekst");
+				$shown = saldi_error_box($spor, (string) $errtxt, $qtext, true); #20261104 the error box (includes/errorReport.php) instead of the plain alert
+				if ($shown === 'nested') return ('1'.chr(9)."$alerttekst"); // a failure inside the box itself: no second box, no exit
+				if ($shown === 'nosession') alert("$alerttekst"); // CLI, cron, API: as before
 				exit;
 			}
 		}
@@ -327,13 +453,21 @@ if (!function_exists('db_modify')) {
 }
 
 if (!function_exists('db_select')) {
+	/**
+	 * Execute a SELECT against the tenant or master connection and log query errors.
+	 *
+	 * @param string $qtext SQL whose external values have already been escaped.
+	 * @param string $spor Caller context recorded in error logs.
+	 * @param bool $global Whether to use the master connection.
+	 * @return mysqli_result|\PgSql\Result|bool Database result or failure.
+	 */
 	function db_select($qtext, $spor, $global = false) {
 		global $brugernavn;
 		global $connection,$customAlertText;
 		global $db,$db_type;
 		global $s_id,$sqdb,$sqhost,$squser,$sqpass;
 
-		if (!function_exists('alert')) include('std_func.php'); #20230730
+		if (!function_exists('alert')) include(__DIR__ . '/std_func.php'); #20230730
 
 		$qtext=injecttjek($qtext);
 
@@ -343,10 +477,10 @@ if (!function_exists('db_select')) {
 		$temp = get_relative() . 'temp/' . $db;
 
 		if (!file_exists($temp)) {
-			mkdir($temp, 0777);
+			sharedDirectory($temp);
 			$onlineLog = get_relative() . 'temp/.ht_online.log';
 			$onlineTxt = date("Y-m-d")." ".date("H:i:s")." ".$_SERVER['REMOTE_ADDR']." ".$s_id." ".$db." ".$brugernavn."\n";
-			file_put_contents($onlineLog, $onlineTxt, FILE_APPEND);
+			sharedFilePutContents($onlineLog, $onlineTxt, true);
 		}
 		if ($db_type == "mysql" || $db_type == "mysqli") {
 			// Use mysqli for MySQL as mysql_query() is deprecated
@@ -388,13 +522,14 @@ if (!function_exists('db_select')) {
 					"-- Fejl!! ".$qtext." | $errtxt;\n",
 				]);
 				// if (!strpos($errtxt,'current transaction is aborted, commands ignored until end of transaction block')) {
+				if (!function_exists('saldi_error_box')) include_once(__DIR__ . '/errorReport.php');
 				if (file_exists("$temp/selectfejl.txt")) {
 					$ff=fopen("$temp/selectfejl.txt","r");
 					$lastmail=trim(fgets($ff));
 					fclose($ff);
 				} else $lastmail=0; 
 				if($lastmail!=date("U")) {
-					$message=$db." | ".$qtext." | ".$spor." | ".$brugernavn." ".date("Y-m-d H:i:s")." | $errtxt";
+					$message=$db." | ".$qtext." | ".$spor." | ".$brugernavn." ".date("Y-m-d H:i:s")." | $errtxt | ".saldi_error_ref(); #20261104 + the error box's reference
 					if ($sqdb == 'develop') echo "$message<br>";
 					else {
 						$headers = 'From: fejl@saldi.dk'."\r\n".'Reply-To: fejl@saldi.dk'."\r\n".'X-Mailer: PHP/' . phpversion();
@@ -402,14 +537,19 @@ if (!function_exists('db_select')) {
 					}
 					db_log_append("$temp/selectfejl.txt", date("U")."\n", 'w');
 				} 
+				db_checked_fail(); # 20261126 ASR Review GPT-F-2: inside db_checked() the caller rolls back; no box
 				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset hændelse, kontakt salditeamet på telefon 4690 2208";
 				if (strpos($spor,'sqlquery_io')) echo "$errtxt<br>";
-				alert("$alerttekst");
+				if (saldi_error_box($spor, (string) $errtxt, $qtext, false) === 'nosession') alert("$alerttekst"); #20261104 the error box; the page goes on as before
 			} else {
 				#	$customAlertText saettes i connect.php;
 				(isset($customAlertText))?$alerttekst=$customAlertText:$alerttekst="Uforudset hændelse, kontakt salditeamet på telefon 4690 2208";
+				db_checked_fail(); # 20261126 ASR Review GPT-F-2: inside db_checked() the caller rolls back; no box, no exit
 				echo $fejltxt; 
-				alert("$alerttekst");
+				if (!function_exists('saldi_error_box')) include_once(__DIR__ . '/errorReport.php');
+				$shown = saldi_error_box($spor, (string) $errtxt, $qtext, true); #20261104 the error box instead of the plain alert
+				if ($shown === 'nested') return $query;
+				if ($shown === 'nosession') alert("$alerttekst");
 				exit;
 			}
 		} else {
@@ -535,8 +675,7 @@ if (!function_exists('db_escape_string')) {
 		if (!mb_check_encoding($qtext, 'UTF-8')) {
 			$qtext = mb_convert_encoding($qtext, 'UTF-8', 'Windows-1252');
 		}
-		if ($db_type=="mysql") return mysql_real_escape_string("$qtext");
-		elseif ($db_type=="mysqli") return mysqli_real_escape_string($connection, "$qtext"); #20190704
+		if ($db_type=="mysql" || $db_type=="mysqli") return mysqli_real_escape_string($connection, "$qtext"); #20261105 'mysql' has a mysqli connection too (db_connect())
 		else return pg_escape_string($connection, "$qtext");
 	}
 }

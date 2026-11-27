@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------------finans/budget.php ----------- patch 5.0.0 --- 2026.06.01 ---
+// -------------finans/budget.php ----------- ver 5.1.1 --- 2026.11.13 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -37,8 +37,26 @@
 // 20220926 MSC Removed a 2 number in title for budget
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260601 PHR inserted (float) before Round()
-// 20261005 Sawaneh WP-4.2: the incoming returside is read (sanitised) instead of forced to NULL, and urlencoded in the links.
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261030 CDX/PHR Make Enter save the budget instead of filling it with last year's figures.
+// 20261030 CDX/NTR Cast budget IDs to int and replace if_isset calls with ifset.
+//                  Read posted IDs safely and initialize the ID grid independently of duplicate cleanup, including when filling from last year's figures.
+// 20261030 CDX/NTR Reject saves with missing budget dimensions before any includes or database writes.
+// 20261030 CDX/NTR Keep the default Save button rendered off-screen for old Internet Explorer.
+// 20261105 CL/LH Gem posts the grid (kontonr, amount and id of every cell) as one field, budget_grid, through a script below the form.
+//                Every account posted 25 fields, so a chart of more than about 40 open accounts passed PHP's max_input_vars (1000).
+//                PHP then dropped the rest of the post with the Gem at its end, and the page came back unsaved without a word.
+//                A grid post that lost its Gem that way is refused like an incomplete save, and the insert escapes the account number.
+// 20261113 CL/ASR The Hjælp cell is hidden (the top bar has Hjælp); it stays in the page for the tour.
+//
+// The script below the form sends the grid as one JSON field; without the script it comes as the form's own fields.
+$budgetGrid=isset($_POST['budget_grid']) ? json_decode((string) $_POST['budget_grid'], true) : $_POST;
+// A save needs both counts and a grid that can be read. A post of the grid with neither Gem nor Udfyld was cut short by
+// PHP's max_input_vars before the Gem at the end of the form: it is refused too, instead of drawing the page as if saved.
+$budgetFormPost=isset($_POST['gem']) || isset($_POST['kontonr']) || isset($_POST['budget_grid']);
+if (!isset($_POST['udfyld']) && $budgetFormPost && (!isset($_POST['gem'], $_POST['kontoantal'], $_POST['maanedantal']) || !is_array($budgetGrid))) {
+	http_response_code(400);
+	exit('Budget submission is incomplete. Reload the page and try again.');
+}
 
 @session_start();
 $s_id=session_id();
@@ -47,13 +65,12 @@ $css="../css/standard.css";
 $modulnr=4;	
 $title="Budget";
 
-$linjebg=NULL;
+$linjebg=$returside=NULL;
 		
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/finansfunk.php");
-$returside = nav_sanitize_returside(isset($_GET['returside']) ? $_GET['returside'] : '');
 include("../includes/topline_settings.php");
 include("../includes/grid.php");
 
@@ -62,25 +79,24 @@ include_once '../includes/oldDesign/header.php';
 if (!isset($_POST['udfyld']) && isset($_POST['gem'])) {
 	$kontoantal=$_POST['kontoantal'];
 	$maanedantal=$_POST['maanedantal'];
-	$kontonr=$_POST['kontonr'];
-	$amount=$_POST['amount'];
-	$id=$_POST['id'];
+	$kontonr=if_array($budgetGrid, 'kontonr');
+	$amount=if_array($budgetGrid, 'amount');
 	for ($x=1;$x<=$kontoantal;$x++) {
 		for ($z=1;$z<=$maanedantal;$z++) {
 			if (!isset($amount[$x][$z])) $amount[$x][$z]=0;
-			if (!isset($id[$x][$z])) $id[$x][$z]=0;
-			$b_id=$id[$x][$z]*1;
+			$b_id=(int) ifset($budgetGrid, ['id',$x,$z], 0);
 			if ($z==1 && substr($amount[$x][$z],-1)=='*') {
 				$setall[$x]=str_replace('*','',$amount[$x][$z]);
 			} elseif($z==1) $setall[$x]=NULL;
 			if ($setall[$x] || $setall[$x]=='0') $amount[$x][$z]=$setall[$x];
 			$tmp=substr($amount[$x][$z],-4);
 			if(strpos($tmp,",")) $amount[$x][$z]=usdecimal($amount[$x][$z]);
-			$tal=round((float)if_isset($amount,0,[$x,$z],0),0);
+			$tal=round((float)ifset($amount, [$x,$z], 0), 0);
 			if ($b_id) {
 				db_modify("update budget set amount='$tal' where id='$b_id'",__FILE__ . " linje " . __LINE__);
 			} elseif ($tal) {
-				db_modify("insert into budget(regnaar,kontonr,md,amount) values ($regnaar,'$kontonr[$x]','$z','$tal')",__FILE__ . " linje " . __LINE__);
+				$qtxt="insert into budget(regnaar,kontonr,md,amount) values ($regnaar,'".db_escape_string($kontonr[$x])."','$z','$tal')";
+				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			}
 		}
 	}
@@ -91,9 +107,9 @@ $icon_regnskab = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox=
 $help_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#FFFFFF"><path d="M478-240q21 0 35.5-14.5T528-290q0-21-14.5-35.5T478-340q-21 0-35.5 14.5T428-290q0 21 14.5 35.5T478-240Zm-36-154h74q0-33 7.5-52t42.5-52q26-26 41-49.5t15-56.5q0-56-41-86t-97-30q-57 0-92.5 30T342-618l66 26q5-18 22.5-39t53.5-21q32 0 48 17.5t16 38.5q0 20-12 37.5T506-526q-44 39-54 59t-10 73Zm38 314q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>';
 $icon_budget = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#ffffff"><path d="M560-440q-50 0-85-35t-35-85q0-50 35-85t85-35q50 0 85 35t35 85q0 50-35 85t-85 35ZM280-320q-33 0-56.5-23.5T200-400v-320q0-33 23.5-56.5T280-800h560q33 0 56.5 23.5T920-720v320q0 33-23.5 56.5T840-320H280Zm80-80h400q0-33 23.5-56.5T840-480v-160q-33 0-56.5-23.5T760-720H360q0 33-23.5 56.5T280-640v160q33 0 56.5 23.5T360-400Zm440 240H120q-33 0-56.5-23.5T40-240v-440h80v440h680v80ZM280-400v-320 320Z"/></svg>';
 
-$udfyld=if_isset($_POST['udfyld']);
-$procent=if_isset($_POST['procent']);
-$plusminus=if_isset($_POST['plusminus']);
+$udfyld=ifset($_POST, ['udfyld'], '');
+$procent=ifset($_POST, ['procent']);
+$plusminus=ifset($_POST, ['plusminus']);
 
 $query = db_select("select * from grupper where kodenr='$regnaar' and art='RA'",__FILE__ . " linje " . __LINE__);
 $r = db_fetch_array($query);
@@ -111,24 +127,38 @@ $x=0;
 $md=array(); #20140923
 $q=db_select("select id,amount,md,kontonr from budget where regnaar='$regnaar' order by kontonr,md,id",__FILE__ . " linje " . __LINE__); #20140909
 while ($r=db_fetch_array($q)) {
-	$id[$x]=$r['id'];
+	$b_id=(int) $r['id'];
 	$md[$x]=$r['md'];
 	$kontonr[$x]=$r['kontonr'];
-	if ($x && $md[$x]==$md[$x-1] && $kontonr[$x]==$kontonr[$x-1]) db_modify("delete from budget where id = '$id[$x]'",__FILE__ . " linje " . __LINE__);
+	if ($x && $md[$x]==$md[$x-1] && $kontonr[$x]==$kontonr[$x-1]) db_modify("delete from budget where id = '$b_id'",__FILE__ . " linje " . __LINE__);
 	$x++;
 }
-// 20261008 Sawaneh The new page head (topbar addendum §5, prototype_dashboard_tema v5) instead of the blue bar.
-// 20261008 Sawaneh The page on the new page head (page_bar): Regnskab / Budget as tabs, tour kept for the Assist menu.
-// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
-include_once("../includes/stdFunc/pageBar.php");
-page_bar(array(
-	'title' => findtekst('1067|Budget', $sprog_id),
-	'tabs' => array(
-		array(findtekst('849|Regnskab', $sprog_id), 'regnskab.php?returside=' . urlencode(isset($returside) ? (string) $returside : ''), false),
-		array('Budget', 'budget.php', true),
-	),
-	'help' => true,
-));
+print "<tr><td height='25' align='center' valign='top'>";
+print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
+print "<td width='75%' style='$topStyle' align='left'><table border='0' cellspacing='2' cellpadding='0'><tbody>";
+
+print "<td width='200px' align='center'>
+    <a href='regnskab.php?returside=$returside'>
+    <button class='headerbtn' style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
+    $icon_regnskab ".findtekst('849|Regnskab', $sprog_id)."
+    </button></a></td>";
+
+print "<td>&nbsp;</td>";
+
+print "<td width='200px' align='center'>
+    <button class='headerbtn' style='$butDownStyle; width:100%'>
+    $icon_budget Budget
+    </button></td>";
+
+print "</tbody></table></td>";
+
+print "<td id='tutorial-help' hidden width='5%' style='$buttonStyle'>
+    <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
+    $help_icon ".findtekst('2564|Hjælp', $sprog_id)."
+    </button></td>";
+
+print "</tbody></table></td></tr>";
+print "</tbody></table>";
 
 while (!checkdate($slutmaaned, $slutdato, $slutaar)) {
 #echo "$slutdato, $slutmaaned, $slutaar	";				
@@ -215,8 +245,8 @@ while ($r = db_fetch_array($q)) {
 
 $kontoantal=$x;
 
+$id=array();
 if (!$udfyld) {
-	$id=array(); #20141007
 	$amount=array(); #20141007
 }
 for ($x=1; $x<=$kontoantal; $x++) {
@@ -255,7 +285,7 @@ $regnslut = $slutaar . "-" . $slutmaaned . "-" . $slutdato;
 
 print "<style>
 .budget-wrapper {
-    height: calc(100vh - 128px);
+    height: calc(100vh - 50px);
     width: 100%;
     overflow: auto;
     position: relative;
@@ -298,7 +328,10 @@ print "<style>
 </style>";
 
 print "<div class='budget-wrapper' id='budget-wrapper'>";
-print "<form name=budget action='budget.php?regnaar=$regnaar&returside=" . urlencode($returside) . "' method=post>";
+print "<form name=budget action='budget.php?regnaar=$regnaar&returside=$returside' method=post>";
+// The first submit button makes Enter save the budget.
+// Keep it rendered off-screen for very old Internet Explorer versions, and out of the tab order.
+print "<button type='submit' name='gem' value='1' tabindex='-1' aria-hidden='true' style='position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden;'></button>";
 print "<table width='100%' cellpadding='0' cellspacing='1px' border='0' valign='top'>";
 print "<thead>";
 print "<tr><td><br></td><td colspan=15>".findtekst(806, $sprog_id)." ";
@@ -427,7 +460,35 @@ print "</tfoot>";
 
 print "</table>";
 print "</form>\n";
+// The grid goes as one field, so the post stays a handful of fields however many accounts the chart has (see the save above).
+print <<<'JS'
+<script>
+(function () {
+	var form = document.forms.budget;
+	if (!form || !window.JSON) { return; }
+	form.addEventListener('formdata', function (e) {
+		var grid = {kontonr: {}, amount: {}, id: {}}, names = [];
+		e.formData.forEach(function (value, name) {
+			var m = /^(kontonr|amount|id)\[(\d+)\](?:\[(\d+)\])?$/.exec(name);
+			if (!m) { return; }
+			names.push(name);
+			if (m[3] === undefined) {
+				grid[m[1]][m[2]] = value;
+			} else {
+				grid[m[1]][m[2]] = grid[m[1]][m[2]] || {};
+				grid[m[1]][m[2]][m[3]] = value;
+			}
+		});
+		names.forEach(function (name) { e.formData.delete(name); });
+		e.formData.append('budget_grid', JSON.stringify(grid));
+	});
+})();
+</script>
+JS;
 print "</div>";
-include_once '../includes/oldDesign/footer.php';
+if ($menu=='T') {
+	include_once '../includes/topmenu/footer.php';
+} else {
+	include_once '../includes/oldDesign/footer.php';
+}
 ?>
-

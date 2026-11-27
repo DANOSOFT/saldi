@@ -27,7 +27,7 @@
 // 20260923 CL/NTR The non-JSON fallback no longer echoes the raw error/alert text to the
 //             client (CodeRabbit); it now sends a short random ref id and logs the full
 //             reason against that same id, so the incident can still be found in the log.
-
+//
 // 20260914 CDX/LH Share atomic metadata saves and reject stale confirmations.
 // 20260930 CL/SZ SST-777 (CodeRabbit): an automatic save right after upload always 409'd
 //             because the pool_files row didn't exist yet (syncPuljeFilesToDatabase() only
@@ -42,7 +42,8 @@
 // 20261004 LOE Register automatic-save fallback rows with a stored-file hash.
 // 20261006 CL/SZ SD-717 (CodeRabbit) $brugernavn was escaped here and again by audit_log_write(), which double-escaped a name
 //             with an apostrophe (audit_log.brugernavn stored '' where the name had a single '). Kept raw; only escaped at the query below.
-
+// 20261127 ASR With $allowedLedgers in includes/connect.php the session's ledger must be listed, the master database too: 403 before it is opened (includes/ledgerAllowList.php).
+//
 // Set JSON response header FIRST
 header('Content-Type: application/json');
 
@@ -131,7 +132,12 @@ if (!preg_match('/^[a-zA-Z0-9_]+$/', $db)) {
 	exit;
 }
 
-// Connect to the session's own database
+// Connect to the session's own database (one this installation serves, includes/ledgerAllowList.php)
+if (!saldi_ledger_allowed($db)) {
+	ob_clean();
+	echo json_encode(['success' => false, 'error' => saldi_ledger_refusal_text()]);
+	exit;
+}
 global $sqhost, $squser, $sqpass;
 $connection = db_connect($sqhost, $squser, $sqpass, $db, __FILE__ . " line " . __LINE__);
 

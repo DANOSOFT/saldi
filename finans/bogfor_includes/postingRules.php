@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/bogfor_includes/postingRules.php --- ver 5.0.0 --- 2026-10-14 ---
+// --- finans/bogfor_includes/postingRules.php --- ver 5.1.1 --- 2026-11-17 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,9 @@
 //                  posting and the "Kontokort med u-bogført" report use the same code.
 //                  momsberegning() takes a $preview flag so the report lists a VAT split error instead of exiting.
 // 20261014 CL/NTR postingLineEntries(): replaced the "* 1" string-to-number conversion of d_moms/k_moms with (float) casts.
+// 20261117 CL/ASR journalLineInBaseCurrency(): a line written by Tilbagefør (kassekladde.ompost_id) converts at the rate the line it reverses was posted at, so the reversal cancels it after the rate table has been corrected.
+//                 Every other line converts at the rate table's rate for its date, as before; postingLineAmounts() uses it.
+//                 reversedLineRate() takes the reversed line's own rate: the one rate on its voucher's ledger rows, else the rate recordPostedLineRate() put on the line when bogfor() posted it.
 
 /**
  * Posting rules shared by the cash-journal posting and the kontokort report.
@@ -207,6 +210,108 @@ function gruppeopslag($type, $konto) {
 }
 
 /**
+ * A journal line's amount in the base currency, its currency's difference account and the rate used, as
+ * valutaopslag() returns them. Used for posting (postingLineAmounts()), the posting page's preview
+ * (finans/bogfor.php) and the DKK amount the journal page shows (finans/kassekladde.php).
+ *
+ * A line written by Tilbagefør (ompost() in finans/kassekladde.php) names the line it reverses in
+ * kassekladde.ompost_id. While it is in that line's currency it converts at the rate that line was posted at
+ * (reversedLineRate()), so it posts that line's base-currency amounts and VAT in reverse, also when the rate
+ * table has been corrected for the date since. Every other line, and a reversal whose original has no posting,
+ * converts at the rate table's rate for its date, as before.
+ *
+ * The line's own kassekladde.valutakurs is not read: the journal's save (kontroller() in finans/kassekladde.php)
+ * writes the rate table's rate into it on every save, including the save that the Bogfør button makes before
+ * posting. Only once the line is posted does it hold the rate it was posted at (recordPostedLineRate()).
+ *
+ * @param float|string    $amount    The line's amount in its currency.
+ * @param int|string      $valuta    The line's currency group (grupper art VK kodenr).
+ * @param string          $transdate The line's date (Y-m-d).
+ * @param int|string|null $ompostId  kassekladde.ompost_id: the line this line reverses, or NULL/0.
+ * @return array{
+ *   0: float,             Amount in the base currency, rounded to 2 decimals.
+ *   1: string|null,       Currency difference account (grupper VK box3).
+ *   2: float|string|null, Rate used, per 100 units of the currency; NULL when the rate table has none.
+ * }
+ */
+function journalLineInBaseCurrency($amount, $valuta, $transdate, $ompostId = NULL) {
+	$rate = $ompostId ? reversedLineRate($ompostId, $valuta) : NULL;
+	if ($rate === NULL) {
+		return valutaopslag($amount, $valuta, $transdate);
+	}
+	$r = db_fetch_array(db_select("select box3 from grupper where art = 'VK' and kodenr = '" . (int)$valuta . "'", __FILE__ . " linje " . __LINE__));
+	return array(afrund($amount * $rate / 100, 2), $r ? $r['box3'] : NULL, $rate);
+}
+
+/**
+ * The rate a journal line was posted at, for a line in the same currency that reverses it.
+ *
+ * bogfor() writes the rate it used on every ledger row of a line (transaktioner.valutakurs). Those rows do not
+ * name the line, so they are found by the line's journal, voucher, date and currency:
+ *  - When they hold one rate, every line there was posted at it. That is always the case for a journal without a
+ *    reversal posted at an earlier rate: every line of one currency and date gets the rate table's rate.
+ *  - When they hold more than one, the voucher has a reversal posted at its original's rate next to a line posted
+ *    at the rate table's rate, typically Tilbagefør and the corrected line on the same voucher and date. bogfor()
+ *    then recorded each line's own rate on the line (kassekladde.valutakurs, recordPostedLineRate()), and that
+ *    tells which of the rates is the line's.
+ *  - When the line's own rate is not one of them, it is not known; the caller converts at the rate table's rate.
+ *
+ * @param int|string $lineId kassekladde.id of the reversed line.
+ * @param int|string $valuta Currency group of the reversing line.
+ * @return float|null The rate, or NULL when the line is gone, is in another currency, has not been posted or its
+ *                    rate is not known.
+ */
+function reversedLineRate($lineId, $valuta) {
+	$qtxt = "select kladde_id, bilag, transdate, valuta, valutakurs from kassekladde where id = '" . (int)$lineId . "'";
+	$line = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	if (!$line || !(int)$valuta || (int)$line['valuta'] !== (int)$valuta) {
+		return NULL;
+	}
+	$qtxt = "select distinct valutakurs from transaktioner where kladde_id = '" . (int)$line['kladde_id'] . "' and bilag = '" . (int)$line['bilag'] . "' ";
+	$qtxt.= "and transdate = '" . db_escape_string($line['transdate']) . "' and valuta = '" . (int)$valuta . "' and valutakurs > 0";
+	$rates = array();
+	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$rates[] = (float)$r['valutakurs'];
+	}
+	if (count($rates) === 1) {
+		return $rates[0];
+	}
+	if (is_numeric($line['valutakurs'])) {
+		foreach ($rates as $rate) {
+			if (abs($rate - (float)$line['valutakurs']) < 0.0005) {
+				return $rate;
+			}
+		}
+	}
+	return NULL;
+}
+
+/**
+ * Records on a journal line that is being posted the rate its ledger rows get (kassekladde.valutakurs), so a later
+ * Tilbagefør of the line converts at that rate (reversedLineRate()), also when its voucher holds lines posted at
+ * another rate. bogfor() calls it for every line it posts; a simulation does not.
+ *
+ * Only a line that is converted (postingLineAmounts(): a currency, an amount and an account) is touched, and only
+ * when its stored rate differs, which is when the rate table changed after the line was last saved or the line is
+ * a reversal posted at its original's rate. The stored rate is not read by posting, and a posted journal is not
+ * saved again, so it keeps the posted rate.
+ *
+ * @param array        $row  The kassekladde row being posted.
+ * @param float|string $rate The rate on its ledger rows (bogfor()'s $valutakurs[$y]).
+ * @return void
+ */
+function recordPostedLineRate($row, $rate) {
+	if (!($row['valuta'] && $row['amount'] && ($row['debet'] || $row['kredit'])) || !is_numeric($rate)) {
+		return;
+	}
+	if (is_numeric($row['valutakurs']) && abs((float)$row['valutakurs'] - (float)$rate) < 0.0005) {
+		return;
+	}
+	db_modify("update kassekladde set valutakurs = '" . (float)$rate . "' where id = '" . (int)$row['id'] . "'", __FILE__ . " linje " . __LINE__);
+}
+
+/**
  * Applies the posting rules to one journal line: debtor/creditor numbers become their control account,
  * foreign currency becomes DKK, and each side is split into net amount and VAT.
  *
@@ -248,7 +353,7 @@ function postingLineAmounts($row, $preview=false) {
 
 	$diffkonto = $valutakurs = NULL;
 	if ($row['valuta'] && $row['amount'] && ($row['debet'] || $row['kredit'])) {
-		list($dkkamount, $diffkonto, $valutakurs) = valutaopslag($row['amount'], $row['valuta'], $row['transdate']);
+		list($dkkamount, $diffkonto, $valutakurs) = journalLineInBaseCurrency($row['amount'], $row['valuta'], $row['transdate'], ifset($row, 'ompost_id'));
 	} else $dkkamount = $row['amount'];
 	$debetvat  = get_saved_vat_override($row, 'debetvat');
 	$kreditvat = get_saved_vat_override($row, 'kreditvat');

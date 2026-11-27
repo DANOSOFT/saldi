@@ -1,11 +1,8 @@
 <?php
 // tools/check_settings_registry.php
-// 20260929 Sawaneh Settings redesign §8.14: consistency check of registry v2, run from the command
-// line (php tools/check_settings_registry.php). Exit code 1 when an entry is incomplete:
-// label/help text ids missing in any of the three languages, unknown permission key, no old-menu
-// ('legacy') path, unknown section or sub-section, or a section without 'context' pages.
-// 20261004 Sawaneh Runs without a database again: stand-in db functions answer one sample row for the per-till,
-//                  per-price-list and per-language expansions.
+// 20260929 SS Settings redesign §8.14: consistency check of registry v2, run from the command line (php tools/check_settings_registry.php).
+//             Exit code 1 when an entry is incomplete: label/help text ids missing in any of the three languages, unknown permission key, no old-menu ('legacy') path, unknown section or sub-section, or a section without 'context' pages.
+// 20261004 SS Runs without a database again: stand-in db functions answer one sample row for the per-till, per-price-list and per-language expansions.
 
 if (php_sapi_name() !== 'cli') {
 	exit;

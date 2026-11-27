@@ -4,6 +4,16 @@
 // 20261022 CDX/LH Enrol with the verified PaymentIntent customer, including saved-card replacement.
 // 20261022 CDX/LH Carry project/department into journal settlement and explicitly enrol the verified PaymentIntent customer.
 // 20261022 CDX/LH Allocate legacy journal ids explicitly under the booking lock instead of using its lagging sequence.
+// 20261126 ASR Payment review (GPT-P-1): "save the card" is applied once per payment (card_state, stripe_payment_apply_card()), apart from the receipt.
+//              A receipt retry only sends the receipt, so it never brings back a card the customer was unenrolled from or that a later card replaced.
+// 20261126 ASR Payment review (GPT-P-2): a capture the invoice no longer owes (settled or credited another way, or its open item changed, while the payment was under way) is booked as the customer's credit.
+//              Its journal line has no invoice number, so posting it does not settle the invoice a second time; the payment is marked 'overpaid' and the bookkeeper is told, with no receipt and no saved card.
+// 20261126 ASR Payment review (GPT-P-4): the bookkeeper alert for a refund or dispute is kept in stripe_adjustment_alerts until it is sent (stripe_payment_adjustment_alert()).
+//              The repair pass sends the ones still unsent and finishes the event rows they left 'failed' (stripe_payment_adjustment_alert_retry()).
+// 20261126 ASR Payment review (GPT-G-1): stripe_payment_apply_card() classifies a payment from before card_state (NULL) before it decides, so no path applies such a card as undecided.
+// 20261126 ASR Payment review (GPT-G-3): the journal line of an overpaid capture carries the reference Stripe-overbetaling-<payment id> instead of an empty invoice number (stripe_payment_overpaid_reference()).
+//              Posting matched an empty invoice number like any other, so the credit could settle another open item of the customer without an invoice number; no open item carries the reference.
+// 20261126 ASR Payment review (GPT-G-6): the repair pass sends an unsent refund or dispute alert under the payment's lock and only while it is still unsent, as the webhook does.
 
 /** @return bool Whether the current connection uses MySQL. */
 function stripe_payment_mysql() {
@@ -38,6 +48,12 @@ function stripe_payment_update_returning($set, $where) {
 	stripe_payment_modify($sql);
 	if (mysqli_affected_rows($GLOBALS['connection']) < 1) return null;
 	return array('claimed' => true);
+}
+
+/** @return bool Whether the connection is already inside a transaction (PostgreSQL's own status; on MySQL transaktion()'s depth). */
+function stripe_payment_in_transaction() {
+	if (stripe_payment_mysql()) return !empty($GLOBALS['db_transaktion_depth']);
+	return pg_transaction_status($GLOBALS['connection']) !== PGSQL_TRANSACTION_IDLE;
 }
 
 /**
@@ -187,7 +203,9 @@ function stripe_payment_complete($id, $successSet = null) {
 		$inv = stripe_invoice_load((int)$payment['ordre_id']);
 		if (!$inv) throw new RuntimeException('Captured payment invoice is missing');
 		if (!$payment['journal_line_id']) {
-			$lineId = stripe_journal_add_payment($inv, $payment);
+			// The money is kept in the books either way. Only a capture that still matches the invoice's open amount settles it.
+			$overpaid = stripe_payment_overpaid($inv, $payment);
+			$lineId = stripe_journal_add_payment($inv, $payment, $overpaid);
 			if (!$lineId) throw new RuntimeException('Journal insert returned no row');
 			$sql = "update ordrer set betalt = 'on' where id = " . (int)$payment['ordre_id'];
 			if (stripe_payment_mysql()) {
@@ -196,9 +214,10 @@ function stripe_payment_complete($id, $successSet = null) {
 				$row = db_fetch_array(stripe_payment_select($sql . ' returning id'));
 				if (!$row) throw new RuntimeException('Paid invoice update returned no row');
 			}
-			$linked = stripe_payment_update_returning("journal_line_id = $lineId", "id = $id and journal_line_id is null");
+			$linked = stripe_payment_update_returning("journal_line_id = $lineId" . ($overpaid ? ", last_error = 'overpaid'" : ''), "id = $id and journal_line_id is null");
 			if (!$linked) throw new RuntimeException('Journal reference update returned no row');
 			$payment['journal_line_id'] = $lineId;
+			if ($overpaid) $payment['last_error'] = 'overpaid';
 			$booked = true;
 		}
 		stripe_payment_transaction('commit');
@@ -207,16 +226,14 @@ function stripe_payment_complete($id, $successSet = null) {
 		if ($booked && function_exists('audit_log_write') && function_exists('tbl_exists')) {
 			audit_log_write('stripe.payment_succeeded', 'ordre', (string)$payment['ordre_id'],
 				json_encode(array('pi' => $payment['payment_intent_id'], 'amount_ore' => (int)$payment['amount_ore'],
-					'card' => stripe_card_label($payment['pm_brand'], $payment['pm_last4']))), 'stripe');
+					'card' => stripe_card_label($payment['pm_brand'], $payment['pm_last4']), 'overpaid' => ($payment['last_error'] ?? '') === 'overpaid')), 'stripe');
+		}
+		if (!$payment['confirmation_sent_at'] && ($payment['last_error'] ?? '') === 'overpaid') {
+			if (stripe_bool($payment['save_card'])) stripe_payment_update_returning("card_state = 'skipped'", "id = $id and coalesce(card_state, '') = ''");
+			return stripe_payment_overpaid_alert($inv, $payment);
 		}
 		if (!$payment['confirmation_sent_at']) {
-			if (stripe_invoice_collectable($inv) && stripe_feature_on('enrolment') && stripe_feature_on('invoice_payments') && stripe_setting('enabled', 'off') === 'on'
-				&& stripe_bool($payment['save_card']) && !empty($payment['pm_id'])
-				&& function_exists('stripe_enrol_debtor')
-				&& (($inv['debtor']['stripe'] ?? '') !== 'on' || ($inv['debtor']['stripe_pm_id'] ?? '') !== $payment['pm_id']
-					|| ($inv['debtor']['stripe_customer_id'] ?? '') !== $payment['stripe_customer_id'])) {
-				if (!stripe_enrol_debtor($inv, $payment['pm_id'], $payment['pm_brand'], $payment['pm_last4'], $payment['stripe_customer_id'])) return 'delivery_error';
-			}
+			if (stripe_bool($payment['save_card']) && stripe_payment_apply_card($inv, $payment) === '') return 'delivery_error';
 			if (!stripe_mail_confirmation($inv, $payment)) return 'delivery_error';
 			$sent = stripe_payment_update_returning('confirmation_sent_at = CURRENT_TIMESTAMP', "id = $id and confirmation_sent_at is null");
 			if (!$sent) throw new RuntimeException('Confirmation marker update returned no row');
@@ -251,7 +268,97 @@ function stripe_payment_complete($id, $successSet = null) {
 }
 
 /**
- * Sweep captured payments missing bookkeeping/receipt or a duplicate-capture alert. No charge API is called.
+ * Whether a capture no longer matches what the invoice owes, so it must not settle the invoice: the invoice is no longer fully
+ * open (its open item was settled, changed or split, it was credited, or the customer got a credit) or its total is not the
+ * captured amount. This happens when it was paid or credited another way while the customer was paying or authenticating.
+ *
+ * @param array $inv Invoice loaded under the booking lock.
+ * @param array $payment The succeeded stripe_payments row.
+ * @return bool Whether the capture is an overpayment for manual reconciliation.
+ */
+function stripe_payment_overpaid($inv, $payment) {
+	return empty($inv['fully_open']) || (int)$payment['amount_ore'] !== (int)$inv['total_ore'];
+}
+
+/**
+ * Tell the bookkeeper about an overpayment once. The customer gets no receipt: the bookkeeper reconciles the credit or
+ * refunds it. confirmation_sent_at acknowledges this alert, as for duplicate_paid.
+ *
+ * @return string applied, or delivery_error so the repair pass tries the alert again.
+ */
+function stripe_payment_overpaid_alert($inv, $payment) {
+	$sent = stripeAlertMail('Stripe: overbetaling - faktura ' . $payment['fakturanr'],
+		"Faktura: " . $payment['fakturanr'] . "\nOrdre: " . $payment['ordre_id'] . "\nPaymentIntent: " . $payment['payment_intent_id']
+		. "\nBeløb: " . number_format(((int)$payment['amount_ore']) / 100, 2, ',', '.') . " kr."
+		. "\nKortbetalingen er gennemført, men fakturaen skylder den ikke længere: den er betalt eller krediteret på anden vis, eller dens åbne post svarer ikke til beløbet."
+		. "\nBeløbet er bogført i kladden \"" . stripe_txt('journal_name') . "\" med referencen " . stripe_payment_overpaid_reference($payment) . " i stedet for fakturanummeret,"
+		. " så det står som kundens tilgodehavende, når kladden er bogført, og hverken fakturaen eller en anden åben post udlignes automatisk."
+		. "\nAfstem det manuelt, og refundér det i Stripe, hvis kunden ikke skal have det til gode. Kunden har ikke fået en kvittering.",
+		'overpaid_' . $payment['payment_intent_id'], 3600);
+	if (!$sent) return 'delivery_error';
+	$marked = stripe_payment_update_returning('confirmation_sent_at = CURRENT_TIMESTAMP', 'id = ' . (int)$payment['id'] . " and confirmation_sent_at is null");
+	if (!$marked) throw new RuntimeException('Overpayment alert marker update returned no row');
+	return 'applied';
+}
+
+/**
+ * The invoice reference (kassekladde.faktura) on the journal line of an overpaid capture, and so on the customer's open credit
+ * when the journal is posted: "Stripe-overbetaling-<payment id>". The bookkeeper reconciles that credit by hand, so posting it
+ * must settle nothing. Both automatic settlements in finans/bogfor.php match an open item by the invoice number: openpost()
+ * when the line is posted, and equalizeMatchingRecords() (includes/genberegn.php) right after. No invoice or other open item
+ * carries this reference, so neither settles anything with it, and their rules stay as they are for every other posting.
+ * An empty invoice number would not do: it is matched like any other, so the credit would settle the customer's open item
+ * without an invoice number of the same amount (an opening item, say). The reference also names the payment.
+ *
+ * @param array $payment The stripe_payments row.
+ * @return string The reference.
+ */
+function stripe_payment_overpaid_reference($payment) {
+	return 'Stripe-overbetaling-' . (int)$payment['id'];
+}
+
+/**
+ * Apply a captured payment's "save the card" to the customer once, apart from its receipt (stripe_payments.card_state).
+ * The card is not applied while the switches are off, when the invoice cannot be collected by card or when the payment has no
+ * card (skipped). It is not applied either when the customer was unenrolled, or a later payment's card was applied, after
+ * this payment (superseded): stripe_enrol_debtor() decides that under the customer's row lock.
+ *
+ * @param array $inv Loaded invoice.
+ * @param array $payment The succeeded stripe_payments row.
+ * @return string applied|skipped|superseded, or '' when Stripe could not be reached (the next run tries again).
+ */
+function stripe_payment_apply_card($inv, $payment) {
+	$id = (int)$payment['id'];
+	$row = db_fetch_array(stripe_payment_select("select card_state from stripe_payments where id = $id"));
+	if ($row && $row['card_state'] === null) {
+		// Made before card_state existed and not classified yet (an update that stopped half way): classified first, as the
+		// update does (includes/stripeIncludes/stripeChargeSchema.php), never applied as undecided.
+		if (!function_exists('stripe_payment_card_state_backfill')) require_once __DIR__ . '/stripeChargeSchema.php';
+		stripe_payment_card_state_backfill();
+		$row = db_fetch_array(stripe_payment_select("select card_state from stripe_payments where id = $id"));
+	}
+	$state = trim((string)($row['card_state'] ?? ''));
+	if ($state !== '') return $state;
+	$debtor = $inv['debtor'] ?? array();
+	if (!stripe_invoice_collectable($inv) || !stripe_feature_on('enrolment') || !stripe_feature_on('invoice_payments')
+		|| stripe_setting('enabled', 'off') !== 'on' || empty($payment['pm_id']) || !function_exists('stripe_enrol_debtor')) {
+		$state = 'skipped';
+	} elseif (($debtor['stripe'] ?? '') === 'on' && ($debtor['stripe_pm_id'] ?? '') === $payment['pm_id']
+		&& ($debtor['stripe_customer_id'] ?? '') === $payment['stripe_customer_id']) {
+		$state = 'applied'; // The customer already has this card.
+	} else {
+		if (!stripe_enrol_debtor($inv, $payment['pm_id'], $payment['pm_brand'], $payment['pm_last4'], $payment['stripe_customer_id'], $id)) return '';
+		$row = db_fetch_array(stripe_payment_select("select card_state from stripe_payments where id = $id"));
+		return trim((string)($row['card_state'] ?? ''));
+	}
+	stripe_payment_update_returning("card_state = '$state'", "id = $id and coalesce(card_state, '') = ''");
+	$row = db_fetch_array(stripe_payment_select("select card_state from stripe_payments where id = $id"));
+	return trim((string)($row['card_state'] ?? ''));
+}
+
+/**
+ * Sweep captured payments missing bookkeeping/receipt or a duplicate-capture alert, and refund or dispute alerts that were
+ * not sent. No charge API is called.
  *
  * @return array{found: int, repaired: int, failed: int} Repair counts; failures remain discoverable.
  */
@@ -265,6 +372,83 @@ function stripe_payment_repair($dryRun = false) {
 		$result = stripe_payment_complete($id);
 		if ($result === 'applied' || $result === 'duplicate' || $result === 'duplicate_paid') $stats['repaired']++;
 		else $stats['failed']++;
+	}
+	foreach (stripe_payment_adjustment_alert_retry($dryRun) as $key => $count) $stats[$key] += $count;
+	return $stats;
+}
+
+/**
+ * Whether stripe_adjustment_alerts exists. betweenUpdates.php installs it at login, so a ledger that a webhook reaches before
+ * anyone has logged in after the update can lack it; a refund or dispute alert then stays retryable through Stripe's
+ * redelivery only.
+ *
+ * @return bool
+ */
+function stripe_adjustment_alerts_ready() {
+	if (stripe_payment_mysql()) return false;
+	$row = db_fetch_array(stripe_payment_select("select to_regclass('stripe_adjustment_alerts') is not null as ready"));
+	return $row && stripe_bool($row['ready']);
+}
+
+/**
+ * Tell the bookkeeper about a refund or dispute of an invoice payment, which is reconciled by hand, and mark the alert sent
+ * in stripe_adjustment_alerts. An alert that is not sent stays there for the webhook redelivery and the repair pass.
+ *
+ * @param array $payment The stripe_payments row (fakturanr, ordre_id, payment_intent_id).
+ * @param string $eventType charge.refunded or charge.dispute.created.
+ * @param string $eventId The Stripe event.
+ * @param bool $outbox Whether stripe_adjustment_alerts exists (stripe_adjustment_alerts_ready()).
+ * @return bool Whether the alert was sent.
+ */
+function stripe_payment_adjustment_alert($payment, $eventType, $eventId, $outbox = true) {
+	$refund = $eventType === 'charge.refunded';
+	$sent = stripeAlertMail('Stripe: ' . ($refund ? 'refusion' : 'indsigelse') . ' - faktura ' . $payment['fakturanr'],
+		"Faktura: " . $payment['fakturanr'] . "\nOrdre: " . $payment['ordre_id'] . "\nPaymentIntent: " . $payment['payment_intent_id'] . "\nEvent: $eventId\n"
+		. "Afstem manuelt og opret kreditnota/ompostering efter den faste procedure. Ingen automatisk tilbageførsel er bogført.",
+		'stripe_adjustment_' . $eventId, 3600);
+	if (!$sent) return false;
+	if ($outbox) stripe_payment_modify("update stripe_adjustment_alerts set sent_at = CURRENT_TIMESTAMP where event_id = '" . db_escape_string($eventId) . "' and sent_at is null");
+	return true;
+}
+
+/**
+ * Send the refund and dispute alerts that were not sent when their event came, also once Stripe has stopped redelivering
+ * the event. An event row such an alert left 'failed' (delivery_error) for the redelivery is finished as processed, unless a
+ * redelivery holds it.
+ *
+ * @return array{found: int, repaired: int, failed: int} Alerts found unsent, sent now, and still unsent.
+ */
+function stripe_payment_adjustment_alert_retry($dryRun = false) {
+	$stats = array('found' => 0, 'repaired' => 0, 'failed' => 0);
+	if (!stripe_adjustment_alerts_ready()) return $stats;
+	$q = stripe_payment_select("select a.event_id, a.event_type, a.payment_id, p.ordre_id, p.fakturanr, p.payment_intent_id
+		from stripe_adjustment_alerts a join stripe_payments p on p.id = a.payment_id where a.sent_at is null order by a.created_at, a.event_id");
+	$alerts = array();
+	while ($row = db_fetch_array($q)) $alerts[] = $row;
+	$stats['found'] = count($alerts);
+	foreach ($alerts as $alert) {
+		if ($dryRun) continue;
+		$locked = false;
+		try {
+			// The webhook sends the same alert under this lock: one of them sends it, the other finds it sent.
+			stripe_payment_lock((int)$alert['payment_id']);
+			$locked = true;
+			$unsent = db_fetch_array(stripe_payment_select("select event_id from stripe_adjustment_alerts where event_id = '"
+				. db_escape_string($alert['event_id']) . "' and sent_at is null"));
+			if ($unsent && !stripe_payment_adjustment_alert($alert, $alert['event_type'], $alert['event_id'])) {
+				$stats['failed']++;
+				continue;
+			}
+			stripe_payment_modify("update stripe_events set status = 'processed', processed_at = CURRENT_TIMESTAMP, error = null, saldi_order_id = " . (int)$alert['ordre_id']
+				. ", invoice_number = '" . db_escape_string((string)$alert['fakturanr']) . "' where event_id = '" . db_escape_string($alert['event_id'])
+				. "' and status = 'failed' and error = 'delivery_error'");
+			$stats['repaired']++;
+		} catch (Throwable $e) {
+			stripe_log('adjustment alert retry failed for ' . $alert['event_id'] . ': ' . $e->getMessage());
+			$stats['failed']++;
+		} finally {
+			if ($locked) stripe_payment_lock((int)$alert['payment_id'], true);
+		}
 	}
 	return $stats;
 }
@@ -292,7 +476,7 @@ function stripe_payment_fiscal_bounds($date) {
  *
  * @return int Serial id of the inserted line.
  */
-function stripe_payment_journal_insert($inv, $payment) {
+function stripe_payment_journal_insert($inv, $payment, $overpaid = false) {
 	$date = substr((string)$payment['succeeded_at'], 0, 10);
 	if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) throw new RuntimeException('Missing capture date');
 	$bounds = stripe_payment_fiscal_bounds($date);
@@ -302,13 +486,15 @@ function stripe_payment_journal_insert($inv, $payment) {
 		stripe_payment_select('lock table kladdeliste, kassekladde, transaktioner in share row exclusive mode');
 	}
 	$name = db_escape_string(stripe_txt('journal_name'));
-	$text = db_escape_string(stripe_txt('journal_text', array('card' => stripe_card_label($payment['pm_brand'], $payment['pm_last4']), 'nr' => $inv['nr'])));
+	$text = db_escape_string(stripe_txt($overpaid ? 'journal_text_overpaid' : 'journal_text', array('card' => stripe_card_label($payment['pm_brand'], $payment['pm_last4']), 'nr' => $inv['nr'])));
+	// An overpayment settles nothing: with a reference no open item carries, its posting stays open as the customer's credit.
+	$faktura = db_escape_string($overpaid ? stripe_payment_overpaid_reference($payment) : $inv['nr']);
 	$kontonr = db_escape_string((string)($inv['debtor']['kontonr'] ?? $inv['o']['kontonr']));
 	$amount = number_format(((int)$payment['amount_ore']) / 100, 2, '.', '');
 	// Pre-fix captures could commit a journal line and crash before saving its id.
 	// Adopt one exact Stripe line; ambiguous historic duplicates need manual reconciliation.
 	$existing = stripe_payment_select("select k.id from kassekladde k join kladdeliste l on l.id = k.kladde_id
-		where k.ordre_id = " . (int)$inv['id'] . " and k.faktura = '" . db_escape_string($inv['nr']) . "'
+		where k.ordre_id = " . (int)$inv['id'] . " and coalesce(k.faktura, '') = '$faktura'
 		and l.kladdenote = '$name' and k.beskrivelse = '$text' and k.amount = '$amount'
 		and k.debet = '" . db_escape_string($clearing) . "' and k.kredit = '$kontonr' order by k.id");
 	$orphan = db_fetch_array($existing);
@@ -347,7 +533,7 @@ function stripe_payment_journal_insert($inv, $payment) {
 	$department = (int)($inv['o']['afd'] ?? 0);
 	$line = stripe_payment_insert_id("insert into kassekladde (bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, amount, kladde_id, faktura, ordre_id, projekt, afd)
 		values ($bilag, '" . db_escape_string($date) . "', '$text', 'F', '" . db_escape_string($clearing) . "', 'D', '$kontonr', '$amount', $journalId, '"
-		. db_escape_string($inv['nr']) . "', " . (int)$inv['id'] . ", '$project', $department)");
+		. "$faktura', " . (int)$inv['id'] . ", '$project', $department)");
 	return (int)$line['id'];
 }
 

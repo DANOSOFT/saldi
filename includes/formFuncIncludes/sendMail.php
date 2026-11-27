@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formFuncIncludes/sendMail.php --- patch 5.0.0 --- 2026-06-03 ---
+// --- includes/formFuncIncludes/sendMail.php --- ver 5.1.1 --- 2026-11-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //20260603 CL/PHR Bilagsvedhæftning opdateret: tjekker nu documents-tabellen
 //                  (source=debitorOrdrer) før fallback til gammelt bilag-system
@@ -34,6 +34,10 @@
 //                  recipient escaped before output.
 // 20260909 Sawaneh SST-759: Rejected recipient feedback names the offending character
 //                  and offers the ASCII suggestion via emailLookalike.php.
+// 20261126 CL/ASR Review round 1 (I6): the <ledger>@<server> sender on a saldi.dk server comes from server_mail_from() (includes/stdFunc/serverMailSender.php), shared with stripe_mail_send().
+//                 A CLI job sets the server name with cli_server_name(), so its mails get the same sender as a web request's.
+
+include_once(__DIR__ . '/../stdFunc/serverMailSender.php');
 
 function send_mails($ordre_id,$filnavn,$email,$mailsprog,$form_nr,$subjekt,$mailtext,$mailbilag,$mailnr) {
 print "<!--function send_mails start-->";
@@ -380,9 +384,7 @@ print "<!--function send_mails start-->";
 	} else {
 		$mail->IsMail();                               // use PHP mail() - fastest for localhost
 #	if (strpos($_SERVER['SERVER_NAME'],'saldi.dk')) $mail->Sender = 'mailer@saldi.dk';
-		if (strpos($_SERVER['SERVER_NAME'],'saldi.dk')) { #20121016
-			$from = $db.'@'.$_SERVER['SERVER_NAME'];
-		}
+		$from = server_mail_from($from); #20121016 <ledger>@<server> on a saldi.dk server, also from a CLI job (20261126)
 	}
 #xit;
 	$mail->From = $from;

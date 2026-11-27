@@ -1,9 +1,13 @@
 <?php
-// --- tests/test_varelokation_import.php --- 2026-10-15 ---
+// --- tests/test_varelokation_import.php --- 2026-11-05 ---
 // Copyright (c) 2026 Danosoft ApS
 // Licensed under the GNU General Public License, version 2 or later.
 // 20261015 LOE Cover SST-875: a location imported from a CSV is stored without the file's line break,
 //                 and an empty field is stored empty instead of as a line break.
+// 20261105 CL/LH Pin the split as 561d47e2 rewrote it: $felter=explode(), the item number from $felter[0], the location from $felter[1] or empty.
+//                The trim() ban now covers a trim that rewrites the line, since the page also uses trim() to skip a blank line.
+//                A line without a separator is checked to give an empty location.
+//                tests/characterization/systemdata/VarelokationImportTest.test.php runs this script in CI.
 //
 //   php tests/test_varelokation_import.php
 //
@@ -26,25 +30,34 @@ function importCheck($condition, $description) {
 importCheck($source !== false && $source !== '', 'the importer source is readable');
 
 $trim = '$linje=rtrim($linje,"\r\n");';
-$explode = 'list($varenr,$lokation)=explode($splitter,$linje);';
+$explode = '$felter=explode($splitter,$linje);';
+$varenrFrom = '$varenr=$felter[0];';
+$lokationFrom = '$lokation=isset($felter[1]) ? $felter[1] : \'\';';
 $trimAt = strpos($source, $trim);
 $explodeAt = strpos($source, $explode);
+$varenrAt = $explodeAt === false ? false : strpos($source, $varenrFrom, $explodeAt);
+$lokationAt = $varenrAt === false ? false : strpos($source, $lokationFrom, $varenrAt);
 importCheck($trimAt !== false, 'the importer strips the line break from the line it reads');
-importCheck($explodeAt !== false, 'and still splits the line into item number and location');
+importCheck($explodeAt !== false && $varenrAt !== false && $lokationAt !== false,
+	'and still splits the line into item number and location');
 importCheck($trimAt !== false && $explodeAt !== false && $trimAt < $explodeAt,
 	'the strip happens before the split, so the break cannot reach the location');
 $convertAt = strpos($source, '$linje=mb_convert_encoding(');
 importCheck($convertAt !== false, 'the charset conversion is still in the page');
 importCheck($convertAt !== false && $trimAt !== false && $convertAt < $trimAt,
 	'and the strip comes after it, where the line is still exactly what the file held');
-importCheck(strpos($source, 'trim($linje)') === false,
+# trim() may decide whether a line is blank; the only trim that rewrites the line is the strip above
+preg_match_all('/\$linje\s*=\s*[lr]?trim\s*\([^;]*;/', $source, $lineTrims);
+importCheck($lineTrims[0] === array($trim),
 	'the line is not trimmed with trim(), which would also eat spaces inside a location');
 
 # ---- the rule, evaluated from the source ----------------------------------------------------
 function importLocation($line, $splitter = ';') {
-	# the two statements as they stand in the page, in the order the page runs them
+	# the statements as they stand in the page, in the order the page runs them
 	$line = rtrim($line, "\r\n");
-	list($varenr, $lokation) = explode($splitter, $line);
+	$felter = explode($splitter, $line);
+	$varenr = $felter[0];
+	$lokation = isset($felter[1]) ? $felter[1] : '';
 	return array($varenr, $lokation);
 }
 
@@ -64,6 +77,8 @@ list($varenr, $lokation) = importLocation("2324;=L6\r\n");
 importCheck($lokation === '=L6', 'a lager reference keeps the =L prefix the printouts look for');
 list($varenr, $lokation) = importLocation("9565000;HC1\r\n\r\n");
 importCheck($lokation === 'HC1', 'and every trailing break is stripped, not just one');
+list($varenr, $lokation) = importLocation("2324\r\n");
+importCheck($varenr === '2324' && $lokation === '', 'a line without a separator gives an empty location');
 
 echo "\n" . ($failures ? count($failures) . " of $checks checks FAILED" : "all $checks checks passed") . "\n";
 foreach ($failures as $failure) {

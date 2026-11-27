@@ -1,6 +1,6 @@
 <?php
-
-// -------- shop/pbs_tilmelding.php----------lap 3.4.0 ----- 2014.03.15----------
+//
+// -------- shop/pbs_tilmelding.php----------ver 5.1.1 ----- 2026.11.27----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -19,11 +19,12 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2014 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 2013.10.13 Kontrol af cvr.nr.
 // 2014.03.15 Indsat ,100 (procent) før ,'DO' i opret_ordrelinje grundet ændring af funktion
+// 20261127 ASR logon(): with $allowedLedgers in includes/connect.php the ledger must be listed, the master database too, before it is connected (saldi_ledger_allowed()).
 
 
 @session_start();
@@ -191,6 +192,7 @@ function logon($s_id,$regnskab,$brugernavn,$password,$sqhost,$squser,$sqpass,$sq
 #	db_modify("delete from online where  session_id = '$s_id'",__FILE__ . " linje " . __LINE__);
 	if ($r=db_fetch_array(db_select("select * from regnskab where regnskab = '$regnskab'",__FILE__ . " linje " . __LINE__))) {
 		if ($db = trim($r['db'])) {
+			if (!saldi_ledger_allowed($db)) return "1".chr(9).saldi_ledger_refusal_text(); // $allowedLedgers in includes/connect.php
 			$connection = db_connect ($sqhost,$squser,$sqpass,$db);
 			if ($connection) {
 				$r=db_fetch_array(db_select("select id from brugere where brugernavn='PBS_TILMELDING'",__FILE__ . " linje " . __LINE__));

@@ -1,5 +1,5 @@
 <?php
-// --- includes/bilag.php --- ver 5.0.0 --- 2026-10-05 ---
+// --- includes/bilag.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,12 +32,11 @@
 // 20230123 PHR Corrected error if text in debet or credit
 // 20230304 PHR	Attachments can now be renamed
 // 20260212 LOE Refactored to handle multiple files for orders.
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20261018 Sawaneh Review 2 (PR #803): key by the attachment's module instead of 'any'; kilde limited to kassekladde/ordrer/historik
-//                  (a table name in the queries), ids cast to numbers, file name basename.
 // 20261005 LOE SST-857 Kassebilag is spelled with one l in the page title.
-// 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261018 SS Review 2 (PR #803): key by the attachment's module instead of 'any'; kilde limited to kassekladde/ordrer/historik (a table name in the queries), ids cast to numbers, file name basename.
+// 20261104 CL/ASR An attachment folder that cannot be made shows the error box (includes/errorReport.php) instead of the text with the phone number; it comes again on the page the refresh leads to.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 $css="../css/standard.css";
@@ -94,10 +93,25 @@ if(($_GET)||($_POST)) {
 		exit;
 	}
 	
-	include_once("../includes/stdFunc/pageBar.php");
-	print "<tr><td colspan='3'>";
-	page_bar(array('title' => findtekst(1408, $sprog_id), 'back' => $tmp));
-	print "</td></tr>";
+	#############################
+	$tilbage_icon  = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+
+	print "<td width='5%'>
+   <a href=\"$tmp\" accesskey=\"L\">
+   <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
+   $tilbage_icon " . findtekst(30, $sprog_id) . "
+   </button></a></td>\n";
+
+	print "<td width='75%' style='$topStyle' align='center'>
+	SALDI - " . findtekst(1408, $sprog_id) . "
+	</td>\n";
+
+	print "<td width='5%' style='$buttonStyle'>
+	<a href=\"#\" accesskey='N'>
+	<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
+	$add_icon
+	</button></a></td>";
+	###########################
 	print "</tbody></table>";
 	print "</td></tr>\n";
 	?>
@@ -205,7 +219,7 @@ function upload_bilag($kilde_id,$kilde,$bilag_id,$bilag,$fokus,$filnavn,$funktio
 		if (!file_exists("../".$nfs_mappe."/".$db)) {
 		  mkdir ("../".$nfs_mappe."/".$db,0777);
 		  if (!file_exists("../".$nfs_mappe."/".$db)) {
-				print tekstboks("Det er sket en fejl, bilag ikke gemt\nRing venligst på 46902208 så problemet kan blive løst");
+				if (!function_exists('saldi_error_box') || saldi_error_box(__FILE__ . " linje " . __LINE__, "bilag ikke gemt: mappen ../$nfs_mappe/$db kunne ikke oprettes", '', false, 'app') === 'nosession') print tekstboks("Det er sket en fejl, bilag ikke gemt\nRing venligst på 46902208 så problemet kan blive løst"); #20261104 the error box
 				print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 				exit;
 			}

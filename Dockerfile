@@ -1,8 +1,12 @@
 FROM php:8.3-apache
 
-# Install PostgreSQL client libs and PHP pgsql extensions
+# 20261028 CDX/MJ SST-876 Provide cURL and Python for the discovered HTTP recovery regressions.
+# Install PostgreSQL/cURL client libraries and PHP extensions
 RUN apt-get update && apt-get install -y \
         libpq-dev \
+        libcurl4-openssl-dev \
+        curl \
+        python3 \
         postgresql-client \
         unzip \
         git \
@@ -12,7 +16,8 @@ RUN apt-get update && apt-get install -y \
         barcode \
         msmtp \
         msmtp-mta \
-    && docker-php-ext-install pgsql pdo_pgsql ftp \
+        wget \
+    && docker-php-ext-install pgsql pdo_pgsql ftp curl \
     && rm -rf /var/lib/apt/lists/*
 
 # msmtp config is generated at container startup from env vars (see docker-entrypoint.sh)

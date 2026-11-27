@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------finans/bogfor.php---------- ver 5.0.1 --- 2026-09-30 ---
+// ---------------finans/bogfor.php---------- ver 5.1.1 --- 2026-11-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -64,12 +64,28 @@
 // 20260907 CDX/PHR Update following fiscal years' opening balances within the journal posting transaction.
 // 20260907 CDX/LH Share the difference predicate with the read-only assistant checks.
 // 20260924 CDX/PHR Correct currency-rounding signs and reject unbalanced stored postings before commit.
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20260930 CL/SZ SD-699: Moved get_saved_vat_override(), momsberegning() and gruppeopslag() to
 //                  bogfor_includes/postingRules.php, shared with the "Kontokort med u-bogført" report.
 //                  bogfor() now gets each line's accounts, VAT and DKK amount from postingLineAmounts().
-// 20261021 ASR Kassekladde redesign D1: lines are processed in the journal's own order (pos, then bilag, date, id) -
-//                  the order the user arranged by moving lines - instead of by bilag only.
+// 20261019 CL/LH MB-71: Simulation and posting are refused, naming the vouchers, while a saved row has text, amount or invoice number but no debit or credit account (unfinishedJournalVouchers()).
+//                Such rows are no longer deleted silently; only rows without any content are still dropped.
+// 20261023 CL/LH MB-71: The refusal alert text goes through jsString(), so it is no longer empty when $db_encode isn't UTF8.
+// 20261019 CL/LH MB-72: openpost() treats an empty, '0' and NULL project as the same, so a journal payment settles an invoice without a project.
+//                The settlement date is the later of invoice and payment date, not the invoice date.
+// 20261023 CL/LH MB-72: openpost() trims the project before matching and storing it, and a payment settling
+//                several invoices gives every row of the group the group's latest date.
+// 20261028 CL/LH MB-72: openpost() settles a payment naming several invoices ("A;B") only when they and the payment
+//                net to zero, and writes the payment row once instead of once per settled invoice.
+// 20261102 CL/ASR The old "+1000 postings for kr. 30,-" offer is not shown to accounts with a package from the self-service signup.
+// 20261110 CDX/ASR Require module write access before this mutation endpoint runs.
+// 20261117 CL/ASR bogfor() locks the journal row (select ... for update) in the posting transaction and refuses when bogfort is already 'V'.
+//                 Two concurrent Bogfør requests from different sessions posted the same journal twice.
+// 20261117 CL/ASR The preview converts currency lines with journalLineInBaseCurrency() (bogfor_includes/postingRules.php), as bogfor() does: a reversal written by Tilbagefør at the rate its original was posted at.
+//                 bogfor() puts the rate it posts a currency line at on the line (recordPostedLineRate()), so a later Tilbagefør of that line finds its own rate.
+// 20261119 CL/ASR A journal posted into a fiscal year that has a following year takes the opening-balance carry's lock before its transaction and releases it after the commit or rollback, so on MySQL and MariaDB its carry no longer writes over a carry another session committed after the journal's first read (p1-yearend-F4).
+// 20261119 CL/ASR A journal refused because a foreign-currency invoice moved from Hent ordrer no longer balances in DKK (its date's rate was changed after the move) now names the voucher, the invoice and the rates and says to delete the voucher's lines and move the invoice again (movedInvoiceRateMessage()), instead of "Manglende konto til valutadiffencer!" or an unbalanced journal. The Simulér and Bogfør preview shows the same message under the vouchers with differences, where such a journal stops.
+// 20261120 CL/ASR A posted journal keeps the opening-balance carry's lock until the page has recalculated the year after the commit and again where it shows the posted journal, so a POS day close waiting for the lock no longer starts in between and fails on its posting into that year with the database error box and a mail (p1-pos-close-N1).
+//                 A voucher with an invoice moved from Hent ordrer that does not balance in DKK on its own is refused by Simulér and Bogfør with movedInvoiceRateMessage(), and its preview leaves out the button, also when another such voucher makes up for it in the journal's total (p1-journal-J3h).
 
 
 require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
@@ -84,11 +100,13 @@ $css="../css/standard.css";
 $modulnr=2;
 $title="Bogfør kassekladde";
 
-include("../includes/connect.php");
-include("../includes/online.php");
-include("../includes/std_func.php");
-include("../includes/genberegn.php");
-include("../includes/topline_settings.php");
+include(__DIR__ . '/../includes/connect.php');
+$permission_key = 'finans.kassekladde';
+$permission_level = 'write';
+include(__DIR__ . '/../includes/online.php');
+include(__DIR__ . '/../includes/std_func.php');
+include(__DIR__ . '/../includes/genberegn.php');
+include(__DIR__ . '/../includes/topline_settings.php');
 
 genberegn($regnaar);
 
@@ -125,6 +143,14 @@ if ($kladde_id) {
 		exit;
 	}
 	$kladdenote_vis = htmlentities(stripslashes(trim((string)$row['kladdenote'])), ENT_QUOTES, $charset);
+	// A saved row with text, amount or invoice number but no account must be completed or deleted by the
+	// user; neither the preview (Simuler/confirm) nor posting may start, and nothing is deleted.
+	$unfinishedVouchers = unfinishedJournalVouchers($kladde_id);
+	if ($unfinishedVouchers) {
+		print "<script>alert(" . jsString(array(unfinishedJournalMessage($unfinishedVouchers))) . ");</script>";
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=$returside\">";
+		exit;
+	}
 }
 if ($funktion=='bogfor') {
 	$overskrift = findtekst('2209|Bogfør kassekladde', $sprog_id).", ".findtekst('1087|Kladde', $sprog_id)." $kladde_id";
@@ -133,8 +159,21 @@ if ($funktion=='bogfor') {
 	$overskrift="".findtekst(1085,$sprog_id)." ".findtekst(1086,$sprog_id).", ".findtekst(1087,$sprog_id)." $kladde_id"; #20210319
 	$href="<a href=$returside accesskey=L>";
 } else $href="<a href=kassekladde.php?kladde_id=$kladde_id accesskey=L>";
-print "<center><table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-if ($menu=='S') {
+if ($menu=='T') {
+	print "";
+} else {
+	print "<center><table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+}
+if ($menu=='T') {
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	print "<div id=\"header\">"; 
+	print "<div class=\"headerbtnLft headLink\">&nbsp;&nbsp;&nbsp;</div>";     
+	print "<div class=\"headerTxt\">$title</div>";     
+	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
+	print "</div>";
+	print "<div class='content-noside'>";
+} elseif ($menu=='S') {
 	
 	 ############################
      $icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
@@ -225,8 +264,30 @@ if ($_POST['bogfor'] || $_POST['simuler']) {
 		while ($rd = db_fetch_array($q_dates)) {
 			if ($err = check_periode_luk($rd['transdate'])) { $periode_fejl = $err; break; }
 		}
+		// p1-yearend-F4: a journal posted into a fiscal year that has a following year carries its balances into the
+		// following years' opening (bogfor() -> updateFollowingOpeningBalances()). It takes the carry's lock before its
+		// transaction begins, so its first read comes after any other session's carry has committed (on MySQL and MariaDB
+		// a transaction reads one snapshot from its first read on) and no other carry commits before it has. It is
+		// released after the rollback, or after the page's last recalculation of the year that follows the commit
+		// (p1-pos-close-N1, below); an exit before that (a refusal in bogfor(), the database error box) leaves it to the
+		// end of the request (the shutdown function of openingCarryLockHeld()).
+		$carryLockRefused = '';
+		if (!$periode_fejl) {
+			include_once(__DIR__ . '/../includes/updateFollowingOpeningBalances.php');
+			if (openingCarryHasFollowingYear($regnaar)) {
+				try {
+					openingCarryLockBeforeTransaction(true);
+				} catch (OpeningCarryConflict $e) {
+					error_log('Saldi journal ' . (int)$kladde_id . ': ' . $e->getMessage());
+					$carryLockRefused = openingCarryConflictText($e, "Bogføringen er ikke gennemført, og intet er gemt: primo i de følgende regnskabsår kunne ikke låses mod samtidige opdateringer fra andre brugere. Bogfør igen.");
+				}
+			}
+		}
 		if ($periode_fejl) {
 			print "<BODY onLoad=\"javascript:alert('" . addslashes($periode_fejl) . "')\">";
+		} elseif ($carryLockRefused) {
+			$bogfor = false;
+			print "<script>alert(" . json_encode($carryLockRefused, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ");</script>";
 		} else {
 			transaktion('begin');
 			$postingError = bogfor($kladde_id, $kladdenote,'');
@@ -240,10 +301,16 @@ if ($_POST['bogfor'] || $_POST['simuler']) {
 			# persistere de foregaaende succesfulde statements som en delvis kladde.
 			if ($postingError || $db_modify_fejl) {
 				transaktion('rollback');
+				openingCarryUnlock();
 				$bogfor = false;
 				print "<BODY onLoad=\"javascript:alert('" . addslashes($postingError ?: "Bogfoering fejlede - databasen afviste transaktionen. Ingen posteringer er gemt.") . "')\">";
 			} else {
 				transaktion('commit');
+				// p1-pos-close-N1: the carry's lock stays held through the recalculations of the year: genberegn() here and
+				// again where the page shows the posted journal ("Kladden er bogført!"), which releases it. genberegn()
+				// rewrites every kontoplan row of the year; released before it, a POS day close waiting for the lock took
+				// its snapshot in between and failed on its own posting into that year with the database error box and a
+				// mail. Where the page does not get there, the end of the request releases it.
 				genberegn($regnaar);
 				equalizeMatchingRecords();
 				if ($popup) print "<BODY onLoad=\"javascript=opener.location.reload();\">";
@@ -282,7 +349,8 @@ $valutaposter=0;
 $dkkamount=array();
 if ($kladde_id) {
 	$posteringer=0;
-	$query = db_select("select * from kassekladde where kladde_id = $kladde_id and amount !=0 order by pos, bilag, transdate, id",__FILE__ . " linje " . __LINE__);
+	// A row with an amount but no account was refused at the top of the page, so the preview never deletes rows.
+	$query = db_select("select * from kassekladde where kladde_id = $kladde_id and amount !=0 order by bilag",__FILE__ . " linje " . __LINE__);
 	while ($row =	db_fetch_array($query)){
 		if ($row['debet']||$row['kredit']) {
 			$posteringer++;
@@ -303,7 +371,8 @@ if ($kladde_id) {
 			if (!$kredit[$posteringer]) $k_type[$posteringer]='F';
 			if ($row['valuta'] && $row['amount'] && ($row['debet']||$row['kredit']))  {
 				$valutaposter++;
-				list($dkkamount[$posteringer],$diffkonto,$valutakurs)=valutaopslag($amount[$posteringer],$row['valuta'],$row['transdate']);
+				// The same rate as bogfor() (postingLineAmounts()), so the preview of a reversal balances as its posting does.
+				list($dkkamount[$posteringer],$diffkonto,$valutakurs)=journalLineInBaseCurrency($amount[$posteringer],$row['valuta'],$row['transdate'],ifset($row,'ompost_id'));
 #				if ($row['debet']) $valutadiff=$valutadiff+$dkkamount[$posteringer];
 #				if ($row['kredit']) $valutadiff=$valutadiff-$dkkamount[$posteringer];
 #				$valutadiff=round($valutadiff+0.0001,3);
@@ -317,7 +386,7 @@ if ($kladde_id) {
 				$tjeksum[$y]=afrund($tjeksum[$y]-$dkkamount[$posteringer],3);
 				$kreditsum=$kreditsum+$dkkamount[$posteringer];
 			}
-		} else db_modify("delete from kassekladde where id='$row[id]'",__FILE__ . " linje " . __LINE__); 
+		}
 	}	
 } else {
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=$returside\">";
@@ -560,6 +629,10 @@ for ($y=1;$y<=$posteringer;$y++) {
 if (afrund($b_sum[$x],2)) $diffbilag[$y-1]=afrund($b_sum[$x],2);
 # <- 20131115
 $fejl=0; #20140228
+// p1-journal-J3h: a voucher with an invoice moved from Hent ordrer that does not balance in DKK on its own is not posted,
+// also when another such voucher makes up for it in the journal's total, so the button that posts is left out. Any
+// other journal is checked as before.
+$movedInvoiceRefusal = movedInvoiceRateMessage($kladde_id, false, true);
 if (saldi_assist_has_differences((float)$diff, $diffbilag)) { #20131115 ( || count($diffbilag))
 	print "<tr><td colspan=6><br>";
 	print "<table width=100% border=1><tbody>"; 
@@ -577,8 +650,12 @@ if (saldi_assist_has_differences((float)$diff, $diffbilag)) { #20131115 ( || cou
 		}
 	}
 	print "</tbody></table></td></tr>";
+	// 20261119 A voucher from Hent ordrer whose date's rate was changed after the move: the preview says why and what to do, as Simulér and Bogfør do. Text only, $fejl is unchanged.
+	if ($rateMessage = movedInvoiceRateMessage($kladde_id, false)) {
+		print "<tr><td align=center colspan=6>" . htmlspecialchars($rateMessage, ENT_QUOTES | ENT_SUBSTITUTE, $charset) . "</td></tr>";
+	}
 	#$fejl=1;
-	if (abs($diff)>=0.01) $fejl=1;
+	if (abs($diff)>=0.01 || $movedInvoiceRefusal) $fejl=1;
 } elseif ($b!=$c || abs($d_sum - $k_sum) >= 0.01) {
 echo "$b!=$c $d_sum != $k_sum<br>";
 	$message=$db." | Uoverensstemmelse i posteringssum | ".__FILE__ . " linje " . __LINE__." | ".$brugernavn." ".date("Y-m-d H:i:s");
@@ -590,11 +667,17 @@ echo "$b!=$c $d_sum != $k_sum<br>";
 	print "<tr><td colspan=6><br></td></tr><tr><td align=center colspan=6>$fejltext</td></tr>";
 	$fejl=1; #20140228
 }
+if ($movedInvoiceRefusal && !$fejl) { # p1-journal-J3h, where the preview did not list the voucher
+	print "<tr><td align=center colspan=6>" . htmlspecialchars($movedInvoiceRefusal, ENT_QUOTES | ENT_SUBSTITUTE, $charset) . "</td></tr>";
+	$fejl=1;
+}
 if (!$fejl) { #20140228
 	$query = db_select("select * from kladdeliste where id = $kladde_id and bogfort = 'V'",__FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) {
 		print "Kladden er bogført!";
 		genberegn($regnaar);
+		// The last recalculation of the year after a posting: the carry's lock is released now (p1-pos-close-N1).
+		if (function_exists('openingCarryUnlock')) openingCarryUnlock();
 		exit;	
 	}
 	for ($x=1;$x<=$debitorantal;$x++) {
@@ -675,7 +758,9 @@ if (!$fejl) { #20140228
 	print "<input type=hidden name=kladde_id value=$kladde_id>";
 	if ($funktion=='bogfor') {
 		$onclick="";
-		if (($sqdb=="saldi" || $sqdb=='gratis'|| $sqdb=='develop') && $max_posteringer && $max_posteringer<=8500 && $d_sum>0) {
+		// Not for accounts with a package from the self-service signup ($regnskab_pakke, includes/online.php): their
+		// postings follow the price list on saldi.dk, not this old "+1000 for kr. 30,-" offer, and sales handles more.
+		if (($sqdb=="saldi" || $sqdb=='gratis'|| $sqdb=='develop') && $max_posteringer && $max_posteringer<=8500 && $d_sum>0 && empty($regnskab_pakke)) {
 			$y=date('Y')-1;$m=date('m');$d=date('d');
 			while (!checkdate($m, $d, $y)) { #Skudår !
 				$d=$d-1;
@@ -725,19 +810,34 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 
 	($simuler)?$tabel='simulering':$tabel='transaktioner';
 	
+	// The callers run bogfor() inside transaktion('begin'). The journal row stays locked until that transaction
+	// ends, so a second request for the same journal waits here until the first has committed or rolled back.
+	// It then reads the committed bogfort and posts nothing when the journal has been posted meanwhile.
+	$qtxt="select bogfort from kladdeliste where id = ".(int)$kladde_id." for update";
+	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+	if ($r && trim((string)$r['bogfort'])=='V') {
+		return("Kladde ".(int)$kladde_id." er allerede bogført. Ingen posteringer er gemt.");
+	}
 	$r=db_fetch_array(db_select("select max(id) as id from transaktioner where kladde_id = $kladde_id",__FILE__ . " linje " . __LINE__));
 	if ($r['id']) {
 		print "<BODY onLoad=\"javascript:alert('Kladden er allerede bogført!')\">";
 		return("Kladden er allerede bogført");
 		exit;
 	}
+	// Refuse before anything is written: an unfinished row would otherwise be skipped and lost.
+	$unfinishedVouchers = unfinishedJournalVouchers($kladde_id);
+	if ($unfinishedVouchers) return unfinishedJournalMessage($unfinishedVouchers);
+	// p1-journal-J3h: a voucher with an invoice moved from Hent ordrer that does not balance in DKK on its own (the rate of
+	// its date was changed after the move) is refused, also when another such voucher makes up for it in the journal's
+	// total, which is all the checks below look at. Any other journal is checked as before.
+	if ($rateMessage = movedInvoiceRateMessage($kladde_id, true, true)) return $rateMessage;
 
 	$d_momsart=array(); $k_momsart=array();
 	if ($kladdenote) db_modify("update kladdeliste set kladdenote = '$kladdenote' where id = '$kladde_id'",__FILE__ . " linje " . __LINE__);
 	$y=0;
 	$v_antal=0;
 	$b_diff=$bv_diff=0;
-	$query = db_select("select * from kassekladde where kladde_id = $kladde_id order by pos, bilag, transdate, id",__FILE__ . " linje " . __LINE__);
+	$query = db_select("select * from kassekladde where kladde_id = $kladde_id order by bilag",__FILE__ . " linje " . __LINE__);
 	while ($row =	db_fetch_array($query)) {
 		if ($row['debet'] || $row['kredit']) {
 			$y++;
@@ -763,6 +863,9 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 			$ordre_id[$y]=$row['ordre_id']*1;
 			if (!isset ($valutakurs[$y])) $valutakurs[$y] = NULL;
 			if (!$valutakurs[$y]) $valutakurs[$y]=100;
+			// The rate the line is posted at goes on the line too, so a later Tilbagefør of it converts at that rate
+			// (reversedLineRate() in bogfor_includes/postingRules.php), also next to a line posted at another rate.
+			if (!$simuler) recordPostedLineRate($row, $valutakurs[$y]);
 			$transdate[$y]=$row['transdate'];
 			$forfaldsdate[$y]=$row['forfaldsdate'];
 			$betal_id[$y]=$row['betal_id'];
@@ -845,7 +948,7 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 			$logtime=date("H:i");
 			list ($x, $month, $x)=explode('-', $transdate[$y]);
 			if (!$afd[$y]){$afd[$y]=0;}
-		} elseif (!$row['debet'] && !$row['kredit'] && $row['id']) { #20170516
+		} elseif ($row['id'] && !journalRowHasContent($row)) { #20170516 - only rows without any content are dropped
 			db_modify("delete from kassekladde where id = '$row[id]'",__FILE__ . " linje " . __LINE__);
 		}
 	}
@@ -1065,6 +1168,8 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 					} 
 */					
 				} elseif (($kontokredit[$y] || $kontodebet[$y]) && !$b_diffkonto[$i] && $valuta[$i])  { #20131028 -- 20140228 tilføjet: && $valuta[$i
+				// 20261119 A voucher from Hent ordrer whose rate changed: the caller rolls back and shows why, as for the other refusals.
+				if ($rateMessage = movedInvoiceRateMessage($kladde_id)) return $rateMessage;
 				transaktion('rollback');
 				print "<BODY onLoad=\"javascript:alert('Manglende konto til valutadiffencer! (bilag: $b_bilag[$i])')\">";
 				exit;
@@ -1076,6 +1181,7 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 	$qtxt .= "FROM $tabel WHERE kladde_id=" . (int)$kladde_id;
 	$postedBalance = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	if (!$postedBalance || (float)$postedBalance['difference'] != 0.0) {
+		if ($rateMessage = movedInvoiceRateMessage($kladde_id)) return $rateMessage; # 20261119
 		$differenceText = $postedBalance ? dkdecimal($postedBalance['difference'], 3) : 'ukendt';
 		return "Kladde $kladde_id balancerer ikke efter bogføring (debet minus kredit: $differenceText). Ingen posteringer er gemt.";
 	}
@@ -1085,8 +1191,6 @@ function bogfor($kladde_id,$kladdenote,$simuler) {
 			$qtxt="update kladdeliste set bogfort = 'S', bogforingsdate = '$dato', bogfort_af = '$brugernavn' where id = '$kladde_id'";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		} else {
-			$qtxt="delete from kassekladde where debet='0' and kredit='0' and kladde_id='$kladde_id'";
-			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			$qtxt="update kladdeliste set bogfort = 'V', bogforingsdate = '$dato', bogfort_af = '$brugernavn' where id = '$kladde_id'";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			for ($x=1; $x<=$transtjek; $x++) {
@@ -1128,6 +1232,15 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 	$udlignet=0;
 	$udlign_date=$transdate;
 	$dato=date("Y-m-d");
+	// No project is stored as '' on journal lines but as '0' (or NULL) on invoices; all three mean no project.
+	// Trimmed once, so the stored value is the one matched here.
+	$projekt = trim((string)$projekt);
+	$projektSql = db_escape_string($projekt);
+	if (in_array($projekt, array('', '0'), true)) {
+		$projektMatch = "(projekt is null or projekt = '' or projekt = '0')";
+	} else {
+		$projektMatch = "projekt = '$projektSql'";
+	}
 	$belob=$amount*-1;
 	$debet=str_replace(" ","",$debet);
 	$qtxt = "select id from adresser where kontonr = '$debet' and art ='$art'";
@@ -1145,30 +1258,44 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 		
 # 20121122 >>and projekt='$projekt'<< indsat herunder.
 		if ($udlign_date<$transdate) $udlign_date=$transdate;
+		// Every invoice the Faktura field names is looked up before anything is settled. Keyed by id, so a
+		// reference listed twice ("A;A") is one post.
+		$matches = array();
+		$matchedSum = 0;
+		$groupDate = $transdate;
 		for ($x=0;$x<count($invoices);$x++) {
-			$qtxt = "select id,transdate from openpost where konto_id='$konto_id' and projekt='$projekt' and udlignet!='1' and ";
+			$qtxt = "select id,transdate,amount from openpost where konto_id='$konto_id' and $projektMatch and udlignet!='1' and ";
 			$qtxt.= " faktnr='$invoices[$x]'";
 			if (count($invoices) == 1) $qtxt.= " and amount >= '$min' and amount < '$max'";  
 			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-			if ($r = db_fetch_array($q)) {
+			if (($r = db_fetch_array($q)) && !isset($matches[(int)$r['id']])) {
+				$matches[(int)$r['id']] = true;
+				$matchedSum += (float)$r['amount'];
 # $udlign_date infort 2011.02.22 -udligningsdato skal altid vaere seneste dato. 
-				$udlign_date=$r['transdate'];
-				$qtxt = "update openpost set udlignet = '1',udlign_date= '$udlign_date',udlign_id='$udlign_id' ";
-				$qtxt.= "where id = '$r[id]'";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				// 20230626 -->
-				$qtxt = "insert into openpost
-				(konto_id,konto_nr,faktnr,amount,refnr,beskrivelse,udlignet,udlign_date,kladde_id,";
-				if ($forfaldsdate) $qtxt.= "forfaldsdate,betal_id,";
-				$qtxt.= "transdate,udlign_id,bilag_id,valuta,valutakurs,projekt) "; 
-				$qtxt.= "values ";
-				$qtxt.= "('$konto_id','$debet','$faktura','$amount','$bilag','$beskrivelse','1','$udlign_date','$kladde_id',";
-				if ($forfaldsdate) $qtxt.= "'$forfaldsdate','$betal_id',";
-				$qtxt.= "'$transdate','$udlign_id','$bilag_id','$valuta','$valutakurs','$projekt')";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				$udlignet=1;
-				// <-- 20230626
+				$groupDate = max($groupDate, (string)$r['transdate']); # The later of invoice and payment date
 			}
+		}
+		// The invoices settle only when they and the payment net to zero, within half an øre as for a single
+		// invoice. A short or excess "A;B" payment leaves every post open, so the unpaid rest stays listed.
+		if ($matches && $matchedSum >= $min && $matchedSum < $max) {
+			$groupDateSql = db_escape_string($groupDate);
+			// One udlign_id and the group's latest date for the invoices and the payment.
+			$qtxt = "update openpost set udlignet = '1',udlign_date= '$groupDateSql',udlign_id='$udlign_id' ";
+			$qtxt.= "where id in (" . implode(',', array_keys($matches)) . ")";
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+			// 20230626 -->
+			// The payment row is written once per payment, not once per settled invoice.
+			$qtxt = "insert into openpost
+			(konto_id,konto_nr,faktnr,amount,refnr,beskrivelse,udlignet,udlign_date,kladde_id,";
+			if ($forfaldsdate) $qtxt.= "forfaldsdate,betal_id,";
+			$qtxt.= "transdate,udlign_id,bilag_id,valuta,valutakurs,projekt) ";
+			$qtxt.= "values ";
+			$qtxt.= "('$konto_id','$debet','$faktura','$amount','$bilag','$beskrivelse','1','$groupDateSql','$kladde_id',";
+			if ($forfaldsdate) $qtxt.= "'$forfaldsdate','$betal_id',";
+			$qtxt.= "'$transdate','$udlign_id','$bilag_id','$valuta','$valutakurs','$projektSql')";
+			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+			$udlignet=1;
+			// <-- 20230626
 		}
 	}
 	if ($udlignet<1) {
@@ -1178,7 +1305,7 @@ function openpost($art,$debet,$bilag,$faktura,$amount,$beskrivelse,$transdate,$b
 		$qtxt.= "bilag_id,valuta,valutakurs,projekt)";
 		$qtxt.= " values ('$konto_id','$debet','$faktura','$amount','$bilag','$beskrivelse','0','$transdate','$kladde_id',";
 		if ($forfaldsdate) $qtxt.= "'$forfaldsdate','$betal_id',";
-		$qtxt.= "'$bilag_id','$valuta','$valutakurs','$projekt')";
+		$qtxt.= "'$bilag_id','$valuta','$valutakurs','$projektSql')";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	}
 }
@@ -1204,6 +1331,179 @@ function valutaopslag($amount, $valuta, $transdate)
 	return array($amount,$diffkonto,$kurs); # 3'die parameter tilfojet 2009.02.10
 }
 ######################################################################################################################################
+/**
+ * Whether a saved journal row holds anything typed besides its date and voucher number: a text, an amount
+ * or an invoice number. The date alone does not count, because saving the journal stamps a date on every
+ * row (opdater() in kassekladde.php), so a row the user has cleared still has one.
+ *
+ * @param array $row A kassekladde row.
+ * @return bool
+ */
+function journalRowHasContent($row) {
+	return trim((string)$row['beskrivelse']) !== '' || (float)$row['amount'] != 0 || trim((string)$row['faktura']) !== '';
+}
+######################################################################################################################################
+/**
+ * Voucher numbers of saved journal rows that have content but neither a debit nor a credit account.
+ * Posting skips such rows, so they must be completed or deleted before the journal is simulated or posted.
+ * The account test is the same one bogfor() uses to decide whether it posts a row.
+ *
+ * @param int|string $kladde_id Journal id (kladdeliste.id).
+ * @return int[] Distinct voucher numbers in ascending order, empty when no row is unfinished.
+ */
+function unfinishedJournalVouchers($kladde_id) {
+	$vouchers = array();
+	$qtxt = "select bilag, debet, kredit, amount, beskrivelse, faktura from kassekladde ";
+	$qtxt.= "where kladde_id = " . (int)$kladde_id . " order by bilag";
+	$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		if (!$r['debet'] && !$r['kredit'] && journalRowHasContent($r) && !in_array((int)$r['bilag'], $vouchers)) {
+			$vouchers[] = (int)$r['bilag'];
+		}
+	}
+	return $vouchers;
+}
+######################################################################################################################################
+/**
+ * Message refusing simulation/posting because of unfinished rows, in the database encoding like findtekst().
+ * Inside a <script> block print it through jsString(), which also converts it from a non-UTF8 database.
+ * bogfor() returns it as well and the posting branch prints that inside onLoad="...", so it holds no
+ * double quotes or line breaks.
+ *
+ * @param int[] $vouchers Voucher numbers from unfinishedJournalVouchers().
+ * @return string
+ */
+function unfinishedJournalMessage($vouchers) {
+	global $sprog_id;
 
-include_once '../includes/oldDesign/footer.php';
+	$txt = findtekst('5440|Kladden kan ikke bogføres. Følgende bilag har tekst eller beløb, men hverken debet- eller kreditkonto', $sprog_id);
+	$txt.= ': ' . implode(', ', $vouchers) . '. ';
+	$txt.= findtekst('5441|Udfyld kontoen, eller slet linjen ved at skrive - i bilagsfeltet.', $sprog_id);
+	return $txt;
+}
+######################################################################################################################################
+/**
+ * Message for a journal that cannot be simulated or posted because a voucher that Hent ordrer > Flyt til kladde wrote
+ * for a foreign-currency sales invoice no longer balances, typically because the rate table's rate for its date was
+ * changed after the move.
+ *
+ * Flyt til kladde (finans/hentordrer.php) writes such an invoice's customer line in the currency (its open item) and
+ * the revenue, VAT and rounding lines in DKK, at the rate table's rate of the invoice date, and it moves the invoice only
+ * when the voucher balances in DKK. Posting converts the customer line at the rate table's rate of its date as the table
+ * stands then. Once that rate is changed, the customer line no longer matches the DKK lines; bogfor() cannot write the
+ * difference as currency rounding (only a voucher whose currency amounts net to zero gets that) and refused the whole
+ * journal with "Manglende konto til valutadiffencer!" or as unbalanced, which pointed at the currency settings.
+ *
+ * A voucher counts when the lines of one order (kassekladde.ordre_id) are a customer line in a currency and DKK lines
+ * (no other currency line: a voucher Flyt til kladde wrote before 20261119 is in the currency throughout) and they do
+ * not balance in DKK at the rate posting uses (journalLineInBaseCurrency(), as postingLineAmounts()). When they balance
+ * at the order's rate (ordrer.valutakurs, the rate of the invoice date when it was invoiced), the move was made at that
+ * rate and the message names it and the rate now. Otherwise the rate was changed between invoicing and the move too,
+ * or the voucher's lines were edited, and the message says that one of the two changed. Either way deleting the
+ * voucher's lines and moving the invoice again writes it at the rate now.
+ *
+ * bogfor() refuses the journal with it, before it writes anything, whenever a voucher (kassekladde.bilag, with every
+ * journal line on it) that holds such an order does not balance in DKK on its own ($unbalancedVouchers). The journal's
+ * total does not show that when another such voucher is off by the opposite amount, as a moved invoice and its credit
+ * note are after the same rate correction, which was posted with each voucher off by its difference (p1-journal-J3h). A voucher
+ * whose other lines make up for the order's difference is posted as before, and so is every journal without such a
+ * voucher; where bogfor() refuses a journal for another reason, the message names every such order. The message holds
+ * no double quotes or line breaks (the posting branch prints it inside onLoad). The preview shows it as text where it
+ * lists vouchers with a difference, since Kassekladde's Simulér and Bogfør open the preview, and leaves out the button
+ * that posts where bogfor() would refuse.
+ *
+ * @param int|string $kladde_id Journal id (kladdeliste.id).
+ * @param bool $refused true when Simulér or Bogfør refuse the journal: the message ends with "Ingen posteringer er gemt.";
+ *                      false for the preview, which has posted nothing.
+ * @param bool $unbalancedVouchers true: only the orders whose voucher, with every line on it, does not balance in DKK.
+ * @return string The message, naming each such voucher and what to do, or '' when the journal has none.
+ */
+function movedInvoiceRateMessage($kladde_id, $refused = true, $unbalancedVouchers = false) {
+	$orders = array();
+	$qtxt = "select k.*, o.valutakurs as ordre_kurs from kassekladde k, ordrer o ";
+	$qtxt.= "where k.kladde_id = " . (int)$kladde_id . " and k.ordre_id > 0 and o.id = k.ordre_id order by k.ordre_id, k.id";
+	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		if (!$r['debet'] && !$r['kredit']) continue;
+		$o = (int)$r['ordre_id'];
+		if (!isset($orders[$o])) {
+			$orders[$o] = array('bilag' => $r['bilag'], 'faktura' => $r['faktura'], 'kurs' => (float)$r['ordre_kurs'], 'now' => 0, 'moved' => 0);
+			$orders[$o] += array('valuta' => 0, 'rate' => 0, 'transdate' => '', 'customer' => false, 'other' => false, 'dkk' => false, 'vouchers' => array());
+		}
+		$orders[$o]['vouchers'][(int)$r['bilag']] = 0;
+		$sign = ($r['debet'] ? 1 : 0) - ($r['kredit'] ? 1 : 0); # as bogfor() sums a voucher
+		if ($r['valuta'] && $r['amount']) {
+			list($dkkamount, , $rate) = journalLineInBaseCurrency($r['amount'], $r['valuta'], $r['transdate'], ifset($r, 'ompost_id'));
+			$orders[$o]['now'] += $sign * $dkkamount;
+			$orders[$o]['moved'] += $sign * afrund($r['amount'] * $orders[$o]['kurs'] / 100, 2);
+			$orders[$o]['valuta'] = (int)$r['valuta'];
+			$orders[$o]['rate'] = (float)$rate;
+			$orders[$o]['transdate'] = $r['transdate'];
+			if ((trim((string)$r['d_type']) == 'D' && $r['debet']) xor (trim((string)$r['k_type']) == 'D' && $r['kredit'])) $orders[$o]['customer'] = true;
+			else $orders[$o]['other'] = true;
+		} else {
+			$orders[$o]['now'] += $sign * $r['amount'];
+			$orders[$o]['moved'] += $sign * $r['amount'];
+			$orders[$o]['dkk'] = true;
+		}
+	}
+	$kurs = static function ($rate) {
+		return dkdecimal($rate, (afrund($rate, 2) == $rate) ? 2 : 3);
+	};
+	foreach ($orders as $o => $order) {
+		if (!$order['customer'] || $order['other'] || !$order['dkk'] || !$order['rate'] || !afrund($order['now'], 2)) unset($orders[$o]);
+	}
+	if ($unbalancedVouchers && $orders) {
+		// Every line on the vouchers that hold these orders, summed as bogfor() sums a voucher, at the rate posting uses.
+		$voucher = array();
+		foreach ($orders as $order) {
+			$voucher += $order['vouchers'];
+		}
+		$qtxt = "select * from kassekladde where kladde_id = " . (int)$kladde_id . " and bilag in (" . implode(',', array_keys($voucher)) . ")";
+		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$sign = ($r['debet'] ? 1 : 0) - ($r['kredit'] ? 1 : 0);
+			if (!$sign) continue;
+			if ($r['valuta'] && $r['amount']) list($dkkamount) = journalLineInBaseCurrency($r['amount'], $r['valuta'], $r['transdate'], ifset($r, 'ompost_id'));
+			else $dkkamount = (float)$r['amount'];
+			$voucher[(int)$r['bilag']] += $sign * $dkkamount;
+		}
+		foreach ($orders as $o => $order) {
+			$unbalanced = false;
+			foreach (array_keys($order['vouchers']) as $bilag) {
+				if (afrund($voucher[$bilag], 2)) $unbalanced = true;
+			}
+			if (!$unbalanced) unset($orders[$o]);
+		}
+	}
+	$txt = array();
+	foreach ($orders as $o) {
+		$difference = afrund($o['now'], 2);
+		$r = db_fetch_array(db_select("select box1 from grupper where art = 'VK' and kodenr = '" . $o['valuta'] . "'", __FILE__ . " linje " . __LINE__));
+		$valuta = trim((string)($r['box1'] ?? ''));
+		$dato = dkdato($o['transdate']);
+		$faktura = str_replace(array('"', "\r", "\n"), '', (string)$o['faktura']);
+		$differenceText = dkdecimal(abs($difference), 2);
+		if ($o['kurs'] && !afrund($o['moved'], 2) && abs($o['rate'] - $o['kurs']) >= 0.0005) {
+			$line = "Kursen for $valuta den $dato er ændret fra " . $kurs($o['kurs']) . " til " . $kurs($o['rate']) . ", efter at faktura $faktura";
+			$line.= " blev flyttet til kladden fra Hent ordrer (bilag " . $o['bilag'] . "), så bilaget ikke længere balancerer i DKK (difference $differenceText).";
+		} else {
+			$line = "Bilag " . $o['bilag'] . " med faktura $faktura er flyttet til kladden fra Hent ordrer og balancerer ikke længere i DKK med kursen ";
+			$line.= $kurs($o['rate']) . " for $valuta den $dato (difference $differenceText): kursen for den dato eller bilagets linjer er ændret, efter at fakturaen blev flyttet.";
+		}
+		$txt[] = $line;
+	}
+	if (!$txt) return '';
+	if (count($txt) == 1) $txt[] = "Slet bilagets linjer i kladden, så kommer fakturaen tilbage i Hent ordrer, og flyt den til kladden igen.";
+	else $txt[] = "Slet bilagenes linjer i kladden, så kommer fakturaerne tilbage i Hent ordrer, og flyt dem til kladden igen.";
+	if ($refused) $txt[] = "Ingen posteringer er gemt.";
+	return implode(' ', $txt);
+}
+######################################################################################################################################
+
+if ($menu=='T') {
+	include_once '../includes/topmenu/footer.php';
+} else {
+	include_once '../includes/oldDesign/footer.php';
+}
 ?>

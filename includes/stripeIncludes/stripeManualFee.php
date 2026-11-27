@@ -1,17 +1,11 @@
 <?php
-// 20261025 CL/ASR Fee for manual payment. An invoice that the customer paid manually - by bank transfer or with a
-//                 one-off card payment on the invoice & payment page ("Betal kun denne faktura") - adds the fee
-//                 product to the customer's next invoice. Automatic payment (card on file: the charge job, a saved
-//                 card, or a page payment that turned on automatic payment) and PBS are exempt. A customer who pays
-//                 automatically when the next invoice is made has pending fees waived. Each decision is stored in
-//                 stripe_manual_fees (charged | waived | exempt), so an invoice is decided at most once.
-//                 Settings (var_grp stripe): manual_fee_varenr = the fee product (empty = off), manual_fee_from =
-//                 first invoice date that counts. Only in the Stripe ledger with invoice payments and enrolment on,
-//                 so the customer can always avoid the fee by turning on automatic payment.
+// 20261025 CL/ASR Fee for manual payment. An invoice that the customer paid manually - by bank transfer or with a one-off card payment on the invoice & payment page ("Betal kun denne faktura") - adds the fee product to the customer's next invoice. Automatic payment (card on file: the charge job, a saved card, or a page payment that turned on automatic payment) and PBS are exempt. A customer who pays automatically when the next invoice is made has pending fees waived. Each decision is stored in stripe_manual_fees (charged | waived | exempt), so an invoice is decided at most once.
+//                 Settings (var_grp stripe): manual_fee_varenr = the fee product (empty = off), manual_fee_from = first invoice date that counts. Only in the Stripe ledger with invoice payments and enrolment on, so the customer can always avoid the fee by turning on automatic payment.
 // 20261026 CL/NTR Multi-ledger: applies in every ledger with Stripe, invoice payments and enrolment on (not in a copy).
 // 20261109 CL/ASR The fee-line insertion is the shared stripe_bogfor_add_fee_line(), also used for the reminder fee of link reminders (stripeReminder.php); the order check is stripe_manual_fee_order_chargeable().
 //                 Same behaviour.
 // 20261109 CL/ASR The fee line gets the order's project (as ordre.php gives every line the order's project), so bogfor_nu() sees one project and the open item keeps it.
+// 20261126 CL/ASR Review round 1 (I13): no fee on an order with Kontant or Kreditkort terms (paid at once), as the reminder fee hook (stripe_reminder_fee_bogfor()) does; the fee waits for an invoice on account.
 
 require_once __DIR__ . '/stripeSettings.php';
 
@@ -127,8 +121,10 @@ function stripe_manual_fee_decide($orderId) {
 	$none = array('charge' => array(), 'waive' => array(), 'exempt' => array(), 'vare' => null);
 	$cfg = stripe_manual_fee_config();
 	if (!$cfg) return $none;
-	$o = db_fetch_array(db_select("select id, art, konto_id, udskriv_til, pbs from ordrer where id = " . (int)$orderId, __FILE__ . " linje " . __LINE__));
+	$o = db_fetch_array(db_select("select id, art, konto_id, udskriv_til, pbs, betalingsbet from ordrer where id = " . (int)$orderId, __FILE__ . " linje " . __LINE__));
 	if (!$o || $o['art'] !== 'DO' || (int)$o['konto_id'] <= 0) return $none;
+	// A cash or card sale is paid at once (also a webshop order paid at checkout): the fee waits for an invoice on account.
+	if (in_array(strtolower(trim((string)$o['betalingsbet'])), array('kontant', 'kreditkort'), true)) return $none;
 	if (!stripe_manual_fee_order_chargeable($orderId)) return $none;
 	$pending = stripe_manual_fee_pending((int)$o['konto_id'], (int)$o['id'], $cfg['from']);
 	$decision = array('charge' => array(), 'waive' => array(), 'exempt' => $pending['exempt'], 'vare' => $cfg['vare']);

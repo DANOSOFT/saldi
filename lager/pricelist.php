@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------lager/pricelist.php--- lap 4.0.1 --- 2025-05-03 ----
+// -----------------lager/pricelist.php--- ver 5.1.1 --- 2026-11-13 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst()
@@ -28,7 +28,10 @@
 // 20260711 SZ Added Grid Framework sticky header+footer with pagination and internal-scroll grid
 // 20260711 SZ Fixed duplicate entries in Category dropdown: grupper has one row per fiscal_year,
 //             the VG group queries were missing that filter (same fix pattern as rapport.php/lagerstatus.php)
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261105 CL/LH The CSV, Printvenlig and page links send the filter URL-encoded, with an unticked box as 0, so after a page link they keep Vis antal and every other choice.
+//                The grid's CSV link keeps the page and Linjer pr. side.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
  
 @session_start();
 $s_id=session_id();
@@ -61,12 +64,10 @@ $custom_text		= "";
 $varegruppe = if_isset($_GET['varegruppe']);
 if ($varegruppe == "0:Alle") $varegruppe=NULL;
 else {
-	saldi_setcookie("saldi_pricelist", $varegruppe);
+	setcookie("saldi_pricelist", $varegruppe);
 	$returside="rapport.php?varegruppe=$varegruppe";
 }
 // 20260714 SZ - GET baseline (covers pagination/back-button/direct-link navigation - a plain GET
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 // request with no $_POST at all) first, then an actual search-form submit (POST) overlays on top -
 // same GET-first/POST-overlay shape as includes/salgsstat.php's input handling. Replaces the previous
 // if($_POST)/elseif($_GET csv|autoprint)/elseif(default) fork, whose gaps meant every filter below
@@ -98,7 +99,7 @@ if (isset($_POST['submit'])) {
 	$show_salgspris 	= $_POST['show_salgspris'];
 	$show_retail_price  = $_POST['show_retail_price'];
 	$custom_text  		= $_POST['custom_text'];
-	saldi_setcookie("saldi_pricelist", $varegruppe);
+	setcookie("saldi_pricelist", $varegruppe);
 } elseif (!$varegruppe)  {
 	$varegruppe=($_COOKIE['saldi_pricelist']);
 	if (!$varegruppe) $varegruppe="0:Alle";
@@ -176,9 +177,40 @@ while ($r2=db_fetch_array($q2)){
 }
 $vareantal=$x;
 
-$url_part = "varegruppe=$varegruppe&lagervalg=$lagervalg&zero_stock=$zero_stock&show_all_products=$show_all_products&show_kostpris=$show_kostpris&show_antal=$show_antal&show_enhed=$show_enhed&show_tier_price=$show_tier_price&show_salgspris=$show_salgspris&show_retail_price=$show_retail_price&custom_text=".urlencode($custom_text)."";
+// The filter for the CSV, Printvenlig and page links ($plBaseUrl). It is built before the form below
+// turns each checkbox's variable into its checked='checked' markup, and every value is URL-encoded:
+// that raw quote ended the links' href, so after a page link the CSV and Printvenlig lost Vis antal and
+// every choice after the first ticked box. An unticked box goes as 0, so a column that is on by
+// default stays off.
+$url_part = http_build_query(array(
+	'varegruppe'        => $varegruppe,
+	'lagervalg'         => $lagervalg ?? '',
+	'zero_stock'        => $zero_stock ? 1 : 0,
+	'show_all_products' => $show_all_products ? 1 : 0,
+	'show_kostpris'     => $show_kostpris ? 1 : 0,
+	'show_antal'        => $show_antal ? 1 : 0,
+	'show_enhed'        => $show_enhed ? 1 : 0,
+	'show_tier_price'   => $show_tier_price ? 1 : 0,
+	'show_salgspris'    => $show_salgspris ? 1 : 0,
+	'show_retail_price' => $show_retail_price ? 1 : 0,
+	'custom_text'       => $custom_text,
+));
 
 $plGridMode = ($menu=='S' && !$autoprint);
+
+// Before the title bar, so the grid's CSV link can keep the page and Linjer pr. side.
+if ($plGridMode) {
+	$plValidPageSizes = array(50,100,250,500,100000);
+	$plPerPage = (int) (isset($_GET['pl_per_page']) ? $_GET['pl_per_page'] : 0);
+	if (!in_array($plPerPage, $plValidPageSizes)) $plPerPage = 50;
+	$plPage = (int) (isset($_GET['pl_page']) ? $_GET['pl_page'] : 0);
+	if ($plPage < 1) $plPage = 1;
+	$plTotalRows = $vareantal;
+	$plTotalPages = max(1, ceil($plTotalRows / $plPerPage));
+	if ($plPage > $plTotalPages) $plPage = $plTotalPages;
+	$plPageStart = ($plPage - 1) * $plPerPage;
+	$plPageEnd = $plPageStart + $plPerPage;
+}
 
 if ($autoprint) {// Print friendly
 	print "<table border=0 cellpadding=0 cellspacing=0 width=100%><tbody>";
@@ -189,16 +221,22 @@ if ($autoprint) {// Print friendly
 
 } else {
 	if ($plGridMode) {
+		$plTilbageIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
 		print "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}</style>\n";
 		print "<div id='plPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
-		print "<div style='flex:0 0 auto;box-sizing:border-box;'>\n";
-		include_once("../includes/stdFunc/pageBar.php");
-		page_bar(array(
-			'title' => ucfirst(findtekst(2082, $sprog_id)),
-			'actions' => array(array('CSV', 'pricelist.php?csv=1&' . $url_part, 'bx-download')),
-			'back' => $returside,
-		));
-		if ($custom_text) print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody><tr><td width=100% align=center>"
+		print "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
+		print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody><tr>";
+
+		print "<td width='10%' align='left'><a href='$returside' accesskey=L>
+			   <button style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px; justify-content:flex-start; padding-left:3px;' onMouseOver=\"this.style.cursor='pointer'\">$plTilbageIcon".findtekst(30, $sprog_id)."</button></a></td>";
+
+		print "<td width='80%' align='center' style='$topStyle'>".ucfirst(findtekst(2082, $sprog_id))."</td>";
+
+		print "<td width='10%' align='center'><a href='pricelist.php?csv=1&".$url_part."&pl_page=$plPage&pl_per_page=$plPerPage' title='".findtekst(2084, $sprog_id)."'>
+			   <button style='$buttonStyle; width:100%; min-height:20px; display:flex; align-items:center; gap:5px; justify-content:center;' onMouseOver=\"this.style.cursor='pointer'\">CSV</button></a></td>";
+
+		print "</tr></tbody></table>\n";
+		if ($custom_text) print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody><tr><td width=100% style='$topStyle' align=center>"
 								 .$custom_text."</td></tr></tbody></table>\n";
 	} elseif ($menu=='S') {
 		print "<table border=0 cellpadding=0 cellspacing=0 width=100%><tbody>";
@@ -330,19 +368,6 @@ if ($show_salgspris) print "<td align=right width=8%>".findtekst(949, $sprog_id)
 if ($show_retail_price) print "<td align=right width=8%>".findtekst(2085, $sprog_id)."</td>";
 print "</tr>";
 
-if ($plGridMode) {
-	$plValidPageSizes = array(50,100,250,500,100000);
-	$plPerPage = (int) (isset($_GET['pl_per_page']) ? $_GET['pl_per_page'] : 0);
-	if (!in_array($plPerPage, $plValidPageSizes)) $plPerPage = 50;
-	$plPage = (int) (isset($_GET['pl_page']) ? $_GET['pl_page'] : 0);
-	if ($plPage < 1) $plPage = 1;
-	$plTotalRows = $vareantal;
-	$plTotalPages = max(1, ceil($plTotalRows / $plPerPage));
-	if ($plPage > $plTotalPages) $plPage = $plTotalPages;
-	$plPageStart = ($plPage - 1) * $plPerPage;
-	$plPageEnd = $plPageStart + $plPerPage;
-}
-
 if ($csv) {
 	$fp=fopen("../temp/$db/pricelist.csv","w");
 	$linje =	"Varenr".";".
@@ -423,18 +448,7 @@ if ($plGridMode) {
 	$plTxt2 = findtekst('2125|Linjer pr. side', $sprog_id);
 	$plOffsetFrom = $plTotalRows ? (($plPage - 1) * $plPerPage) + 1 : 0;
 	$plOffsetTo = min($plTotalRows, $plPage * $plPerPage);
-	$plBaseUrl = "pricelist.php?" . http_build_query(array(
-		'varegruppe' => $varegruppe,
-		'lagervalg' => $lagervalg,
-		'zero_stock' => $zero_stock,
-		'show_all_products' => $show_all_products,
-		'show_antal' => $show_antal,
-		'show_enhed' => $show_enhed,
-		'show_tier_price' => $show_tier_price,
-		'show_salgspris' => $show_salgspris,
-		'show_retail_price' => $show_retail_price,
-		'custom_text' => $custom_text,
-	));
+	$plBaseUrl = "pricelist.php?" . $url_part;
 	$plPrevIcon = '<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#000000"><path d="M560-240 320-480l240-240 56 56-184 184 184 184-56 56Z"/></svg>';
 	$plNextIcon = '<svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#000000"><path d="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/></svg>';
 

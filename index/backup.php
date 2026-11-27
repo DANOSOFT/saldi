@@ -1,6 +1,6 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"><html><head><title>SALDI - backup</title><meta http-equiv="content-type" content="text/html; charset=ISO-8859-1"></head>
 <?php
-// --------------------------------------/index/backup.php---lap 1.05----------------------------
+// --------------------------------------/index/backup.php---ver 5.1.1----------------------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -15,9 +15,9 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2006 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
   @session_start();
   $s_id=session_id();
   include("../includes/connect.php");
@@ -38,7 +38,7 @@
   print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
   print "<tr><td align=\"center\" valign=\"top\">";
   print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-  print "<td width=\"25%\" bgcolor=\"$bgcolor2\">$font<small><a href=\"$returside\" accesskey=L>Tilbage</a></small></td>";
+  print "<td width=\"25%\" bgcolor=\"$bgcolor2\">$font<small><a href=../includes/luk.php accesskey=T>Tilbage</a></small></td>";
   print "<td width=\"50%\" bgcolor=\"$bgcolor2\" align=\"center\">$font<small>Sikkerhedskopi</small></td>";
   print "<td width=\"25%\" bgcolor=\"$bgcolor2\" align = \"right\"></td>";
   print "</tbody></table>";

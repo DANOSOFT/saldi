@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/kontokort.php -----patch 5.0.0 ----2026-02-06------
+// --- systemdata/kontokort.php -----ver 5.1.1 ----2026-11-13------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 2013.02.10 Break ændret til break 1
@@ -35,12 +35,16 @@
 // 20220605 PHR - php8
 // 20250619 PHR - Somebody broke the code by omitting || in several if statements
 // 20260206	PHR	- discal_year
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20261006 Sawaneh Inactive groups and VAT codes (Indstillinger, inaktiv) are no longer offered in the dropdown.
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
-// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
-// 20261009 Sawaneh The record (kontonr + name, or Ny konto) as the last breadcrumb level (decision 22).
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261006 SS Inactive groups and VAT codes (Indstillinger, inaktiv) are no longer offered in the dropdown.
+// 20261031 CL/ASR The inactive-VAT-code filter is only added when grupper.inaktiv exists, so the page cannot fail on a database without the column.
+// 20261102 CL/ASR Opened from Kontoplan under Indstillinger (settings=1; owner, 2 Nov 2026: every page reached from the settings keeps the settings menu) the page shows the standard settings layout (includes/settings/layout.php): breadcrumb Indstillinger / Finans / Kontoplan / Kontokort, Tilbage to Kontoplan, previous, next and Ny above, the Finans group's menu with Kontoplan marked.
+//                 The form, the redirect after Gem and the way back to Kontoplan carry the marker on.
+//                 Opened from Finans > Kontoplan (no marker) the page is exactly as before.
+// 20261105 CL/LH A refused save (number below 1 or already taken) of a Drift or Status account draws the form again instead of a count() TypeError: Map til's standard accounts are read whenever the form shows Map til, not only for a saved account.
+//                The empty last line of importfiler/kontoplan.txt no longer warns Undefined array key.
+// 20261105 CL/LH The form a refused save draws again no longer warns Undefined variable $valutakurs, $slet, $previousPage and $nextPage: they start at 0 before the account load, so it shows no balance, no Slet and no arrows, as before.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 $title = "Kontokort";
@@ -66,6 +70,9 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/genberegn.php");
 include("../includes/topline_settings.php");
+include_once("../includes/settings/hub.php"); // settings_opened_from_settings()
+$fromSettings = settings_opened_from_settings(); // opened from Indstillinger: the settings layout, else the page as before
+$settingsMarker = $fromSettings ? '&settings=1' : ''; // on the page's own links
 
 $genvej = $kontotype = NULL; # ellers hentes typen fra connect.php  
 /*
@@ -264,7 +271,7 @@ if (isset($_POST['slet'])) {
 	genberegn($regnaar);
 
 	if ($id > 0) {
-		$redirect_url = "kontokort.php?id=" . intval($id);
+		$redirect_url = "kontokort.php?id=" . intval($id) . $settingsMarker;
 		if ($regnaar_return) $redirect_url .= "&regnaar="    . urlencode($regnaar_return);
 		if ($maaned_fra)     $redirect_url .= "&maaned_fra=" . urlencode($maaned_fra);
 		if ($maaned_til)     $redirect_url .= "&maaned_til=" . urlencode($maaned_til);
@@ -279,22 +286,10 @@ if (isset($_POST['slet'])) {
 		exit;
 	}
 }
+// Only the account load below sets these, and a refused save (number below 1 or taken) draws the form without it:
+// an account that is not saved has no neighbours, no Slet and no balance (a rate of 0 leaves the Saldo row empty).
+$previousPage = $nextPage = $slet = $valutakurs = 0;
 if ($id > 0) {
-	$tmpA = explode("\n",file_get_contents("../importfiler/kontoplan.txt"));
-	$d = $s = 0;
-	for ($i = 0;$i < count($tmpA);$i++) {
-		list($n,$b,$t) = explode(chr(9),$tmpA[$i],4);
-		if ($t == 'D') {
-			$stdDkt[$d]  = $n;
-			$stdDtxt[$d] = $b;
-			$d++;		
-		} elseif ($t == 'S') {
-			$stdSkt[$s]  = $n;
-			$stdStxt[$s] = $b;
-			$s++;		
-		}
-	}
-	
 	$q = db_select("select * from kontoplan where id = '$id'", __FILE__ . " linje " . __LINE__);
 	if ($r = db_fetch_array($q)) {
 		$id = $r['id'];
@@ -329,7 +324,7 @@ if ($id > 0) {
 	$resultatkonto = $r['id'] * 1;
 
 	if (!$kontonr) {
-		print "<META HTTP-EQUIV=REFRESH CONTENT=\"0; URL=kontoplan.php\">";
+		print "<META HTTP-EQUIV=REFRESH CONTENT=\"0; URL=kontoplan.php" . ($fromSettings ? '?settings=1' : '') . "\">";
 		exit;
 	}
 	$qtxt = "select * from grupper where kodenr='$regnaar' and art='RA'";
@@ -356,6 +351,24 @@ if ($id > 0) {
 	($r = db_fetch_array($q)) ? $slet = 0 : $slet = 1;
 
 }
+if ($kontotype == 'D' || $kontotype == 'S') {
+	// The standard accounts Map til offers, also when a refused save (number below 1 or taken) draws the form again without an id.
+	$stdDkt = $stdDtxt = $stdSkt = $stdStxt = array();
+	$tmpA = explode("\n",file_get_contents("../importfiler/kontoplan.txt"));
+	$d = $s = 0;
+	for ($i = 0;$i < count($tmpA);$i++) {
+		list($n,$b,$t) = array_pad(explode(chr(9),$tmpA[$i],4), 3, ''); // the file's last line is empty
+		if ($t == 'D') {
+			$stdDkt[$d]  = $n;
+			$stdDtxt[$d] = $b;
+			$d++;
+		} elseif ($t == 'S') {
+			$stdSkt[$s]  = $n;
+			$stdStxt[$s] = $b;
+			$s++;
+		}
+	}
+}
 /*
 if ($kontotype == 'H')
 	$kontotype = 'Overskrift';
@@ -371,17 +384,44 @@ elseif ($kontotype == 'X')
 	$kontotype = 'Sideskift';
 */
 
-if ($menu == 'S') {
-	include_once("../includes/stdFunc/pageBar.php");
-	if (function_exists('page_record')) print page_record($id ? trim((string) $kontonr . ' ' . (string) $beskrivelse) : findtekst('7006|Ny konto', $sprog_id));
-	page_bar(array(
-		'title' => findtekst('443|Kontokort', $sprog_id),
-		'primary' => array(findtekst('7006|Ny konto', $sprog_id), 'kontokort.php', 'accesskey' => 'N'),
-		'back' => 'kontoplan.php',
-	));
+if ($fromSettings) {
+	// The standard settings layout: Kontokort under Kontoplan (includes/stdFunc/pageRoutes.php), Tilbage to Kontoplan; the arrows and Ny of
+	// the old head are its buttons. The card itself is the old form, at the left of the content column.
+	include_once("../includes/settings/layout.php");
+	$cardActions = array();
+	if (!empty($previousPage)) {
+		$cardActions[] = array('label' => findtekst('2598|Forrige', $sprog_id), 'href' => "kontokort.php?id=$previousPage&settings=1", 'icon' => 'bx-chevron-left');
+	}
+	if (!empty($nextPage)) {
+		$cardActions[] = array('label' => findtekst('1200|Næste', $sprog_id), 'href' => "kontokort.php?id=$nextPage&settings=1", 'icon' => 'bx-chevron-right');
+	}
+	$cardActions[] = array('label' => findtekst('39|Ny', $sprog_id), 'href' => 'kontokort.php?settings=1', 'icon' => 'bx-plus', 'accesskey' => 'N');
+	settings_layout_open(array('actions' => $cardActions));
+	print "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+	print "<tr><td align=\"left\" valign=\"top\">";
+	print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
+} elseif ($menu == 'T') {
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	print "<div id=\"header\">";
+  print "<div class=\"headerbtnLft headLink\"><a href=kontoplan.php accesskey=L title='".findtekst('2551|Klik her for at komme tilbage', $sprog_id)."'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
+	print "<div class=\"headerTxt\">$title</div>";
+	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
+	print "</div>";
+	print "<div class='content-noside'>";
+	print "<center><table class='dataTableSmall' border='0' cellspacing='1' align='center' style='width:700px;'>";
+} elseif ($menu == 'S') {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td align=\"center\"  height=1% valign=\"top\">";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+
+	print "<tr><td width=\"10%\"><a href=kontoplan.php accesskey=L>
+       <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+
+  print "<td width=\"80%\" align='center' style='$topStyle'> ". findtekst('443|Kontokort', $sprog_id)."</td>";
+
+	print "<td width=\"10%\"><a href=kontokort.php accesskey=N>
+       <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('39|Ny', $sprog_id)."</button></a><br></td></tr>";
 
 	if ($previousPage)
 		print "<tr><td colspan=2><a href='kontokort.php?id=$previousPage'><img src=../ikoner/left.png style=\"border: 0px solid; width: 15px; height: 15px;\"></a></td>";
@@ -419,6 +459,9 @@ if ($menu == 'S') {
 
 
 print "<form name=kontokort action=kontokort.php method=post>";
+if ($fromSettings) {
+	print settings_marker_input();
+}
 print "<input type=hidden name=id value='$id'>";
 print "<input type=hidden name=valuta value='$valuta'>";
 print "<input type=hidden name=saldo value='$saldo'>";
@@ -511,8 +554,9 @@ if ($kontotype == 'D' || $kontotype == 'S') {
   print "<tr><td>" . findtekst('1095|Momssats', $sprog_id) . ":</td><td><br></td>";
 	print "<td colspan=2><SELECT NAME = 'moms' style = 'width:70px'>";
 	print "<OPTION>$moms</OPTION>\n";
+	$hasInactive = (bool) db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'grupper' and column_name = 'inaktiv'" . saldi_schema_filter(), __FILE__ . " linje " . __LINE__));
 	$qtxt = "select kode, kodenr from grupper ";
-	$qtxt.= "where (art = 'KM' or art = 'SM' or art = 'EM' or art = 'YM') and fiscal_year = '$regnaar' and coalesce(inaktiv, false) = false";
+	$qtxt.= "where (art = 'KM' or art = 'SM' or art = 'EM' or art = 'YM') and fiscal_year = '$regnaar'" . ($hasInactive ? " and coalesce(inaktiv, false) = false" : '');
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	if ($moms)
 		print "<OPTION></OPTION>\n";
@@ -600,7 +644,7 @@ print "</tbody>";
 print "</table>";
 print "</td></tr>";
 print "<tr><td align = 'center' valign = 'bottom'>";
-if ($menu == 'S') {
+if ($menu == 'T' || $menu == 'S' || $fromSettings) {
 
 } else {
 	print "<table width='100%' align='center' border='1' cellspacing='0' cellpadding='0'><tbody>";
@@ -609,7 +653,14 @@ if ($menu == 'S') {
 }
 print "</td></tr>";
 print "</tbody></table>";
+if ($fromSettings) {
+	settings_layout_close();
+}
 
-include_once '../includes/oldDesign/footer.php';
+if ($menu == 'T') {
+	include_once '../includes/topmenu/footer.php';
+} else {
+	include_once '../includes/oldDesign/footer.php';
+}
 
 ?>

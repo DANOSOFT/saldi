@@ -2,7 +2,7 @@
 <?php
   @session_start();
   $s_id=session_id();
- // -------------------includes/luk.php-----lap 3.1.67----2026.09.24------------------
+ // -------------------includes/luk.php-----ver 5.1.1----2026.11.26------------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -21,6 +21,9 @@
 // ------------------------------------------------------------------------------
 // 20260907 CDX/LH Restrict record unlocking to supported tables and escape refresh targets.
 // 20260910 Sawaneh Blocked-close fallback without returside goes to nav_back_url(), not the login page.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261126 ASR Review M1: when the window cannot close, the fallback waits while a Saldi message is open (javascript/saldi-dialog.js SaldiDialog.busy()), so a message carried into this page is read before it moves on.
+//              The meta refresh stays for a browser without script.
 ?>
 <head>
 
@@ -118,8 +121,11 @@ if ($popup || !$returside) {
 	// new-design iframe), fall back to the returside, else to the previous page
 	// from the nav stack - never to the login page.
 	$lukFallback = $returside ? $returside : nav_back_url();
+	// 20261126 ASR Review M1: after a second, and only once no Saldi message is open any more
+	$lukFallbackJs = json_encode((string)$lukFallback, JSON_INVALID_UTF8_SUBSTITUTE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
+	print "<script>(function (url) { function go() { if (window.SaldiDialog && SaldiDialog.busy && SaldiDialog.busy()) { setTimeout(go, 250); return; } location.replace(url); } setTimeout(go, 1000); })($lukFallbackJs);</script>";
 	$lukFallback = htmlspecialchars($lukFallback, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-	print "<meta http-equiv=\"refresh\" content=\"1;URL=$lukFallback\">";
+	print "<noscript><meta http-equiv=\"refresh\" content=\"1;URL=$lukFallback\"></noscript>";
 } elseif ($returside) {
 	$returside = htmlspecialchars($returside, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=$returside\">";

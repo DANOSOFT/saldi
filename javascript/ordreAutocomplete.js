@@ -363,7 +363,19 @@
         console.log('window.location.search:', window.location.search);
 
         // Set value of the imput to selected value - moved from individual statements in type if statement
-        input.value = value;
+        // SST-918 The form is submitted, not redirected to redirectUrl, so the item has to reach
+        // ordre.php through the posted vare0 field: a variant row posts its variant barcode (the
+        // parent varenr alone was refused), and a pick in beskrivelse0 goes into vare0 with the
+        // description cleared, so it is not saved as a text line holding the varenr.
+        const vsc = selected.dataset.vsc;
+        const vareInput = (type === 'item' && input.name === 'beskrivelse0' && input.form)
+            ? input.form.querySelector('input[name="vare0"]') : null;
+        if (vareInput) {
+            vareInput.value = vsc || value;
+            input.value = '';
+        } else {
+            input.value = (type === 'item' && vsc) ? vsc : value;
+        }
 
         if (type === 'item') {
             const urlParams = new URLSearchParams(window.location.search);
@@ -412,7 +424,6 @@
                 redirectUrl += `konto_id=${kontoId}&`;
             }
             redirectUrl += `vare_id=${id}`;
-            const vsc = selected.dataset.vsc;
             if (vsc) redirectUrl += `&vsc=${encodeURIComponent(vsc)}`;
 
             console.log('FINAL redirectUrl:', redirectUrl);

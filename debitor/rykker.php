@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------debitor/rykker.php---------ver 5.0.0-------2026-11-11--------
+// -----------debitor/rykker.php---------ver 5.1.1-------2026-11-27--------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,12 +29,18 @@
 // 20210701 - LOE - Translated some of these texts from Danish to English and Norsk
 // 20211110 MSC - Implementing new design
 // 20230228 PHR Implementing formular language $formularsprog, $newFormLanguage & FormLangId
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261109 CL/ASR Link reminders: a marker shows how the reminder fee is handled ("Linkrykker · gebyr på næste faktura" etc.).
 //                 Unticking "Send pr. mail" on a draft link reminder, or switching it to another language or currency, makes it a classic reminder.
 //                 "Frafald rykkergebyr" (with a session CSRF token) waives a carried fee that is not charged yet.
 // 20261109 CL/ASR Review fixes: a booked draft link reminder stays a link reminder (stripe_reminder_unregister()); "Frafald rykkergebyr" is stripe_reminder_waive_request(); the reminder id and line ids are cast to integers; texts are escaped in the page's charset; the e-mail helper is included with __DIR__.
 // 20261111 CDX/ASR Exclude carried fees and skipped invoices from the displayed total.
+// 20261126 CL/ASR Stripe port (#1098): link reminder marker, "Frafald rykkergebyr", unregister on classic switch and the total without carried fees, from the source above.
+//                 This line keeps its top-menu ($menu=='T') branches; the marker and the waive button are shown in both layouts.
+// 20261126 ASR Review I4: the form posts thisDb, the ledger it was drawn in, and Udskriv and Send pass it on to rykkerprint.php, which checks it.
+// 20261126 ASR Review GPT-R-9: the reminder's recipients and the customer's reminder contacts are merged by getReminderEmails(), which reminder creation uses too.
+// 20261126 ASR Review AR2-1: a reminder that no longer exists, or an id that is not a reminder, gives the message "Rykkeren findes ikke længere." (8230) and goes back to the report.
+// 20261126 ASR Review LR2-5: Inkasso passes thisDb on to inkassoprint.php, which checks it.
+// 20261127 CL/ASR Comments state the current rule; no code change.
 
 @session_start();
 $s_id=session_id();
@@ -59,6 +65,17 @@ $inkasso=if_isset($_POST['inkasso']);
 $mail_fakt=if_isset($_POST['mail_fakt']);
 $submit=if_isset($_POST['submit']);
 $rykker_id = (int)($_GET['rykker_id'] ?? 0);   // 20261109 CL/ASR an integer, it goes into SQL and the page
+
+// 20261126 ASR Review AR2-1: a reminder that no longer exists (deleted with Slet, Slet valgte or "Ryk alle"), or an id that is not
+// a reminder, is neither changed nor shown: a message, then back to the report.
+include_once(__DIR__ . '/../includes/reminderLegal.php');
+include_once(__DIR__ . '/../includes/formFuncIncludes/reminderMailDelivery.php');
+$reminderGone = static function (int $id): void {
+	if ($id <= 0 || db_fetch_array(db_select("select id from ordrer where id = " . (int)$id . " and art like 'R%'", __FILE__ . " linje " . __LINE__))) return;
+	print formReminderAlertThenGo(array(reminder_txt(8230, 'Rykkeren findes ikke længere.')), 'rapport.php?rapportart=openpost');
+	exit;
+};
+$reminderGone($rykker_id);
 
 // 20261109 CL/ASR "Frafald rykkergebyr" on a link reminder (stripe_reminder_waive_request()); answered with an alert
 if ($rykker_id && isset($_POST['frafald']) && function_exists('stripe_reminder_waive_request')) {
@@ -191,12 +208,14 @@ if ($submit || $inkasso) {
 			$qtxt="select box9 from grupper where art = 'DIV' and kodenr = '4'";
 			$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			if ($r['box9'] && is_numeric($r['box9'])) {
-				print "<meta http-equiv=\"refresh\" content=\"0;URL=inkassoprint.php?rykker_id=$rykker_id&inkasso=$r[box9]\">";
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=inkassoprint.php?rykker_id=$rykker_id&inkasso=" . (int)$r['box9'];
+				print "&thisDb=" . rawurlencode(is_string($_POST['thisDb'] ?? null) ? $_POST['thisDb'] : '') . "\">"; # 20261126 ASR Review LR2-5
 				exit;
 			} 
 		} else {
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=rykkerprint.php?";
-			print "rykker_id=$rykker_id&rykkernr=$rykkernr&kontoantal=1&formularsprog=$formularsprog\">";
+			print "rykker_id=$rykker_id&rykkernr=$rykkernr&kontoantal=1&formularsprog=$formularsprog";
+			print "&thisDb=" . rawurlencode(is_string($_POST['thisDb'] ?? null) ? $_POST['thisDb'] : '') . "\">"; # 20261126 ASR Review I4
 		}
 	} elseif (strstr($submit,"Tilbage")) {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=rapport.php?rapportart=openpost\">";
@@ -208,6 +227,7 @@ if ($submit || $inkasso) {
 	
 $linkRow = null;   // 20261109 CL/ASR the stripe_reminders row of a link reminder, read below
 if ($rykker_id) {
+	$reminderGone((int)$rykker_id);   // 20261126 ASR Review AR2-1: also for an id the form posted
 	$query = db_select("select * from ordrer where id = '$rykker_id'",__FILE__ . " linje " . __LINE__);
 	$row = db_fetch_array($query);
 	$konto_id = $row['konto_id'];
@@ -219,14 +239,9 @@ if ($rykker_id) {
 	$bynavn = htmlentities($row['bynavn'],ENT_COMPAT,$charset);
 	$land = htmlentities($row['land'],ENT_COMPAT,$charset);
 	$kontakt = htmlentities($row['kontakt'],ENT_COMPAT,$charset);
-	$email = htmlentities($row['email'],ENT_COMPAT,$charset);
-	// Combine order email with rykker-specific kontakt_emails
+	// Combine order email with rykker-specific kontakt_emails (20261126 ASR Review GPT-R-9: the helper reminder creation uses too)
 	include_once(__DIR__ . '/../includes/stdFunc/getKontaktEmail.php');
-	$ke_rykker = getAllKontaktEmails($konto_id, 'rykker');
-	if ($ke_rykker) {
-		$all = array_filter(array_map('trim', preg_split('/[;,]/', $email . ';' . $ke_rykker)));
-		$email = htmlentities(implode(';', array_unique($all)), ENT_COMPAT, $charset);
-	}
+	$email = htmlentities(getReminderEmails($konto_id, (string)$row['email']), ENT_COMPAT, $charset);
 	$valuta = htmlentities($row['valuta'],ENT_COMPAT,$charset);
 	$mail_fakt = htmlentities($row['mail_fakt'],ENT_COMPAT,$charset);
 	$kundeordnr = htmlentities($row['kundeordnr'],ENT_COMPAT,$charset);
@@ -270,17 +285,28 @@ if ($rykker_id) {
 	exit;
 }
 
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-print "<tr><td align=\"center\" valign=\"top\">";
-print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-print "<td width=\"10%\" $top_bund><a href=rapport.php?rapportart=openpost accesskey=L>".findtekst(30,$sprog_id)."</a></td>";
-if ($felt_5=='inkasso') print "<td width=\"80%\" $top_bund>".findtekst(1144,$sprog_id)."</td>";
-else print "<td width=\"80%\" $top_bund>".findtekst(1143,$sprog_id)."</td>";
-print "<td width=\"10%\" $top_bund><br></td>";
-print "</tbody></table>";
-print "</td></tr>";
-print "<td align = center valign = top>";
-print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"1\"><tbody>";
+if ($menu=='T') {
+	include_once '../includes/topmenu/header.php';
+	if ($felt_5=='inkasso') {
+		print "<div class='$kund'>".findtekst(1143,$sprog_id)."</div>";
+	} else {
+		print "<div class='$kund'>".findtekst(1143,$sprog_id)."</div>";
+	}
+	print "<div class='content-noside'>";
+	print "<div class='dataTablediv'>"; 
+} else {
+	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+	print "<tr><td align=\"center\" valign=\"top\">";
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+	print "<td width=\"10%\" $top_bund><a href=rapport.php?rapportart=openpost accesskey=L>".findtekst(30,$sprog_id)."</a></td>";
+	if ($felt_5=='inkasso') print "<td width=\"80%\" $top_bund>".findtekst(1144,$sprog_id)."</td>";
+	else print "<td width=\"80%\" $top_bund>".findtekst(1143,$sprog_id)."</td>";
+	print "<td width=\"10%\" $top_bund><br></td>";
+	print "</tbody></table>";
+	print "</td></tr>";
+	print "<td align = center valign = top>";
+	print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"1\"><tbody>";
+}
 
 $x=0;
 $valutakode[$x]='DKK';
@@ -293,6 +319,7 @@ while ($r=db_fetch_array($q)){
 }
 
 print "<form name=\"rykker\" action=\"rykker.php?rykker_id=$rykker_id\" method=\"post\">";
+print "<input type='hidden' name='thisDb' value='" . htmlspecialchars((string)$db, ENT_QUOTES, $charset) . "'>"; # 20261126 ASR Review I4: the ledger this page was drawn in
 print "<input type = 'hidden' name='formularsprog' value=\"$formularsprog\">";
 print "<input type = 'hidden' name='rykker_id'     value=\"$rykker_id\">";
 print "<input type = 'hidden' name='rykkernr'      value=\"$rykkernr\">";
@@ -301,52 +328,107 @@ print "<input type = 'hidden' name='felt_5'        value=\"$felt_5\">"; #2107030
 print "<input type = 'hidden' name='csrf_token'    value=\"" . htmlspecialchars((string)$_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8') . "\">"; # 20261109 CL/ASR
 
 $ordre_id=if_isset($id);
-print "<tr><td width=50%><table cellpadding=0 cellspacing=0 border=0 width=100%>";
-print "<tr><td width=100><b>".findtekst(804,$sprog_id)."</td><td width=100>$kontonr</td></tr>\n";
-print "<tr><td><b>".findtekst(360,$sprog_id)."</td><td>$firmanavn</td></tr>\n";
-print "<tr><td><b>".findtekst(648,$sprog_id)."</td><td>$addr1</td></tr>\n";
-print "<tr><td></td><td>$addr2</td></tr>\n";
-print "<tr><td><b>".findtekst(549,$sprog_id)."</td><td>$postnr $bynavn</td></tr>\n";
-print "<tr><td><b>".findtekst(364,$sprog_id)."</td><td>$land</td></tr>\n";
-
-print "<tr><td><b>Att.:</td><td><input type=text name=kontakt size = \"20\" class=\"inputbox\" value=\"$kontakt\"></td></tr>\n";
-print "<tr><td><b>e-mail</td><td><input type=text name=email size = \"20\" class=\"inputbox\" value=\"$email\"></td></tr>\n";
-print "</tbody></table></td>";
-print "<td width=50%><table cellpadding=0 cellspacing=0 border=0 width=100%>";
-print "<tr><td><b>".findtekst(48,$sprog_id)."</td><td>$cvrnr</td></tr>\n";
-print "<tr><td><b>EAN.nr</td><td>$ean</td></tr>\n";
-print "<tr><td><b>Institution</td><td>$institution</td></tr>\n";
-print "<tr><td width=100><b>Rykkerdato</td><td width=100>$ordredato</td></tr>\n";
-print "<tr><td><b>".findtekst(935,$sprog_id)."</td><td>$betalingsbet&nbsp;+&nbsp;$betalingsdage</td>";
-print "<tr><td><b>".findtekst(1097,$sprog_id)."</td><td>$ref</td></tr>\n";
-if ($mail_fakt=='on') $mail_fakt='checked';
-print "<tr><td><b>".findtekst(1145,$sprog_id)."</td><td><input type=checkbox name=mail_fakt $mail_fakt></td></tr>\n";
-if ($linkRow) { # 20261109 CL/ASR Linkrykker · gebyr på næste faktura / som åben post / frafaldet
-	print "<tr><td colspan=2><b>" . htmlspecialchars(stripe_reminder_marker((int)$rykker_id), ENT_QUOTES, $charset ?: 'UTF-8') . "</b></td></tr>\n";
-}
-print "<tr><td><b>".findtekst(1069,$sprog_id)."</b></td><td><select class=\"inputbox\" name=ny_valuta>";
-for ($x=0;$x<count($valutakode);$x++) {
-	if ($valuta==$valutakode[$x]) print "<option title=\"$valutabesk[$x]\" onchange=\"javascript:docChange = true;\">$valutakode[$x]</option>";
-}
-for ($x=0;$x<count($valutakode);$x++) {
-	if ($valuta!=$valutakode[$x]) print "<option title=\"$valutabesk[$x]\" onchange=\"javascript:docChange = true;\">$valutakode[$x]</option>";
-}
-print "</SELECT></td></tr>";
-$qtxt = "select distinct sprog from formularer where sprog != 'Dansk'";
-if (db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-	print "<tr><td title=\"".findtekst(1468, $sprog_id)."\"><b>&nbsp;".findtekst(801, $sprog_id)."</b></span></td>\n";
-	print "<td><select class=\"inputbox\" style=\"width:130px\" name=\"newFormLanguage\" onchange='this.form.submit()'>\n";
-	print "<option>$formularsprog</option>\n";
-	$q=db_select("select distinct sprog from formularer order by sprog",__FILE__ . " linje " . __LINE__);
-	while ($r=db_fetch_array($q)) print "<option>$r[sprog]</option>\n";
-	print "</SELECT></td></tr>";
-} 
-
-print "</tbody></table></td>";
-print "</td></tr><tr><td align=center colspan=3><table cellpadding=0 cellspacing=0 border=1 width=100%><tbody>";
-print "<tr><td colspan=4></td></tr><tr>";
+if ($menu=='T') {
+	print "<table cellpadding=0 cellspacing=0 border=0 width=100% class='dataTableNTH'>";
+	print "<tr>";
+	print "<td width=25%><b>".findtekst(804,$sprog_id).".:</b></td><td width=25%>$kontonr</td><td class='table-border-right' width='1%'></td>";
+	print "<td width=24%><b>".findtekst(48,$sprog_id).":</b></td><td width=25%>$cvrnr</td>";
 	print "</tr>\n";
-	print "<td align=center><b>".lcfirst(findtekst(635,$sprog_id))."</td><td align=center><b>".findtekst(893,$sprog_id)."</td><td align=center><b>".lcfirst(findtekst(914,$sprog_id))."</td><td align=center><b>".findtekst(934,$sprog_id)." i $valuta</td>";
+	print "<tr>";
+	print "<td><b>".findtekst(360,$sprog_id).":</b></td><td>$firmanavn</td><td class='table-border-right' width='1%'></td>";
+	print "<td><b>EAN.nr.:</b></td><td>$ean</td>";
+	print "</tr>\n";
+	print "<tr>";
+	print "<td><b>".findtekst(648,$sprog_id).":</b></td><td>$addr1</td><td class='table-border-right' width='1%'></td>";
+	print "<td><b>Institution:</b></td><td>$institution</td>";
+	print "</tr>\n";
+	print "<tr>";
+	print "<td></td><td>$addr2</td><td class='table-border-right' width='1%'></td>";
+	print "<td><b>Rykkerdato:</b></td><td width=100>$ordredato</td>";
+	print "</tr>\n";
+	print "<tr>";
+	print "<td><b>".findtekst(549,$sprog_id).":</b></td><td>$postnr $bynavn</td><td class='table-border-right' width='1%'></td>";
+	print "<td><b>".findtekst(935,$sprog_id).":</b></td><td>$betalingsbet&nbsp;+&nbsp;$betalingsdage</td>";
+	print "</tr>\n";
+	print "<tr>";
+	print "<td><b>".findtekst(364,$sprog_id).":</b></td><td>$land</td><td class='table-border-right' width='1%'></td>";
+	print "<td><b>".findtekst(1097,$sprog_id).":</b></td><td>$ref</td>";
+	print "</tr>\n";
+	print "<tr>";
+	print "<td><b>Att.:</b></td><td><input type=text name=kontakt size = \"20\" class=\"inputbox\" value=\"$kontakt\"></td><td class='table-border-right' width='1%'></td>\n";
+	if ($mail_fakt=='on') $mail_fakt='checked';
+	print "<td><b>".findtekst(1145,$sprog_id).":</b></td><td><label class='checkContainerOrdreliste'><input type=checkbox name=mail_fakt $mail_fakt><span class='checkmarkOrdreliste'></span></label></td>";
+	print "</tr>\n";
+	if ($linkRow) { # 20261109 CL/ASR Linkrykker · gebyr på næste faktura / som åben post / frafaldet
+		print "<tr><td colspan=5><b>" . htmlspecialchars(stripe_reminder_marker((int)$rykker_id), ENT_QUOTES, $charset ?: 'UTF-8') . "</b></td></tr>\n";
+	}
+	print "<tr>";
+	print "<td><b>E-mail:</b></td><td><input type=text name=email size = \"20\" class=\"inputbox\" value=\"$email\"></td><td class='table-border-right' width='1%'></td>";
+	print "<td><b>".findtekst(1069,$sprog_id).":</b></td><td><select class=\"inputbox\" name=ny_valuta>";
+	for ($x=0;$x<count($valutakode);$x++) {
+		if ($valuta==$valutakode[$x]) print "<option title=\"$valutabesk[$x]\" onchange=\"javascript:docChange = true;\">$valutakode[$x]</option>";
+	}
+	for ($x=0;$x<count($valutakode);$x++) {
+		if ($valuta!=$valutakode[$x]) print "<option title=\"$valutabesk[$x]\" onchange=\"javascript:docChange = true;\">$valutakode[$x]</option>";
+	}
+	print "</SELECT></td>";
+	print "</tr>\n";
+	print "<tr><td colspan=10 class='border-hr-top'></td></tr>\n";
+	print "</tbody></table>";
+	print "<table cellpadding=0 cellspacing=0 border=0 width=100% class='dataTable'><thead>";
+} else {
+	print "<tr><td width=50%><table cellpadding=0 cellspacing=0 border=0 width=100%>";
+	print "<tr><td width=100><b>".findtekst(804,$sprog_id)."</td><td width=100>$kontonr</td></tr>\n";
+	print "<tr><td><b>".findtekst(360,$sprog_id)."</td><td>$firmanavn</td></tr>\n";
+	print "<tr><td><b>".findtekst(648,$sprog_id)."</td><td>$addr1</td></tr>\n";
+	print "<tr><td></td><td>$addr2</td></tr>\n";
+	print "<tr><td><b>".findtekst(549,$sprog_id)."</td><td>$postnr $bynavn</td></tr>\n";
+	print "<tr><td><b>".findtekst(364,$sprog_id)."</td><td>$land</td></tr>\n";
+
+	print "<tr><td><b>Att.:</td><td><input type=text name=kontakt size = \"20\" class=\"inputbox\" value=\"$kontakt\"></td></tr>\n";
+	print "<tr><td><b>e-mail</td><td><input type=text name=email size = \"20\" class=\"inputbox\" value=\"$email\"></td></tr>\n";
+	print "</tbody></table></td>";
+	print "<td width=50%><table cellpadding=0 cellspacing=0 border=0 width=100%>";
+	print "<tr><td><b>".findtekst(48,$sprog_id)."</td><td>$cvrnr</td></tr>\n";
+	print "<tr><td><b>EAN.nr</td><td>$ean</td></tr>\n";
+	print "<tr><td><b>Institution</td><td>$institution</td></tr>\n";
+	print "<tr><td width=100><b>Rykkerdato</td><td width=100>$ordredato</td></tr>\n";
+	print "<tr><td><b>".findtekst(935,$sprog_id)."</td><td>$betalingsbet&nbsp;+&nbsp;$betalingsdage</td>";
+	print "<tr><td><b>".findtekst(1097,$sprog_id)."</td><td>$ref</td></tr>\n";
+	if ($mail_fakt=='on') $mail_fakt='checked';
+	print "<tr><td><b>".findtekst(1145,$sprog_id)."</td><td><input type=checkbox name=mail_fakt $mail_fakt></td></tr>\n";
+	if ($linkRow) { # 20261109 CL/ASR Linkrykker · gebyr på næste faktura / som åben post / frafaldet
+		print "<tr><td colspan=2><b>" . htmlspecialchars(stripe_reminder_marker((int)$rykker_id), ENT_QUOTES, $charset ?: 'UTF-8') . "</b></td></tr>\n";
+	}
+	print "<tr><td><b>".findtekst(1069,$sprog_id)."</b></td><td><select class=\"inputbox\" name=ny_valuta>";
+	for ($x=0;$x<count($valutakode);$x++) {
+		if ($valuta==$valutakode[$x]) print "<option title=\"$valutabesk[$x]\" onchange=\"javascript:docChange = true;\">$valutakode[$x]</option>";
+	}
+	for ($x=0;$x<count($valutakode);$x++) {
+		if ($valuta!=$valutakode[$x]) print "<option title=\"$valutabesk[$x]\" onchange=\"javascript:docChange = true;\">$valutakode[$x]</option>";
+	}
+	print "</SELECT></td></tr>";
+	$qtxt = "select distinct sprog from formularer where sprog != 'Dansk'";
+	if (db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
+		print "<tr><td title=\"".findtekst(1468, $sprog_id)."\"><b>&nbsp;".findtekst(801, $sprog_id)."</b></span></td>\n";
+		print "<td><select class=\"inputbox\" style=\"width:130px\" name=\"newFormLanguage\" onchange='this.form.submit()'>\n";
+		print "<option>$formularsprog</option>\n";
+		$q=db_select("select distinct sprog from formularer order by sprog",__FILE__ . " linje " . __LINE__);
+		while ($r=db_fetch_array($q)) print "<option>$r[sprog]</option>\n";
+		print "</SELECT></td></tr>";
+	} 
+
+	print "</tbody></table></td>";
+	print "</td></tr><tr><td align=center colspan=3><table cellpadding=0 cellspacing=0 border=1 width=100%><tbody>";
+	print "<tr><td colspan=4></td></tr><tr>";
+}
+	print "</tr>\n";
+	if ($menu=='T') {
+		print "<th align=center class='text-center'><b>".lcfirst(findtekst(635,$sprog_id))."</th><th class='text-center' align=center><b>".findtekst(893,$sprog_id)."</th><th class='text-center' align=center><b>".lcfirst(findtekst(914,$sprog_id))."</th><th class='text-center' align=center><b>".findtekst(934,$sprog_id)." i $valuta</th><th></th>";
+		print "</thead><tbody>";
+	} else {
+		print "<td align=center><b>".lcfirst(findtekst(635,$sprog_id))."</td><td align=center><b>".findtekst(893,$sprog_id)."</td><td align=center><b>".lcfirst(findtekst(914,$sprog_id))."</td><td align=center><b>".findtekst(934,$sprog_id)." i $valuta</td>";
+	}
 	$x=0;
 	$sum=0;
 	$ialt=0;
@@ -415,9 +497,40 @@ print "<tr><td colspan=4></td></tr><tr>";
 		$x++;
 		print "<tr><td colspan=3><input class=\"inputbox\" type=\"text\" size=\"60\" name=\"ny_beskrivelse\"></td>";
 	}
-	print "<tr><td colspan=5><br></td></tr>\n";
+	if ($menu=='T') {
+		print "</tbody><tfoot>";
+	} else {
+		print "<tr><td colspan=5><br></td></tr>\n";
+	}
 	print "<tr><td align=right colspan=4>I alt ".dkdecimal($ialt,2)."</td><td></td></tr>";
-	print "</tbody></table></td></tr>\n";
+	if ($menu=='T') {
+		print "<tr><td align=center colspan=10><input type=submit value=\"".findtekst(1091,$sprog_id)."\" name=\"submit\">";
+
+		if ( strlen("which ps2pdf")) {
+			if ($mail_fakt) print "&nbsp;•&nbsp;<input type=submit value=\"Send\" name=\"submit\" onclick=\"return confirm('Send rykker som mail til $email?')\">"; 
+			else print "&nbsp;•&nbsp;<input type=submit value=\"".findtekst(880,$sprog_id)."\" name=\"submit\">";#20210701
+		} else {
+			if ($mail_fakt) print "&nbsp;•&nbsp;<input type=submit value=\"Send\" name=\"submit\" onclick=\"return confirm('Send rykker som mail til $email?') disabled=\"disabled\">"; 
+			else print "&nbsp;•&nbsp;<input type=submit value=\"".findtekst(880,$sprog_id)."\" name=\"submit\" disabled=\"disabled\">";
+		}
+		if (function_exists('stripe_reminder_waivable') && stripe_reminder_waivable($linkRow, $status)) { # 20261109 CL/ASR
+			$waiveConfirm = jsString(array(reminder_txt(8131, 'Frafald rykkergebyret på denne rykker?')));
+			print "&nbsp;•&nbsp;<input type=submit value=\"" . htmlspecialchars(reminder_txt(8130, 'Frafald rykkergebyr'), ENT_QUOTES, $charset ?: 'UTF-8') . "\" name=\"frafald\" onclick=\"return confirm(" . htmlspecialchars($waiveConfirm, ENT_QUOTES, 'UTF-8') . ")\">";
+		}
+		if ($status<3) {
+			db_modify("update ordrer set sum='$sum' where id='$rykker_id'",__FILE__ . " linje " . __LINE__);
+			print "&nbsp;•&nbsp;<input type=submit value=\"".findtekst(1146,$sprog_id)."\" name=\"submit\">";
+		} elseif ($inkasso == 1) {
+			print "&nbsp;•&nbsp;<input type='submit' value=\"Inkasso\" name=\"".findtekst(1147,$sprog_id)."\" onclick=\"return confirm('Send sagen til inkasso?')\">";
+		} elseif ($inkasso == 2) {
+			print "&nbsp;•&nbsp;<input type='submit' value=\"Inkasso\" name=\"".findtekst(1147,$sprog_id)."\" onclick=\"return confirm('Send sagen til inkasso igen?')\">";
+		}
+		print "</td></tr>";
+		print "</form>";
+		print "</tfoot></table></div>";
+		print "<center><input type='button' onclick=\"location.href='rapport.php?rapportart=openpost'\" accesskey='L' value='".findtekst(30,$sprog_id)."'></center>";
+	} else {
+		print "</tbody></table></td></tr>\n";
 		print "<tr><td align=center colspan=8>";
 		print "<table width=100% border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr>";
 #		print "<td align=center><input type=submit value=\"Tilbage\" name=\"submit\"></td>";
@@ -446,7 +559,12 @@ print "<tr><td colspan=4></td></tr><tr>";
 		print "</tbody></table>
 		</td></tr>
 		</tbody></table>";
+	}
 
-include_once '../includes/oldDesign/footer.php';
+if ($menu=='T') {
+	include_once '../includes/topmenu/footerDebRapporter.php';
+} else {
+	include_once '../includes/oldDesign/footer.php';
+}
 
 ?>

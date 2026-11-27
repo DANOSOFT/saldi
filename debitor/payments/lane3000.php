@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/payments/lane3000.php --- ver 5.0.0 --- 2026.10.08 ---
+// --- debitor/payments/lane3000.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -25,12 +25,13 @@
 // 20240209 PHR Added indbetaling
 // 20240227 PHR Added $printfile and call to saldiprint.php
 // 20260917 CDX/PHR Resolve receipt URLs through terminal aliases and separate popup arguments.
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261006 CL/LH SST-845: Stop logging the Nets login response body (it holds the bearer token) and the login itself in the
 //                 browser console; the log endpoint now takes the tenant from the session.
 // 20261007 CL/SZ SST-843 The Nets Connect@Cloud username and password are no longer written into the page or the console.
 //                The login and the transaction run in lane3000_proxy.php, so the bearer token stays on the server too.
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261103 CL/ASR QA: $permission_key is 'pos.kasse|debitor.ordre', so a till user (pos.kasse) can pay by terminal once enforcement is 'deny'.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 
@@ -46,7 +47,7 @@ header("Expires: 0");
 $css = "../../css/flatpay.css";
 
 include ("../../includes/connect.php");
-$permission_key = 'debitor.ordre';
+$permission_key = 'pos.kasse|debitor.ordre'; // the till (pos.kasse) and the order page both pay by terminal
 include ("../../includes/online.php");
 include ("../../includes/std_func.php");
 include ("../../includes/stdFunc/dkDecimal.php");

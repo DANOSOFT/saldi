@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/saft.php --- patch 4.1.1 --- 2026.06.15 ---
+// --- finans/saft.php --- ver 5.1.1 --- 2026.11.17 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,18 +21,18 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20240128 PHR Changed "AND transdate <= '$startDate'" to "AND transdate < '$startDate'" as opening balance 
 // included day 1.
 // 20250503 LOE reordered mix-up text_id from tekster.csv in findtekst() 
 // 20260615 LOE changed fax to mobile in company contact info, as fax is not used anymore.
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261002 NTR - Added null coalescing operator to $PostalCode to avoid undefined index notice when postnr is null.
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
-// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261117 CL/ASR Opening and closing balances start from the fiscal year's opening balance (kontoplan.primo of the status accounts), as kontoplan.saldo and the balance report do.
+//                 They were the year's postings only, which is wrong from the second year on and after an entered opening balance.
 @session_start();
 $s_id = session_id();
 $css = "../css/standard.css";
@@ -618,11 +618,18 @@ if ($kontoantal_check <= 0) {
 
 $regnskabsaarStartDato = $startaar . '-' . $regnskabsaarStartmaaned . '-01';
 for ($x = 1; $x <= $kontoantal; $x++) {
+	// The fiscal year's opening balance is not posted: it is kept in kontoplan.primo, for status accounts only
+	// (genberegn() resets it on the others). Both balances start from it, as kontoplan.saldo and the balance report do.
+	$primoBalance[$x] = 0;
+	$qtxt = "SELECT sum(primo) AS primo FROM kontoplan WHERE regnskabsaar = '$regnaar' AND kontotype = 'S' AND kontonr IN ($kontonr[$x])";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+		$primoBalance[$x] = (float) $r['primo'];
+	}
 	$qtxt = "SELECT sum(debet) AS debet, sum(kredit) AS kredit FROM transaktioner WHERE transdate >= '$regnskabsaarStartDato' AND transdate < '$startDate' AND kontonr IN ($kontonr[$x])";
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		$debetStart[$x] = $r['debet'];
 		$kreditStart[$x] = $r['kredit'];
-		$openingBalance[$x] = $debetStart[$x] - $kreditStart[$x];
+		$openingBalance[$x] = $primoBalance[$x] + $debetStart[$x] - $kreditStart[$x];
 		$openingDbCr[$x] = number_format(round($openingBalance[$x], 2), 2, '.', '');
 	}
 
@@ -634,7 +641,7 @@ for ($x = 1; $x <= $kontoantal; $x++) {
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		$debetSlut[$x] = $r['debet'];
 		$kreditSlut[$x] = $r['kredit'];
-		$closingBalance[$x] = $debetSlut[$x] - $kreditSlut[$x];
+		$closingBalance[$x] = $primoBalance[$x] + $debetSlut[$x] - $kreditSlut[$x];
 		$closingDbCr[$x] = number_format(round($closingBalance[$x], 2), 2, '.', '');
 	}
 
@@ -694,8 +701,29 @@ if (isset($_SESSION['fileName']) && isset($_SESSION['filePath'])) {
 
 if ($rapportart == "saft")
 	$newTitle = "SAF-T Financial Report";
-if ($menu == 'S') {
+if ($menu == 'T') {
+	$title = "Rapport • $newTitle";
+
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	
 	$backUrl = "rapport.php?rapportart=saft&regnaar=$regnaar&maaned_fra=$mf&aar_fra=$aar_fra&maaned_til=$mt&aar_til=$aar_til&dato_fra=$startdato&dato_til=$slutdato&konto_fra=$konto_fra&konto_til=$konto_til";
+	$leftbutton = "<a title=\"" . findtekst('30|Tilbage', $sprog_id) . "\" href=\"$backUrl\" accesskey='L' style='text-decoration: none;'><i class='fa fa-close fa-lg'></i> " . findtekst('30|Tilbage', $sprog_id) . "</a>";
+	$rightbutton = "";
+	
+	print "<div style=\"position: sticky; top: 0; z-index: 100;\">";
+	print "<div id=\"header\">";
+	print "<div class=\"headerbtnLft headLink\">$leftbutton</div>";
+	print "<div class=\"headerTxt\">" . findtekst(895, $sprog_id) . "</div>";
+	print "<div class=\"headerbtnRght headLink\">$rightbutton</div>";
+	print "</div>";
+	print "</div>"; // close sticky header
+	print "<div class='content-noside'>";
+	print "<table class='dataTable' border='0' cellspacing='1' width='100%'>";
+} elseif ($menu == 'S') {
+	$backUrl = "rapport.php?rapportart=saft&regnaar=$regnaar&maaned_fra=$mf&aar_fra=$aar_fra&maaned_til=$mt&aar_til=$aar_til&dato_fra=$startdato&dato_til=$slutdato&konto_fra=$konto_fra&konto_til=$konto_til";
+	
+	$tilbage_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
 	
 	// Get CVR number
 	$query = db_select("select cvrnr from adresser where art='S'", __FILE__ . " linje " . __LINE__);
@@ -703,9 +731,17 @@ if ($menu == 'S') {
 		$cvrnr = $row['cvrnr'];
 	}
 	
-	include_once("../includes/stdFunc/pageBar.php");
-	print "<div class='pg-sticky' style=\"position: sticky; top: 0; z-index: 100; background-color: $bgcolor;\">";
-	page_bar(array('title' => 'SAF-T Financial Reporting', 'back' => "javascript:confirmClose('$backUrl','')"));
+	// STICKY HEADER - Close button, title, empty space
+	print "<div style=\"position: sticky; top: 0; z-index: 100;\">";
+	print "<table bgcolor='#eeeef0' width='100%' cellpadding='0' cellspacing='4' border='0'><tbody>";
+	print "<tr>";
+	print "<td width=\"5%\" align='center'><a href=\"javascript:confirmClose('$backUrl','')\" accesskey=L style=\"text-decoration: none;\">";
+	print "<button class='headerbtn' type='button' style='$buttonStyle; width: 100%; display: flex; align-items: center; gap: 5px;' onMouseOver=\"this.style.cursor = 'pointer'\">";
+	print "$tilbage_icon " . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
+	print "<td width='90%' align='center' style='$topStyle'>SAF-T Financial Reporting</td>";
+	print "<td width='5%' align='center' style='$topStyle'>&nbsp;</td>";
+	print "</tr>";
+	print "</tbody></table>";
 	print "</div>";
 	
 	// Format dates
@@ -963,7 +999,11 @@ if ($standardKontoCheck != true) {
 	}
 </script>
 <?php
-include_once '../includes/oldDesign/footer.php';
+if ($menu == 'T') {
+	include_once '../includes/topmenu/footer.php';
+} else {
+	include_once '../includes/oldDesign/footer.php';
+}
 print "<!--Function regnskab slut-->\n";
 // }
 

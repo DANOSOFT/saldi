@@ -1,5 +1,5 @@
 <?php
-// -----------debitor/inkasso.php---------lap 3.6.7-------2017-03-03--------
+// -----------debitor/inkasso.php---------ver 5.1.1-------2026-11-26--------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,11 +18,12 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2017 DANOSOFT ApS
+// Copyright (c) 2017-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // Ikke færdig eller frigivet - måske en anden gang 
 // 20260814 CL/SZ SD-639: int-cast rykker_id before use in SQL; removed debug
 //                echo __line__ output.
+// 20261126 ASR Review I4: thisDb (the report's ledger) is passed on to rykkerprint.php, which checks it.
 
 @session_start();
 $s_id=session_id();
@@ -45,7 +46,8 @@ if (!$rykkerfil) {
 	$rykkernr=substr($art,1);
 	$formular=$rykkernr+5;
 #	if ($formular<6) $formular=6;
-	print "<meta http-equiv=\"refresh\" content=\"0;URL=rykkerprint.php?rykker_id=$rykker_id&inkasso=$rykker_id&kontoantal=1\">";
+	$thisDb = rawurlencode(is_string($_GET['thisDb'] ?? null) ? $_GET['thisDb'] : ''); # 20261126 ASR Review I4
+	print "<meta http-equiv=\"refresh\" content=\"0;URL=rykkerprint.php?rykker_id=$rykker_id&inkasso=$rykker_id&kontoantal=1&thisDb=$thisDb\">";
 }
 
 echo "Rykkerfil $rykkerfil<br>";

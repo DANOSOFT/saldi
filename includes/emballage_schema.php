@@ -1,5 +1,5 @@
 <?php
-// 20261019 Sawaneh Review 2 (PR #803): the information_schema checks are limited to this database/schema.
+// 20261019 SS Review 2 (PR #803): the information_schema checks are limited to this database/schema.
 function ensure_emballage_schema() {
 	$q = db_select("SELECT table_name FROM information_schema.tables WHERE table_name='emballage'" . saldi_schema_filter(), __FILE__ . " linje " . __LINE__);
 	if (!db_fetch_array($q)) {

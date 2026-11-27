@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/importer_adresser.php-----patch 4.0.8 ----2023-12-14--
+// --- systemdata/importer_adresser.php-----ver 5.1.1 ----2026-11-13--
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,9 +21,9 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------------------
-
+//
 // 2013.02.10 Break ændret til break 1
 // 2014.07.04 Ansatte og primær kontakt opdateres nu også ved opdatering 
 // 2014.08.11 se $find_kontakt... 
@@ -33,24 +33,35 @@
 // 20230702 PHR php8
 // 20231214 PHR Correceted text error and recognition of Lb.Md.
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar: title, Tilbage only outside the shell.
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261008 SS The page on the new page head (page_bar) instead of the blue bar: title, Tilbage only outside the shell.
+// 20261031 CL/ASR Tilbage goes to Indstillinger > Import & eksport (settingsSection.php?s=import_export.data), not via the old diverse.php?sektion=div_io redirect.
+// 20261101 CL/ASR Tilbage is the shared settings button above the title (settings_back_button(), css/saldi-kit.css), as on every settings page, instead of page_bar's link.
+//                 It goes to the settings page the user came from, or the hub; Alt+L kept.
+// 20261102 CL/ASR Tilbage goes to the hub, a fixed target, so it never loops between settings pages; settings_back_button() adds Alt+L itself.
+//                 The kit is linked as ?v=20261102.
+//                 The title is the name the Import & eksport page links it by, not "Importer_adresser".
+// 20261102 CL/ASR The standard settings layout (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026: every page reached from Indstillinger keeps the left menu).
+//                 The left menu of Finans with Import & eksport marked, Tilbage above the title back to Import & eksport, the breadcrumb Indstillinger / Finans / Import & eksport / this page.
+//                 The page's own Tilbage and page_bar title are gone; its form and steps are unchanged.
+//                 The div that centres the page's content opens inside the content column, so the title and the menu are not centred.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 $css="../css/standard.css";
 
 $title="Importer adresser";
-$returside="../includes/luk.php"; // WP-6.4: opened as a popup from diverse.php; Tilbage closes it
+$returside="settingsSection.php?s=import_export.data";
 include("../includes/connect.php");
 $permission_key = 'settings.import_export';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/topline_settings.php");
+// The standard settings layout (includes/settings/layout.php): Tilbage, the title and the left menu with the page's row marked.
+include_once("../includes/settings/layout.php");
+settings_layout_open();
 print "<div align=\"center\">";
 
-include_once("../includes/stdFunc/pageBar.php");
-page_bar(array('title' => findtekst(1385, $sprog_id), 'back' => $returside));
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1 
 print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
@@ -91,6 +102,7 @@ if($_POST) {
 }
 
 print "</tbody></table>";
+settings_layout_close();
 #####################################################################################################
 function upload(){
 
@@ -152,7 +164,7 @@ function vis_data($filnavn, $splitter, $feltnavn, $feltantal){
 		} else {
 			db_modify("insert into grupper(beskrivelse,kodenr,art,$box) values ('Importsettings','1','IMP','$tmp')",__FILE__ . " linje " . __LINE__);
 		}
-#	saldi_setcookie("saldi_debimp",$tmp,time()+60*60*24*30);
+#	setcookie("saldi_debimp",$tmp,time()+60*60*24*30);
 	} elseif ($r=db_fetch_array(db_select("select $box from grupper where art='IMP'",__FILE__ . " linje " . __LINE__))) {
 		$feltnavn=explode(";",$r[$box]);
 	} elseif (isset($_COOKIE['saldi_debimp'])) {

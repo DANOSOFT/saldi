@@ -1,7 +1,10 @@
 <?php
-// --- includes/docsIncludes/linkDocumentsApi.php --- 2025-12-11 ---
+// --- includes/docsIncludes/linkDocumentsApi.php --- 2026-11-10 ---
 // API endpoint for linking documents between kassekladde lines
 // Used by drag-and-drop functionality in kassekladde.php
+//
+// 20261026 CL/LH The linking moved to linkDocuments.php (linkLineDocuments()), which kassekladde.php uses too.
+// 20261110 CDX/ASR Require module write access before this mutation endpoint runs.
 
 @session_start();
 $s_id = session_id();
@@ -10,8 +13,10 @@ $header = 'nix';
 $bg = 'nix';
 $title = 'linkDocumentsApi';
 
-include("../connect.php");
-include("../online.php");
+include(__DIR__ . '/../connect.php');
+$permission_key = 'finans.kassekladde';
+$permission_level = 'write';
+include(__DIR__ . '/../online.php');
 
 // Clean any existing output buffers
 while (ob_get_level()) {
@@ -27,7 +32,7 @@ $toSourceId = isset($_POST['toSourceId']) ? intval($_POST['toSourceId']) : 0;
 $source = isset($_POST['source']) ? $_POST['source'] : 'kassekladde';
 
 // Validate parameters
-if ($action !== 'linkDocuments') {
+if ($action !== 'linkDocuments' || $source !== 'kassekladde') {
     echo json_encode(['success' => false, 'message' => 'Invalid action']);
     exit;
 }
@@ -42,49 +47,13 @@ if ($fromSourceId === $toSourceId) {
     exit;
 }
 
-// Get global_id from settings
-$globalId = 1;
-$qtxt = "SELECT var_value FROM settings WHERE var_name = 'globalId'";
-if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-    $globalId = $r['var_value'];
-}
-
 // Get user ID from session
 $userId = isset($bruger_id) ? intval($bruger_id) : 0;
 
-// Get all documents from the source line
-$sourceEsc = db_escape_string($source);
-$qtxt = "SELECT * FROM documents WHERE source = '$sourceEsc' AND source_id = '$fromSourceId'";
-$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-
-$linkedCount = 0;
-$errors = [];
-
-while ($doc = db_fetch_array($q)) {
-    // Check if this exact document is already linked to the target line
-    $filenameEsc = db_escape_string($doc['filename']);
-    $filepathEsc = db_escape_string($doc['filepath']);
-    
-    $checkQuery = "SELECT id FROM documents WHERE source = '$sourceEsc' AND source_id = '$toSourceId' AND filename = '$filenameEsc' AND filepath = '$filepathEsc'";
-    $checkResult = db_select($checkQuery, __FILE__ . " linje " . __LINE__);
-    
-    if (!db_fetch_array($checkResult)) {
-        // Create a new document entry pointing to the same file
-        $globalIdEsc = db_escape_string($doc['global_id']);
-        $timestamp = time();
-        
-        $insertQuery = "INSERT INTO documents (global_id, filename, filepath, source, source_id, timestamp, user_id) VALUES ('$globalIdEsc', '$filenameEsc', '$filepathEsc', '$sourceEsc', '$toSourceId', '$timestamp', '$userId')";
-        
-        if (db_modify($insertQuery, __FILE__ . " linje " . __LINE__)) {
-            $linkedCount++;
-        } else {
-            $errors[] = "Failed to link: " . $doc['filename'];
-        }
-    } else {
-        // Document already linked, count it as success
-        $linkedCount++;
-    }
-}
+include_once(__DIR__ . '/linkDocuments.php');
+$linked = linkLineDocuments($fromSourceId, $toSourceId, $source, $userId);
+$linkedCount = $linked['count'];
+$errors = $linked['errors'];
 
 if ($linkedCount > 0) {
     echo json_encode([

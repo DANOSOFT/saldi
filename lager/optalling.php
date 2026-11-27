@@ -1,6 +1,6 @@
 <?php
-
-// -- lager/optalling.php ------------------- patch 5.0.0 -- 2026-10-01 --
+//
+// -- lager/optalling.php ------------------- ver 5.1.1 -- 2026-11-05 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -18,7 +18,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20120913 Der kan nu optaelles til 0
 // 20130109 Hele optællingen kan nu slettes - søg 20130109
 // 20131119 Tilføjet variantvarer i importfunktion. Søg variant_id
@@ -49,7 +49,18 @@
 // 20260711 SZ Added Grid Framework sticky header (title bar fixed, body scrolls internally); no footer/pagination
 // 20261001 CDX/PHR Show each warehouse number once, preferring its current-year name, and reuse the list during item lookup.
 // 20261001 CDX/PHR Initialize empty product and variant lookups so unmatched import rows do not crash on PHP 8.
-// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20261105 CL/LH Bogfør adds up an item's counts per item and variant, and asks for a recount when the stock changed between them.
+//                Variant 0 comes back from the database as '0' and never matched the NULL kept for it, so each count replaced the one before.
+//                The recount list finds the item by its varenr instead of querying id=''.
+//                vis_optalling() escapes that varenr and lists every item only for NULL, so the recount shows an item like O'RING or 0 alone.
+// 20261105 CL/LH Bogfør with no unposted count on the warehouse, as when the final posting link is opened again, posts nothing and says so.
+//                It died with a TypeError on PHP 8, since $reg_id was only set in the loop over the counts.
+// 20261105 CL/LH Bogfør, opdat_behold() and the import put an item's stock on its oldest lagerstatus row for the variant and warehouse and set the others to 0.
+//                Bogfør updated whichever row came first, so a second row kept its old stock, as -2 next to the 0 of an item zeroed.
+//                opdat_behold() then wrote a variant's stock on its last row on any warehouse, so two rows held the count, and added a row on every other warehouse with stock.
+//                The import set every row to the stock.
+//                The other rows are kept with their shelf locations in lok1-lok5, through set_warehouse_stock().
+//                A row with variant NULL or warehouse 0 counts as variant 0 or warehouse 1, as stock_rows_condition() reads them.
 
 @session_start();
 $s_id = session_id();
@@ -190,22 +201,29 @@ $lagernr = array_keys($warehouseNames);
 $lagernavn = array_values($warehouseNames);
 
 global $menu;
-$vnr = $varenr;
+# 20261105 vis_optalling() lists every count for NULL only. This page looks up no item numbered "0" (if ($varenr) above), so it lists them all then, as before.
+$vnr = ($varenr) ? $varenr : NULL;
 
 $loGridMode = ($menu == 'S');
 
 if ($loGridMode) {
+	$loTilbageIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
 	print "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}</style>\n";
 	print "<div id='loPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
-	print "<div style='flex:0 0 auto;box-sizing:border-box;'>\n";
-	include_once("../includes/stdFunc/pageBar.php");
-	page_bar(array(
-		'title' => $title,
-		'actions' => array($importer
-			? array(findtekst('81|Afbryd', $sprog_id), 'optalling.php', 'bx-x')
-			: array(findtekst('1356|Importér', $sprog_id), "optalling.php?importer=1&lager=$lager&dato=$dato", 'bx-upload')),
-		'back' => $returside,
-	));
+	print "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
+	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody><tr>";
+
+	print "<td width='10%' align='left'><a href='$returside' accesskey=L>
+		   <button style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px; justify-content:flex-start; padding-left:3px;' onMouseOver=\"this.style.cursor='pointer'\">$loTilbageIcon" . findtekst('2172|Luk', $sprog_id) . "</button></a></td>";
+
+	print "<td width='80%' align='center' style='$topStyle'>$title</td>";
+
+	print "<td width='10%' align='center'>";
+	($importer) ? print "<a href='optalling.php'><button style='$buttonStyle; width:100%; min-height:20px; display:flex; align-items:center; gap:5px; justify-content:center;' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('81|Afbryd', $sprog_id) . "</button>"
+		: print "<a href='optalling.php?importer=1&lager=$lager&dato=$dato'><button style='$buttonStyle; width:100%; min-height:20px; display:flex; align-items:center; gap:5px; justify-content:center;' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('1356|Importér', $sprog_id) . "</button>";
+	print "</a></td>";
+
+	print "</tr></tbody></table>\n";
 } else {
 	print "<table name=\"tabel_1\" width=\"100%\" cellspacing=\"2\" border=\"0\"><tbody>\n"; #tabel 1 ->
 	print "<tr><td width=\"100%\"><table name=\"tabel_1.1\" width=\"100%\" cellspacing=\"2\"  border=\"0\"><tbody>\n"; # tabel 1.1 ->
@@ -419,6 +437,15 @@ if ($loGridMode) {
 }
 
 
+/**
+ * Prints the unposted counts on a warehouse, of one item or of all of them.
+ *
+ * @param int|string $lager Warehouse number.
+ * @param string|null $vnr Varenr of the item to show, as stored in varer (unescaped; "0" is an item
+ *                         number too), or NULL for every counted item with the totals below them.
+ * @param int $gentael 1 when the list asks for a recount; passed on in the delete links.
+ * @return int The number of counts listed.
+ */
 function vis_optalling($lager, $vnr, $gentael)
 {
 	global $bgcolor, $bgcolor2;
@@ -429,20 +456,24 @@ function vis_optalling($lager, $vnr, $gentael)
 
 	$behold = $kpris = $lagervalue = $opt = $vareantal = 0;
 	$x = 0;
+	$lager = (int)$lager;
+	$oneItem = ($vnr !== NULL);
 
 	#pdat_behold();
-	if ($lager <= 1)
+	if ($lager <= 1) {
 		db_modify("update lagerstatus set lager = '1' where lager < '1'", __FILE__ . " linje " . __LINE__);
+	}
 	#	return (NULL);
 	$vare_id[0] = NULL;
-	if ($vnr)
-		$qtxt = "select varer.id,varer.varenr,varer.beskrivelse,varer.kostpris,regulering.beholdning,regulering.tidspkt,regulering.optalt,regulering.variant_id,regulering.lager from regulering,varer where varer.varenr='$vnr' and varer.id=regulering.vare_id and regulering.lager='$lager' and varer.id=regulering.vare_id and regulering.bogfort = '0' order by regulering.tidspkt";
-	else
+	if ($oneItem) {
+		$qtxt = "select varer.id,varer.varenr,varer.beskrivelse,varer.kostpris,regulering.beholdning,regulering.tidspkt,regulering.optalt,regulering.variant_id,regulering.lager from regulering,varer where varer.varenr='" . db_escape_string($vnr) . "' and varer.id=regulering.vare_id and regulering.lager='$lager' and varer.id=regulering.vare_id and regulering.bogfort = '0' order by regulering.tidspkt";
+	} else {
 		$qtxt = "select varer.id,varer.varenr,varer.beskrivelse,varer.kostpris,regulering.beholdning,regulering.tidspkt,regulering.optalt,regulering.variant_id,regulering.lager from regulering,varer where varer.id=regulering.vare_id and regulering.lager='$lager' and regulering.bogfort = '0' order by varer.varenr,regulering.tidspkt";
+	}
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$beholddiff[$x] = 0;
-		if ($vnr && $x && $vare_id[$x] == $r['id'] && $variant_id[$x] && $variant_id[$x] == $r['variant_id']) {
+		if ($oneItem && $x && $vare_id[$x] == $r['id'] && $variant_id[$x] && $variant_id[$x] == $r['variant_id']) {
 			$optalt[$x] += $r['optalt'];
 		} else {
 			$x++;
@@ -541,22 +572,25 @@ function vis_optalling($lager, $vnr, $gentael)
 		else
 			$gruppe = "gruppe = '" . $tmp . "'";
 	}
-	if (!$vnr) {
+	if (!$oneItem) {
 		print "<tr><td colspan=\"8\"><hr></td></tr>";
 		$vareantal = 0;
-		if ($gruppe)
+		if ($gruppe) {
 			$r = db_fetch_array(db_select("select count(id) as antal from varer where ($gruppe) and lukket != 'on'", __FILE__ . " linje " . __LINE__));
+		}
 		$vareantal += $r['antal'];
 		#		if ($antal) {	
 		print "<tr><td colspan=\"8\">";
-		if ($antal)
+		if ($antal) {
 			print findtekst('2232|Optalt i alt', $sprog_id) . " $antal " . findtekst('2233|varer ud fra en samlet vareliste på', $sprog_id) . " $vareantal " . findtekst('2234|lagerførte varer.', $sprog_id);
+		}
 		print findtekst('2197|Klik', $sprog_id) . " <a href=optalling.php?vis_ej_optalt=1&dato=$dato&lager=$lager>" . findtekst('2157|her', $sprog_id) . "</a> " . findtekst('2198|for liste over ikke optalte varer', $sprog_id);
 		print "<td></tr>";
 		print "<tr><td colspan=\"8\">";
 		#21130109 - linjen herunder
-		if ($antal)
+		if ($antal) {
 			print "Klik <a href=\"optalling.php?nulstil=1&lager=$lager&dato=$dato\" onclick=\"return confirm('Vi du nulstille hele optællingen?')\">her</a> for at \"0-stille\" listen";
+		}
 		print "<td></tr>";
 		#		}
 	}
@@ -617,7 +651,7 @@ function vis_ej_optalt($lager)
 ###########################################################################################################
 function bogfor($lager, $nulstil_ej_optalt, $dato, $bogfor, $godkend_regdif)
 {
-	global $bruger_id, $db, $regnaar;
+	global $bruger_id, $db, $regnaar, $sprog_id;
 
 	$r = db_fetch_array(db_select("select * from grupper where kodenr='$regnaar' and art='RA'", __FILE__ . " linje " . __LINE__));
 	$startaar = $r['box2'] * 1;
@@ -657,16 +691,19 @@ function bogfor($lager, $nulstil_ej_optalt, $dato, $bogfor, $godkend_regdif)
 	$reg_diff = array();
 	$reguleres = array();
 	$reg_variant_id = array();
+	$reg_id = array();
 	$qtxt = "select * from regulering where bogfort='0' and lager='$lager' order by vare_id,variant_id,id";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
-		if (!in_array($r['vare_id'], $reg_vare_id) || !in_array($r['variant_id'], $reg_variant_id)) {
+		# 20261105 One entry per item and variant: variant_id 0 arrives as '0', which in_array() never found among the NULLs.
+		$id = $r['vare_id'];
+		if ($r['variant_id']) {
+			$id .= "." . $r['variant_id']; #20180703
+		}
+		if (!isset($reg_diff[$id])) {
 			$x++;
 			$reg_vare_id[$x] = $r['vare_id'];
-			($r['variant_id']) ? $reg_variant_id[$x] = $r['vare_id'] . "." . $r['variant_id'] : $reg_variant_id[$x] = NULL; #20180703
-			$id = $reg_vare_id[$x];
-			if ($reg_variant_id[$x])
-				$id = $reg_variant_id[$x];
+			$reg_variant_id[$x] = ($r['variant_id']) ? $id : NULL;
 			$reg_id[$x] = $id;
 			$reg_diff[$id] = 0;
 			$gl_beholdning[$id] = $r['beholdning'];
@@ -686,16 +723,16 @@ function bogfor($lager, $nulstil_ej_optalt, $dato, $bogfor, $godkend_regdif)
 	if ($y) {
 		print "<tr><td colspan=\"8\" align=\"center\"><b><big>Følgende varer har ændret antal under optællingen og skal optælles igen.</big></b></td></tr>";
 		print "<tr><td colspan=\"8\" align=\"center\"><hr></td></tr>";
-		for ($x = 0; $x < count($reg_vare_id); $x++) {
-			$id = $reg_vare_id[$x];
-			if ($reg_diff[$id]) {
-				if (is_integer($id)) {
-					$r = db_fetch_array(db_select("select varenr from varer where id='$id'", __FILE__ . " linje " . __LINE__));
-					vis_optalling($lager, $r['varenr'], 1);
-				} else {
-					list($a, $b) = explode(".", $id);
-					$r = db_fetch_array(db_select("select variant_stregkode as stregkode from variant_varer where id='$b'", __FILE__ . " linje " . __LINE__));
-					vis_optalling($lager, $r['stregkode'], 1);
+		# 20261105 vis_optalling() finds an item by its varenr, also for a variant; list each item once.
+		# A string, also for an item without a number, since NULL would list every count.
+		$listed = array();
+		for ($x = 0; $x < count($reg_id); $x++) {
+			$item_id = (int)$reg_vare_id[$x];
+			if ($reg_diff[$reg_id[$x]] && !in_array($item_id, $listed)) {
+				$listed[] = $item_id;
+				$r = db_fetch_array(db_select("select varenr from varer where id = $item_id", __FILE__ . " linje " . __LINE__));
+				if ($r) {
+					vis_optalling($lager, (string)$r['varenr'], 1);
 				}
 			}
 		}
@@ -704,6 +741,12 @@ function bogfor($lager, $nulstil_ej_optalt, $dato, $bogfor, $godkend_regdif)
 		print "document.optalling.optalt.focus();\n";
 		print "</script>\n";
 		exit;
+	}
+	# 20261105 Nothing is counted on this warehouse, as when the final posting link is opened again after it ran.
+	# Posting it would set every item to 0 with nulstil_ej_optalt, also the items just counted, so stop before anything is written.
+	if (!$reg_id) {
+		print "<tr><td colspan=\"8\" align=\"center\">" . findtekst('stock_count.nothing_to_post|Der er ingen optalte varer at bogføre.', $sprog_id) . "</td></tr>";
+		return;
 	}
 	print "<tr><td colspan=\"8\" align=\"center\">Røde linjer er ikke optalte og reguleres til 0, grønne reguleres i henhold til optælling.</td></tr>";
 	print "<tr><td colspan=\"8\" align=\"center\"><hr></td></tr>";
@@ -831,13 +874,8 @@ function bogfor($lager, $nulstil_ej_optalt, $dato, $bogfor, $godkend_regdif)
 													 $b=0;
 													}else list($a,$b)=explode(".",$id);
 						*/
-						$qtxt = "select id from lagerstatus where vare_id = '$vare_id[$v]' and variant_id = '$variant_id[$v]' and lager = '$lager'";
-						$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-						if ($r['id'])
-							$qtxt = "update lagerstatus set beholdning = '$ny_beholdning[$id]' where id = '$r[id]'";
-						elseif ($ny_beholdning[$id])
-							$qtxt = "insert into lagerstatus (vare_id,variant_id,lager,beholdning) values ('$vare_id[$v]','$variant_id[$v]','$lager','$ny_beholdning[$id]')";
-						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						# 20261105 On the row opdat_behold() writes too, with any other row for the variant and warehouse set to 0.
+						set_warehouse_stock($vare_id[$v], $variant_id[$v], $lager, $ny_beholdning[$id]);
 						if ($reguleres[0] < 0) {
 							$tmp = $reguleres[0] * -1;
 							$qtxt = "insert into batch_kob(vare_id,linje_id,kobsdate,fakturadate,ordre_id,antal,pris,rest,lager,variant_id)";
@@ -1042,20 +1080,6 @@ function opdat_behold($reg_vare_id)
 			}
 		}
 	}
-	$qtxt = "select * from lagerstatus order by vare_id,variant_id,lager,id";
-	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
-		$l = 0;
-		for ($x = 0; $x < count($vare_id); $x++) {
-			for ($v = 0; $v < count($variant_id[$x]); $v++) {
-				if ($r['vare_id'] == $vare_id[$x] && $r['variant_id'] == $variant_id[$x][$v]) {
-					$ls_id[$x][$v][$l] = $r['id'];
-					$ls_beholdning[$x][$v][$l] = $r['beholdning'];
-					$l++;
-				}
-			}
-		}
-	}
 	for ($x = 0; $x < count($vare_id); $x++) {
 		$ny_beholdning = 0;
 		if (in_array($gruppe[$x], $v_grp)) { #if tilføjet 20170915
@@ -1087,14 +1111,8 @@ function opdat_behold($reg_vare_id)
 						$ny_variant_beholdning -= $r['ny_beholdning'] * 1;
 						$ny_lager_beholdning -= $r['ny_beholdning'] * 1;
 
-						if ($ny_lager_beholdning != $ls_beholdning[$x][$v][$l]) {
-							if ($ls_id[$x][$v][$l]) {
-								$qtxt = "update lagerstatus set beholdning='$ny_lager_beholdning' where id='" . $ls_id[$x][$v][$l] . "'";
-							} else {
-								$qtxt = "insert into lagerstatus (lager,vare_id,variant_id,beholdning) values ('$lager[$l]','$vare_id[$x]','" . $variant_id[$x][$v] . "','$ny_lager_beholdning')";
-							}
-							db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-						}
+						# 20261105 On the row Bogfør put the count on, not the variant's last row on any warehouse.
+						set_warehouse_stock($vare_id[$x], $variant_id[$x][$v], $lager[$l], $ny_lager_beholdning);
 					}
 					if ($ny_variant_beholdning != $variant_beholdning[$x][$v]) {
 						$qtxt = "update variant_varer set variant_beholdning='$ny_variant_beholdning' where id='" . $variant_id[$x][$v] . "'";
@@ -1141,6 +1159,54 @@ function opdat_behold($reg_vare_id)
 					}
 				}
 		*/
+	}
+}
+
+/**
+ * Sets an item's stock on a warehouse in lagerstatus, for one variant or for the item without variants.
+ *
+ * The stock goes on the oldest of the rows stock_rows_condition() picks, the row lagerreguler() and the page's
+ * item lookup keep too, and any other of those rows is set to 0, so the warehouse sums to the stock once.
+ * Bogfør, opdat_behold() and the import write through here, so they put an item's stock on the same row.
+ * The other rows are kept, as their lok1-lok5 may hold the item's only shelf location.
+ * The row the stock goes on gets the variant and warehouse, so the lookups that ask for them find it.
+ * A row is added only for stock other than 0.
+ *
+ * @param int|string $vare_id Item id
+ * @param int|string|null $variant_id Variant id, 0 for the item without variants
+ * @param int|string $lager Warehouse number; below 1 counts as 1
+ * @param float|string|null $beholdning The stock, kept to the three decimals of lagerstatus.beholdning
+ * @return void
+ */
+function set_warehouse_stock($vare_id, $variant_id, $lager, $beholdning)
+{
+	$vare_id = (int)$vare_id;
+	$variant_id = (int)$variant_id;
+	$lager = max(1, (int)$lager);
+	$beholdning = round((float)$beholdning, 3);
+
+	$rows = array();
+	$qtxt = "select id, lager, variant_id, beholdning from lagerstatus where " . stock_rows_condition($vare_id, $lager, $variant_id) . " order by id";
+	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$rows[] = $r;
+	}
+	if (!$rows) {
+		if ($beholdning) {
+			$qtxt = "insert into lagerstatus (vare_id,variant_id,lager,beholdning) values ($vare_id,$variant_id,$lager,'$beholdning')";
+			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+		}
+		return;
+	}
+	$first = array_shift($rows);
+	if (round((float)$first['beholdning'], 3) != $beholdning || $first['variant_id'] === NULL || (int)$first['lager'] != $lager) {
+		$qtxt = "update lagerstatus set beholdning = '$beholdning', variant_id = $variant_id, lager = $lager where id = " . (int)$first['id'];
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	}
+	foreach ($rows as $r) {
+		if ((float)$r['beholdning']) {
+			db_modify("update lagerstatus set beholdning = 0 where id = " . (int)$r['id'], __FILE__ . " linje " . __LINE__);
+		}
 	}
 }
 
@@ -1364,8 +1430,8 @@ function importer($lager, $dato)
 						$qtxt = "insert into regulering (vare_id,optalt,beholdning,bogfort,tidspkt,variant_id,lager) values ";
 						$qtxt .= "('$vare_id','$antal','$beholdning','0','$tidspkt','$variant_id',$lager)";
 						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-						$qtxt = "update lagerstatus set beholdning = '$beholdning' where vare_id='$vare_id' and lager='$lager' and variant_id='$variant_id'";
-						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						# 20261105 On one row, as Bogfør does; it set every row for the variant and warehouse to the stock.
+						set_warehouse_stock($vare_id, $variant_id, $lager, $beholdning);
 						$indsat++;
 					} elseif ($r = db_fetch_array(db_select("select id,vare_id from variant_varer where lower(variant_stregkode)='" . db_escape_string($varenr) . "'", __FILE__ . " linje " . __LINE__))) {
 						$variant_id = $r['id'] * 1;

@@ -13,6 +13,10 @@ Audit updated 2026-07-15. The source code is authoritative where this file and
   deployment passed login, refresh, and authenticated account requests on
   2026-07-15. The ssl3 deployment still runs the older implementation and returned
   `401 User not found` during the audit.
+- ✅ Login and refresh refuse a user whose IP limit (`brugere.ip_address`, set
+  under Brugere og roller) does not list the client's address with 403, as the
+  web login refuses it. The limit is read by `user_ip_allowed()`
+  (`includes/stdFunc/userIpAllowed.php`), which the web login shares.
 - ❌ **Unsupported: `GET /user/tenants`. Do not use it.** It takes a user ID from
   an account database and incorrectly looks up the same numeric ID in the registry
   database. Those user-ID namespaces are unrelated. The endpoint is not included
@@ -73,8 +77,53 @@ Audit updated 2026-07-15. The source code is authoritative where this file and
     already exists), and a directory the web server user can't write to
     still fails closed, now with an actionable log line naming the exact
     path.
-- JWT authentication verifies identity and the selected account, but the shared endpoint layer
-  does not enforce per-user Saldi permissions for individual REST operations.
+- ✅ (2026-11-05) An endpoint that names its module's permission key
+  (`$permissionKey`) refuses a user without that module's right with 403,
+  as the module's pages do: `accounts/` needs Kontoplan, `creditor/orders/`
+  and `creditor/orderlines/` Kreditorordre, and `debitor/orders/`,
+  `debitor/orderlines/`, `debitor/invoices/` and
+  `debitor/external-paid-invoices/` Debitorordre.
+  `BaseEndpoint::checkModuleRight()` applies the web's two gates. The
+  module's position in `brugere.rettigheder` must be open (any character
+  from `1` up; `2` is read); a closed position, or no rights string at
+  all, is refused every method. The level is then the user's effective one,
+  `perm_user_levels()`: the assigned role's when the user has a role, the
+  rights string's otherwise (a role with Kassesystem and no Debitorordre
+  opens position 5 for the till, so the string alone would read as
+  Debitorordre read). A GET needs read; POST, PUT, PATCH and DELETE need
+  write. A lower level is refused once the company's enforcement mode
+  (`settings` permissions/enforce) is `deny`, as on the web; in `log` mode
+  the request goes through and is logged as one `deny` would refuse.
+  `checkAuthorization()` selects the account database and sets global `$db`
+  to it, as `includes/online.php` does on the web, so on MySQL/MariaDB
+  `tbl_exists()` finds the role tables and the settings table in that schema
+  (`tests/restapi/ModuleRightsMysqlTest.php`).
+- REST on MySQL/MariaDB: `auth/login.php`, `auth/refresh.php` and
+  `JWTAuth::getTenantDatabase()` query the master database, and
+  `vat-codes/`, `user/tenants.php`, `notifications/register.php` and
+  `AttachmentModel` reconnect, all through `db_connect()`, which selects no
+  database on those engines (`db_select_database()` does). So no token is
+  issued there yet; the order endpoints are Postgres-only as well (CURRVAL,
+  `pg_escape_string()`).
+- ✅ (2026-11-05) An endpoint serves only its own module's orders. The
+  order endpoints create the type they serve (`debitor/orders/` and
+  `debitor/invoices/` DO, `creditor/orders/` KO) whatever `type` or `art`
+  the body sends. `debitor/orderlines/` reads and adds lines only on DO, DK
+  and PO orders and `creditor/orderlines/` only on KO and KK
+  (`OrderLineService::orderHasArt()`); another order, or a line on one, is
+  not found. Order and line ids are cast to int in the models. Creating an
+  order or a line casts every number and escapes every text it puts in SQL
+  (`OrderModel::save()`, `OrderService`, `OrderLineService`), and the
+  endpoints answer 400 to a number field that is not a number
+  (`OrderService::DECIMAL_FIELDS`/`INTEGER_FIELDS`,
+  `OrderLineService::DECIMAL_FIELDS`/`INTEGER_FIELDS`): a quote in `status`
+  or `positionNumber` replaced the INSERT's later values, the order type
+  included, or added a second row on another order.
+- The master-data and reference endpoints name no module yet: customers,
+  creditors, products and product groups, inventory, warehouses, labels,
+  VAT, currencies, accounting years, dashboard stats and attachments answer
+  every valid token. The web shows that data to several modules through
+  lookups, so which rights open them is still to be decided.
 - The legacy API-key IP allowlist is not applied to JWT requests.
 - Login has no endpoint-level rate limiting or lockout.
 

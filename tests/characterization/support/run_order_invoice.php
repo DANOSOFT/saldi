@@ -19,6 +19,9 @@
 //
 // Scenarios (argv 1):
 //   invoice <ordre_id>  - run the sequence above on an existing order
+//   invoice_dated <ordre_id> - the same sequence on an order whose fakturadate
+//                         the test has set (it is not reset to ordredate), as
+//                         the order page invoices an order from an earlier day
 //   reinvoice <ordre_id>- call bogfor() again on an already-invoiced order
 //
 // Prints a single JSON object on the LAST line of stdout.
@@ -27,66 +30,29 @@
 // 20260723 CL/LH SD-601: created.
 // 20260725 CL/LH Bootstrap extracted to bootstrap_ordrefunc.php, shared with run_order_lifecycle.php.
 // 20260916 CDX/LH Isolate disposable test tenants and retain child-process failure diagnostics.
+// 20261028 CL/LH Removed the inline bootstrap that the #815 merge brought back next to the
+//                bootstrap_ordrefunc.php require; it included ordrefunc.php a second time.
+// 20261111 CDX/NTR Require the caller-owned database instead of a fixed fallback.
+// 20261117 CL/ASR Scenario invoice_dated keeps the order's own fakturadate, for the exchange rate of the invoice date.
 
-if ($argc < 3) {
-    fwrite(STDERR, "usage: php run_order_invoice.php <invoice|reinvoice> <ordre_id> [tenant_db]\n");
+if ($argc < 4) {
+    fwrite(STDERR, "usage: php run_order_invoice.php <invoice|invoice_dated|reinvoice> <ordre_id> <tenant_db>\n");
     exit(2);
 }
 $scenario = $argv[1];
 $ordreId = (int)$argv[2];
-$tenantDb = $argv[3] ?? 'saldi_chartest';
+$tenantDb = $argv[3];
 
 require __DIR__ . '/bootstrap_ordrefunc.php';
 error_reporting(E_ALL);
 
-$_SERVER['REQUEST_URI'] = '/saldi/remoteBooking/api.php';
-$_SERVER['PHP_SELF'] = '/saldi/remoteBooking/api.php';
-$_SERVER['REMOTE_ADDR'] = '127.0.0.1';
-$_SERVER['HTTP_USER_AGENT'] = 'chartest';
-
-chdir(dirname(__DIR__, 3) . '/remoteBooking'); // ../includes/... must resolve
-
-// --- bootstrap copied from remoteBooking/api.php:29-60 ---
-$header = "nix";
-$bg = "nix";
-ob_start(); // legacy includes print stray HTML on some branches
-include("../includes/connect.php");      // connects to master, defines db_* + $sqhost/$squser/...
-include("../includes/std_func.php");
-$db = $tenantDb;
-
-// Mirror what includes/online.php would provide for a logged-in session.
-$r = db_fetch_array(db_select("select id, regnskab, posteringer from regnskab where db = '$db'", __FILE__ . " linje " . __LINE__));
-$db_id = $r['id'];
-$db_skriv_id = $db_id;
-$regnskab = $r['regnskab'];
-$max_posteringer = $r['posteringer'];
-
-include("../includes/ordrefunc.php");
-
-$connection = db_connect($sqhost, $squser, $sqpass, $db);
-$query = db_select("SELECT box1, box2, box3, box4, kodenr FROM grupper WHERE art = 'RA'", __FILE__ . " linje " . __LINE__);
-$currentYear = date('Y');
-$currentMonth = date('m');
-while ($row = db_fetch_array($query)) {
-    if (($currentYear > $row['box2'] || ($currentYear == $row['box2'] && $currentMonth >= $row['box1'])) &&
-        ($currentYear < $row['box4'] || ($currentYear == $row['box4'] && $currentMonth <= $row['box3']))) {
-        $regnaar = $row['kodenr'];
-    }
-}
-$baseCurrency = get_settings_value("baseCurrency", "globals", "");
-if ($baseCurrency == "") {
-    $baseCurrency = "DKK";
-}
-$brugernavn = 'chartest';
-$bruger_id = 1;
-$sprog_id = 0;
-// --- end bootstrap ---
-
 $out = ['scenario' => $scenario, 'ordre_id' => $ordreId];
 
-if ($scenario === 'invoice') {
+if ($scenario === 'invoice' || $scenario === 'invoice_dated') {
     transaktion('begin');
-    db_modify("update ordrer set fakturadate=ordredate where id='$ordreId'", __FILE__ . " linje " . __LINE__);
+    if ($scenario === 'invoice') {
+        db_modify("update ordrer set fakturadate=ordredate where id='$ordreId'", __FILE__ . " linje " . __LINE__);
+    }
     db_modify("update ordrelinjer set leveres = antal where ordre_id='$ordreId'", __FILE__ . " linje " . __LINE__);
     $out['levering'] = levering($ordreId, 'on', NULL, 'on');
     $out['bogfor'] = bogfor($ordreId, 'on');

@@ -8,6 +8,15 @@
 // 20261109 CL/ASR Review fixes: the fee of an earlier classic level of the chain is a row "Rykkergebyr fra 1. rykker" paid by bank transfer, counted in "At betale nu", with the bank details (D1).
 //                 Interest is named as interest in the offer; "Betal med dit gemte kort" only when the page offers the saved card; a row that cannot be paid by card links "Se faktura ›".
 // 20261111 CL/ASR Review round 2: an earlier level's open item that includes interest is "Rykkergebyr og renter fra 1. rykker"; stripe_reminder_deadline() moved to stripeReminder.php.
+// 20261116 CDX/ASR Identify the single invoice opened by a multi-invoice button and prefer one that can be paid by card over a below-minimum invoice.
+// 20261116 CDX/ASR Match invoice payment links to the supplied dark Saldi logo palette.
+// 20261126 ASR Review I19: a fee and interest that are posted as an open item (fee_mode classic, "Gebyr og renter på næste faktura" off) cannot be paid with the Betal link.
+//              Their rows say "betales via bankoverførsel", and the bank box names the reminder number as the reference when the company has bank details.
+// 20261126 CL/ASR Review round 1 (I14): the multi-invoice button sentence ends with one full stop ("på 400,00 kr. Brug ..."), not "kr..".
+// 20261126 ASR Review GPT-R-10: a settled open item leaves out only itself: an invoice with another open item still owed stays on the reminder with what is left (skipped_items: openpost id => reason).
+// 20261126 ASR Review GPT-R-11: only an invoiced credit note (status 3 or more) leaves its invoice out as credited; a credit note draft does not, as it credits nothing yet.
+// 20261126 ASR Review PAY-R2-1: stripe_invoice_load()'s paid_bank is now also true when every open item of the invoice is settled, so a settled open item is checked first and keeps the reason 'settled'; the invoice is left out as before.
+// 20261126 ASR Review LR2-1: an invoice row's due date (forfaldsdate) is the earliest due date of its kept open items, not the invoice's calendar fallback for several due dates.
 
 include_once(__DIR__ . '/stripeInvoice.php');
 include_once(__DIR__ . '/stripeDunning.php');
@@ -16,57 +25,86 @@ if (is_file(__DIR__ . '/stripeReminder.php')) include_once(__DIR__ . '/stripeRem
 
 /**
  * The invoices a link reminder can still ask the customer to pay, loaded as the payment page sees them.
- * Left out: paid by card or by bank, settled open item (udlignet), protected by a payment in flight or a card-on-file
- * hold (stripe_dunning_openpost_sql()), or credited.
+ * Left out: paid by card or by bank, protected by a payment in flight or a card-on-file hold
+ * (stripe_dunning_openpost_sql()), or credited by an invoiced credit note: the whole invoice. A credit note draft
+ * credits nothing yet: the invoice stays (its payment page offers no card payment while the draft exists). A settled open item (udlignet): only that item, so
+ * an invoice whose other open item (split due dates) is still owed stays with what is left; the payment page then
+ * offers no card payment for it (fully_open), as for any partly paid invoice.
  *
  * @param int $rykkerId ordrer.id of the R1/R2/R3 order.
  * @return array{
  *   invoices: array<int, array>,  Oldest due date first. Each entry is the invoice as stripe_invoice_load() returns it
  *     (id, nr, state, ...) plus the reminder's line: ordre_id: int, openpost_id: int, fakturanr: string,
- *     amount: float (kr., sum of the reminder's open items for that invoice), forfaldsdate: string (Y-m-d).
+ *     amount: float (kr., sum of the reminder's open items for that invoice that are not left out), forfaldsdate: string (Y-m-d,
+ *     the earliest due date of those open items).
  *   credits: float,  Sum of the reminder's open credit lines (negative open items), 0.0 when none.
  *   prior_fees: array<int, array{openpost_id: int, faktnr: string, amount: float, level: int}>,  Fees of earlier
  *     levels of the chain posted as open items (stripe_reminder_lines()) that are not settled; paid by bank transfer.
- *   skipped: array<int, string>,  ordre_id => paid|paid_bank|settled|in_flight|credited|missing.
+ *   skipped: array<int, string>,  ordre_id => paid|paid_bank|settled|in_flight|credited|missing: invoices left out
+ *     entirely (settled: every open item of it on the reminder is settled).
+ *   skipped_items: array<int, string>,  openpost_id => the reason, for every invoice open item left out.
  * }
  */
 function stripe_reminder_invoices(int $rykkerId): array {
-	$out = array('invoices' => array(), 'credits' => 0.0, 'prior_fees' => array(), 'skipped' => array());
+	$out = array('invoices' => array(), 'credits' => 0.0, 'prior_fees' => array(), 'skipped' => array(), 'skipped_items' => array());
 	if (!function_exists('stripe_reminder_lines')) return $out;
 	$lines = stripe_reminder_lines($rykkerId);
 	$protected = stripe_dunning_openpost_sql('openpost');
 	$kept = array();
+	$keptItems = array();   // ordre_id => openpost ids in $kept
+	$settled = array();     // ordre_id => true when one of its open items is settled
 	foreach ($lines['invoices'] as $line) {
 		$ordreId = (int)$line['ordre_id'];
 		$opId = (int)$line['openpost_id'];
+		if (isset($out['skipped'][$ordreId])) {
+			$out['skipped_items'][$opId] = $out['skipped'][$ordreId];
+			continue;
+		}
 		$inv = stripe_invoice_load($ordreId);
 		$reason = '';
 		if (!$inv || !empty($inv['is_credit'])) {
 			$reason = 'missing';
 		} elseif ($inv['paid']) {
 			$reason = 'paid';
-		} elseif ($inv['paid_bank']) {
-			$reason = 'paid_bank';
 		} elseif (!db_fetch_array(stripe_payment_select("select id from openpost where id = $opId and coalesce(udlignet, '0') <> '1'"))) {
-			$reason = 'settled';
+			$reason = 'settled';    // 20261126 ASR Review PAY-R2-1: before paid_bank, which is now also true when every open item is settled
+		} elseif ($inv['paid_bank']) {
+			$reason = 'paid_bank';  // marked paid (ordrer.betalt) while an open item of it is still unsettled
 		} elseif (!db_fetch_array(stripe_payment_select("select id from openpost where id = $opId and $protected"))) {
 			$reason = 'in_flight';
-		} elseif (db_fetch_array(stripe_payment_select("select id from ordrer where art = 'DK' and kred_ord_id = $ordreId limit 1"))) {
-			$reason = 'credited';
+		} elseif (db_fetch_array(stripe_payment_select("select id from ordrer where art = 'DK' and kred_ord_id = $ordreId and status >= 3 limit 1"))) {
+			$reason = 'credited';   // 20261126 ASR Review GPT-R-11: an invoiced credit note, not a draft
+		}
+		if ($reason === 'settled') {
+			// 20261126 ASR Review GPT-R-10: only this open item; the invoice's other open items stay with their amounts
+			$out['skipped_items'][$opId] = $reason;
+			$settled[$ordreId] = true;
+			continue;
 		}
 		if ($reason !== '') {
 			$out['skipped'][$ordreId] = $reason;
-			unset($kept[$ordreId]);
+			$out['skipped_items'][$opId] = $reason;
+			foreach ($keptItems[$ordreId] ?? array() as $keptId) $out['skipped_items'][$keptId] = $reason;
+			unset($kept[$ordreId], $keptItems[$ordreId]);
 			continue;
 		}
-		if (isset($out['skipped'][$ordreId])) continue;
+		$keptItems[$ordreId][] = $opId;
+		// 20261126 ASR Review LR2-1: the row's due date is the earliest of its kept open items. The invoice's own due date
+		// falls back to the calendar date when its open items have several (installments), so it is used only for an open
+		// item without one.
+		$op = db_fetch_array(stripe_payment_select("select forfaldsdate from openpost where id = $opId"));
+		$due = substr((string)($op['forfaldsdate'] ?? ''), 0, 10) ?: (string)$inv['due'];
 		if (isset($kept[$ordreId])) {
 			// Two open items of the same invoice (split due dates): one row, both amounts.
 			$kept[$ordreId]['amount'] += (float)$line['amount'];
+			if ($due !== '' && ($kept[$ordreId]['forfaldsdate'] === '' || $due < $kept[$ordreId]['forfaldsdate'])) $kept[$ordreId]['forfaldsdate'] = $due;
 			continue;
 		}
 		$kept[$ordreId] = $inv + array('ordre_id' => $ordreId, 'openpost_id' => $opId, 'fakturanr' => (string)$line['fakturanr'],
-			'amount' => (float)$line['amount'], 'forfaldsdate' => (string)($inv['due'] ?: substr((string)$line['forfaldsdate'], 0, 10)));
+			'amount' => (float)$line['amount'], 'forfaldsdate' => (string)($due ?: substr((string)$line['forfaldsdate'], 0, 10)));
+	}
+	foreach (array_keys($settled) as $ordreId) {
+		if (!isset($kept[$ordreId]) && !isset($out['skipped'][$ordreId])) $out['skipped'][$ordreId] = 'settled';
 	}
 	foreach ($lines['credits'] as $credit) {
 		if (db_fetch_array(stripe_payment_select("select id from openpost where id = " . (int)$credit['openpost_id'] . " and coalesce(udlignet, '0') <> '1'"))) {
@@ -98,7 +136,7 @@ function stripe_reminder_variant(array $inv): string {
 	$state = (string)$inv['state'];
 	if ($state === 'requires_action') return 'action';
 	if ($state === 'failed' && in_array((string)($inv['failed']['source'] ?? ''), array('auto', 'backup', 'manual'), true)) return 'failed';
-	if (in_array($state, array('manual', 'nocard'), true)) return 'bank';
+	if (in_array($state, array('manual', 'nocard', 'below_minimum'), true)) return 'bank';
 	// Only where the page shows the saved card (#paynow); a declined card form payment ('failed', source page) shows the card form.
 	if (in_array($state, array('overdue', 'enrolled'), true) && stripe_invoice_pay_now_allowed($inv)) return 'saved';
 	if (in_array($state, array('open', 'open_recurring', 'overdue', 'failed'), true)) {
@@ -123,7 +161,7 @@ function stripe_reminder_list_html(array $rows): string {
 			. '<td style="' . $td . 'padding-left:12px;text-align:right;white-space:nowrap;font-weight:' . ($strong ? '700' : '600') . '">' . stripe_h($row['value']) . '</td>'
 			. '<td style="' . $td . 'padding-left:16px;text-align:right;white-space:nowrap;font-size:14px">';
 		if (!empty($row['link'])) {
-			$h .= '<a href="' . stripe_h($row['link']) . '" style="color:#1b68bd;font-weight:700;text-decoration:none">' . stripe_h($row['link_label'] ?? stripe_txt('mail_rem_pay_link')) . '</a>';
+			$h .= '<a href="' . stripe_h($row['link']) . '" style="color:#183d78;font-weight:700;text-decoration:none">' . stripe_h($row['link_label'] ?? stripe_txt('mail_rem_pay_link')) . '</a>';
 		} elseif (!empty($row['note'])) {
 			$h .= '<span style="color:#6b7280">' . stripe_h($row['note']) . '</span>';
 		}
@@ -134,7 +172,8 @@ function stripe_reminder_list_html(array $rows): string {
 
 /**
  * Build and send the link reminder mail (SPEC_link_reminders §2.4) with the reminder PDF attached as
- * "Rykker <nr>.pdf". The primary button opens the oldest invoice; its text follows that invoice's page state.
+ * "Rykker <nr>.pdf". The primary button opens the oldest invoice with a card action, or the first invoice
+ * when none has one. Its label identifies that invoice when the reminder covers several invoices.
  *
  * @param int $rykkerId ordrer.id of the R1/R2/R3 order.
  * @param string $pdf Rendered reminder PDF (must exist).
@@ -166,7 +205,14 @@ function stripe_mail_reminder(int $rykkerId, string $pdf, string $email): bool {
 		$interestOre = $waived ? 0 : (int)round((float)$lines['interest'] * 100);
 		$carried = $feeNext && in_array($status, array('draft', 'sent'), true);
 
-		$first = $set['invoices'][0];
+		$buttonIndex = 0;
+		foreach ($set['invoices'] as $i => $item) {
+			if (!in_array(stripe_reminder_variant($item), array('bank', 'view'), true)) {
+				$buttonIndex = $i;
+				break;
+			}
+		}
+		$first = $set['invoices'][$buttonIndex];
 		$inv = $first;
 		$count = count($set['invoices']);
 		$multi = $count > 1;
@@ -188,6 +234,11 @@ function stripe_mail_reminder(int $rykkerId, string $pdf, string $email): bool {
 		$body = stripe_mail_greeting($inv) . "\n\n" . $para;
 		if ($variant === 'auto') {
 			$body .= "\n\n" . stripe_txt(stripe_setting('charge_on', 'due') === 'invoice_date' ? 'mail_body_rem_auto_invoice_date' : 'mail_body_rem_auto');
+		}
+		$buttonVars = array('nr' => $first['nr'], 'amount' => stripe_fmt_kr((int)round($first['amount'] * 100)) . ' kr.');
+		if ($multi) {
+			// the sentence's own full stop follows the amount, so "kr" goes in without its dot
+			$body .= "\n\n" . stripe_txt('mail_rem_button_invoice', array('amount' => stripe_fmt_kr((int)round($first['amount'] * 100)) . ' kr') + $buttonVars);
 		}
 
 		// Boxes: the close warning on a 3rd reminder (red) and the offer to save the carried fee (green).
@@ -229,10 +280,12 @@ function stripe_mail_reminder(int $rykkerId, string $pdf, string $email): bool {
 			$totalOre += $creditOre;
 			$rows[] = array('label' => stripe_txt('mail_rem_row_credit'), 'value' => stripe_fmt_kr($creditOre) . ' kr.');
 		}
-		$feeNote = stripe_txt($feeNext ? 'mail_rem_fee_next' : 'mail_rem_fee_classic');
+		// 20261126 ASR Review I19: a fee posted as an open item is not part of any invoice the Betal links pay: by bank transfer
+		$feeNote = stripe_txt($feeNext ? 'mail_rem_fee_next' : 'mail_rem_prior_fee_note');
 		if ($feeOre > 0) $rows[] = array('label' => stripe_txt('mail_rem_row_fee'), 'value' => stripe_fmt_kr($feeOre) . ' kr.', 'note' => $feeNote);
 		if ($interestOre > 0) $rows[] = array('label' => stripe_txt('mail_rem_row_interest'), 'value' => stripe_fmt_kr($interestOre) . ' kr.', 'note' => $feeNote);
 		if (!$feeNext) $totalOre += $feeOre + $interestOre;
+		if (!$feeNext && $feeOre + $interestOre > 0) $priorNumbers[] = trim((string)$r['fakturanr']);   // its open item's reference in the bank box
 		$rows[] = array('label' => stripe_txt('mail_rem_row_total'), 'value' => stripe_fmt_kr(max(0, $totalOre)) . ' kr.', 'strong' => true);
 		$rows[] = array('label' => stripe_txt('mail_rem_row_deadline'), 'value' => stripe_fmt_date($deadline));
 
@@ -251,7 +304,12 @@ function stripe_mail_reminder(int $rykkerId, string $pdf, string $email): bool {
 		$buttons = array('auto' => 'mail_btn_rem_auto', 'pay' => 'mail_btn_new', 'saved' => 'mail_btn_rem_saved', 'failed' => 'mail_btn_rem_failed',
 			'action' => 'mail_btn_rem_action', 'bank' => 'mail_btn_rem_view', 'view' => 'mail_btn_rem_view');
 		$btnText = stripe_txt($buttons[$variant]);
-		$btnUrl = $urls[0];
+		if ($multi) {
+			$buttonKey = in_array($variant, array('bank', 'view'), true) ? 'mail_btn_rem_invoice_view'
+				: ($variant === 'action' ? 'mail_btn_rem_invoice_action' : 'mail_btn_rem_invoice');
+			$btnText = stripe_txt($buttonKey, $buttonVars);
+		}
+		$btnUrl = $urls[$buttonIndex];
 
 		// Note: pay-once choice, the fee for manual payment (as on the payment page), bank, PDF, contact.
 		$notes = array();
@@ -264,7 +322,6 @@ function stripe_mail_reminder(int $rykkerId, string $pdf, string $email): bool {
 		$notes[] = stripe_txt('mail_rem_note_end');
 		$contactMail = stripe_contact_email($inv['firma']);
 		$notes[] = $contactMail !== '' ? stripe_txt('mail_rem_note_contact', array('email' => $contactMail)) : stripe_txt('mail_rem_note_contact_plain');
-		if ($multi && in_array($variant, array('auto', 'saved', 'failed'), true)) $notes[] = stripe_txt('mail_rem_note_multi');
 		$noteText = implode(' ', $notes);
 
 		$box = $close ?: $offer;

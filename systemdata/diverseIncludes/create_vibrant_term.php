@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------- systemdata/diverseIncludes/create_vibrant_term.php ---------- lap 3.9.9----2023.03.15-------
+// ------------- systemdata/diverseIncludes/create_vibrant_term.php ---------- ver 5.1.1----2026.11.13-------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,14 +20,17 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2012-2023 saldi.dk aps
+// Copyright (c) 2012-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261001 Sawaneh Older archived rows with the terminal's name are removed before archiving (unique index on settings).
+// 20261001 SS Older archived rows with the terminal's name are removed before archiving (unique index on settings).
+// 20261103 CL/ASR QA: declares settings.integrations (write), the key it requires below, instead of system.indstillinger.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 
 include ("../../includes/connect.php");
-$permission_key = 'system.indstillinger';
+$permission_key = 'settings.integrations';
+$permission_level = 'write';
 include ("../../includes/online.php");
 include ("../../includes/std_func.php");
 // 20261018 Sawaneh Review 2 (PR #803): creating a terminal is an integrations write, by POST with the session's token

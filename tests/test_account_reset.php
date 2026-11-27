@@ -1,11 +1,11 @@
 <?php
-// --- tests/test_account_reset.php --- 2026-09-16 ---
+// --- tests/test_account_reset.php --- 2026-10-05 ---
 // Copyright (c) 2003-2026 Danosoft ApS
 // 20260916 CDX/PHR Verify reset scope and preservation options without database writes.
 // 20260916 CDX/PHR Verify item texts follow the keep-items option.
 // 20260916 CDX/PHR Verify user year reset and tenant-scoped session updates.
 // 20260917 CL/LH Verify the reset is refused on MySQL/MariaDB before any statement is issued.
-// 20261005 Sawaneh Verify personal settings (USET) are not deleted by a reset.
+// 20261005 SS Verify personal settings (USET) are not deleted by a reset.
 require_once(__DIR__ . '/../systemdata/resetAccount.php');
 error_reporting(E_ALL);
 set_error_handler(function ($severity, $message, $file, $line) {

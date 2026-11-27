@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ny_rykker.php --- ver 5.0.0 --- 2026.11.09 ---
+// --- debitor/ny_rykker.php --- ver 5.1.1 --- 2026.11.26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003 - 2026 Danosoft ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20121105 Fejl ved renteberegning af posteringer uden forfaldadato. Søg 20121105 
 // 20140628 Valuta og valutakurs indsættes nu ved oprettelse af ny rykker. Søg 20140628 
@@ -37,8 +37,12 @@
 // 20260828 Sawaneh Review: the three cutoffs use calendar-day arithmetic (dunning_cutoff_date) instead of
 //                  date('U') - days*86400, which shifted eligibility by a day around the DST switches.
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261105 CL/LH Ny rykker refuses R2 until R1 has stood ffdage2 days and R3 until R2 has stood ffdage3 days, as the run for all debtors does.
+//                An alert names the refused løbenr.
+// 20261110 CDX/ASR Require module write access before this mutation endpoint runs.
 // 20261022 CDX/LH Exclude captured/in-flight Stripe invoices from new reminders and existing reminder escalation.
-// 20261023 CDX/LH Retain the redesign permission key with the fixed Stripe reminder exclusions.
+// 20261126 CL/ASR Stripe port (#850): open posts of an invoice Stripe has collected or is collecting (stripe_dunning_openpost_sql()) get no new reminder.
+//                 A reminder on such an invoice (stripe_dunning_reminder_sql()) is neither escalated in the run for all debtors nor in Ny rykker.
 // 20261109 CL/ASR Renteloven § 9 b for every reminder: a fee line above 100,00 kr. is created at 100,00 kr. with a notice (L1), and a 2nd/3rd reminder with a fee is not created until 10 days after the previous one was sent (L3), also not booked or escalated by "Ryk alle" before then.
 //                 R1 gets "Send pr. mail" when the customer has an e-mail address and the newest reminded invoice was e-mailed.
 //                 Link reminders: stripe_reminder_register() after the lines of R1 and R2/R3 are complete; no comment line for a previous fee that went on the next invoice (there is no open item), and no interest on it; "Ryk alle" first closes booked link reminders whose invoices are paid.
@@ -48,6 +52,26 @@
 //                 "Ryk alle" does not book a reminder dated outside the active fiscal year (as "Bogfør").
 //                 Reminder ids from the request are cast to integers.
 // 20261111 CL/ASR Review round 2: "Ryk alle" still books a reminder whose invoices were paid after it was sent (its fee is owed), only does not escalate it; a link reminder whose fee goes on the next invoice is not held by the fiscal year.
+// 20261126 CL/ASR Stripe port (#1098): renteloven § 9 b checks, link reminders and the next-invoice fee from the source above.
+//                 This line's R2/R3 refusal (20261105) stays first and keeps its own alert; the § 9 b notices and "Topniveau nået" share the second alert.
+// 20261116 CDX/ASR Iterate actual batch keys, validate debtor rows and use numeric group lookups before creating reminders.
+// 20261126 CL/ASR Stripe port (#1134): the page refuses to run unless thisDb names the session's ledger (reminder_request_ledger_matches()).
+//                 An unknown debtor is skipped with a notice, and the group and employee lookups take integers.
+// 20261117 CDX/ASR Share transactional reminder creation with the scheduled flow.
+// 20261126 CL/ASR Stripe port (#1147): the creation loop is reminder_create_batch() in includes/reminderCreate.php, run in one transaction that is rolled back on an error (the error is shown in the alert).
+//                 This line's R2/R3 refusal (20261105) moved with the loop and comes back as the batch's 'not_due' list; its alert is unchanged.
+// 20261126 ASR Review I1 (owner default Q8): "Ryk alle" books the previous levels inside the transaction, each chain under its own savepoint in reminder_create_batch().
+//              A previous level is closed (betalt) only once its next level exists, and a chain or debtor that fails is skipped with a notice while the others are created, as before the shared transaction.
+// 20261126 ASR Review I3: "Ryk alle" leaves out automatic reminders that were not sent (reminder_automation_unsent_sql()), so their fee is not booked and they are not escalated.
+// 20261126 ASR Review M1: the not-due notice, the § 9 b notices and "Topniveau nået" are one message, and the popup closes only after it is read (formReminderAlertThenGo()).
+//              Saldi's message box does not block like alert(), so the meta refresh right after it closed the popup first.
+// 20261126 ASR Review GPT-F-1: "Ryk alle" also books and escalates a reminder left at status 3 without anything posted (reminder_unposted_sql()), as it is not booked.
+// 20261126 ASR Review AR2-2: the notice for an automatic reminder that was not sent is worded by its job's state (reminder_skip_notice() with the reminder's id).
+// 20261126 ASR Review AR2-1: "Ryk alle" deletes an open reminder of a customer without open items only when it never went out (reminder_went_out()).
+//              One that was mailed, printed or sent by the automatic flow, or whose sending is unresolved, stays, and a notice names it (8232); the same run neither books nor escalates it.
+//              A deleted draft takes its draft link reminder row and its automatic flow's job with it (reminder_delete_draft()), so the flow's page lists no job for a reminder that is gone.
+// 20261126 ASR Review R3E2E-1: "Ryk alle" keeps only a reminder that the automatic flow or a link reminder tracks as sent, or whose sending is unresolved (reminder_sending_tracked()).
+//              A classic reminder that was only printed or mailed is deleted as before the update, with its reminder_dispatch row, as whether a delivered reminder is kept is owner question Q26.
 // --------------------- Bekrivelse ------------------------
 // Ved generering af en rykker oprettes en ordre med art = R1. Hver ordre der indgår i rykkeren oprettes som en ordrelinje
 // hvor feltet enhed indeholder id fra openpost tabellen og serienr indeholder forfaldsdatoen,.Beskrivelse indeholde beskrivelse.
@@ -55,34 +79,42 @@
 // Rykkergebyr tilføjes som en ordinær ordrelinje.med varenummer for rykkergebyr, og vil derfor blive behandlet som den eneste reelle ordrelinje
 // ved bogføring.
 // Ved generering af rykker "2" medtages evt gebyr fra rykker 1 på samme måden som v. ovenstående. 
-		
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 
 $topniveau=NULL;
+$fristIkkeUdloebet=array(); # løbenr of reminders whose next level is not due yet
 
-include("../includes/connect.php");
+include(__DIR__ . '/../includes/connect.php');
 $permission_key = 'debitor.konti';
-include("../includes/online.php");
-include("../includes/std_func.php");
+$permission_level = 'write';
+include(__DIR__ . '/../includes/online.php');
+include(__DIR__ . '/../includes/std_func.php');
 include_once("../includes/stdFunc/dunningCutoff.php");
-include("../includes/formfunk.php");
-include("../includes/forfaldsdag.php");
-include("../includes/openpost.php");
+include(__DIR__ . '/../includes/formfunk.php');
+include(__DIR__ . '/../includes/forfaldsdag.php');
+include(__DIR__ . '/../includes/openpost.php');
 include_once(__DIR__ . '/../includes/stripeIncludes/stripeDunning.php');
 $stripeDunningOpen = stripe_dunning_openpost_sql();
 $stripeDunningReminder = stripe_dunning_reminder_sql();
 include_once(__DIR__ . '/../includes/reminderLegal.php');
+require_once __DIR__ . '/../includes/reminderCreate.php';
+if (!reminder_request_ledger_matches($_GET['thisDb'] ?? null, (string)$db)) {
+	alert(reminder_txt(8181, 'Regnskabet er skiftet, eller rapporten er for gammel. Åbn rapporten igen i det ønskede regnskab, før du opretter rykkere.'));
+	exit;
+}
 // 20261109 CL/ASR link reminders; without the file every reminder is classic
 if (is_file(__DIR__ . '/../includes/stripeIncludes/stripeReminder.php')) include_once(__DIR__ . '/../includes/stripeIncludes/stripeReminder.php');
 $legalNotes = array(); # staff notices (renteloven § 9 b), shown in one alert at the end
 
-$konto_antal=$_GET['kontoantal'];
+$konto_antal = $_GET['kontoantal'] ?? 0;
 if (isset($_GET['rykker_id'])) $rykker_id=array_map('intval', explode(";", $_GET['rykker_id'])); # 20261109 CL/ASR integers
-else $rykker_id=NULL;
-$konto_id =explode(";", $_GET['kontoliste']);
+else $rykker_id=array();
+$konto_id = explode(";", (string)($_GET['kontoliste'] ?? ''));
 
 $rykkerdate=date("Y-m-d");
+$tidspkt = date("H:i:s");
 
 $rentesats_1=0;
 $rentesats_2=0;
@@ -98,13 +130,16 @@ $ffdage1=(int)$r['box5'];
 $ffdage2=(int)$r['box6'];
 $ffdage3=(int)$r['box7'];
 $rykkerfrist1=dunning_cutoff_date($ffdage1);
+$rykkerfrist2=dunning_cutoff_date($ffdage2);
+$rykkerfrist3=dunning_cutoff_date($ffdage3);
 
 $r = db_fetch_array(db_select("select id from formularer where beskrivelse LIKE '%inkassotekst'",__FILE__ . " linje " . __LINE__));
-if ($r['id']) {
+if (!empty($r['id'])) {
 	$inkassotekst='';
 }
 
-if ($konto_id[0]=="alle") { 
+$rykAlle = ($konto_id[0]=="alle"); # 20261126 ASR Review I1: "Ryk alle" books the previous levels in reminder_create_batch()
+if ($rykAlle) {
 	// 20261109 CL/ASR booked link reminders whose invoices are all paid are closed first, like "Afslut"
 	if (function_exists('stripe_reminder_close_paid')) stripe_reminder_close_paid();
 	$dd=date("Y-m-d");
@@ -124,24 +159,35 @@ if ($konto_id[0]=="alle") {
 	$konto_antal=$x;
 	$r=db_fetch_array(db_select("select max(udlign_id) as udlign_id from openpost",__FILE__ . " linje " . __LINE__));
 	$udlign_id=$r['udlign_id'];
+	// 20261126 ASR Review AR2-1, R3E2E-1: an open reminder of a customer without open items is deleted, as before the update, unless
+	// the automatic flow or a link reminder tracks it as sent or its sending as unresolved (reminder_sending_tracked()). Such a one stays
+	// with a notice, and this run neither books nor escalates it ($keptReminder). Whether a delivered reminder is kept, and its fee booked
+	// or waived, is owner question Q26, so a classic reminder that was only printed or mailed is still deleted.
+	// The deleted one goes with its reminder_dispatch row, its draft link reminder row and its automatic flow's job (reminder_delete_draft()), one transaction each.
+	$keptReminder = array();
+	$deleteDraftOrKeep = function (array $reminder) use (&$legalNotes, &$keptReminder, $brugernavn): void {
+		if (reminder_sending_tracked((int)$reminder['id'])) {
+			$keptReminder[(int)$reminder['id']] = true;
+			$legalNotes[] = reminder_txt(8232, 'Rykker {rykker} er ikke slettet, selvom kunden ikke har flere åbne poster, da den er sendt til kunden eller dens afsendelse er uafklaret. Behandl den manuelt.',
+				array('rykker' => trim((string)$reminder['fakturanr'])));
+			return;
+		}
+		transaktion('begin');
+		reminder_delete_draft((int)$reminder['id'], (string)$brugernavn, 'Ryk alle: kunden har ingen åbne poster.');
+		transaktion('commit');
+	};
 	for ($x=1;$x<=$konto_antal;$x++) { # udligner alle åbne poster og sletter tilhørende åbne rykkere hvor udestaaende er 0;
 		if ($udlign[$x]) {
 			$udlign_id++;
 			db_modify("update openpost set udlignet = '1', udlign_id = '$udlign_id' where konto_id='$konto_id[$x]' and udlignet = '0'",__FILE__ . " linje " . __LINE__);
-			$q=db_select("select id from ordrer where konto_id='$konto_id[$x]' and art LIKE 'R%' and status < '3' and betalt != 'on'",__FILE__ . " linje " . __LINE__);
-			while ($r=db_fetch_array($q)) {
-				db_modify("delete from ordrelinjer where ordre_id='$r[id]'",__FILE__ . " linje " . __LINE__); 
-				db_modify("delete from ordrer where id='$r[id]'",__FILE__ . " linje " . __LINE__); 
-			}	
+			$q=db_select("select id, fakturanr from ordrer where konto_id='$konto_id[$x]' and art LIKE 'R%' and status < '3' and betalt != 'on'",__FILE__ . " linje " . __LINE__);
+			while ($r=db_fetch_array($q)) $deleteDraftOrKeep($r);
 		}
 	}
 	# finder resterende aabne rykkere som ikke er i listen over konto over aabne poster og sletter disse.
-	$q=db_select("select id, konto_id from ordrer where art LIKE 'R%' and status < '3' and betalt != 'on'",__FILE__ . " linje " . __LINE__);
+	$q=db_select("select id, konto_id, fakturanr from ordrer where art LIKE 'R%' and status < '3' and betalt != 'on'",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
-		if (!in_array($r['konto_id'],$konto_id)) {
-			db_modify("delete from ordrelinjer where ordre_id='$r[id]'",__FILE__ . " linje " . __LINE__); 
-			db_modify("delete from ordrer where id='$r[id]'",__FILE__ . " linje " . __LINE__); 
-		}
+		if (!in_array($r['konto_id'],$konto_id)) $deleteDraftOrKeep($r);
 	}
 	$konto_id=array();
 	$x=0;
@@ -156,36 +202,35 @@ if ($konto_id[0]=="alle") {
 	}
 	$konto_antal=$x;
 	$rykker_id=array();
-	$rykkerfrist2=dunning_cutoff_date($ffdage2);
+	$bookOnly=array(); # 20261126 ASR Review I1: id => løbenr of reminders whose fee is booked without a next level, in the transaction below
+	$unsentReminder = reminder_automation_unsent_sql(); # 20261126 ASR Review I3: an automatic reminder that was not sent is the automatic flow's
+	$unpostedReminder = reminder_unposted_sql('ordrer'); # 20261126 ASR Review GPT-F-1: left at status 3 by a booking that stopped before it posted
 	#finder aabne level_1 rykkere som har overskredet rykkerdato med ffdage2.og bogforer disse
-	$q=db_select("select id,konto_id,fakturanr from ordrer where art = 'R1' and status < '3' and ordredate < '$rykkerfrist2' and $stripeDunningReminder",__FILE__ . " linje " . __LINE__);
+	$q=db_select("select id,konto_id,fakturanr from ordrer where art = 'R1' and (status < '3' or ($unpostedReminder and betalt != 'on')) and ordredate < '$rykkerfrist2' and $stripeDunningReminder and $unsentReminder",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
+		if (isset($keptReminder[(int)$r['id']])) continue; # 20261126 ASR Review AR2-1: kept above, its customer has no open items
 		// 20261109 CL/ASR not escalated: a reminder dated outside the active fiscal year (not booked either, as "Bogfør"), one whose
 		// invoices are all paid and renteloven § 9 b (L3) before the next reminder may carry its fee
 		if (($skip = reminder_escalation_skip((int)$r['id'], true)) !== '') {
 			// 20261111 CL/ASR its invoices paid after it was sent: still booked, as its fee is owed (Afslut closes it)
-			if ($skip === 'paid') bogfor_rykker($r['id']);
-			$legalNotes[] = reminder_skip_notice($r['fakturanr'], $skip);
+			if ($skip === 'paid') $bookOnly[(int)$r['id']] = $r['fakturanr'];
+			$legalNotes[] = reminder_skip_notice($r['fakturanr'], $skip, (int)$r['id']); // 20261126 ASR Review AR2-2
 			continue;
 		}
 		$x++;
-		db_modify("update ordrer set betalt = 'on' where id = '$r[id]'",__FILE__ . " linje " . __LINE__); 
-		bogfor_rykker($r['id']);
-		$rykker_id[$x]=$r['id'];
+		$rykker_id[$x]=$r['id']; # 20261126 ASR booked, escalated and closed together by reminder_create_batch()
 	}
-	$rykkerfrist3=dunning_cutoff_date($ffdage3);
 	#finder aabne level_2 rykkere som har overskredet rykkerdato med ffdage3.og bogforer disse
-	$q=db_select("select id,konto_id,fakturanr from ordrer where art = 'R2' and status < '3' and ordredate < '$rykkerfrist3' and betalt != 'on' and $stripeDunningReminder",__FILE__ . " linje " . __LINE__);
+	$q=db_select("select id,konto_id,fakturanr from ordrer where art = 'R2' and (status < '3' or $unpostedReminder) and ordredate < '$rykkerfrist3' and betalt != 'on' and $stripeDunningReminder and $unsentReminder",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)) {
+		if (isset($keptReminder[(int)$r['id']])) continue; # 20261126 ASR Review AR2-1: as for R1
 		// 20261109 CL/ASR as for R1 above
 		if (($skip = reminder_escalation_skip((int)$r['id'], true)) !== '') {
-			if ($skip === 'paid') bogfor_rykker($r['id']);
-			$legalNotes[] = reminder_skip_notice($r['fakturanr'], $skip);
+			if ($skip === 'paid') $bookOnly[(int)$r['id']] = $r['fakturanr'];
+			$legalNotes[] = reminder_skip_notice($r['fakturanr'], $skip, (int)$r['id']); // 20261126 ASR Review AR2-2
 			continue;
 		}
 		$x++;
-		db_modify("update ordrer set betalt = 'on' where id = '$r[id]'",__FILE__ . " linje " . __LINE__);
-		bogfor_rykker($r['id']);
 		$rykker_id[$x]=$r['id'];
 	}
 	$konto_antal=$x;
@@ -193,305 +238,32 @@ if ($konto_id[0]=="alle") {
 	$autoryk=0;
 	$rykkerfrist1=$rykkerdate;
 }
-for ($i=0; $i<=$konto_antal; $i++) {
-	if (!empty($rykker_id[$i])) {
-		$heldReminder = db_fetch_array(db_select("select id from ordrer where id = " . (int)$rykker_id[$i] . " and not ($stripeDunningReminder)", __FILE__ . ' linje ' . __LINE__));
-		if ($heldReminder) continue;
-	}
-	$forfalden=0;
-	if (($konto_id[$i])||($rykker_id[$i])) {
-		if (!$rykker_id[$i]) {
-			$sum=0;
-			$r_ordrenr=0;
-			
-			if ($r = db_fetch_array(db_select("select MAX(ordrenr) as r_ordrenr from ordrer where art LIKE 'R%'",__FILE__ . " linje " . __LINE__))) $r_ordrenr=$r['r_ordrenr'];
-			$r_ordrenr++;
-			$r_fakturanr=$r_ordrenr."-1";
-			$r=db_fetch_array(db_select("select * from adresser where id ='$konto_id[$i]'",__FILE__ . " linje " . __LINE__));
-			$kontonr=db_escape_string($r['kontonr']);
-			$firmanavn=db_escape_string($r['firmanavn']);
-			$addr1=db_escape_string($r['addr1']);
-			$addr2=db_escape_string($r['addr2']);
-			$postnr=db_escape_string($r['postnr']);
-			$bynavn=db_escape_string($r['bynavn']);
-			$land=db_escape_string($r['land']);
-			$notes=db_escape_string($r['notes']);
-			$ref=db_escape_string($r['kontoansvarlig']);
-			$kontakt=db_escape_string($r['kontakt']);
-			$email=db_escape_string($r['email']);
-			if ($ffdage2) {
-				$betalingsdage=$ffdage2;
-				$betalingsbet='Netto'	;
-			} else {	 
-				$betalingsdage=db_escape_string($r['betalingsdage']);
-				$betalingsbet=db_escape_string($r['betalingsbet']);
-			} 
-			$cvrnr=db_escape_string($r['cvrnr']);
-			$ean=db_escape_string($r['ean']);
-			$institution=db_escape_string($r['institution']);
-			$r2 = db_fetch_array(db_select("select box1, box3, box4, box6 from grupper where art='DG' and kodenr='$r[gruppe]'",__FILE__ . " linje " . __LINE__));
-			$valuta=$r2['box3'];
-			$sprog=$r2['box4'];
-			if ($valuta && $valuta!='DKK') {
-				if ($r2= db_fetch_array(db_select("select valuta.kurs from valuta, grupper where grupper.art='VK' and grupper.box1='$valuta' and valuta.gruppe=grupper.kodenr::INT and valuta.valdate <= '$rykkerdate' order by valuta.valdate",__FILE__ . " linje " . __LINE__))) {
-					$valutakurs=$r2['kurs'];
-				} else {
-					$tmp = dkdato($ordredate);
-					print "<BODY onLoad=\"javascript:alert('Der er ikke nogen valutakurs for $valuta den $ordredate')\">";
-				}
-			} else {
-				$valuta='DKK';
-				$valutakurs=100;
-			}
-			if ($ref) {
-				$r2 = db_fetch_array(db_select("select navn from ansatte where id = '$ref'",__FILE__ . " linje " . __LINE__));
-				$ref=$r['navn'];	
-			}	
-			$op_id=NULL;
-			$x=0;
-			$q=db_select("select * from openpost where udlignet = '0' and ((forfaldsdate<'$rykkerfrist1' and amount>'0') or amount < '0') and konto_id='" . (int)$konto_id[$i] . "' and $stripeDunningOpen",__FILE__ . " linje " . __LINE__);
-			while ($r=db_fetch_array($q)) {
-#				Finder tidligere rykkere på samme ordre.
-				if (!db_fetch_array(db_select("select ordrer.id from ordrer,ordrelinjer where ordrelinjer.enhed = '$r[id]' and ordrer.id = ordrelinjer.ordre_id and ordrer.betalt != 'on'",__FILE__ . " linje " . __LINE__)) && !db_fetch_array(db_select("select id from ordrer where id = '$r[refnr]' and art LIKE 'R%' and betalt != 'on'",__FILE__ . " linje " . __LINE__))) {
-					$x++;
-					if ($op_id) $op_id=$op_id." or id ='".$r['id']."'"; #Liste over open post id numre der skal rykkes  
-					else $op_id="id ='".$r['id']."'";
-					$amount[$x]=$r['amount'];
-					$forfaldsdate[$x]=$r['forfaldsdate'];
-					if (!$forfaldsdate[$x]) $forfaldsdate[$x]=$r['transdate']; #20121105
-					if ($rentesats_1) $renteamount[$x] = find_rente($rentesats_1,$forfaldsdate[$x],$amount[$x]);
-					else $renteamount[$x]=0;
-				}
-			}
-			$ryk_antal=$x;
-			if ($ryk_antal) {	
-					db_modify("insert into ordrer (ordrenr, konto_id, kontonr, firmanavn, addr1, addr2, postnr, bynavn, land, betalingsdage, betalingsbet, cvrnr, ean, institution, notes, art, ordredate, levdate, fakturadate, momssats, hvem, tidspkt, ref, status,valuta, valutakurs,fakturanr,email,betalt,kontakt,felt_5) 
-					values ('$r_ordrenr', '$konto_id[$i]', '$kontonr', '$firmanavn', '$addr1', '$addr2', '$postnr', '$bynavn', '$land', '$betalingsdage', '$betalingsbet', '$cvrnr', '$ean', '$institution', '$notes', 'R1', '$rykkerdate', '$rykkerdate', '$rykkerdate', '0', '$brugernavn', '$tidspkt', '$ref', '2', '$valuta', '$valutakurs','$r_fakturanr','$email','-','$kontakt','')",__FILE__ . " linje " . __LINE__);
-				$r= db_fetch_array(db_select("select id from ordrer where ordrenr ='$r_ordrenr' and art = 'R1'",__FILE__ . " linje " . __LINE__));
-				$rykker_id[$i]=$r['id'];
-				$id=$konto_id[$i];
-				$x=0;
-				$pos=0;
-				$q2 = db_select("select * from openpost where ($op_id) and $stripeDunningOpen ",__FILE__ . " linje " . __LINE__);
-				while ($r2 = db_fetch_array($q2)) {
-					$x++;				
-					if ($r2['valuta']) $opp_valuta=$r2['valuta'];
-					else $opp_valuta='DKK';
-					if ($r2['valutakurs']) $opp_valkurs=$r2['valutakurs'];
-					else $opp_valkurs=100;
-					if (($opp_valuta!='DKK' || $valuta!='DKK') && $opp_valuta!=$valuta)  $beskrivelse=$r2['beskrivelse']." (".$opp_valuta." ".dkdecimal($r2['amount']).")";
-					else $beskrivelse=$r2['beskrivelse'];
-					if ($valuta=='DKK'&& $opp_valuta!='DKK') $opp_amount=$r2['amount']*$opp_valkurs/100;
-					elseif ($valuta!='DKK' && $opp_valuta=='DKK') $opp_amount=$r2['amount']*100/$opp_valkurs;
-					elseif ($valuta!='DKK' && $opp_valuta!='DKK' && $opp_valuta!=$valuta) {
-						$tmp==$r2['amount']*$opp_valkurs/100;
-					 	$opp_amount=$tmp*100/$opp_valkurs;
-					}
-					else $opp_amount=$r2['amount'];
-					$pos++;
-					db_modify("insert into ordrelinjer (posnr,enhed, ordre_id, serienr, beskrivelse) values ('$pos','$r2[id]', '$rykker_id[$i]', '$r2[transdate]', '".db_escape_string($beskrivelse)."')",__FILE__ . " linje " . __LINE__);
-					$forfalden=$forfalden+$opp_amount;
-					if ($renteamount[$x]) {
-						$q3 = db_select ("select * from varer where id IN (select yb from formularer where beskrivelse='GEBYR' and formular='6')",__FILE__ . " linje " . __LINE__);
-						if ($r3 = db_fetch_array($q3)) {
-							$beskrivelse=db_escape_string($r3['beskrivelse']);				
-							$dd=date("Y-m-d");
-							$pos++;
-							db_modify("insert into ordrelinjer (posnr,ordre_id,vare_id,varenr,serienr,beskrivelse,antal,pris) values ($pos,'$rykker_id[$i]','$r3[id]','$r3[varenr]', '$dd', '$beskrivelse','1','$renteamount[$x]')",__FILE__ . " linje " . __LINE__);
-							$sum=$sum+$renteamount[$x];
-						}
-					}
-				} 
-				$q2 = db_select ("select * from varer where id IN (select xb from formularer where beskrivelse='GEBYR' and formular='6')",__FILE__ . " linje " . __LINE__);
-				if ($r2 = db_fetch_array($q2)) {				
-					$gebyr=$r2['salgspris'];	
-					if ($valutakurs)$gebyr=$gebyr*100/$valutakurs;
-					// 20261109 CL/ASR renteloven § 9 b (L1): at most 100,00 kr. per reminder
-					$capped = reminder_legal_cap_fee((float)$gebyr, (string)$valuta, (float)($valutakurs ?? 0));
-					if ($capped['capped']) {
-						$gebyr = $capped['fee'];
-						$legalNotes[] = reminder_txt(8108, 'Rykker {rykker}: {tekst}', array('rykker' => $r_fakturanr, 'tekst' => reminder_cap_notice($gebyr, $valuta)));
-					}
-					$pos++;
-					db_modify("insert into ordrelinjer (posnr,ordre_id, varenr, vare_id, beskrivelse, antal, pris, serienr) values ('$pos','$rykker_id[$i]', '" . db_escape_string($r2['varenr']) . "', '" . (int)$r2['id'] . "', '" . db_escape_string($r2['beskrivelse']) . "', '1', '$gebyr' , '$rykkerdate')",__FILE__ . " linje " . __LINE__);
-					$forfalden=$forfalden+$r2['salgspris'];
-					$sum=$sum+$gebyr;
-					db_modify("update ordrer set sum='$sum' where id=$rykker_id[$i]",__FILE__ . " linje " . __LINE__);
-				}
-				// 20261109 CL/ASR "Send pr. mail" when the customer has an e-mail address and the newest reminded invoice was e-mailed
-				$newestInvoice = reminder_newest_invoice((int)$rykker_id[$i]);
-				if (trim($email) !== '' && $newestInvoice && in_array($newestInvoice['udskriv_til'], array('email', 'Link', 'Stripe'), true)) {
-					db_modify("update ordrer set mail_fakt = 'on' where id = " . (int)$rykker_id[$i], __FILE__ . " linje " . __LINE__);
-				}
-				// 20261109 CL/ASR link reminder when eligible (stripeReminder.php); classic otherwise
-				if (function_exists('stripe_reminder_register')) stripe_reminder_register((int)$rykker_id[$i]);
-			}
-##########################################################################################################################		
-		} else {
-			$sum = 0; # 20261109 CL/ASR the new level's fee and interest only, not those of an earlier reminder in this run
-			$qtxt = "select * from ordrer where id = '$rykker_id[$i]'";
-			$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			$rykkernr=substr($r['art'],-1);
-			// 20261109 CL/ASR a link reminder's fee and interest went on the next invoice: no open claim, so no interest on them
-			$prevCarried = function_exists('stripe_reminder_carried') && stripe_reminder_carried((int)$rykker_id[$i]);
-			$rentesum = $prevCarried ? 0 : $r['sum'];
-			$valuta=$r['valuta'];
-			$fakturadate=$r['fakturadate'];
-			$rykkernr++;
-			if ($valuta && $valuta!='DKK') { #20140707
-				$qtxt = "select valuta.kurs from valuta, grupper where grupper.art='VK' and grupper.box1='$valuta' and ";
-				$qtxt.= "valuta.gruppe=grupper.kodenr::INT and valuta.valdate <= '$rykkerdate' order by valuta.valdate desc limit 1"; # 20210507
-				if ($r2= db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-					$valutakurs=$r2['kurs'];
-				} else {
-					$tmp = dkdato($ordredate);
-					print "<BODY onLoad=\"javascript:alert('Der er ikke nogen valutakurs for $valuta den $ordredate')\">";
-				}
-			} else {
-				$valuta='DKK';
-				$valutakurs=100;
-			}
-			if ($rykkernr<=3) {
-				// 20261109 CL/ASR no next level when every invoice on the reminder is paid; renteloven § 9 b (L3): a reminder with a fee
-				// at least 10 days after the previous one was sent
-				if (($skip = reminder_escalation_skip((int)$rykker_id[$i], false)) !== '') {
-					$legalNotes[] = reminder_skip_notice($r['fakturanr'], $skip);
-					continue;
-				}
-				$art="R".$rykkernr;
-				$qtxt = "select * from adresser where id ='$r[konto_id]'";
-				$r1=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-				$r_fakturanr=$r['ordrenr']."-".$rykkernr;
-				$qtxt = "insert into ordrer (ordrenr, konto_id, kontonr, firmanavn, addr1, addr2, postnr, bynavn, land, betalingsdage, ";
-				$qtxt.= "betalingsbet, cvrnr, ean, institution, notes, art, ordredate, levdate, fakturadate, momssats, hvem, tidspkt, ";
-				$qtxt.= "ref,status,valuta,valutakurs,fakturanr,email,betalt,kontakt,mail_fakt) values ";
-				$qtxt.= "('$r[ordrenr]', '$r[konto_id]', '$r1[kontonr]', '".db_escape_string($r1['firmanavn'])."', ";
-				$qtxt.= "'".db_escape_string($r1['addr1'])."', '".db_escape_string($r1['addr2'])."', '".db_escape_string($r1['postnr'])."',";
-				$qtxt.= "'".db_escape_string($r1['bynavn'])."', '".db_escape_string($r1['land'])."', '$ffdage3', 'Netto', ";
-				$qtxt.= "'".db_escape_string($r1['cvrnr'])."', '".db_escape_string($r1['ean'])."', '".db_escape_string($r1['institution'])."',";
-				$qtxt.= "'".db_escape_string($r1['notes'])."', '$art', '$rykkerdate', '$rykkerdate', '$rykkerdate', '0', '$brugernavn', ";
-				$qtxt.= "'$tidspkt', '".db_escape_string($r['ref'])."', '2','$valuta', '$valutakurs','$r_fakturanr',";
-				$qtxt.= "'".db_escape_string($r['email'])."','-','".db_escape_string($r['kontakt'])."','$r[mail_fakt]')";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				$qtxt =	"select id from ordrer where ordrenr ='$r[ordrenr]' and art = '$art' and fakturanr = '$r_fakturanr' and betalt != 'on'";
-				$r= db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)); #Henter ordrelinjer fra basisrykker.
-				$ny_rykker_id[$i]=$r['id'];
-				$pos=0;
-				$qtxt = "select * from ordrelinjer where ordre_id = '$rykker_id[$i]' order by posnr";
-				$q2 = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-				while ($r2=db_fetch_array($q2)) { #og indsætter dem i den nye rykker
-					if (!$r2['vare_id'] && $r2['enhed']) {
-						$qtxt = "select konto_id, faktnr, amount, udlignet from openpost where id = '" . (int)$r2['enhed'] . "'";
-						$r3=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-						if ($r3 && reminder_openpost_paid($r3)) continue; # 20261109 CL/ASR a paid open item is not reminded again, nor charged interest
-						$pos++;
-						$qtxt = "insert into ordrelinjer (posnr,enhed, ordre_id, serienr, beskrivelse) values ";
-						$qtxt.= "('$pos','" . db_escape_string($r2['enhed']) . "', '$ny_rykker_id[$i]', '" . db_escape_string($r2['serienr']) . "', '" . db_escape_string($r2['beskrivelse']) . "')";
-						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-						$rentesum=$rentesum+($r3 ? $r3['amount'] : 0);
-					}
-				}
-				$qtxt = "select * from ordrer where id = '$rykker_id[$i]'";
-				$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-				// 20261109 CL/ASR a link reminder's fee went on the next invoice ($prevCarried): there is no fee open item to list
-				if ($r2['sum'] && !$prevCarried)	{ # Henter gebyrinformation fra basisrykker.
-					$qtxt = "select sum(pris) as sum from ordrelinjer where ordre_id = '$rykker_id[$i]' and vare_id > 0";
-					if ($r3=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)) && $r3['sum'] && $r3['sum'] != $r2['sum']) {
-						$tmp = $r3['sum'];
-						if ($r3['valutakurs'] && $r3['valutakurs'] != 100) $tmp*=$r3['valutakurs']/100; # 20210422
-						$qtxt = "update ordrer set sum = '". afrund($tmp,2) ."' where id = '$rykker_id[$i]'";
-						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-						$r2['sum'] = $tmp;
-					} 
-						if ($r2['valutakurs'] && $r2['valutakurs'] != 100) $r2['sum']*=$r2['valutakurs']/100; #20210422
-					$qtxt = "select * from openpost where refnr = '$rykker_id[$i]' and konto_id='$r2[konto_id]' and ";
-					$qtxt.= "amount = ". afrund($r2['sum'],2);
-#					$qtxt.= "amount > $r2[sum]-0.01 and amount < $r2[sum]+0.01";
-					$r4=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-					# Og indsætter disse i den nye rykker.
-					$pos++;
-					$qtxt = "insert into ordrelinjer (posnr,enhed, ordre_id, serienr, beskrivelse) values ";
-					$qtxt.= "('$pos','$r4[id]', '$ny_rykker_id[$i]','$r2[fakturadate]', '".db_escape_string($r4['beskrivelse'])."')";
-					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				}
-				$formular=$rykkernr+5; # fordi rykker 1 har formular nr. 6, rykekr 2 nr. 7 osv.
-				# Og tilføjer rykkergebyr
-				if ($rykkernr==2 && $rentesats_2) $renteamount[$x] = find_rente($rentesats_2,$fakturadate,$rentesum);
-				elseif ($rykkernr==3 && $rentesats_3) $renteamount[$x] = find_rente($rentesats_3,$fakturadate,$rentesum);
-				else $renteamount[$x]=0;
-				if ($renteamount[$x]) {
-					$qtxt = "select * from varer where id IN (select yb from formularer where beskrivelse='GEBYR' and formular='$formular')";
-					$q3 = db_select ($qtxt,__FILE__ . " linje " . __LINE__);
-					if ($r3 = db_fetch_array($q3)) {
-						$beskrivelse=db_escape_string($r3['beskrivelse']);				
-						$dd=date("Y-m-d");
-						$pos++;
-						$qtxt = "insert into ordrelinjer (posnr,ordre_id,vare_id,varenr,serienr,beskrivelse,antal,pris) values ";
-						$qtxt.= "($pos,'$ny_rykker_id[$i]','$r3[id]','$r3[varenr]', '$dd', '$beskrivelse','1','$renteamount[$x]')";
-						db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-						$sum=$sum+$renteamount[$x];
-					}
-				}
-				$qtxt = "select * from varer where id IN (select xb from formularer where beskrivelse='GEBYR' and formular='$formular')";
-				$q2 = db_select ($qtxt,__FILE__ . " linje " . __LINE__);
-				if ($r2 = db_fetch_array($q2)) {				
-					$gebyr=$r2['salgspris'];
-					$sum=$sum+$gebyr;
-					if ($valutakurs) {
-						$gebyr=afrund($gebyr*100/$valutakurs,2);
-						$sum=afrund($sum*100/$valutakurs,2);
-					}	
-					// 20261109 CL/ASR renteloven § 9 b (L1): at most 100,00 kr. per reminder
-					$capped = reminder_legal_cap_fee((float)$gebyr, (string)$valuta, (float)($valutakurs ?? 0));
-					if ($capped['capped']) {
-						$sum = afrund($sum - $gebyr + $capped['fee'], 2);
-						$gebyr = $capped['fee'];
-						$legalNotes[] = reminder_txt(8108, 'Rykker {rykker}: {tekst}', array('rykker' => $r_fakturanr, 'tekst' => reminder_cap_notice($gebyr, $valuta)));
-					}
-					$qtxt = "insert into ordrelinjer (ordre_id, varenr, vare_id, beskrivelse, antal, pris, serienr) values ";
-					$qtxt.= "('$ny_rykker_id[$i]', '".db_escape_string($r2['varenr'])."', '$r2[id]', ";
-					$qtxt.= "'".db_escape_string($r2['beskrivelse'])."', '1', '$gebyr' , '$rykkerdate')";
-					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-					// 20261109 CL/ASR the sum belongs to the new reminder (it was written to the previous one)
-					$qtxt = "update ordrer set sum='$sum' where id=" . (int)$ny_rykker_id[$i];
-					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-				}
-				// 20261109 CL/ASR link reminder when the previous level is one (stripeReminder.php)
-				if (function_exists('stripe_reminder_register')) stripe_reminder_register((int)$ny_rykker_id[$i]);
-			} else {
-				if ($topniveau) $topniveau=$topniveau.", "; 
-				$topniveau=$topniveau.$r['ordrenr'];
-			}
-		}
-	}
-}	
+transaktion('begin');
+try {
+    // 20261126 ASR Review I1: a paid reminder's owed fee is booked in the transaction too, each under its own savepoint
+    if (!empty($bookOnly)) {
+        reminder_create_lock();
+        foreach ($bookOnly as $bookId => $bookNr) {
+            $failure = reminder_create_isolated(function () use ($bookId) { reminder_create_book((int)$bookId); });
+            if ($failure !== '') $legalNotes[] = reminder_txt(8108, 'Rykker {rykker}: {tekst}', array('rykker' => $bookNr, 'tekst' => $failure));
+        }
+    }
+    $created = reminder_create_batch($konto_id, $rykker_id, $rykkerdate, $rykkerfrist1, (string)$brugernavn, $rykAlle);
+    if (!empty($GLOBALS['db_modify_fejl'])) {
+        throw new RuntimeException('Rykkeren kunne ikke oprettes.');
+    }
+    transaktion('commit');
+    $legalNotes = array_merge($legalNotes, $created['notes']);
+    $fristIkkeUdloebet = $created['not_due']; # 20261126 CL/ASR Stripe port (#1147): this line's R2/R3 refusal (20261105), now checked in reminder_create_batch()
+} catch (Throwable $e) {
+    transaktion('rollback');
+    $legalNotes[] = $e->getMessage();
+}
 #	xit;
+$messages = array(); # 20261126 ASR Review M1: one message, read before the popup closes
+if ($fristIkkeUdloebet) {
+	$tekst = findtekst('reminder.next_level_not_due|Der er ikke oprettet en ny rykker for løbenr. %s, fordi betalingsfristen for den forrige rykker ikke er overskredet.', $sprog_id);
+	$messages[] = sprintf($tekst, implode(', ', $fristIkkeUdloebet));
+}
 if ($topniveau) $legalNotes[] = reminder_txt(8110, 'Topniveau nået for rykkere med løbenr {loebenr}', array('loebenr' => $topniveau));
-if ($legalNotes) {
-	/**
-	 * jsString() comes from includes/stdFunc/jsString.php, which std_func.php includes.
-	 *
-	 * @see jsString()
-	 */
-	print "<BODY onLoad=\"javascript:alert(" . htmlspecialchars(jsString(array(implode("\n", $legalNotes))), ENT_QUOTES, 'UTF-8') . ")\">";
-}
-print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
-
-#############################################################################
-function find_rente ($rentesats,$forfaldsdate,$amount) {
-	list($f_year,$f_month,$f_day)=explode("-",$forfaldsdate);
-	$year=date("Y");
-	$month=date("m");
-	$day=date("d");
-	$maaneder=$month-$f_month;
-	$maaneder=$maaneder+($year-$f_year)*12;
-	if ($day>=$f_day) $maaneder=$maaneder+1;
-	
-	$rente=0;
-	for ($x=1;$x<=$maaneder;$x++) {
-		$rente=$rente+(($amount+$rente)*$rentesats/100);
-	}
-	$rente=round($rente,2);
-	return($rente);
-}
-?>
+print formReminderAlertThenGo(array_merge($messages, $legalNotes), '../includes/luk.php');

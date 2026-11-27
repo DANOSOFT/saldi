@@ -410,7 +410,7 @@ table {
 .dataTable thead th
 {
     padding: 5px 0;
-    text-indent: 20px;
+    /* text-indent: 20px; */
     background-color: lightgray;
     
     #overflow: hidden;

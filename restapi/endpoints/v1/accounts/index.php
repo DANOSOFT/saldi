@@ -1,10 +1,13 @@
 <?php
+// 20261105 CL/LH Needs the Kontoplan right (system.kontoplan), as systemdata/kontoplan.php and kontokort.php do; without it the request is refused with 403.
 
 require_once '../../../models/finans/AccountModel.php';
 require_once '../../../core/BaseEndpoint.php';
 
 class AccountsEndpoint extends BaseEndpoint
 {
+    protected $permissionKey = 'system.kontoplan';
+
     public function __construct()
     {
         parent::__construct();

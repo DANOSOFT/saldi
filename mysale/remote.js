@@ -1,3 +1,38 @@
+// 20261006 CL/LH SST-842: stop with a message when vibrantPaymentLink.php returns an error instead of a link.
+// 20261015 CL/LH SST-842: reject the booking (deletes the order and rentalperiod) when no payment link is returned.
+// 20261105 CL/LH createBooking's refusal (409: the period is no longer free, 400: no booking) is shown, and no payment link is asked for.
+// 20261105 CL/LH After the payment the page says the confirmation was mailed only when sendMail.php answers sent: true.
+// 20261111 CL/MMR SST-995: the calendar shows without closed days, and closed days are blocked (map returned nothing).
+//                 A start date whose rental would end on a closed day is refused with a message (no onChange loop).
+// 20261116 CL/ASR createBooking and updateBooking go with the session cookie (credentials "same-origin"): api.php books only for the customer Mit salg signed in, and approves or rejects only a booking this session made.
+//                 When createBooking answers 403 (not signed in as the link's customer), the page says so and goes to mysale.php to sign in, as mybooking.js does.
+//                 An approval that api.php refuses or cannot invoice shows that the booking was not confirmed, with its number, and sends no confirmation mail; a refused rejection says so.
+//                 The payment status is asked for one request at a time, so the booking is approved or rejected once.
+//                 updateBooking counts as done only an answer in JSON with the status it asked for (approved, or deleted for a rejection or a timeout), so a page PHP printed with HTTP 200 instead (an alert from the invoicing) is not taken for a confirmed booking.
+
+// updateBooking answers {"status": ...} when it did what it was asked, and {"error": ...} otherwise: 403 for a booking
+// this session did not make or whose customer Mit salg no longer has signed in, 409 for an invoiced order (not
+// rejected) or a booking without an order, 500 when the order could not be invoiced.
+// The call is done only when the answer is that JSON with the status it asks for: approved for an approval, deleted for
+// a rejection or a timeout. An alert levering() or batch_salg() printed before it stopped comes with HTTP 200, and is not.
+const updateBooking = async (db, bookingId, status) => {
+    const res = await fetch(`api.php?updateBooking&db=${db}`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            "id": bookingId,
+            "status": status
+        })
+    }).catch(() => null)
+    const json = res ? await res.json().catch(() => null) : null
+    const answer = json !== null && typeof json === "object" ? json : {} // a page PHP printed instead of JSON is no answer
+    const done = status === "approved" ? "approved" : "deleted" // what api.php answers when it did what was asked
+    return {"ok": res !== null && res.ok && answer.status === done, "status": res ? res.status : 0, "answer": answer}
+}
+
 const productsView = async (main, db) => {
     const products = await fetch(`api.php?getAllProducts&db=${db}`,{
         method: "GET",
@@ -179,10 +214,12 @@ const calendarView = async (main, product, weeks, price, db, userID) => {
         return response.json()
     })
 
-    const closedDates = getClosedDates.map(date => {
+    // SST-995: without closed days the API answers {"success":false,...}, so only a list holds dates;
+    // the formatted date must be returned, or flatpickr gets a list of undefined and blocks nothing.
+    const closedDates = Array.isArray(getClosedDates) ? getClosedDates.map(date => {
         date = new Date(date.date * 1000)
-        date = date.getFullYear() + "-" + ("0" + (date.getMonth() + 1)).slice(-2) + "-" + ("0" + date.getDate()).slice(-2)
-    })
+        return date.getFullYear() + "-" + ("0" + (date.getMonth() + 1)).slice(-2) + "-" + ("0" + date.getDate()).slice(-2)
+    }) : []
 
     const datePick = flatpickr("#calendar", {
         inline: true, // This makes the calendar always visible
@@ -240,6 +277,15 @@ const calendarView = async (main, product, weeks, price, db, userID) => {
                     endDate.setDate(startDate.getDate() + parseInt(weeks))
                 }else{
                     endDate.setDate(startDate.getDate() + weeks*7)
+                }
+
+                // SST-995: an end date on a closed day is not allowed. flatpickr drops a disabled date from
+                // setDate, which calls onChange again with one date and loops, so stop here instead.
+                const endDay = endDate.getFullYear() + "-" + ("0" + (endDate.getMonth() + 1)).slice(-2) + "-" + ("0" + endDate.getDate()).slice(-2)
+                if (closedDates.includes(endDay)) {
+                    instance.clear(false)
+                    alert("Slutdatoen " + endDay + " er en lukkedag. Vælg en anden startdato.")
+                    return
                 }
 
                 // Update the calendar selection to the new range
@@ -312,16 +358,29 @@ const calendarView = async (main, product, weeks, price, db, userID) => {
                 "unit": product.unit,
             }
 
-            const response = await fetch(`api.php?createBooking&db=${db}`,{
+            const booking = await fetch(`api.php?createBooking&db=${db}`,{
                 method: "POST",
+                credentials: "same-origin", // api.php books for the customer Mit salg signed in in this session
                 headers: {
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify(data)
-            }).then(response => {
-                return response.json()
             })
-            
+            const response = await booking.json().catch(() => ({}))
+            if (booking.status === 403) {
+                // Mit salg has not signed this customer in (or has signed out): sign in through the link, as mybooking.js does
+                alert("Du er ikke logget ind på Mit salg. Log ind, og book standen igen.")
+                window.location.href = `mysale.php?id=${encodeURIComponent(new URLSearchParams(window.location.search).get('id') || '')}`
+                return
+            }
+            // api.php refuses a stand booked or blocked since the calendar was drawn (409), and a booking it cannot make (400).
+            // Then there is no hold to pay for: say so and stop before the payment link.
+            if (!booking.ok || !response.id) {
+                alert(booking.status === 409
+                    ? "Den valgte periode er ikke længere ledig. Opdater siden, og vælg en anden periode."
+                    : "Bookingen kunne ikke oprettes. Kontakt butikken.")
+                return
+            }
             const bookingId = response.id
             const loading = document.querySelector("#loading")
             loading.style.display = "flex"
@@ -338,14 +397,24 @@ const calendarView = async (main, product, weeks, price, db, userID) => {
             }).then(response => {
                 return response.json()
             })
+            if (!quickRes || quickRes.error || !quickRes.url) {
+                // No tenant Vibrant key or Vibrant issued no link: stop instead of opening "undefined".
+                loading.style.display = "none"
+                // release the hold; if api.php refuses, the hold lapses when it expires
+                await updateBooking(db, bookingId, "rejected")
+                alert("Betalingslinket kunne ikke oprettes. Kontakt butikken.")
+                return
+            }
 
             // open payment window in a new windows
             window.open(quickRes.url, '', 'height=700,width=500')
 
-            // get status every other second for 180 seconds
+            // get status every other second for 180 seconds, one request at a time: the booking is approved or rejected once
             let i = 0
-            const interval = setInterval(async () => {
-                i++
+            let polling = false
+            let settled = false
+            let interval
+            const pollPayment = async () => {
                 const status = await fetch(`vibrantPaymentIntent.php?id=${quickRes.id}`,{
                     method: "POST",
                     headers: {
@@ -356,31 +425,29 @@ const calendarView = async (main, product, weeks, price, db, userID) => {
                     })
                 }).then(response => {
                     return response.json()
-                })
+                }).catch(() => ({})) // no answer this time: ask again at the next tick
                 if(status.state === "succeeded"){
+                    settled = true
                     clearInterval(interval)
                     loading.style.display = "none"
-                    // update booking status
-                    const res = await fetch(`api.php?updateBooking&db=${db}`,{
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify({
-                            "id": bookingId,
-                            "status": "approved",
-                            "custId": userID
-                        })
-                    }).then(response => {
-                        return response.json()
-                    })
+                    // approving invoices the order; say thank you and mail the confirmation only when api.php did it
+                    const approval = await updateBooking(db, bookingId, "approved")
+                    if (!approval.ok) {
+                        main.innerHTML = `
+                            <div class="w-2/3 mx-auto text-white text-center mt-4">
+                                <h3>Betalingen er gennemført, men bookingen kunne ikke bekræftes.</h3>
+                                <p>Kontakt butikken, og oplys booking nr. ${Number(bookingId)}.</p>
+                            </div>
+                        `
+                        return
+                    }
                     main.innerHTML = `
                         <div class="w-2/3 mx-auto text-white text-center mt-4">
                             <h3>Tak for din bestilling!</h3>
-                            <p>Vi har sendt en ordrebekræftelse mail med ordre.</p>
+                            <p id="mailStatus">Sender ordrebekræftelsen på mail ...</p>
                         </div>
                     `
-                    // TODO: send email ?
+                    // sendMail.php answers sent: true only when the confirmation went out. Say it was mailed only then.
                     const emailRes = await fetch(`sendMail.php`,{
                         method: "POST",
                         headers: {
@@ -397,46 +464,41 @@ const calendarView = async (main, product, weeks, price, db, userID) => {
                         })
                     }).then(response => {
                         return response.json()
-                    })
-                    console.log(emailRes)
-                    
+                    }).catch(() => ({}))
+                    document.querySelector("#mailStatus").textContent = emailRes && emailRes.sent === true
+                        ? "Vi har sendt en ordrebekræftelse mail med ordre."
+                        : "Ordrebekræftelsen kunne ikke sendes på mail. Kontakt butikken."
                 }else if(status.state === "failed"){
+                    settled = true
                     clearInterval(interval)
                     loading.style.display = "none"
                     alert("Betaling afvist")
-                    // update booking status
-                    const res = await fetch(`api.php?updateBooking&db=${db}`,{
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify({
-                            "id": bookingId,
-                            "status": "rejected"
-                        })
-                    }).then(response => {
-                        return response.json()
-                    })
+                    const rejection = await updateBooking(db, bookingId, "rejected")
+                    if (!rejection.ok) {
+                        alert(`Bookingen kunne ikke annulleres. Kontakt butikken, og oplys booking nr. ${Number(bookingId)}.`)
+                    }
                     /* location.reload() */
-                }else if(i === 95){
+                }else if(i >= 95){
+                    settled = true
                     clearInterval(interval)
                     loading.style.display = "none"
                     alert("Timeout")
-                    // update booking status
-                    const res = await fetch(`api.php?updateBooking&db=${db}`,{
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify({
-                            "id": bookingId,
-                            "status": "timeout"
-                        })
-                    }).then(response => {
-                        return response.json()
-                    })
+                    const rejection = await updateBooking(db, bookingId, "timeout")
+                    if (!rejection.ok) {
+                        alert(`Bookingen kunne ikke annulleres. Kontakt butikken, og oplys booking nr. ${Number(bookingId)}.`)
+                    }
                     location.reload()
                 }
+            }
+            interval = setInterval(() => {
+                i++
+                if (polling || settled) { // the previous status request is still waiting, or the booking is settled
+                    return
+                }
+                polling = true
+                pollPayment().finally(() => {
+                    polling = false
+                })
             }, 2000)
         })
 }

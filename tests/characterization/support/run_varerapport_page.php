@@ -1,0 +1,52 @@
+<?php
+// tests/characterization/support/run_varerapport_page.php
+//
+// Child-process runner for lager/rapport.php, the page behind Lager ->
+// Rapporter (Varerapport), or for includes/rapport.php, its older copy.
+//
+// rapport.php is a legacy page script: it starts a session, includes
+// connect/online/std_func at top level and prints as it goes, so it cannot be
+// included inside the PHPUnit process. This runner fills $_GET the way the
+// report's own links do (its back, CSV and page links are GET requests) and
+// includes the page with the fabricated session CharacterizationEnv seeded in
+// the `online` table. The page's HTML goes to stdout. The CSV it writes lands
+// in temp/<tenant db>/salgsrapport.csv, as in production.
+//
+// argv: 1 = session id (must match the seeded online row)
+//       2 = query string, e.g. "submit=ok&lagertal=on&varegruppe=2"
+//       3 = the page's directory: lager (default) or includes
+//
+// History:
+// 20261105 CL/LH Created for VarerapportGroupTotalsTest.
+// 20261105 CL/LH Also runs includes/rapport.php, the older copy of the page (argv 3).
+// 20261115 CL/ASR Integration: the page is included by __DIR__, not by a path the chdir() resolves (include-paths guardrail).
+
+if ($argc < 3) {
+    fwrite(STDERR, "usage: php run_varerapport_page.php <session_id> <query string> [lager|includes]\n");
+    exit(2);
+}
+$sessionId = $argv[1];
+$pageDir = $argv[3] ?? 'lager';
+if (!in_array($pageDir, ['lager', 'includes'], true)) {
+    fwrite(STDERR, "the page's directory is lager or includes, not $pageDir\n");
+    exit(2);
+}
+
+error_reporting(E_ERROR | E_PARSE); // the legacy page is warning-noisy; keep child output usable
+
+$_SERVER['REQUEST_METHOD'] = 'GET';
+$_SERVER['REQUEST_URI'] = "/saldi/$pageDir/rapport.php?" . $argv[2];
+$_SERVER['PHP_SELF'] = "/saldi/$pageDir/rapport.php";
+$_SERVER['REMOTE_ADDR'] = '127.0.0.1';
+$_SERVER['HTTP_USER_AGENT'] = 'chartest';
+
+parse_str($argv[2], $_GET);
+$_POST = array();
+$_REQUEST = $_GET;
+
+ini_set('session.save_path', sys_get_temp_dir());
+session_id($sessionId); // the page's @session_start() picks this id up -> online row matches
+
+chdir(dirname(__DIR__, 3) . '/' . $pageDir); // the page uses ../includes/... and ../temp/... relative paths
+
+include __DIR__ . "/../../../$pageDir/rapport.php";

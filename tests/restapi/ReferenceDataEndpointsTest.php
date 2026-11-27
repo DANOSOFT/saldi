@@ -12,6 +12,11 @@
 // 20260904 CL/NTR created.
 // 20261008 CL/LH products/groups list for the current fiscal year, codeNo lookup, non-group ids are 404.
 // 20261008 CL/LH inventory/warehouses lists the real warehouses with their names, numbers and stock.
+// 20261023 CL/LH warehouses: follow SST-829 (#769) - no fiscal_year filter, one row per warehouse number.
+// 20261105 CL/LH products/groups stores the five boolean options as 'on' or '' on POST and PUT, and reads them back.
+// 20261105 CL/LH products/groups reads buyOutsideEuAccount from box13, not box2 (Lagertræk), and a PUT keeps it.
+// 20261105 CL/LH vat-codes lists the current fiscal year's SM/KM/EM/YM rows with the rate from box2, not an empty list.
+// 20261111 CDX/NTR Use a fresh database and cover year-independent and other-year warehouses.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -28,7 +33,7 @@ final class ReferenceDataEndpointsTest extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
-        RestApiEnv::bootstrapTenant();
+        RestApiEnv::bootstrapTenant(static::class);
     }
 
     public static function tearDownAfterClass(): void
@@ -129,18 +134,34 @@ final class ReferenceDataEndpointsTest extends TestCase
         $this->assertSame(404, $missing['status'], $missing['body']);
     }
 
-    public function test_vat_codes_answers_with_json_list_of_code_rate_description(): void
+    public function test_vat_codes_lists_the_current_fiscal_years_vat_codes(): void
     {
-        $res = $this->get('vat-codes/');
+        $tenant = RestApiEnv::connect(RestApiEnv::testDb());
+        $year = $this->currentFiscalYear($tenant);
+        // A VAT code of another fiscal year must not be listed.
+        $otherYear = (int)RestApiEnv::rows($tenant, "INSERT INTO grupper (art, kode, kodenr, beskrivelse, box1, box2, fiscal_year) VALUES ('SM', 'S', 97, 'REST vat-codes other year', '66100', '12.5', $1) RETURNING id", [$year + 100])[0]['id'];
+        try {
+            $expected = array_map(
+                fn($r) => ['code' => (int)$r['kodenr'], 'rate' => (float)$r['box2'], 'description' => $r['beskrivelse']],
+                RestApiEnv::rows($tenant, "SELECT kodenr, box2, beskrivelse FROM grupper WHERE art IN ('SM', 'KM', 'EM', 'YM') AND fiscal_year = $1 ORDER BY kode, kodenr", [$year])
+            );
+            $this->assertNotEmpty($expected, 'template tenant has VAT codes in the current fiscal year');
 
-        $this->assertSame(200, $res['status'], $res['body']);
-        $this->assertIsArray($res['json'], 'response is JSON, not a PHP error page');
-        $this->assertTrue($res['json']['success']);
-        $this->assertIsArray($res['json']['data']);
-        foreach ($res['json']['data'] as $code) {
-            $this->assertIsInt($code['code']);
-            $this->assertIsFloat($code['rate']);
-            $this->assertArrayHasKey('description', $code);
+            $res = $this->get('vat-codes/');
+
+            $this->assertSame(200, $res['status'], $res['body']);
+            $this->assertIsArray($res['json'], 'response is JSON, not a PHP error page');
+            $this->assertTrue($res['json']['success']);
+            foreach ($res['json']['data'] as $code) {
+                $this->assertIsInt($code['code']);
+                // JSON drops a whole rate's fraction (25.0 is sent as 25).
+                $this->assertIsNumeric($code['rate']);
+            }
+            $actual = array_map(fn($c) => ['code' => $c['code'], 'rate' => (float)$c['rate'], 'description' => $c['description']], $res['json']['data']);
+            $this->assertSame($expected, $actual, 'the SM/KM/EM/YM rows of the current fiscal year, rate from box2 and description from beskrivelse');
+        } finally {
+            RestApiEnv::rows($tenant, 'DELETE FROM grupper WHERE id = $1', [$otherYear]);
+            pg_close($tenant);
         }
     }
 
@@ -251,28 +272,106 @@ final class ReferenceDataEndpointsTest extends TestCase
         $this->assertSame(404, $notAGroup['status'], 'a grupper row that is not a product group is not served as one');
     }
 
-    public function test_warehouse_list_holds_the_current_fiscal_years_warehouses(): void
+    /** box6..box10 of a product group as SALDI's own settings page stores them, ticked = 'on'. */
+    private function groupOptionBoxes($tenant, int $id): array
+    {
+        return RestApiEnv::rows($tenant, 'SELECT box6, box7, box8, box9, box10 FROM grupper WHERE id = $1', [$id])[0];
+    }
+
+    public function test_product_group_options_are_stored_as_on_and_read_back(): void
+    {
+        $options = ['reversePayment' => true, 'taxFree' => false, 'inventory' => true, 'batch' => true, 'operation' => false];
+        $post = RestApiEnv::http('POST', self::V1 . 'products/groups/', ['codeNo' => 9701, 'description' => 'REST options test'] + $options, RestApiEnv::authHeaders());
+        $this->assertSame(201, $post['status'], $post['body']);
+        $id = (int)$post['json']['data']['id'];
+
+        $tenant = RestApiEnv::connect(RestApiEnv::testDb());
+        try {
+            $this->assertSame(['box6' => 'on', 'box7' => '', 'box8' => 'on', 'box9' => 'on', 'box10' => ''], $this->groupOptionBoxes($tenant, $id), 'inventory true is Lager ført (box8 = on), not 1');
+            $get = $this->get("products/groups/?id=$id");
+            $this->assertSame(200, $get['status'], $get['body']);
+            $this->assertSame($options, array_intersect_key($get['json']['data'], $options));
+
+            $options = ['reversePayment' => false, 'taxFree' => true, 'inventory' => false, 'batch' => false, 'operation' => true];
+            $put = RestApiEnv::http('PUT', self::V1 . "products/groups/?id=$id", $options, RestApiEnv::authHeaders());
+            $this->assertSame(200, $put['status'], $put['body']);
+            $this->assertSame(['box6' => '', 'box7' => 'on', 'box8' => '', 'box9' => '', 'box10' => 'on'], $this->groupOptionBoxes($tenant, $id));
+            $get = $this->get("products/groups/?id=$id");
+            $this->assertSame($options, array_intersect_key($get['json']['data'], $options));
+        } finally {
+            RestApiEnv::rows($tenant, 'DELETE FROM grupper WHERE id = $1', [$id]);
+            pg_close($tenant);
+        }
+    }
+
+    /** The six account slots of a product group, as GET answers them: kontonr or null. */
+    private function groupAccountNumbers(array $group): array
+    {
+        return array_map(fn($account) => is_array($account) ? (int)$account['kontonr'] : null, $group['accounts']);
+    }
+
+    public function test_product_group_buy_outside_eu_account_is_box13_and_survives_a_put(): void
     {
         $tenant = RestApiEnv::connect(RestApiEnv::testDb());
         $year = $this->currentFiscalYear($tenant);
-        $seeded = [];
-        foreach ([91 => ['Holbæk test', 3], 92 => ['Hillerød test', 7]] as $kodenr => [$name, $qty]) {
-            $id = (int)RestApiEnv::rows($tenant, "INSERT INTO grupper (art, kodenr, beskrivelse, fiscal_year) VALUES ('LG', $1, $2, $3) RETURNING id", [$kodenr, $name, $year])[0]['id'];
-            $seeded[$id] = ['number' => $kodenr, 'description' => $name, 'qty' => $qty];
+        $numbers = array_map('intval', array_column(RestApiEnv::rows($tenant, "SELECT DISTINCT kontonr FROM kontoplan WHERE regnskabsaar = $1 AND kontotype IN ('D', 'S') ORDER BY kontonr LIMIT 7", [$year]), 'kontonr'));
+        $this->assertCount(7, $numbers, 'template tenant has seven accounts in the current fiscal year');
+        $stockOut = array_pop($numbers);
+        $accounts = array_combine(['buyAccount', 'sellAccount', 'buyEuAccount', 'sellEuAccount', 'buyOutsideEuAccount', 'sellOutsideEuAccount'], $numbers);
+
+        $post = RestApiEnv::http('POST', self::V1 . 'products/groups/', ['codeNo' => 9702, 'description' => 'REST accounts test'] + $accounts, RestApiEnv::authHeaders());
+        $this->assertSame(201, $post['status'], $post['body']);
+        $id = (int)$post['json']['data']['id'];
+        $boxes = fn() => RestApiEnv::rows($tenant, 'SELECT box2, box3, box4, box11, box12, box13, box14 FROM grupper WHERE id = $1', [$id])[0];
+        try {
+            $stored = array_map('strval', array_combine(['box3', 'box4', 'box11', 'box12', 'box13', 'box14'], $numbers));
+            $this->assertSame(['box2' => null] + $stored, $boxes(), 'buyOutsideEuAccount is stored in box13');
+
+            // Lagertræk, as SALDI's settings page stores it, must not show up as the outside-EU purchase account.
+            RestApiEnv::rows($tenant, 'UPDATE grupper SET box2 = $1 WHERE id = $2', [(string)$stockOut, $id]);
+            $get = $this->get("products/groups/?id=$id");
+            $this->assertSame(200, $get['status'], $get['body']);
+            $this->assertSame($accounts, $this->groupAccountNumbers($get['json']['data']), 'GET reads buyOutsideEuAccount from box13, not box2');
+
+            $put = RestApiEnv::http('PUT', self::V1 . "products/groups/?id=$id", ['description' => 'REST accounts test renamed'], RestApiEnv::authHeaders());
+            $this->assertSame(200, $put['status'], $put['body']);
+            $this->assertSame(['box2' => (string)$stockOut] + $stored, $boxes(), 'a PUT without the accounts keeps every slot');
+            $this->assertSame($accounts, $this->groupAccountNumbers($this->get("products/groups/?id=$id")['json']['data']));
+        } finally {
+            RestApiEnv::rows($tenant, 'DELETE FROM grupper WHERE id = $1', [$id]);
+            pg_close($tenant);
         }
-        RestApiEnv::rows($tenant, "INSERT INTO grupper (art, kodenr, beskrivelse, fiscal_year) VALUES ('LG', 93, 'other year', $1)", [$year + 100]);
+    }
+
+    public function test_warehouse_list_holds_each_warehouse_once_preferring_the_current_year(): void
+    {
+        $tenant = RestApiEnv::connect(RestApiEnv::testDb());
+        $year = $this->currentFiscalYear($tenant);
+        $before = $this->get('inventory/warehouses/');
+        $this->assertSame(200, $before['status'], $before['body']);
+        $seeded = [];
+        foreach ([91 => ['Holbæk test', 3, $year], 92 => ['Hillerød test', 7, $year],
+            93 => ['Year independent', 2, 0], 94 => ['Other year only', 5, $year + 100]] as $kodenr => [$name, $qty, $fixtureYear]) {
+            $id = (int)RestApiEnv::rows($tenant, "INSERT INTO grupper (art, kodenr, beskrivelse, fiscal_year) VALUES ('LG', $1, $2, $3) RETURNING id", [$kodenr, $name, $fixtureYear])[0]['id'];
+            $seeded[$id] = ['number' => $kodenr, 'description' => $name, 'qty' => $qty, 'year' => $fixtureYear];
+        }
+        // SST-829 (#769): the list has no fiscal_year filter, but a warehouse that still has a copy
+        // per accounting year is listed once, by its current-year row.
+        RestApiEnv::rows($tenant, "INSERT INTO grupper (art, kodenr, beskrivelse, fiscal_year) VALUES ('LG', 91, 'Holbæk other year', $1)", [$year + 100]);
         $product = (int)RestApiEnv::rows($tenant, 'SELECT id FROM varer ORDER BY id LIMIT 1')[0]['id'];
         foreach ($seeded as $w) {
             RestApiEnv::rows($tenant, 'INSERT INTO lagerstatus (lager, vare_id, variant_id, beholdning) VALUES ($1, $2, 0, $3)', [$w['number'], $product, $w['qty']]);
         }
-        $expected = array_map('intval', array_column(RestApiEnv::rows($tenant, "SELECT id FROM grupper WHERE art = 'LG' AND fiscal_year = $1 ORDER BY id", [$year]), 'id'));
+        $existingIds = array_filter(array_map('intval', array_column($before['json']['data'], 'id')), static fn($id) => $id > 0);
+        $expected = array_merge($existingIds, array_keys($seeded));
+        sort($expected);
         pg_close($tenant);
 
         $res = $this->get('inventory/warehouses/');
         $this->assertSame(200, $res['status'], $res['body']);
         $ids = array_map(fn($w) => (int)$w['id'], $res['json']['data']);
         sort($ids);
-        $this->assertSame($expected, $ids, 'the real warehouses, not the id -1 placeholder');
+        $this->assertSame($expected, $ids, 'each warehouse once, including year-independent and other-year-only rows');
 
         $withStock = $this->get("inventory/warehouses/?productId=$product");
         $this->assertSame(200, $withStock['status'], $withStock['body']);
@@ -280,7 +379,7 @@ final class ReferenceDataEndpointsTest extends TestCase
         foreach ($seeded as $id => $w) {
             $this->assertSame($w['description'], $byId[$id]['description']);
             $this->assertSame($w['number'], (int)$byId[$id]['number']);
-            $this->assertSame($year, (int)$byId[$id]['fiscal_year']);
+            $this->assertSame($w['year'], (int)$byId[$id]['fiscal_year']);
             $this->assertSame($w['number'], (int)$byId[$id]['inventory']['inventory'], 'stock of this warehouse, not of warehouse 1');
             $this->assertEquals($w['qty'], $byId[$id]['inventory']['quantity']);
         }

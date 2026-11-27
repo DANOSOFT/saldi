@@ -1,6 +1,6 @@
 <?php #topkode_start
 
-// -----------------------debitor/afslut_rykker.php-----lap 2.1.0--2009.10.12-------
+// -----------------------debitor/afslut_rykker.php-----ver 5.1.1--2026.11.26-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -15,28 +15,36 @@
 // En dansk oversaetelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2009 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+// 20261110 CDX/ASR Require module write access before this mutation endpoint runs.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261126 ASR Review I4: the page stops unless thisDb names the session's ledger (reminder_request_ledger_matches()), and it closes only reminder orders (art R1-R3).
 @session_start();
 $s_id=session_id();
 
 $topniveau=NULL;
 $rykker_id=array();
 
-include("../includes/connect.php");
+include(__DIR__ . '/../includes/connect.php');
 $permission_key = 'debitor.konti';
-include("../includes/online.php");
-include("../includes/std_func.php");
-include("../includes/openpost.php");
+$permission_level = 'write';
+include(__DIR__ . '/../includes/online.php');
+include(__DIR__ . '/../includes/std_func.php');
+include(__DIR__ . '/../includes/openpost.php');
+include_once(__DIR__ . '/../includes/reminderLegal.php');
 
-$konto_antal=$_GET['kontoantal'];
-if (isset($_GET['rykker_id'])) $rykker_id=explode(";", $_GET['rykker_id']);
-else $rykker_id=NULL;
-$antal=count($rykker_id);
-for ($x=0;$x<$antal;$x++) {
-#echo "update ordrer set betalt='on' where id = '$rykker_id[$x]'<br>";	
-	db_modify("update ordrer set betalt='on' where id = '$rykker_id[$x]'",__FILE__ . " linje " . __LINE__);
+// 20261126 ASR Review I4: a report drawn in another ledger closes nothing here
+if (!reminder_request_ledger_matches($_GET['thisDb'] ?? null, (string)$db)) {
+	alert(reminder_txt(8210, 'Regnskabet er skiftet, eller rapporten er for gammel. Åbn rapporten igen i det ønskede regnskab, før du arbejder videre med rykkerne.'));
+	exit;
+}
+$reminderIds = explode(';', (string)($_GET['rykker_id'] ?? ''));
+foreach ($reminderIds as $reminderId) {
+	$reminderId = (int)$reminderId;
+	if ($reminderId > 0) {
+		db_modify("update ordrer set betalt='on' where id='$reminderId' and art like 'R%'", __FILE__ . " linje " . __LINE__);
+	}
 }
 print "<body onload=\"javascript:window.opener.focus();window.close();\">";
 

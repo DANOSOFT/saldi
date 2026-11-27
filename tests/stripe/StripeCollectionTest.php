@@ -1,8 +1,12 @@
 <?php
 // 20261022 CDX/LH Collection reconciliation, cancellation identity, full-open amounts and shared eligibility regressions.
 // 20261022 CDX/LH Cover caller-bound stalled requests, rejected creates, card-only requests and debtor credits.
+// 20261116 CDX/ASR Cover the card minimum and actionable missing-customer errors without changing agreements or posting payments.
+// 20261126 ASR Payment review (GPT-P-6): only an open amount a payment of the total settles on posting (half an øre) is payable; one øre off is paid by bank transfer.
+// 20261126 ASR Payment review (GPT-P-3): an invoice split in several open items is reconciled by hand; the open item's project does not stop it.
+// 20261126 ASR Payment review (GPT-G-2): an open item within half an øre of the total but not exact is payable only with the order's project; an exact one whatever its project.
 
-require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/support/bootstrap.php';
 
 final class StripeCollectionTest extends StripeDatabaseTestCase
 {
@@ -143,14 +147,149 @@ final class StripeCollectionTest extends StripeDatabaseTestCase
         $this->assertSame([], StripeTestTransport::$requests);
     }
 
-    public function testOneOreToleranceIsInclusiveAndTwoOreDifferenceIsManual(): void
+    public function testOnlyAnOpenAmountThePaymentSettlesIsPayable(): void
+    {
+        // finans/bogfor.php openpost() settles the 340.00 payment with an open item in [339.995, 340.005).
+        $order = $this->invoice();
+        $inv = stripe_invoice_load($order);
+        foreach (['340.000' => true, '339.995' => true, '340.004' => true, '340.005' => false, '339.994' => false,
+            '339.99' => false, '340.01' => false, '339.98' => false, '340.02' => false] as $amount => $payable) {
+            StripeTestEnvironment::query('UPDATE openpost SET amount=$1 WHERE faktnr=$2 AND konto_id=$3', [$amount, $inv['nr'], $inv['o']['konto_id']]);
+            $loaded = stripe_invoice_load($order);
+            $this->assertSame($payable, stripe_invoice_payable($loaded), $amount);
+            if (!$payable) {
+                $this->assertSame('manual', $loaded['state'], $amount . ': paid by bank transfer');
+                $this->assertSame('not_payable', stripe_payment_create($loaded)['error'], $amount);
+            }
+        }
+        $this->assertSame([], StripeTestTransport::$requests);
+    }
+
+    public function testAnInvoiceSplitInSeveralOpenItemsIsReconciledByHand(): void
     {
         $order = $this->invoice();
         $inv = stripe_invoice_load($order);
-        foreach (['339.99' => true, '340.01' => true, '339.98' => false, '340.02' => false] as $amount => $payable) {
-            StripeTestEnvironment::query('UPDATE openpost SET amount=$1 WHERE faktnr=$2 AND konto_id=$3', [$amount, $inv['nr'], $inv['o']['konto_id']]);
-            $this->assertSame($payable, stripe_invoice_payable(stripe_invoice_load($order)), $amount);
+        $open = pg_fetch_assoc(StripeTestEnvironment::query('SELECT * FROM openpost WHERE faktnr=$1 AND konto_id=$2', [$inv['nr'], $inv['o']['konto_id']]));
+        // Two open items that add up to the total: one payment of the total settles neither.
+        StripeTestEnvironment::query("UPDATE openpost SET amount='170.000' WHERE id=$1", [$open['id']]);
+        $second = StripeFixtures::insert('openpost', ['konto_id' => (int)$open['konto_id'], 'konto_nr' => $open['konto_nr'], 'faktnr' => $open['faktnr'],
+            'amount' => '170.000', 'udlignet' => '0', 'transdate' => $open['transdate'], 'forfaldsdate' => $open['forfaldsdate'],
+            'valuta' => 'DKK', 'valutakurs' => '100.000', 'projekt' => '']);
+        $split = stripe_invoice_load($order);
+        $this->assertSame(34000, $split['open_rest_ore']);
+        $this->assertFalse(stripe_invoice_payable($split));
+        $this->assertSame('manual', $split['state']);
+        $this->assertSame('not_payable', stripe_payment_create($split)['error']);
+        $this->assertNull($split['open_item']);
+        $this->assertSame([], StripeTestTransport::$requests);
+
+        // One open item again: the lines' projects on it (bogfor_nu()) do not stop it, posting settles it (equalizeMatchingRecords()).
+        StripeTestEnvironment::query('DELETE FROM openpost WHERE id=$1', [$second]);
+        StripeTestEnvironment::query("UPDATE openpost SET amount='340.000' WHERE id=$1", [$open['id']]);
+        foreach (['821', '821<br>822'] as $project) {
+            StripeTestEnvironment::query("UPDATE openpost SET projekt=$1 WHERE id=$2", [$project, $open['id']]);
+            $one = stripe_invoice_load($order);
+            $this->assertTrue(stripe_invoice_payable($one), $project);
+            $this->assertSame(['id' => (int)$open['id'], 'settles' => true], $one['open_item'], $project);
         }
+    }
+
+    public function testAnOpenItemWithinHalfAnOereIsPayableOnlyWithTheOrdersProject(): void
+    {
+        // Posting settles the payment with openpost() within half an øre and the journal line's project (the order's),
+        // or with equalizeMatchingRecords() at the exact amount whatever the project; anything else settles nothing.
+        $order = $this->invoice();
+        $inv = stripe_invoice_load($order);
+        $open = pg_fetch_assoc(StripeTestEnvironment::query('SELECT * FROM openpost WHERE faktnr=$1 AND konto_id=$2', [$inv['nr'], $inv['o']['konto_id']]));
+        foreach ([
+            // [order's project, open item's project, open amount, payable]
+            ['', '', '340.004', true],
+            ['', null, '340.004', true],
+            ['0', '', '340.004', true],
+            ['', '0', '339.995', true],
+            ['821', '821', '340.004', true],
+            ['', '821', '340.004', false],
+            ['821', '', '340.004', false],
+            ['821', '822', '339.995', false],
+            ['', '821', '340.000', true],
+            ['821', '', '340.000', true],
+        ] as [$orderProject, $itemProject, $amount, $payable]) {
+            $label = "order '$orderProject', item '" . ($itemProject ?? 'NULL') . "', $amount";
+            StripeTestEnvironment::query('UPDATE ordrer SET projekt=$1 WHERE id=$2', [$orderProject, $order]);
+            StripeTestEnvironment::query('UPDATE openpost SET projekt=$1, amount=$2 WHERE id=$3', [$itemProject, $amount, $open['id']]);
+            $loaded = stripe_invoice_load($order);
+            $this->assertSame(['id' => (int)$open['id'], 'settles' => $payable], $loaded['open_item'], $label);
+            $this->assertSame($payable, stripe_invoice_payable($loaded), $label);
+            if (!$payable) {
+                $this->assertSame('manual', $loaded['state'], $label . ': paid by bank transfer');
+                $this->assertSame('not_payable', stripe_payment_create($loaded)['error'], $label);
+            }
+        }
+        $this->assertSame([], StripeTestTransport::$requests);
+    }
+
+    public function testCardMinimumBlocksSmallInvoicesButAllowsTheExactBoundary(): void
+    {
+        $GLOBALS['stripe_charge_today'] = '2026-01-25';
+        foreach ([125, 249, 250, 251] as $ore) {
+            $order = $this->invoice(['sum' => $ore / 100, 'moms' => 0, 'udskriv_til' => 'Stripe'],
+                ['stripe' => 'on', 'stripe_pm_id' => 'pm_saved', 'stripe_date' => '2026-01-01']);
+            $inv = stripe_invoice_load($order);
+            $allowed = $ore >= 250;
+            $this->assertSame($allowed, stripe_invoice_payable($inv));
+            $this->assertSame($allowed, stripe_invoice_pay_now_allowed($inv));
+            $this->assertSame($allowed, stripe_auto_charge_allowed($inv));
+            if (!$allowed) {
+                $this->assertSame('below_minimum', $inv['state']);
+                foreach (['page', 'manual', 'auto', 'backup'] as $source) {
+                    $result = stripe_payment_create($inv, $source, false, $source === 'page' ? '' : 'pm_saved');
+                    $this->assertSame('amount_too_small', $result['error']);
+                    $response = stripe_payment_failure_response($result);
+                    $this->assertSame(409, $response['status']);
+                    $this->assertStringContainsString('bankoverførsel', $response['message']);
+                }
+                $this->assertSame([], StripeTestTransport::$requests);
+            } else {
+                $pi = array_replace($this->intent('pi_minimum_' . $ore), ['amount' => $ore]);
+                StripeTestTransport::queueBody($pi, 'POST', '/v1/payment_intents');
+                $this->assertTrue(stripe_payment_create($inv)['ok']);
+                $last = StripeTestTransport::$requests[count(StripeTestTransport::$requests) - 1];
+                $this->assertSame($ore, $last['params']['amount']);
+            }
+        }
+        $this->assertSame([], StripeTestTransport::$mails);
+    }
+
+    public function testMissingCustomerOrCardIsActionableAndPreservesTheAgreement(): void
+    {
+        $GLOBALS['stripe_charge_today'] = '2026-01-25';
+        foreach (['customer', 'payment_method'] as $parameter) {
+            $order = $this->invoice([], ['stripe' => 'on', 'stripe_pm_id' => 'pm_saved']);
+            $inv = stripe_invoice_load($order);
+            $before = StripeFixtures::row('adresser', (int)$inv['o']['konto_id']);
+            StripeTestTransport::queue(['ok' => false, 'status' => 400,
+                'body' => ['error' => ['type' => 'invalid_request_error', 'code' => 'resource_missing', 'param' => $parameter]],
+                'error' => 'No such ' . $parameter, 'error_code' => 'resource_missing'], 'POST', '/v1/payment_intents');
+            $result = stripe_payment_create($inv, 'manual', false, 'pm_saved');
+            $response = stripe_payment_failure_response($result);
+            $this->assertFalse($result['ok']);
+            $this->assertSame('card_unavailable', $response['code']);
+            $this->assertSame(409, $response['status']);
+            $this->assertStringContainsString('gemte korttilknytning', $response['message']);
+            $this->assertStringNotContainsString('Prøv igen', $response['message']);
+            $this->assertSame($before, StripeFixtures::row('adresser', (int)$inv['o']['konto_id']));
+            $this->assertNull(stripe_invoice_load($order)['paid']);
+            $attempt = pg_fetch_assoc(StripeTestEnvironment::query('SELECT status FROM stripe_collection_attempts WHERE ordre_id=$1', [$order]));
+            $this->assertSame('rejected', $attempt['status']);
+        }
+        // Missing unrelated resources and technical outages must not be blamed on the customer's card.
+        foreach ([['error_code' => 'resource_missing', 'error_param' => 'unrelated'], ['error' => 'network']] as $error) {
+            $response = stripe_payment_failure_response($error);
+            $this->assertSame(502, $response['status']);
+            $this->assertSame(stripe_txt('pay_start_failed'), $response['message']);
+        }
+        $this->assertCount(2, StripeTestTransport::$requests);
+        $this->assertSame([], StripeTestTransport::$mails);
     }
 
     public function testMissingOpenpostAndSplitSettlementCannotBePaidOrReportedFullyPaid(): void

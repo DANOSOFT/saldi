@@ -8,11 +8,28 @@
 // 20261022 CDX/LH Regress journal creation/reuse against the real tenant table with its sequence behind MAX(id).
 // 20261109 CL/ASR Link reminders: "Bogfør" (includes/openpost.php bogfor_rykker) posts nothing for a fee carried to the next invoice and keeps the classic posting, now with projekt '' on the fee's open item.
 // 20261109 CL/ASR Review fixes: the same for the "Bogfør" button's copy (includes/rapportfunc.php, in its own process), and the "Ryk alle" copy posts nothing outside the active fiscal year.
+// 20261126 CL/ASR Stripe port (#1098): the "Ryk alle" copy (includes/openpost.php) runs in its own process too.
+//                 includes/reportFunc/showOpenPosts.php also declares vis_aabne_poster(), so a run with the test database that loaded it first (OpenpostAgingTest) stopped with "Cannot redeclare".
+// 20261126 ASR Review I2: booking a reminder a second time (a stale overview or a second click) posts nothing more, in both bogfor_rykker() copies.
+// 20261126 ASR Review I3: neither copy books an automatic reminder that was not sent, and both say why.
+// 20261126 CL/ASR Review round 1 (I20): a database or delivery error leaves the event 'failed' with its reason, also for a row this delivery inserted ('received'), so Stripe's redelivery is claimed at once.
+// 20261126 ASR Payment review (GPT-P-1): a receipt retry after Afmeld, or after a later payment's card was applied, sends only the receipt; the captures before card_state are classified once.
+// 20261126 ASR Payment review (GPT-P-2): a capture after the invoice was settled, credited or changed another way is booked without the invoice number as the customer's credit, marked overpaid and alerted, with no receipt or saved card.
+// 20261126 ASR Payment review (GPT-P-5): the invoice dispatcher finishes or releases an event row only while it carries the delivery's claim token.
+// 20261126 ASR Payment review (GPT-P-4): a refund or dispute alert that is not sent stays retryable (stripe_adjustment_alerts): the redelivery sends it without applying the event again, and so does the repair pass once Stripe has stopped.
+// 20261126 ASR Review GPT-R-1: both bogfor_rykker() copies post a reminder fee with the item and debtor groups of the posting year, not with an earlier year's rows.
+// 20261126 ASR Payment review (GPT-G-1): an update that stopped after adding card_state and before classifying the earlier captures is completed by the next run, also by a receipt retry, and a payment made in between is not classified as an earlier one.
+// 20261126 ASR Payment review (GPT-G-3): the journal line of an overpaid capture carries the reference Stripe-overbetaling-<payment id>, not an empty invoice number.
+// 20261126 ASR Payment review (GPT-G-6): a refund whose stripe_adjustment_alerts row cannot be written is not applied either, and a refund applied after the payment's dispute leaves 'disputed'.
+// 20261126 ASR Review GPT-F-1: in both copies a booking refused for a stock-tracked line keeps nothing (status, accounts, open item, postings), and books once the item is corrected.
+//              A reminder left at status 3 without anything posted is booked; one at status 3 with its fee open item is not booked again.
+// 20261126 ASR Review GPT-G-4: in both copies a reminder whose item or debtor group has no row in the posting year is not posted with another year's rows.
+//              Nothing is written, the message names the groups and the year, and the reminder is booked with that year's accounts once the groups are set up.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 
-require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/support/bootstrap.php';
 require_once __DIR__ . '/../../includes/stripeIncludes/stripeInvoiceWebhook.php';
 
 /**
@@ -46,13 +63,13 @@ final class StripeBookingTest extends PHPUnit\Framework\TestCase
             $this->sequences[] = $sequence;
             StripeTestEnvironment::query("ALTER TABLE pg_temp.$table ALTER COLUMN id SET DEFAULT nextval('pg_temp.$sequence')");
         }
-        foreach (['stripe_charge_errors', 'stripe_unenrol_mail'] as $table) {
+        foreach (['stripe_charge_errors', 'stripe_unenrol_mail', 'stripe_adjustment_alerts'] as $table) {
             StripeTestEnvironment::query("CREATE TEMP TABLE $table (LIKE public.$table INCLUDING ALL)");
             $this->tables[] = $table;
         }
         StripeTestEnvironment::query("CREATE TEMP TABLE stripe_events (
             id serial primary key, event_id text, status text, processed_at timestamp,
-            saldi_order_id integer, invoice_number text)");
+            saldi_order_id integer, invoice_number text, error text)");
         $this->tables[] = 'stripe_events';
         StripeTestEnvironment::query("INSERT INTO adresser SELECT * FROM public.adresser WHERE art='S'");
         // One deterministic fiscal fixture contains every capture date used by this suite.
@@ -329,13 +346,13 @@ final class StripeBookingTest extends PHPUnit\Framework\TestCase
         StripeTestEnvironment::query("CREATE TRIGGER s1_skip BEFORE $operation ON $table FOR EACH ROW $condition EXECUTE FUNCTION pg_temp.s1_skip_write()");
     }
 
-    public function testJournalInsertFailureStaysReceivedAndRepairCompletesOnceWithoutCharging(): void
+    public function testJournalInsertFailureStaysRetryableAndRepairCompletesOnceWithoutCharging(): void
     {
         [$order, $id, $pi] = $this->captured(true);
         $event = $this->event('evt_s1', 'retrying');
         $this->skipWrite('kassekladde', 'INSERT');
         $this->assertSame(['code' => 500, 'message' => 'database_error'], stripe_invoice_webhook_dispatch($event, 'payment_intent.succeeded', $pi, 'evt_s1'));
-        $this->assertSame('received', $this->eventRow($event)['status']);
+        $this->assertSame(['failed', 'database_error'], [$this->eventRow($event)['status'], $this->eventRow($event)['error']]);
         $this->assertNull($this->eventRow($event)['processed_at']);
         $payment = StripeFixtures::row('stripe_payments', $id);
         $this->assertSame('succeeded', $payment['status']);
@@ -412,6 +429,238 @@ final class StripeBookingTest extends PHPUnit\Framework\TestCase
         $this->assertCount(2, StripeTestTransport::$mails); // failed send followed by one successful receipt
         $this->assertSame(0, stripe_payment_repair()['found']);
         $this->assertSame(1, $this->lineCount($order));
+    }
+
+    public function testReceiptRetryAfterAfmeldSendsOnlyTheReceiptAndKeepsTheCustomerUnenrolled(): void
+    {
+        [$order, $id, $pi] = $this->captured(true);
+        $konto = (int)StripeFixtures::row('ordrer', $order)['konto_id'];
+        $this->queueEnrolment();
+        StripeTestTransport::$mailSucceeds = false;
+        $this->assertSame('delivery_error', stripe_payment_apply_succeeded($pi));
+        $this->assertSame('pm_s1', StripeFixtures::row('adresser', $konto)['stripe_pm_id']);
+        StripeTestTransport::$mailSucceeds = true;
+        $this->assertTrue(stripe_unenrol_debtor($konto));
+        $mails = count(StripeTestTransport::$mails);
+        $this->assertSame(1, stripe_payment_repair()['repaired']);
+        $debtor = StripeFixtures::row('adresser', $konto);
+        $this->assertSame('', $debtor['stripe'], 'Afmeld stays in force');
+        $this->assertNull($debtor['stripe_pm_id']);
+        $this->assertCount(2, StripeTestTransport::$requests, 'only the enrolment made with the payment');
+        $this->assertCount($mails + 1, StripeTestTransport::$mails, 'the receipt');
+        $this->assertNotEmpty(StripeFixtures::row('stripe_payments', $id)['confirmation_sent_at']);
+        $this->assertSame(0, stripe_payment_repair()['found']);
+        $this->assertSame('applied', StripeFixtures::row('stripe_payments', $id)['card_state']);
+    }
+
+    public function testACardNotYetAppliedIsSupersededByAfmeldOrByALaterPaymentsCard(): void
+    {
+        // Afmeld while the card is still to be applied (Stripe was unreachable): the retry applies nothing.
+        [$order, $id, $pi] = $this->captured(true);
+        $konto = (int)StripeFixtures::row('ordrer', $order)['konto_id'];
+        StripeTestTransport::queue(['ok' => false, 'status' => 503, 'body' => null, 'error' => 'unavailable'], 'POST', '/v1/customers/cus_s1');
+        $this->assertSame('delivery_error', stripe_payment_apply_succeeded($pi));
+        $this->assertTrue(stripe_unenrol_debtor($konto));
+        StripeTestTransport::$responses = [];
+        StripeTestTransport::queueBody(['id' => 'cus_s1'], 'POST', '/v1/customers/cus_s1'); // what a retry that applied the card would use
+        StripeTestTransport::queueBody(['id' => 'pm_s1'], 'POST', '/v1/payment_methods/pm_s1');
+        $this->assertSame(1, stripe_payment_repair()['repaired']);
+        $this->assertCount(1, StripeTestTransport::$requests, 'no enrolment after Afmeld');
+        $this->assertSame('', StripeFixtures::row('adresser', $konto)['stripe']);
+        $this->assertCount(1, StripeTestTransport::$mails, 'the receipt');
+        $this->assertSame('superseded', StripeFixtures::row('stripe_payments', $id)['card_state']);
+
+        // A later payment's card was applied first: the earlier payment's retry does not put its older card back.
+        StripeTestTransport::reset();
+        [$first, $firstId, $firstPi] = $this->captured(true, 'pi_old_card');
+        $konto = (int)StripeFixtures::row('ordrer', $first)['konto_id'];
+        StripeTestTransport::queue(['ok' => false, 'status' => 503, 'body' => null, 'error' => 'unavailable'], 'POST', '/v1/customers/cus_s1');
+        $this->assertSame('delivery_error', stripe_payment_apply_succeeded($firstPi));
+        $second = StripeFixtures::invoice($konto, ['nextfakt' => '2026-02-08']);
+        $secondPi = $firstPi;
+        $secondPi['id'] = 'pi_new_card';
+        $secondPi['payment_method'] = 'pm_new';
+        $secondPi['metadata']['saldi_ordre_id'] = $second;
+        $secondPi['metadata']['saldi_fakturanr'] = StripeFixtures::row('ordrer', $second)['fakturanr'];
+        $secondId = stripe_payment_record(stripe_invoice_load($second), $secondPi, 'page', true, 1);
+        StripeTestTransport::queueBody(['id' => 'cus_s1'], 'POST', '/v1/customers/cus_s1');
+        StripeTestTransport::queueBody(['id' => 'pm_new'], 'POST', '/v1/payment_methods/pm_new');
+        $this->assertSame('applied', stripe_payment_apply_succeeded($secondPi));
+        $this->assertSame('pm_new', StripeFixtures::row('adresser', $konto)['stripe_pm_id']);
+        $requests = count(StripeTestTransport::$requests);
+        StripeTestTransport::queueBody(['id' => 'cus_s1'], 'POST', '/v1/customers/cus_s1'); // what a retry that applied the old card would use
+        StripeTestTransport::queueBody(['id' => 'pm_s1'], 'POST', '/v1/payment_methods/pm_s1');
+        $this->assertSame(1, stripe_payment_repair()['repaired']);
+        $this->assertCount($requests, StripeTestTransport::$requests, 'no enrolment for the older card');
+        $this->assertSame('pm_new', StripeFixtures::row('adresser', $konto)['stripe_pm_id']);
+        $this->assertNotEmpty(StripeFixtures::row('stripe_payments', $firstId)['confirmation_sent_at']);
+        $this->assertSame('applied', StripeFixtures::row('stripe_payments', $secondId)['card_state']);
+        $this->assertSame('superseded', StripeFixtures::row('stripe_payments', $firstId)['card_state']);
+    }
+
+    public function testCapturesMadeBeforeCardStateAreClassifiedOnce(): void
+    {
+        $konto = StripeFixtures::debtor(['stripe' => 'on', 'stripe_pm_id' => 'pm_now', 'stripe_customer_id' => 'cus_s1', 'stripe_date' => StripeFixtures::INVOICE_DATE]);
+        $rows = [];
+        foreach ([
+            'current card, receipt sent' => ['succeeded', true, 'pm_now', true, 'applied'],
+            'current card, receipt pending' => ['succeeded', true, 'pm_now', false, 'applied'],
+            'other card, receipt sent' => ['succeeded', true, 'pm_old', true, 'skipped'],
+            'other card, receipt pending' => ['succeeded', true, 'pm_old', false, 'superseded'],
+            'not captured' => ['pending', true, 'pm_old', false, ''],
+            'card not saved' => ['succeeded', false, 'pm_old', false, ''],
+        ] as $label => [$status, $save, $pm, $sent, $expected]) {
+            $order = StripeFixtures::invoice($konto);
+            $rows[$label] = [StripeFixtures::insert('stripe_payments', [
+                'ordre_id' => $order, 'fakturanr' => StripeFixtures::row('ordrer', $order)['fakturanr'], 'payment_intent_id' => 'pi_bf_' . $order,
+                'amount_ore' => 34000, 'status' => $status, 'save_card' => $save, 'pm_id' => $pm, 'card_state' => null,
+                'confirmation_sent_at' => $sent ? '2026-01-09 10:00:00' : null,
+            ]), $expected];
+        }
+        // A payment made after the column is written with '' (still to be applied, stripe_payment_record()) and is not one of them.
+        $order = StripeFixtures::invoice($konto);
+        $later = StripeFixtures::insert('stripe_payments', [
+            'ordre_id' => $order, 'fakturanr' => StripeFixtures::row('ordrer', $order)['fakturanr'], 'payment_intent_id' => 'pi_bf_later',
+            'amount_ore' => 34000, 'status' => 'succeeded', 'save_card' => true, 'pm_id' => 'pm_old', 'card_state' => '',
+        ]);
+        stripe_payment_card_state_backfill();
+        foreach ($rows as $label => [$id, $expected]) {
+            $this->assertSame($expected, StripeFixtures::row('stripe_payments', $id)['card_state'], $label);
+        }
+        $this->assertSame('', StripeFixtures::row('stripe_payments', $later)['card_state'], 'a later payment is not classified as an earlier one');
+        // Classified once: a second run changes nothing, also after the customer's card changed.
+        StripeTestEnvironment::query("UPDATE adresser SET stripe_pm_id = 'pm_old' WHERE id = $1", [$konto]);
+        stripe_payment_card_state_backfill();
+        foreach ($rows as $label => [$id, $expected]) {
+            $this->assertSame($expected, StripeFixtures::row('stripe_payments', $id)['card_state'], $label . ', second run');
+        }
+        $this->assertSame('', StripeFixtures::row('stripe_payments', $later)['card_state']);
+    }
+
+    public function testAnUpdateThatStoppedBeforeClassifyingTheEarlierCapturesIsCompletedByTheNextRun(): void
+    {
+        // Before card_state: a captured payment saved its card, its receipt failed, and the customer then used Afmeld.
+        [$order, $id, $pi] = $this->captured(true);
+        $konto = (int)StripeFixtures::row('ordrer', $order)['konto_id'];
+        $this->queueEnrolment();
+        StripeTestTransport::$mailSucceeds = false;
+        $this->assertSame('delivery_error', stripe_payment_apply_succeeded($pi));
+        StripeTestTransport::$mailSucceeds = true;
+        $this->assertTrue(stripe_unenrol_debtor($konto));
+        // And one still under way.
+        $inFlight = stripe_payment_record(stripe_invoice_load(StripeFixtures::invoice($konto)), ['id' => 'pi_in_flight', 'customer' => 'cus_s1', 'status' => 'processing'], 'page', true, 1);
+        $this->assertSame('processing', StripeFixtures::row('stripe_payments', $inFlight)['status']);
+        StripeTestEnvironment::query('ALTER TABLE pg_temp.stripe_payments DROP COLUMN card_state');
+        $requests = count(StripeTestTransport::$requests);
+        $mails = count(StripeTestTransport::$mails);
+
+        // stripe_charge_schema_ensure() reads information_schema for the current schema: here the session's own tables. The
+        // tables it creates there are dropped with the others.
+        $this->tables[] = 'stripe_manual_fees';
+        $this->tables[] = 'stripe_reminders';
+        StripeTestEnvironment::query('SET search_path = pg_temp, public');
+        try {
+            // The first run adds the column and stops before the earlier captures are classified.
+            $this->skipWrite('stripe_payments', 'UPDATE');
+            stripe_charge_schema_ensure();
+            StripeTestEnvironment::query('DROP TRIGGER s1_skip ON stripe_payments');
+            $this->assertNull(StripeFixtures::row('stripe_payments', $id)['card_state'], 'precondition: the column is there, the capture not classified');
+            $this->assertNull(StripeFixtures::row('stripe_payments', $inFlight)['card_state']);
+            // A payment made before the next run is written as still to be applied.
+            [, $later] = $this->captured(true, 'pi_after_column');
+            $this->assertSame('', StripeFixtures::row('stripe_payments', $later)['card_state'], 'stripe_payment_record()');
+
+            // The next run classifies the earlier ones, and only those.
+            stripe_charge_schema_ensure();
+        } finally {
+            StripeTestEnvironment::query('RESET search_path');
+        }
+        $this->assertSame('superseded', StripeFixtures::row('stripe_payments', $id)['card_state'], 'Afmeld came after it');
+        $this->assertSame('', StripeFixtures::row('stripe_payments', $inFlight)['card_state'], 'applies its card when it succeeds');
+        $this->assertSame('', StripeFixtures::row('stripe_payments', $later)['card_state'], 'not classified as an earlier one');
+        // The receipt retry sends only the receipt: the card the customer removed is not put back.
+        $this->assertSame(1, stripe_payment_repair()['repaired']);
+        $this->assertCount($requests, StripeTestTransport::$requests, 'no enrolment');
+        $this->assertSame('', StripeFixtures::row('adresser', $konto)['stripe']);
+        $this->assertNull(StripeFixtures::row('adresser', $konto)['stripe_pm_id']);
+        $this->assertCount($mails + 1, StripeTestTransport::$mails, 'the receipt');
+        $this->assertNotEmpty(StripeFixtures::row('stripe_payments', $id)['confirmation_sent_at']);
+    }
+
+    public function testAReceiptRetryClassifiesACaptureFromBeforeCardStateBeforeDecidingItsCard(): void
+    {
+        // The column was added and the run stopped before the classification; no update has run since.
+        [$order, $id, $pi] = $this->captured(true);
+        $konto = (int)StripeFixtures::row('ordrer', $order)['konto_id'];
+        $this->queueEnrolment();
+        StripeTestTransport::$mailSucceeds = false;
+        $this->assertSame('delivery_error', stripe_payment_apply_succeeded($pi));
+        StripeTestTransport::$mailSucceeds = true;
+        $this->assertTrue(stripe_unenrol_debtor($konto));
+        StripeTestEnvironment::query('UPDATE stripe_payments SET card_state = NULL WHERE id = $1', [$id]);
+        StripeTestTransport::queueBody(['id' => 'cus_s1'], 'POST', '/v1/customers/cus_s1'); // what a retry that applied the card would use
+        StripeTestTransport::queueBody(['id' => 'pm_s1'], 'POST', '/v1/payment_methods/pm_s1');
+        $this->assertSame(1, stripe_payment_repair()['repaired']);
+        $this->assertCount(2, StripeTestTransport::$requests, 'only the enrolment made with the payment');
+        $this->assertSame('', StripeFixtures::row('adresser', $konto)['stripe'], 'Afmeld stays in force');
+        $this->assertSame('superseded', StripeFixtures::row('stripe_payments', $id)['card_state']);
+        $this->assertNotEmpty(StripeFixtures::row('stripe_payments', $id)['confirmation_sent_at']);
+    }
+
+    public function testACaptureTheInvoiceNoLongerOwesIsBookedAsTheCustomersCreditAndAlerted(): void
+    {
+        $scenarios = [
+            'paid by bank transfer' => function (int $order, array $open): void {
+                StripeTestEnvironment::query("UPDATE openpost SET udlignet = '1', udlign_id = 1 WHERE id = $1", [$open['id']]);
+            },
+            'credited' => function (int $order, array $open): void {
+                StripeFixtures::insert('ordrer', ['art' => 'DK', 'kred_ord_id' => $order, 'konto_id' => (int)$open['konto_id'], 'status' => 4]);
+            },
+            'partly paid' => function (int $order, array $open): void {
+                StripeFixtures::insert('openpost', ['konto_id' => (int)$open['konto_id'], 'konto_nr' => $open['konto_nr'], 'faktnr' => $open['faktnr'],
+                    'amount' => '-100.000', 'udlignet' => '0', 'transdate' => StripeFixtures::TODAY, 'valuta' => 'DKK', 'valutakurs' => '100.000', 'projekt' => '']);
+            },
+        ];
+        foreach ($scenarios as $label => $change) {
+            StripeTestTransport::reset();
+            [$order, $id, $pi] = $this->captured(true, 'pi_over_' . substr(md5($label), 0, 8));
+            $open = pg_fetch_assoc(StripeTestEnvironment::query("SELECT * FROM openpost WHERE faktnr = $1 AND amount > 0", [StripeFixtures::row('ordrer', $order)['fakturanr']]));
+            $change($order, $open);
+            $this->assertSame('applied', stripe_payment_apply_succeeded($pi), $label);
+            $payment = StripeFixtures::row('stripe_payments', $id);
+            $line = pg_fetch_assoc(StripeTestEnvironment::query('SELECT * FROM kassekladde WHERE id = $1', [$payment['journal_line_id']]));
+            $this->assertSame('Stripe-overbetaling-' . $id, $line['faktura'], $label . ': a reference no open item carries, so posting settles nothing');
+            $this->assertEqualsWithDelta(340.0, (float)$line['amount'], 0.001, $label . ': the money is in the books');
+            $this->assertSame(['F', '58050', 'D', StripeFixtures::row('adresser', (int)$open['konto_id'])['kontonr']],
+                [$line['d_type'], (string)$line['debet'], $line['k_type'], (string)$line['kredit']], $label);
+            $this->assertStringContainsString('overbetaling', $line['beskrivelse'], $label);
+            $this->assertSame((int)$order, (int)$line['ordre_id'], $label);
+            $this->assertSame('succeeded', $payment['status'], $label);
+            $this->assertSame('overpaid', $payment['last_error'], $label);
+            $this->assertSame('skipped', $payment['card_state'], $label . ': no saved card from an overpayment');
+            $this->assertNotEmpty($payment['confirmation_sent_at'], $label);
+            $this->assertSame([], StripeTestTransport::$requests, $label . ': no enrolment');
+            $this->assertCount(1, StripeTestTransport::$mails, $label . ': the bookkeeper alert, no receipt');
+            $this->assertSame('alert', StripeTestTransport::$mails[0]['kind'] ?? '', $label);
+            $this->assertStringContainsString('overbetaling', StripeTestTransport::$mails[0]['subject'], $label);
+            $this->assertSame('', (string)StripeFixtures::row('adresser', (int)$open['konto_id'])['stripe'], $label);
+            $this->assertSame(0, stripe_payment_repair()['found'], $label);
+        }
+    }
+
+    public function testAFailedOverpaymentAlertIsRetriedWithoutAReceiptOrASecondLine(): void
+    {
+        [$order, $id, $pi] = $this->captured();
+        StripeTestEnvironment::query("UPDATE openpost SET udlignet = '1', udlign_id = 1 WHERE faktnr = $1", [StripeFixtures::row('ordrer', $order)['fakturanr']]);
+        StripeTestTransport::$mailSucceeds = false;
+        $this->assertSame('delivery_error', stripe_payment_apply_succeeded($pi));
+        $this->assertNull(StripeFixtures::row('stripe_payments', $id)['confirmation_sent_at']);
+        StripeTestTransport::$mailSucceeds = true;
+        $this->assertSame(['found' => 1, 'repaired' => 1, 'failed' => 0], stripe_payment_repair());
+        $this->assertSame(1, $this->lineCount($order));
+        $this->assertCount(2, StripeTestTransport::$mails);
+        foreach (StripeTestTransport::$mails as $mail) $this->assertSame('alert', $mail['kind'] ?? '', 'never a receipt');
+        $this->assertSame(0, stripe_payment_repair()['found']);
     }
 
     public function testMissingClearingAccountPreventsIntentAndRepairRemainsPossible(): void
@@ -522,6 +771,169 @@ final class StripeBookingTest extends PHPUnit\Framework\TestCase
         $this->assertCount(2, StripeTestTransport::$mails); // original capture receipt and manual refund alert
         $this->assertSame('alert', StripeTestTransport::$mails[1]['kind']);
         $this->assertSame([], StripeTestTransport::$responses);
+    }
+
+    public function testAnUnsentRefundAlertIsSentByTheRedeliveryWithoutApplyingTheRefundAgain(): void
+    {
+        [$order, $id, $pi] = $this->captured();
+        $this->assertSame('applied', stripe_payment_apply_succeeded($pi));
+        $journal = StripeFixtures::row('stripe_payments', $id)['journal_line_id'];
+        StripeTestTransport::$mails = [];
+        StripeTestTransport::$mailSucceeds = false; // no mail transport, or no bookkeeper address
+        $refund = $this->event('evt_refund_unsent');
+        $this->assertSame(['code' => 500, 'message' => 'delivery_error'], stripe_invoice_webhook_dispatch($refund, 'charge.refunded', ['payment_intent' => 'pi_s1'], 'evt_refund_unsent', null));
+        $this->assertSame(['failed', 'delivery_error'], [$this->eventRow($refund)['status'], $this->eventRow($refund)['error']], 'not acknowledged: Stripe sends it again');
+        $this->assertSame(['refunded', 'evt_refund_unsent'], [StripeFixtures::row('stripe_payments', $id)['status'], StripeFixtures::row('stripe_payments', $id)['last_event_id']], 'the refund is applied');
+        $this->assertSame([null], array_column($this->adjustmentAlerts(), 'sent_at'));
+        // A dispute of the same payment comes and is told at once.
+        StripeTestTransport::$mailSucceeds = true;
+        $this->assertSame(['code' => 200, 'message' => 'ok'], stripe_invoice_webhook_dispatch($this->event('evt_dispute_sent'), 'charge.dispute.created', ['payment_intent' => 'pi_s1'], 'evt_dispute_sent'));
+        $this->assertSame('disputed', StripeFixtures::row('stripe_payments', $id)['status']);
+        // Stripe's redelivery of the refund sends its alert and does not apply the refund over the later dispute.
+        $this->assertSame(['code' => 200, 'message' => 'ok'], stripe_invoice_webhook_dispatch($refund, 'charge.refunded', ['payment_intent' => 'pi_s1'], 'evt_refund_unsent'));
+        $this->assertSame('processed', $this->eventRow($refund)['status']);
+        $payment = StripeFixtures::row('stripe_payments', $id);
+        $this->assertSame(['disputed', 'evt_dispute_sent', $journal], [$payment['status'], $payment['last_event_id'], $payment['journal_line_id']]);
+        $this->assertSame(1, $this->lineCount($order));
+        $this->assertSame('on', StripeFixtures::row('ordrer', $order)['betalt']);
+        $this->assertCount(3, StripeTestTransport::$mails); // the unsent refund alert, the dispute alert, the refund alert again
+        $this->assertStringContainsString('refusion', StripeTestTransport::$mails[2]['subject']);
+        $this->assertStringContainsString('evt_refund_unsent', StripeTestTransport::$mails[2]['text']);
+        $this->assertNotContains(null, array_column($this->adjustmentAlerts(), 'sent_at'));
+        // Sent once: a further redelivery and the repair pass send nothing more.
+        $this->assertSame(['code' => 200, 'message' => 'ok'], stripe_invoice_webhook_dispatch($refund, 'charge.refunded', ['payment_intent' => 'pi_s1'], 'evt_refund_unsent'));
+        $this->assertSame(['found' => 0, 'repaired' => 0, 'failed' => 0], stripe_payment_repair());
+        $this->assertCount(3, StripeTestTransport::$mails);
+        $this->assertSame([], StripeTestTransport::$requests);
+    }
+
+    public function testAnUnsentDisputeAlertIsSentByTheRepairPassOnceStripeHasStopped(): void
+    {
+        [$order, $id, $pi] = $this->captured();
+        $this->assertSame('applied', stripe_payment_apply_succeeded($pi));
+        StripeTestTransport::$mails = [];
+        StripeTestTransport::$mailSucceeds = false;
+        $dispute = $this->event('evt_dispute_unsent');
+        $this->assertSame(['code' => 500, 'message' => 'delivery_error'], stripe_invoice_webhook_dispatch($dispute, 'charge.dispute.created', ['payment_intent' => 'pi_s1'], 'evt_dispute_unsent'));
+        $this->assertSame('disputed', StripeFixtures::row('stripe_payments', $id)['status']);
+        $this->assertSame(['found' => 1, 'repaired' => 0, 'failed' => 0], stripe_payment_repair(true), 'a dry run only counts it');
+        $failed = stripe_charge_job(StripeFixtures::TODAY, false, true);
+        $this->assertSame([1, 1, 1], [$failed['exit_code'], $failed['stats']['repair_found'], $failed['stats']['repair_failed']], 'still unsent: the job says so');
+        $this->assertSame('failed', $this->eventRow($dispute)['status']);
+        StripeTestTransport::$mailSucceeds = true;
+        $this->assertSame(['found' => 1, 'repaired' => 1, 'failed' => 0], stripe_payment_repair());
+        $row = $this->eventRow($dispute);
+        $this->assertSame(['processed', null, (string)$order], [$row['status'], $row['error'], $row['saldi_order_id']], 'the event row it left failed is finished');
+        $this->assertSame(0, stripe_payment_repair()['found']);
+        $this->assertSame('disputed', StripeFixtures::row('stripe_payments', $id)['status']);
+        $this->assertSame(1, $this->lineCount($order));
+        $this->assertCount(3, StripeTestTransport::$mails); // two unsent alerts, then the one sent by the repair pass
+        $this->assertStringContainsString('indsigelse', StripeTestTransport::$mails[2]['subject']);
+        $this->assertStringContainsString('pi_s1', StripeTestTransport::$mails[2]['text']);
+        $this->assertStringContainsString('evt_dispute_unsent', StripeTestTransport::$mails[2]['text']);
+        // A redelivery that comes after all sends nothing more.
+        $this->assertSame(['code' => 200, 'message' => 'ok'], stripe_invoice_webhook_dispatch($dispute, 'charge.dispute.created', ['payment_intent' => 'pi_s1'], 'evt_dispute_unsent'));
+        $this->assertCount(3, StripeTestTransport::$mails);
+        $this->assertSame([], StripeTestTransport::$requests);
+    }
+
+    public function testARefundWhoseAlertRowCannotBeWrittenIsNotAppliedAndDoesNotOverwriteALaterDispute(): void
+    {
+        [$order, $id, $pi] = $this->captured();
+        $this->assertSame('applied', stripe_payment_apply_succeeded($pi));
+        $before = StripeFixtures::row('stripe_payments', $id);
+        StripeTestTransport::$mails = [];
+        // Writing the refund's row in stripe_adjustment_alerts fails (the worker stops, or the INSERT is refused).
+        $this->skipWrite('stripe_adjustment_alerts', 'INSERT');
+        $refund = $this->event('evt_refund_lost');
+        $this->assertSame(['code' => 500, 'message' => 'database_error'], stripe_invoice_webhook_dispatch($refund, 'charge.refunded', ['payment_intent' => 'pi_s1'], 'evt_refund_lost'));
+        $after = StripeFixtures::row('stripe_payments', $id);
+        $this->assertSame([$before['status'], $before['last_event_id']], [$after['status'], $after['last_event_id']], 'the refund is not applied without its row');
+        $this->assertSame([], $this->adjustmentAlerts());
+        $this->assertSame([], StripeTestTransport::$mails, 'nothing is told before it is recorded');
+        $this->assertSame(['failed', 'database_error'], [$this->eventRow($refund)['status'], $this->eventRow($refund)['error']], 'Stripe sends it again');
+        StripeTestEnvironment::query('DROP TRIGGER s1_skip ON stripe_adjustment_alerts');
+
+        // A dispute of the payment is applied before the refund comes again.
+        $this->assertSame(['code' => 200, 'message' => 'ok'], stripe_invoice_webhook_dispatch($this->event('evt_dispute_later'), 'charge.dispute.created', ['payment_intent' => 'pi_s1'], 'evt_dispute_later'));
+        $this->assertSame('disputed', StripeFixtures::row('stripe_payments', $id)['status']);
+        // The refund's redelivery is told, and does not put 'refunded' over the dispute.
+        $this->assertSame(['code' => 200, 'message' => 'ok'], stripe_invoice_webhook_dispatch($refund, 'charge.refunded', ['payment_intent' => 'pi_s1'], 'evt_refund_lost'));
+        $payment = StripeFixtures::row('stripe_payments', $id);
+        $this->assertSame(['disputed', 'evt_dispute_later', $before['journal_line_id']], [$payment['status'], $payment['last_event_id'], $payment['journal_line_id']]);
+        $this->assertSame(['evt_dispute_later', 'evt_refund_lost'], array_column($this->adjustmentAlerts(), 'event_id'));
+        $this->assertNotContains(null, array_column($this->adjustmentAlerts(), 'sent_at'));
+        $this->assertCount(2, StripeTestTransport::$mails);
+        $this->assertStringContainsString('indsigelse', StripeTestTransport::$mails[0]['subject']);
+        $this->assertStringContainsString('refusion', StripeTestTransport::$mails[1]['subject']);
+        $this->assertSame(1, $this->lineCount($order));
+        $this->assertSame('on', StripeFixtures::row('ordrer', $order)['betalt']);
+        $this->assertSame(['found' => 0, 'repaired' => 0, 'failed' => 0], stripe_payment_repair());
+    }
+
+    public function testAnAdjustmentAlertIsSentAfterCommitWhileThePaymentIsLocked(): void
+    {
+        [, $id, $pi] = $this->captured();
+        $this->assertSame('applied', stripe_payment_apply_succeeded($pi));
+        $parameters = [];
+        foreach (['host' => 'SALDI_TEST_PGHOST', 'user' => 'SALDI_TEST_PGUSER', 'password' => 'SALDI_TEST_PGPASSWORD', 'dbname' => 'SALDI_TEST_DB'] as $key => $env) {
+            $parameters[] = $key . "='" . str_replace(["\\", "'"], ["\\\\", "\\'"], (string)getenv($env)) . "'";
+        }
+        $other = pg_connect(implode(' ', $parameters), PGSQL_CONNECT_FORCE_NEW);
+        $this->assertNotFalse($other, 'a second connection to the tenant');
+        $seen = [];
+        StripeTestTransport::$beforeAlert = function () use (&$seen, $other, $id): void {
+            $seen[] = [pg_transaction_status($GLOBALS['connection']), pg_fetch_result(pg_query($other, "select pg_try_advisory_lock(82101, $id)"), 0, 0)];
+        };
+        try {
+            $this->assertSame(['code' => 200, 'message' => 'ok'], stripe_invoice_webhook_dispatch($this->event('evt_locked'), 'charge.refunded', ['payment_intent' => 'pi_s1'], 'evt_locked'));
+        } finally {
+            pg_query($other, 'select pg_advisory_unlock_all()');
+            pg_close($other);
+        }
+        $this->assertSame([[PGSQL_TRANSACTION_IDLE, 'f']], $seen, 'committed, and booking or another delivery of the payment waits');
+        $this->assertSame('refunded', StripeFixtures::row('stripe_payments', $id)['status']);
+        // The lock is released afterwards.
+        $this->assertSame('t', pg_fetch_result(StripeTestEnvironment::query("select pg_try_advisory_lock(82101, $id)"), 0, 0));
+        StripeTestEnvironment::query("select pg_advisory_unlock(82101, $id)");
+    }
+
+    public function testARefundAppliedAfterTheDisputeLeavesDisputedAndADisputeAfterARefundIsShown(): void
+    {
+        // A worker that read the payment before its dispute applies the refund after it: the payment stays disputed.
+        [, $id, $pi] = $this->captured(false, 'pi_stale');
+        $this->assertSame('applied', stripe_payment_apply_succeeded($pi));
+        $this->assertSame(['code' => 200, 'message' => 'ok'], stripe_invoice_webhook_dispatch($this->event('evt_stale_dispute'), 'charge.dispute.created', ['payment_intent' => 'pi_stale'], 'evt_stale_dispute'));
+        $payment = stripe_payment_apply_adjustment('charge.refunded', ['payment_intent' => 'pi_stale'], 'evt_stale_refund');
+        $this->assertTrue($payment['alert_sent']);
+        $row = StripeFixtures::row('stripe_payments', $id);
+        $this->assertSame(['disputed', 'evt_stale_dispute'], [$row['status'], $row['last_event_id']]);
+        // A dispute after a refund is shown.
+        [, $id, $pi] = $this->captured(false, 'pi_refund_first');
+        $this->assertSame('applied', stripe_payment_apply_succeeded($pi));
+        stripe_payment_apply_adjustment('charge.refunded', ['payment_intent' => 'pi_refund_first'], 'evt_first_refund');
+        stripe_payment_apply_adjustment('charge.dispute.created', ['payment_intent' => 'pi_refund_first'], 'evt_then_dispute');
+        $row = StripeFixtures::row('stripe_payments', $id);
+        $this->assertSame(['disputed', 'evt_then_dispute'], [$row['status'], $row['last_event_id']]);
+        // The same for a second capture of an invoice (duplicate_paid), in last_error.
+        [$order, , $first] = $this->captured(false, 'pi_dup_first');
+        $this->assertSame('applied', stripe_payment_apply_succeeded($first));
+        $second = $first;
+        $second['id'] = 'pi_dup_second';
+        $extra = stripe_payment_record(stripe_invoice_load($order), $second, 'page', false, 2);
+        $this->assertSame('duplicate_paid', stripe_payment_apply_succeeded($second));
+        stripe_payment_apply_adjustment('charge.dispute.created', ['payment_intent' => 'pi_dup_second'], 'evt_dup_dispute');
+        stripe_payment_apply_adjustment('charge.refunded', ['payment_intent' => 'pi_dup_second'], 'evt_dup_refund');
+        $row = StripeFixtures::row('stripe_payments', $extra);
+        $this->assertSame(['duplicate_paid', 'duplicate_paid_disputed', 'evt_dup_dispute'], [$row['status'], $row['last_error'], $row['last_event_id']]);
+        $this->assertCount(6, $this->adjustmentAlerts(), 'every event is told');
+        $this->assertNotContains(null, array_column($this->adjustmentAlerts(), 'sent_at'));
+    }
+
+    /** @return list<array<string, string|null>> The rows of stripe_adjustment_alerts. */
+    private function adjustmentAlerts(): array
+    {
+        return pg_fetch_all(StripeTestEnvironment::query('SELECT * FROM stripe_adjustment_alerts ORDER BY event_id')) ?: [];
     }
 
     public function testDisputeCanResolveIntentThroughChargeLookup(): void
@@ -666,12 +1078,13 @@ final class StripeBookingTest extends PHPUnit\Framework\TestCase
         StripeTestTransport::$mailSucceeds = false;
         $event = $this->event('evt_extra_alert');
         $this->assertSame(['code' => 500, 'message' => 'delivery_error'], stripe_invoice_webhook_dispatch($event, 'payment_intent.succeeded', $pi, 'evt_extra_alert'));
-        $this->assertSame('received', $this->eventRow($event)['status']);
+        // The row this first delivery inserted is released too: a redelivery inside 15 minutes would otherwise be a duplicate.
+        $this->assertSame(['failed', 'delivery_error'], [$this->eventRow($event)['status'], $this->eventRow($event)['error']]);
         $this->assertSame('duplicate_paid', StripeFixtures::row('stripe_payments', $extra)['status']);
         $this->assertNull(StripeFixtures::row('stripe_payments', $extra)['confirmation_sent_at']);
         $capture = StripeFixtures::row('stripe_payments', $extra);
         $this->assertSame(['code' => 500, 'message' => 'delivery_error'], stripe_invoice_webhook_dispatch($event, 'payment_intent.succeeded', $pi, 'evt_extra_alert'));
-        $this->assertSame('received', $this->eventRow($event)['status']);
+        $this->assertSame('failed', $this->eventRow($event)['status']);
         $this->assertNull($this->eventRow($event)['processed_at']);
         $this->assertSame($capture, StripeFixtures::row('stripe_payments', $extra));
         StripeTestTransport::$mailSucceeds = true;
@@ -688,6 +1101,32 @@ final class StripeBookingTest extends PHPUnit\Framework\TestCase
         }
         $this->assertSame(['code' => 200, 'message' => 'duplicate_paid'], stripe_invoice_webhook_dispatch($event, 'payment_intent.succeeded', $pi, 'evt_extra_alert'));
         $this->assertCount(4, StripeTestTransport::$mails);
+        $this->assertSame(1, $this->lineCount($order));
+        $this->assertSame([], StripeTestTransport::$requests);
+    }
+
+    public function testAnInvoiceEventIsFinishedOrReleasedOnlyByTheDeliveryHoldingIt(): void
+    {
+        [$order, $firstId, $pi] = $this->captured();
+        $this->assertSame('applied', stripe_payment_apply_succeeded($pi));
+        $pi['id'] = 'pi_extra_owned';
+        $extra = stripe_payment_record(stripe_invoice_load($order), $pi, 'page', false, 2);
+        // A redelivery took the row over from a slow delivery ('tok_slow') and holds it ('tok_new').
+        $event = StripeFixtures::insert('stripe_events', ['event_id' => 'evt_taken_over', 'status' => 'retrying', 'error' => 'tok_new']);
+        $state = fn(): array => [$this->eventRow($event)['status'], $this->eventRow($event)['error']];
+        StripeTestTransport::$mailSucceeds = false;
+        $this->assertSame(['code' => 500, 'message' => 'delivery_error'], stripe_invoice_webhook_dispatch($event, 'payment_intent.succeeded', $pi, 'evt_taken_over', 'tok_slow'));
+        $this->assertSame(['retrying', 'tok_new'], $state(), 'the slow delivery does not release the row');
+        $this->assertSame(['code' => 500, 'message' => 'delivery_error'], stripe_invoice_webhook_dispatch($event, 'payment_intent.succeeded', $pi, 'evt_taken_over', 'tok_new'));
+        $this->assertSame(['failed', 'delivery_error'], $state(), 'the delivery holding the row releases it');
+        // Stripe's next redelivery claims it, as the webhook does.
+        StripeTestEnvironment::query("UPDATE stripe_events SET status = 'retrying', error = 'tok_next' WHERE id = $1", [$event]);
+        StripeTestTransport::$mailSucceeds = true;
+        $this->assertSame(['code' => 200, 'message' => 'duplicate_paid'], stripe_invoice_webhook_dispatch($event, 'payment_intent.succeeded', $pi, 'evt_taken_over', 'tok_new'));
+        $this->assertSame(['retrying', 'tok_next'], $state(), 'a delivery whose claim ended does not finish the row');
+        $this->assertSame(['code' => 200, 'message' => 'duplicate_paid'], stripe_invoice_webhook_dispatch($event, 'payment_intent.succeeded', $pi, 'evt_taken_over', 'tok_next'));
+        $this->assertSame(['processed', null], $state(), 'the delivery holding the row finishes it and clears its token');
+        $this->assertNotNull(StripeFixtures::row('stripe_payments', $extra)['confirmation_sent_at']);
         $this->assertSame(1, $this->lineCount($order));
         $this->assertSame([], StripeTestTransport::$requests);
     }
@@ -838,6 +1277,8 @@ final class StripeBookingTest extends PHPUnit\Framework\TestCase
         $this->assertSame([], StripeTestTransport::$requests);
     }
 
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
     public function testReminderBookingPostsNothingForACarriedFeeAndKeepsClassicPosting(): void
     {
         require_once __DIR__ . '/../../includes/openpost.php';   // bogfor_rykker()/bogfor_nu() as "Ryk alle" uses them
@@ -875,10 +1316,290 @@ final class StripeBookingTest extends PHPUnit\Framework\TestCase
         $this->assertReminderBooking();
     }
 
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testReminderBookingUsesTheGroupsOfThePostingYear(): void
+    {
+        require_once __DIR__ . '/../../includes/openpost.php';   // "Ryk alle" and the automatic run
+        $this->assertReminderBookingUsesThePostingYear();
+    }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testBogforButtonUsesTheGroupsOfThePostingYear(): void
+    {
+        $cwd = getcwd();
+        chdir(__DIR__ . '/../../debitor');
+        try {
+            require_once __DIR__ . '/../../includes/rapportfunc.php';
+        } finally {
+            chdir($cwd);
+        }
+        $this->assertReminderBookingUsesThePostingYear();
+    }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testReminderBookingWithoutAGroupOfThePostingYearPostsNothing(): void
+    {
+        require_once __DIR__ . '/../../includes/openpost.php';   // "Ryk alle" and the automatic run
+        $this->assertBookingWithoutAGroupOfThePostingYearPostsNothing(true);
+    }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testBogforButtonWithoutAGroupOfThePostingYearPostsNothing(): void
+    {
+        $cwd = getcwd();
+        chdir(__DIR__ . '/../../debitor');
+        try {
+            require_once __DIR__ . '/../../includes/rapportfunc.php';
+        } finally {
+            chdir($cwd);
+        }
+        $this->assertBookingWithoutAGroupOfThePostingYearPostsNothing(false);
+    }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testReminderBookingRefusedForAStockTrackedLineKeepsNothing(): void
+    {
+        require_once __DIR__ . '/../../includes/openpost.php';   // "Ryk alle" and the automatic run
+        $this->assertRefusedBookingKeepsNothingAndUnpostedIsBooked();
+    }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testBogforButtonRefusedForAStockTrackedLineKeepsNothing(): void
+    {
+        $cwd = getcwd();
+        chdir(__DIR__ . '/../../debitor');
+        try {
+            require_once __DIR__ . '/../../includes/rapportfunc.php';
+        } finally {
+            chdir($cwd);
+        }
+        $this->assertRefusedBookingKeepsNothingAndUnpostedIsBooked();
+    }
+
+    /** @return array{status: int, accounts: array, open: array, journal: array} What booking the reminder left. */
+    private function bookingOf(int $rykker): array
+    {
+        return [
+            'status' => (int)StripeFixtures::row('ordrer', $rykker)['status'],
+            'accounts' => pg_fetch_all(StripeTestEnvironment::query('SELECT id, bogf_konto FROM ordrelinjer WHERE ordre_id = $1 ORDER BY id', [$rykker])) ?: [],
+            'open' => pg_fetch_all(StripeTestEnvironment::query('SELECT id, amount FROM openpost WHERE refnr = $1 ORDER BY id', [$rykker])) ?: [],
+            'journal' => pg_fetch_all(StripeTestEnvironment::query('SELECT kontonr, debet, kredit FROM transaktioner WHERE ordre_id = $1 ORDER BY debet DESC, kontonr', [$rykker])) ?: [],
+        ];
+    }
+
+    /** bogfor_rykker() (whichever copy is loaded), with its output. */
+    private function book(int $rykker): string
+    {
+        foreach (['openpost', 'transaktioner'] as $table) {
+            StripeTestEnvironment::query("SELECT setval('pg_temp.s1_{$table}_seq', (SELECT coalesce(max(id), 0) + 1 FROM $table))");
+        }
+        ob_start();
+        try {
+            bogfor_rykker($rykker);
+        } finally {
+            $output = ob_get_clean();
+        }
+        return $output;
+    }
+
+    /**
+     * A reminder with a bookable fee line and a stock-tracked line: the booking is refused and keeps nothing, so the reminder is
+     * not taken for booked. Once the item is in a group that is not stock-tracked, it is booked once. A reminder left at status 3
+     * without a fee open item or a posting (earlier code committed the bookable line's status) is booked; one at status 3 with its
+     * fee open item is not booked again.
+     */
+    private function assertRefusedBookingKeepsNothingAndUnpostedIsBooked(): void
+    {
+        require_once __DIR__ . '/support/reminderFixtures.php';
+        if (is_file(__DIR__ . '/../../includes/stripeIncludes/stripeReminder.php')) {
+            require_once __DIR__ . '/../../includes/stripeIncludes/stripeReminder.php';
+        }
+        foreach (['varer', 'formularer', 'stripe_reminders'] as $table) {
+            StripeTestEnvironment::query("CREATE TEMP TABLE $table (LIKE public.$table INCLUDING ALL)");
+            $this->tables[] = $table;
+        }
+        StripeFixtures::insert('grupper', ['art' => 'DG', 'kodenr' => 7, 'box2' => '5600', 'fiscal_year' => 5]);
+        StripeFixtures::insert('grupper', ['art' => 'VG', 'kodenr' => 9, 'box1' => '', 'box2' => '', 'box3' => '', 'box4' => '1010', 'box8' => '', 'box9' => '', 'fiscal_year' => 5]);
+        StripeFixtures::insert('grupper', ['art' => 'VG', 'kodenr' => 10, 'box1' => '', 'box2' => '', 'box3' => '', 'box4' => '1020', 'box8' => 'on', 'box9' => '', 'fiscal_year' => 5]);
+        StripeReminderFixtures::forms(100.0, 9);
+        $debtor = StripeFixtures::debtor(['gruppe' => 7]);
+        $rykker = StripeReminderFixtures::reminder($debtor, [StripeFixtures::invoice($debtor, ['udskriv_til' => 'email'])]);
+        $tracked = StripeReminderFixtures::item('Lagerført rente', 25.0, 10);
+        StripeFixtures::insert('ordrelinjer', ['ordre_id' => $rykker, 'posnr' => 9, 'vare_id' => $tracked, 'varenr' => 'TRACKED',
+            'beskrivelse' => 'Lagerført rente', 'antal' => 1, 'pris' => 25, 'rabat' => 0, 'serienr' => StripeReminderFixtures::REMINDER_DATE]);
+        StripeTestEnvironment::query('UPDATE ordrer SET sum = 125 WHERE id = $1', [$rykker]);
+        $before = $this->bookingOf($rykker);
+
+        $output = $this->book($rykker);
+
+        $this->assertStringContainsString('lagerf', $output, 'the refusal is shown');
+        $this->assertSame($before, $this->bookingOf($rykker), 'nothing of the refused booking is kept: status 2, no account, no open item, no posting');
+        $this->assertSame(2, $before['status']);
+
+        StripeTestEnvironment::query('UPDATE varer SET gruppe = 9 WHERE id = $1', [$tracked]);
+        $this->assertSame('', $this->book($rykker));
+        $booked = $this->bookingOf($rykker);
+        $this->assertSame(4, $booked['status'], 'booked once the item is corrected');
+        $this->assertCount(1, $booked['open']);
+        $this->assertEqualsWithDelta(125.0, (float)$booked['open'][0]['amount'], 0.001);
+        $this->assertSame([['5600', '125.000', '0.000'], ['1010', '0.000', '125.000']],
+            array_map(static fn(array $r): array => [(string)$r['kontonr'], (string)$r['debet'], (string)$r['kredit']], $booked['journal']));
+        $this->book($rykker);
+        $this->assertSame($booked, $this->bookingOf($rykker), 'a second booking posts nothing more');
+
+        // Left at status 3 by earlier code: the fee line has its account, nothing is posted. It is booked.
+        $left = StripeReminderFixtures::reminder($debtor, [StripeFixtures::invoice($debtor, ['udskriv_til' => 'email'])]);
+        StripeTestEnvironment::query('UPDATE ordrer SET status = 3 WHERE id = $1', [$left]);
+        StripeTestEnvironment::query('UPDATE ordrelinjer SET bogf_konto = 1010 WHERE ordre_id = $1 AND vare_id > 0', [$left]);
+        $this->assertSame('', $this->book($left));
+        $recovered = $this->bookingOf($left);
+        $this->assertSame(4, $recovered['status'], 'the unposted reminder is booked');
+        $this->assertCount(1, $recovered['open']);
+        $this->assertSame([['5600', '100.000', '0.000'], ['1010', '0.000', '100.000']],
+            array_map(static fn(array $r): array => [(string)$r['kontonr'], (string)$r['debet'], (string)$r['kredit']], $recovered['journal']));
+
+        // At status 3 with its fee open item: booked, not booked again.
+        $done = StripeReminderFixtures::reminder($debtor, [StripeFixtures::invoice($debtor, ['udskriv_til' => 'email'])]);
+        StripeTestEnvironment::query('UPDATE ordrer SET status = 3 WHERE id = $1', [$done]);
+        $row = StripeFixtures::row('ordrer', $done);
+        StripeFixtures::insert('openpost', ['konto_id' => $debtor, 'konto_nr' => $row['kontonr'], 'faktnr' => $row['fakturanr'], 'refnr' => $done,
+            'amount' => 100, 'beskrivelse' => 'Gebyr mm. fra tidligere rykker', 'udlignet' => '1', 'transdate' => $row['fakturadate'], 'kladde_id' => 0, 'projekt' => '']);
+        $doneBefore = $this->bookingOf($done);
+        $this->book($done);
+        $this->assertSame($doneBefore, $this->bookingOf($done), 'a reminder with its fee open item (here settled) gets no second fee');
+    }
+
+    /**
+     * grupper has one row per fiscal year. A ledger has last year's rows of the same item and debtor groups, here with other
+     * accounts and read first; a reminder of the active year (regnaar 5) is posted with that year's accounts, as an invoice is.
+     */
+    private function assertReminderBookingUsesThePostingYear(): void
+    {
+        require_once __DIR__ . '/support/reminderFixtures.php';
+        if (is_file(__DIR__ . '/../../includes/stripeIncludes/stripeReminder.php')) {
+            require_once __DIR__ . '/../../includes/stripeIncludes/stripeReminder.php';
+        }
+        foreach (['varer', 'formularer', 'stripe_reminders'] as $table) {
+            StripeTestEnvironment::query("CREATE TEMP TABLE $table (LIKE public.$table INCLUDING ALL)");
+            $this->tables[] = $table;
+        }
+        StripeFixtures::insert('grupper', ['art' => 'DG', 'kodenr' => 7, 'box2' => '5500', 'fiscal_year' => 4]);
+        StripeFixtures::insert('grupper', ['art' => 'VG', 'kodenr' => 9, 'box1' => '', 'box2' => '', 'box3' => '', 'box4' => '1000', 'box8' => '', 'box9' => '', 'fiscal_year' => 4]);
+        StripeFixtures::insert('grupper', ['art' => 'DG', 'kodenr' => 7, 'box2' => '5600', 'fiscal_year' => 5]);
+        StripeFixtures::insert('grupper', ['art' => 'VG', 'kodenr' => 9, 'box1' => '', 'box2' => '', 'box3' => '', 'box4' => '1010', 'box8' => '', 'box9' => '', 'fiscal_year' => 5]);
+        StripeReminderFixtures::forms(100.0, 9);
+        $debtor = StripeFixtures::debtor(['gruppe' => 7]);
+        $rykker = StripeReminderFixtures::reminder($debtor, [StripeFixtures::invoice($debtor, ['udskriv_til' => 'email'])]);
+        foreach (['openpost', 'transaktioner'] as $table) {
+            StripeTestEnvironment::query("SELECT setval('pg_temp.s1_{$table}_seq', (SELECT coalesce(max(id), 0) + 1 FROM $table))");
+        }
+        $this->assertSame('5', (string)$GLOBALS['regnaar'], 'precondition: the active fiscal year');
+        ob_start();
+        try {
+            bogfor_rykker($rykker);
+        } finally {
+            $output = ob_get_clean();
+        }
+        $this->assertSame('', $output);
+        $this->assertSame(4, (int)StripeFixtures::row('ordrer', $rykker)['status'], 'booked');
+        $journal = pg_fetch_all(StripeTestEnvironment::query('SELECT * FROM transaktioner WHERE ordre_id = $1 ORDER BY debet DESC', [$rykker])) ?: [];
+        $this->assertCount(2, $journal);
+        $this->assertSame([5600, 100.0, 0.0], [(int)$journal[0]['kontonr'], (float)$journal[0]['debet'], (float)$journal[0]['kredit']], 'the debtor group of the posting year');
+        $this->assertSame([1010, 0.0, 100.0], [(int)$journal[1]['kontonr'], (float)$journal[1]['debet'], (float)$journal[1]['kredit']], 'the fee item group of the posting year');
+        $feeLine = pg_fetch_assoc(StripeTestEnvironment::query('SELECT bogf_konto FROM ordrelinjer WHERE ordre_id = $1 AND vare_id > 0', [$rykker]));
+        $this->assertSame(1010, (int)$feeLine['bogf_konto']);
+    }
+
+    /** @return list<string> The texts of the alerts in a page's output. */
+    private static function alerts(string $output): array
+    {
+        preg_match_all('/<script>alert\((".*?")\);<\/script>/s', $output, $m);
+        return array_map(static fn(string $js): string => (string)json_decode($js), $m[1]);
+    }
+
+    /**
+     * grupper has one row per fiscal year. The ledger has only last year's rows of the fee item's and the debtor's group, with
+     * accounts that still exist: a reminder of the active year (regnaar 5) is not posted with them. Nothing is written, the
+     * message names the missing groups and the year, and the reminder can be booked once the groups are set up for the year.
+     *
+     * @param bool $callerTransaction Also call the "Ryk alle" form (includes/openpost.php, in the caller's transaction).
+     */
+    private function assertBookingWithoutAGroupOfThePostingYearPostsNothing(bool $callerTransaction): void
+    {
+        require_once __DIR__ . '/support/reminderFixtures.php';
+        require_once __DIR__ . '/../../includes/reminderLegal.php';
+        if (is_file(__DIR__ . '/../../includes/stripeIncludes/stripeReminder.php')) {
+            require_once __DIR__ . '/../../includes/stripeIncludes/stripeReminder.php';
+        }
+        foreach (['varer', 'formularer', 'stripe_reminders'] as $table) {
+            StripeTestEnvironment::query("CREATE TEMP TABLE $table (LIKE public.$table INCLUDING ALL)");
+            $this->tables[] = $table;
+        }
+        StripeFixtures::insert('grupper', ['art' => 'DG', 'kodenr' => 7, 'box2' => '5500', 'fiscal_year' => 4]);
+        StripeFixtures::insert('grupper', ['art' => 'VG', 'kodenr' => 9, 'box1' => '', 'box2' => '', 'box3' => '', 'box4' => '1000', 'box8' => '', 'box9' => '', 'fiscal_year' => 4]);
+        StripeFixtures::insert('grupper', ['art' => 'VG', 'kodenr' => 11, 'box1' => '', 'box2' => '', 'box3' => '', 'box4' => '1000', 'box8' => '', 'box9' => '', 'fiscal_year' => 4]);
+        StripeReminderFixtures::forms(100.0, 9);
+        $debtor = StripeFixtures::debtor(['gruppe' => 7]);
+        $rykker = StripeReminderFixtures::reminder($debtor, [StripeFixtures::invoice($debtor, ['udskriv_til' => 'email'])]);
+        $nr = StripeFixtures::row('ordrer', $rykker)['fakturanr'];
+        $this->assertSame('5', (string)$GLOBALS['regnaar'], 'precondition: the active fiscal year');
+        $ra = pg_fetch_assoc(StripeTestEnvironment::query("SELECT beskrivelse FROM grupper WHERE art = 'RA' AND kodenr = 5"));
+        $year = trim((string)($ra['beskrivelse'] ?? '')) ?: '5';
+        $refusal = static fn(string $groups): string => "rykkergebyret kan ikke bogføres, da regnskabsår $year mangler $groups. "
+            . "Opret $groups i regnskabsår $year under Indstillinger, og bogfør rykkeren igen.";
+        $before = $this->bookingOf($rykker);
+        $this->assertSame(2, $before['status']);
+
+        // Neither group has a row in the posting year.
+        $this->assertSame(["Rykker $nr: " . $refusal('varegruppe 9, debitorgruppe 7')], self::alerts($this->book($rykker)));
+        $this->assertSame($before, $this->bookingOf($rykker), 'nothing is written: status 2, no account, no open item, no posting');
+        if ($callerTransaction) {
+            try {
+                bogfor_rykker($rykker, false);
+                $this->fail('"Ryk alle" books a reminder without its groups of the posting year.');
+            } catch (RuntimeException $e) {
+                $this->assertSame($refusal('varegruppe 9, debitorgruppe 7'), $e->getMessage(), '"Ingen ny rykker for …: <reason>"');
+            }
+            $this->assertSame($before, $this->bookingOf($rykker));
+        }
+
+        // The item group is set up for the year, the debtor group is not.
+        StripeFixtures::insert('grupper', ['art' => 'VG', 'kodenr' => 9, 'box1' => '', 'box2' => '', 'box3' => '', 'box4' => '1010', 'box8' => '', 'box9' => '', 'fiscal_year' => 5]);
+        $this->assertSame(["Rykker $nr: " . $refusal('debitorgruppe 7')], self::alerts($this->book($rykker)));
+        $this->assertSame($before, $this->bookingOf($rykker));
+
+        // The debtor group is set up for the year, but an interest line's item is in a group that is not.
+        StripeFixtures::insert('grupper', ['art' => 'DG', 'kodenr' => 7, 'box2' => '5600', 'fiscal_year' => 5]);
+        $other = StripeReminderFixtures::reminder($debtor, [StripeFixtures::invoice($debtor, ['udskriv_til' => 'email'])]);
+        $untracked = StripeReminderFixtures::item('Rente', 10.0, 11);
+        StripeFixtures::insert('ordrelinjer', ['ordre_id' => $other, 'posnr' => 9, 'vare_id' => $untracked, 'varenr' => 'RENTE',
+            'beskrivelse' => 'Rente', 'antal' => 1, 'pris' => 10, 'rabat' => 0, 'serienr' => StripeReminderFixtures::REMINDER_DATE]);
+        $otherNr = StripeFixtures::row('ordrer', $other)['fakturanr'];
+        $otherBefore = $this->bookingOf($other);
+        $this->assertSame(["Rykker $otherNr: " . $refusal('varegruppe 11')], self::alerts($this->book($other)));
+        $this->assertSame($otherBefore, $this->bookingOf($other));
+
+        // With both groups of the year, the reminder that was refused is booked with that year's accounts, once.
+        $this->assertSame('', $this->book($rykker));
+        $booked = $this->bookingOf($rykker);
+        $this->assertSame(4, $booked['status']);
+        $this->assertCount(1, $booked['open']);
+        $this->assertSame([['5600', '100.000', '0.000'], ['1010', '0.000', '100.000']],
+            array_map(static fn(array $r): array => [(string)$r['kontonr'], (string)$r['debet'], (string)$r['kredit']], $booked['journal']));
+        $this->book($rykker);
+        $this->assertSame($booked, $this->bookingOf($rykker), 'a second booking posts nothing more');
+    }
+
     /** bogfor_rykker() (whichever copy is loaded) for a link reminder whose fee goes on the next invoice, one whose fee is an open item, and a classic one. */
     private function assertReminderBooking(): void
     {
-        require_once __DIR__ . '/reminderFixtures.php';
+        require_once __DIR__ . '/support/reminderFixtures.php';
         if (is_file(__DIR__ . '/../../includes/stripeIncludes/stripeReminder.php')) {
             require_once __DIR__ . '/../../includes/stripeIncludes/stripeReminder.php';
         }
@@ -923,7 +1644,39 @@ final class StripeBookingTest extends PHPUnit\Framework\TestCase
             $this->assertCount(2, $journal, $mode);
             $this->assertSame([5600, 120.0, 0.0], [(int)$journal[0]['kontonr'], (float)$journal[0]['debet'], (float)$journal[0]['kredit']], $mode);
             $this->assertSame([1010, 0.0, 120.0], [(int)$journal[1]['kontonr'], (float)$journal[1]['debet'], (float)$journal[1]['kredit']], $mode);
+            // A second Bogfør from a stale overview or a second click posts nothing more.
+            ob_start();
+            try {
+                bogfor_rykker($rykker);
+            } finally {
+                $output = ob_get_clean();
+            }
+            $this->assertSame('', $output, $mode);
+            $this->assertCount(1, pg_fetch_all(StripeTestEnvironment::query('SELECT id FROM openpost WHERE refnr = $1', [$rykker])) ?: [], $mode . ': booked once');
+            $this->assertCount(2, pg_fetch_all(StripeTestEnvironment::query('SELECT id FROM transaktioner WHERE ordre_id = $1', [$rykker])) ?: [], $mode . ': posted once');
         }
+        // An automatic reminder that was not sent is not booked: its fee is not owed.
+        StripeTestEnvironment::query("CREATE TEMP TABLE reminder_automation_jobs (order_id integer PRIMARY KEY, previous_id integer, mode varchar(12) NOT NULL,
+            state varchar(12) NOT NULL, created_at timestamptz NOT NULL DEFAULT current_timestamp, attempted_at timestamptz, sent_at timestamptz,
+            sent_date date, channel varchar(12) NOT NULL DEFAULT '', error text NOT NULL DEFAULT '', actor text NOT NULL DEFAULT '')");
+        $this->tables[] = 'reminder_automation_jobs';
+        $debtor = StripeFixtures::debtor(['gruppe' => 7]);
+        $draft = StripeReminderFixtures::reminder($debtor, [StripeFixtures::invoice($debtor, ['udskriv_til' => 'email'])]);
+        StripeTestEnvironment::query("INSERT INTO reminder_automation_jobs (order_id, mode, state, actor) VALUES ($1, 'approval', 'approval', 'test')", [$draft]);
+        foreach (['openpost', 'transaktioner'] as $table) {
+            StripeTestEnvironment::query("SELECT setval('pg_temp.s1_{$table}_seq', (SELECT coalesce(max(id), 0) + 1 FROM $table))");
+        }
+        ob_start();
+        try {
+            bogfor_rykker($draft);
+        } finally {
+            $output = ob_get_clean();
+        }
+        $this->assertSame(1, preg_match('/<script>alert\((".*")\);<\/script>/s', $output, $alert), 'a notice says why');
+        $this->assertStringContainsString('ikke sendt endnu', (string)json_decode($alert[1]));
+        $this->assertSame(2, (int)StripeFixtures::row('ordrer', $draft)['status'], 'the draft stays unbooked');
+        $this->assertSame([], pg_fetch_all(StripeTestEnvironment::query('SELECT id FROM openpost WHERE refnr = $1', [$draft])) ?: []);
+        $this->assertSame([], pg_fetch_all(StripeTestEnvironment::query('SELECT id FROM transaktioner WHERE ordre_id = $1', [$draft])) ?: []);
     }
 
 }

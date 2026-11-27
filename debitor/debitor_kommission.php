@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitor_kommission.php -----patch 4.1.0 ----2025-04-15--------------
+// --- debitor/debitor_kommission.php -----ver 5.1.1 ----2026-11-21--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,17 +21,20 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // Kommission view - separate file for better grid differentiation
 // 20260629 PHR/CL Make "Vælg alle" check invite boxes in the grid view.
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
-// 20261008 Sawaneh The list sits under the new page head (debLstIncludes/topLine.php, page_bar): grid height adjusted.
-
+// 20260915 CDX/PHR Restore server sender/Reply-To and own SMTP for MySale invitations.
+// 20261027 NTR - CodeRabbit Review - if there's 2 semicolons/commas in a row or it's the a end comma, skip the empty address when adding recipients to PHPMailer. As well as skipping duplicate addresses by using array_unique() on the list of recipients. This prevents PHPMailer from throwing an exception when trying to add an empty or duplicate address.
+// 20261027 CL/NTR Trim and case-insensitively deduplicate invitation recipients before adding them.
+// 20261121 CL/ASR includes/grid.php is loaded with include_once, so Kommission opened through debitor.php?valg=kommission, which has loaded it already, no longer dies redeclaring its functions.
+//
+//
 #ob_start();
 @session_start();
 $s_id=session_id();
-saldi_setcookie("mySalePw", $s_id,0,"/");
+setcookie("mySalePw", $s_id,0,"/");
 
 $adresseantal=$check_all=$hrefslut=$javascript=$kontoid=$linjebg=$linjetext=NULL;
 $nextpil=$ny_sort=$prepil=$skjul_lukkede=$tidspkt=$understreg=$udv2=NULL;
@@ -62,7 +65,7 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/udvaelg.php");
 include("../includes/row-hover-style.js.php");
-include(get_relative() . "includes/grid.php");
+include_once(get_relative() . "includes/grid.php"); // debitor.php?valg=kommission has loaded it already
 
 $id = if_isset($_GET,NULL,'id');
 $returside=if_isset($_GET,NULL,'returside');
@@ -132,8 +135,9 @@ if (isset($_POST['kommission']) && !empty($_POST['debId'])) {
 	# Hent egen stamdata
 	$qtxt="select * from adresser where art='S'";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	$afsendermail=$r['email'];
 	$afsendernavn=$r['firmanavn'];
+	$invitationSender = $r;
+	require_once(__DIR__ . '/commissionMail.php');
 
 	for ($i=0;$i<count($debId);$i++) {
 		$mailToI = isset($mailTo[$i]) ? $mailTo[$i] : NULL;
@@ -149,13 +153,31 @@ if (isset($_POST['kommission']) && !empty($_POST['debId'])) {
 				$mailText .= "Bedste hilsner<br>{$afsendernavn}<br>";
 			}
 			if ($subject && $mailText) {
-				$headers  = "From: $afsendernavn <$afsendermail>\r\n";
-				$headers .= "Reply-To: $afsendermail\r\n";
-				$headers .= "MIME-Version: 1.0\r\n";
-				$headers .= "Content-Type: text/html; charset=$charset\r\n";
-				$svar = mail($custMail[$i], $subject, $mailText, $headers) ? NULL : "Mailer Error: mail() failed";
+				try {
+					$mail = commissionMail($invitationSender, $db, $_SERVER['SERVER_NAME'], $charset);
+					$recipientOk = true;
+					// Trim before deduplicating and skip empty entries ("a@x.dk;;", "a@x.dk; a@x.dk");
+					// PHPMailer rejects a repeated address case-insensitively, so key on lowercase.
+					$recipients = array();
+					foreach (explode(';', str_replace(',', ';', $custMail[$i])) as $recipient) {
+						$recipient = trim($recipient);
+						if ($recipient !== '' && !isset($recipients[strtolower($recipient)])) {
+							$recipients[strtolower($recipient)] = $recipient;
+						}
+					}
+					foreach ($recipients as $recipient) {
+						$recipientOk = $mail->addAddress($recipient) && $recipientOk;
+					}
+					$mail->Subject = $subject;
+					$mail->Body = $mailText;
+					$svar = ($recipientOk && $mail->send()) ? NULL : 'Mailer Error: ' . $mail->ErrorInfo;
+				} catch (\InvalidArgumentException $e) {
+					$svar = $e->getMessage();
+				}
 				if ($svar) {
-					echo $svar."<br>";
+					// 20261027 NTR - CodeRabbit Review - $svar needs to be escaped to prevent XSS when outputting the error message. Use htmlspecialchars() with ENT_QUOTES and UTF-8 encoding. 
+					// If sending fails, show the error and exit to prevent further processing
+					echo htmlspecialchars($svar, ENT_QUOTES, 'UTF-8')."<br>";
 					exit;
 				}
 				echo "Mail sendt til $custName[$i] &lt;$custMail[$i]&gt;<br>";
@@ -234,9 +256,24 @@ if (!$sort) $sort = "firmanavn";
 $sort=str_replace("adresser.","",$sort);
 $sortering=$sort;
 
-$title="Kommission";
+if ($menu=='T') {
+	$title= "".findtekst(909,$sprog_id)."";
+} else {
+	$title="Kommission";
+}
 
-if ($menu=='S') include_once 'debLstIncludes/topLine.php';
+if ($menu=='T') {
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	print "<div id=\"header\">"; 
+	print "<div class=\"headerbtnLft headLink\">&nbsp;&nbsp;&nbsp;</div>";   
+	print "<div class=\"headerTxt\">$title</div>";     
+	print "<div class=\"headerbtnRght headLink\">";
+	print "<a accesskey=V href='debitorvisning.php?valg=$valg' title='Ændre visning'><i class='fa fa-gear fa-lg'></i></a> &nbsp; ";
+	print "<a accesskey=N href='ordre.php?konto_id=$konto_id&returside=ordreliste.php?konto_id=$konto_id' title='Opret nyt kundekort'><i class='fa fa-plus-square fa-lg'></i></a></div>";     
+	print "</div>";
+	print "<div class='content-noside'>";
+} elseif ($menu=='S') include_once 'debLstIncludes/topLine.php';
 else include_once 'debLstIncludes/oldTopLine.php';
 
 // Use grid system for kommission view
@@ -587,7 +624,7 @@ $data = array(
 $table_id = 'debitor_kommission';
 
 // Render grid
-print "<div style='width: 100%; height: calc(100vh - 112px);'>";
+print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
 create_datagrid($table_id, $data);
 
 // Add form for kommission AFTER the wrapper div - only show when not in settings
@@ -633,6 +670,10 @@ $steps[] = array(
 include(__DIR__ . "/../includes/tutorial.php");
 create_tutorial("deblist", $steps);
 
-include_once '../includes/oldDesign/footer.php';
+if ($menu=='T') {
+	include_once '../includes/topmenu/footer.php';
+} else {
+	include_once '../includes/oldDesign/footer.php';
+}
 
 ?>

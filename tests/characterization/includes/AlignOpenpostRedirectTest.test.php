@@ -112,7 +112,7 @@ final class AlignOpenpostRedirectTest extends TestCase
     public function testTheOpenpostIdIsIntCast(): void
     {
         $src = file_get_contents(self::DO_ALIGN);
-        self::assertStringContainsString('(int) $post_id[$x]', $src);
+        self::assertMatchesRegularExpression('/\(int\)\s*\$post_id\[\$x\]/', $src);
         self::assertStringNotContainsString('where id = $post_id[$x]', $src);
     }
 

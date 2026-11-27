@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php --- patch 4.1.0 --- 2024-05-29 ---
+// --- mysale/api.php --- ver 5.1.1 --- 2026-11-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,23 +21,54 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
-// 20261016 Sawaneh Review (PR #803): a discount row from the old page (DG/VG) still applies when the pair has no matrix row (NR).
-
+// 20261016 SS Review (PR #803): a discount row from the old page (DG/VG) still applies when the pair has no matrix row (NR).
+// 20261029 CL/MMR SST-840: The account name from the request is validated, and every request value is cast or escaped before it reaches SQL.
+//                 The includes in the entry block now use __DIR__.
+// 20261030 CL/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
+// 20261030 CL/MJ SD-784 opret_ordrelinje() writes the momslog.log debug line only when the file opened.
+//                An unwritable temp/<db>/momslog.log no longer stops the order line with a TypeError on PHP 8.
+// 20261105 CL/LH getClosedDates answers an empty list when no day is closed, instead of a message object the booking calendar cannot map over.
+// 20261105 CL/LH createBooking refuses a period that is not one, a stand that does not exist, and a stand that is booked or blocked on any calendar day of the period (rental_period_taken()), with the stand locked from that check until its hold is committed (rental_begin_stand_lock()).
+// 20261105 CL/LH updateBooking deletes a rejected hold's order lines (ordrelinjer) with its order, instead of leaving them behind.
+// 20261105 CL/LH getOrder and getUser are removed: nothing called them, and they answered anyone with the full order or customer row for an id.
+//                getAllBookingsByUser answers only the customer the Mit salg session signed in at this regnskab (mySaleSignedInAs()), and 403 with an empty list otherwise.
+// 20261105 CL/LH CreateOrder gives opret_ordrelinje() the order's VAT rate (global $momssats), so the item line gets the item's rate (25%) instead of 0% and approving the booking invoices its order, which fakturer_ordre() refused while the lines had no VAT.
+//                When no fiscal year covers today, the script takes the newest one for every request, the highest number also where grupper.kodenr is text, so CreateOrder finds the item's rate there, opening the order in debitor/ordre.php no longer drops its VAT, and approving the booking posts its invoice there instead of stopping at an empty fiscal year.
+//                CreateOrder looks the item group and the VAT code up by a quoted number, which Postgres compares with a text kodenr too.
+//                opret_ordrelinje() comes from includes/ordrefunc.php, as in remoteBooking/api.php, instead of an old copy here, because fakturer_ordre() needs levering() and bogfor() from there and stopped with a fatal error once the order's VAT matched its lines.
+// 20261105 CL/LH fakturer_ordre() casts the paid amount (felt_2) to a number, so a Kreditkort order whose felt_2 is '' is invoiced instead of stopping with a TypeError (float - ''), as api/rest_api.php did with HTTP 500.
+//                It casts the order id and escapes the stored tidspkt in its SQL.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261116 CL/ASR createBooking books only for the customer Mit salg signed in at this regnskab in the visitor's session (mySaleSignedInAs()), and answers 403 otherwise before it holds the stand.
+//                 It records the booking in the session (rental_booking_note_in_session()), and updateBooking acts only on a booking the session made while Mit salg still has its customer signed in; any other is answered 403 with nothing written.
+//                 Mit salg keeps its bookings in the session apart from the booking page's (rental_booking_mysale_notes()): a booking made through remoteBooking/api.php is answered 403 here, and one made here is answered 403 there.
+//                 A rejection never deletes an invoiced order (status 3 or more, or a fakturanr): it is answered 409 and the hold, the order and its lines stay.
+//                 An approval of an invoiced order answers approved and writes nothing more; when fakturer_ordre() refuses the order, the answer is an error (500) and the hold keeps its expiry.
+//                 $regnaar starts at 0, so a request logs no undefined-variable warning.
+//                 updateBooking asks about the id as the request sent it and casts it for SQL only after that, so a list, a float, true or text such as '41abc' is answered 403.
+//                 It answers 403 to a signed-out session also when the booking is gone: it then asks for the customer the session is signed in as.
+//                 An approval of an invoiced order also ends its hold's expiry (expiry_time NULL), as an approval that invoices does, so rental/rental.php no longer removes the hold of an order staff invoiced while it waited.
+// 20261124 CL/ASR Comments state the current rule; no code change.
 
 $header = "nix";
 $bg = "nix";
-include("../includes/connect.php");
-include("../includes/std_func.php");
-$db = $_GET["db"];
+include(__DIR__ . "/../includes/connect.php");
+include(__DIR__ . "/../includes/std_func.php");
+include_once(__DIR__ . "/../includes/publicTenantDb.php");
+include_once(__DIR__ . "/../includes/stdFunc/rentalPeriodTaken.php");
+include_once(__DIR__ . "/../includes/stdFunc/rentalBookingCustomer.php");
+include_once(__DIR__ . "/shopLookup.php");
+$db = public_tenant_db(ifset($_GET, "db", ""));
+include(__DIR__ . "/../includes/ordrefunc.php"); // opret_ordrelinje(), and levering() and bogfor() for fakturer_ordre()
 
 $connection = db_connect($sqhost, $squser, $sqpass, $db);
 $query = db_select("SELECT box1, box2, box3, box4, kodenr FROM grupper WHERE art = 'RA'", __FILE__ . " linje " . __LINE__);
 $currentYear = date('Y');
 $currentMonth = date('m');
-$regnaar;
+$regnaar = 0;
 while($row = db_fetch_array($query)){
     $box1 = $row['box1']; // Starting month
     $box2 = $row['box2']; // Starting year
@@ -51,6 +82,10 @@ while($row = db_fetch_array($query)){
         // The current year and month fall within the range
         $regnaar = $kodenr;
     }
+}
+if (!$regnaar) { // no fiscal year covers today: the newest, where a booking's order finds the item's VAT rate (CreateOrder, opret_ordrelinje()) and its approval posts the invoice (fakturer_ordre())
+    $r_ra = db_fetch_array(db_select("SELECT max(" . db_cast("kodenr", "integer") . ") AS kodenr FROM grupper WHERE art = 'RA'", __FILE__ . " linje " . __LINE__)); // a number also where kodenr is text, so 10 is newer than 9
+    $regnaar = $r_ra ? (int)$r_ra["kodenr"] : 0;
 }
 
 $baseCurrency = get_settings_value("baseCurrency", "globals", "");
@@ -98,7 +133,7 @@ if(isset($_GET["getAllProducts"])){
 }
 
 if(isset($_GET["getAllDates"])){
-    $productId = $_GET["getAllDates"];
+    $productId = (int)$_GET["getAllDates"];
     // Move the condition related to rentalperiods into the ON clause of the LEFT JOIN
     $query = db_select("SELECT ri.id, rp.rt_from, rp.rt_to FROM rentalitems ri LEFT JOIN rentalperiod rp ON ri.id = rp.item_id AND (rp.rt_to > EXTRACT(EPOCH FROM CURRENT_DATE) OR rp.rt_to IS NULL) WHERE ri.product_id = $productId", __FILE__ . " linje " . __LINE__);
     
@@ -117,7 +152,7 @@ if(isset($_GET["getAllDates"])){
         $results[] = $row;
     }
 
-    $query = db_select("SELECT item_id, rr_from, rr_to FROM rentalreserved WHERE item_id = ANY(ARRAY[" . implode(",", $itemIds) . "])", __FILE__ . " linje " . __LINE__);
+    $query = db_select("SELECT item_id, rr_from, rr_to FROM rentalreserved WHERE item_id = ANY(ARRAY[" . implode(",", array_map("intval", $itemIds)) . "])", __FILE__ . " linje " . __LINE__);
 
     while($row = db_fetch_array($query)){
         // Filter out numeric keys
@@ -142,9 +177,33 @@ if(isset($_GET["getAllDates"])){
 
 if(isset($_GET["createBooking"])){
     $data = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($data)) $data = array();
+    $data["item_id"] = (int)ifset($data, "item_id", 0);
+    $data["cust_id"] = (int)ifset($data, "cust_id", 0);
+    $data["weeks"] = (float)ifset($data, "weeks", 0);
+    if ($data["item_id"] <= 0 || $data["cust_id"] <= 0) {
+        http_response_code(400);
+        echo json_encode(["error" => "Invalid booking"]);
+        exit;
+    }
     // make timestamp to unix timestamp
-    $from = strtotime($data["start_date"]);
-    $to = strtotime($data["end_date"]);
+    $from = strtotime((string)ifset($data, "start_date", ""));
+    $to = strtotime((string)ifset($data, "end_date", ""));
+    if ($from === false || $to === false || $to < $from) {
+        http_response_code(400);
+        echo json_encode(["error" => "Invalid booking"]);
+        exit;
+    }
+    // Only for the customer Mit salg signed in at this regnskab (mySaleSignIn() in mysale.php): remote.js sends the
+    // customer of the page's Mit salg link (getDB.php). The session is only read here.
+    if (session_status() === PHP_SESSION_NONE && isset($_COOKIE[session_name()])) {
+        @session_start(['read_and_close' => true]);
+    }
+    if (!mySaleSignedInAs($_SESSION ?? array(), session_id(), $data["cust_id"], $db)) {
+        http_response_code(403);
+        echo json_encode(["error" => "Not signed in"]); // remote.js sends the visitor to mysale.php to sign in
+        exit;
+    }
     $expiryTime = time() + 240;
     $expiryTime = date('Y-m-d H:i:s', $expiryTime);
     // if there is closed dates between the selected dates extend the end date by the number of days closed
@@ -154,9 +213,31 @@ if(isset($_GET["createBooking"])){
             $to = strtotime("+1 day", $to);
         }
     }
+    // The calendar only offers free days, but the request can name any stand and period: check the period as extended above.
+    // The stand stays locked from the check until its hold is committed, so a second request for it waits and then finds the hold.
+    if (!rental_begin_stand_lock($data["item_id"])) {
+        http_response_code(400);
+        echo json_encode(["error" => "Invalid booking"]);
+        exit;
+    }
+    if (rental_period_taken($data["item_id"], $from, $to)) {
+        transaktion('rollback');
+        http_response_code(409);
+        echo json_encode(["error" => "The stand is not free in that period"]);
+        exit;
+    }
     db_modify("INSERT INTO rentalperiod (item_id, cust_id, rt_from, rt_to, order_id, expiry_time) VALUES ($data[item_id], $data[cust_id], $from, $to, 0, TO_TIMESTAMP('$expiryTime', 'YYYY-MM-DD HH24:MI:SS'))", __FILE__ . " linje " . __LINE__);
     $query = db_select("SELECT id FROM rentalperiod WHERE item_id = $data[item_id] AND cust_id = $data[cust_id] AND rt_from = $from AND rt_to = $to", __FILE__ . " linje " . __LINE__);
     $data["booking_id"] = db_fetch_array($query)["id"];
+    // updateBooking approves or rejects only a booking this session made: without the record in the session there is no hold.
+    // Mit salg keeps it apart from the booking page's (remoteBooking/api.php), so only this page acts on it.
+    if (!rental_booking_note_in_session(rental_booking_mysale_notes($db), $data["booking_id"])) {
+        transaktion('rollback');
+        http_response_code(400);
+        echo json_encode(["error" => "Invalid booking"]);
+        exit;
+    }
+    transaktion('commit');
     if($data["unit"] == "Dag"){
         $data["days"] = $data["weeks"];
     }else{
@@ -170,48 +251,78 @@ if(isset($_GET["createBooking"])){
 
 if(isset($_GET["updateBooking"])){
     $data = json_decode(file_get_contents("php://input"), true);
-    $status = $data["status"];
+    if (!is_array($data)) $data = array();
+    $status = ifset($data, "status", "");
+    // Only a booking this visitor's session made through Mit salg (createBooking recorded it there). The session stays
+    // open until the answer, so a second request of the session about the booking waits for this one and finds what it did.
+    // The id is asked about as the request sent it and cast only after that, so a list, a float or text such as '41abc'
+    // is answered 403.
+    if (!rental_booking_noted_in_session(rental_booking_mysale_notes($db), ifset($data, "id", 0))) {
+        http_response_code(403);
+        echo json_encode(["error" => "Unknown booking"]);
+        exit;
+    }
+    $bookingId = (int)$data["id"];
+    $query = db_select("SELECT * FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
+    $res = db_fetch_array($query);
+    $orderId = $res ? (int)$res["order_id"] : 0;
+    // and only while Mit salg has the booking's customer signed in at this regnskab in the session. A booking that is gone
+    // (its hold expired and was removed) has no customer to ask about: then the customer the session is signed in as.
+    if (!mySaleSignedInAs($_SESSION, session_id(), $res ? $res["cust_id"] : ($_SESSION["mySaleAcId"] ?? 0), $db)) {
+        http_response_code(403);
+        echo json_encode(["error" => "Not signed in"]);
+        exit;
+    }
     if($status != "approved"){
-        $query = db_select("SELECT * FROM rentalperiod WHERE id = $data[id]", __FILE__ . " linje " . __LINE__);
-        $res = db_fetch_array($query);
-        $orderId = $res["order_id"];
+        // An invoiced order is never deleted. Its row is locked before it is read, so an invoicing of the order at the
+        // same time is either seen here or waits until the order is gone.
+        transaktion('begin');
+        $order = $orderId > 0 ? db_fetch_array(db_select("SELECT status, fakturanr FROM ordrer WHERE id = $orderId FOR UPDATE", __FILE__ . " linje " . __LINE__)) : false;
+        if ($order && ((int)$order["status"] >= 3 || trim((string)$order["fakturanr"]) !== "")) {
+            transaktion('rollback');
+            http_response_code(409);
+            echo json_encode(["error" => "The booking is invoiced"]);
+            exit;
+        }
+        if ($orderId > 0) { // order_id is 0 for a hold whose order was not made: it has no lines to delete
+            db_modify("DELETE FROM ordrelinjer WHERE ordre_id = $orderId", __FILE__ . " linje " . __LINE__);
+        }
         db_modify("DELETE FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__);
-        db_modify("DELETE FROM rentalperiod WHERE id = $data[id]", __FILE__ . " linje " . __LINE__);
+        db_modify("DELETE FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
+        transaktion('commit');
+        rental_booking_unnote($_SESSION, rental_booking_mysale_notes($db), $bookingId); // saved with the session when the request ends
         echo json_encode(["status" => "deleted"]);
         exit;
     }else{
-        $query = db_select("SELECT * FROM rentalperiod WHERE id = $data[id]", __FILE__ . " linje " . __LINE__);
-        $res = db_fetch_array($query);
-        $orderId = $res["order_id"];
-        db_modify("UPDATE rentalperiod SET expiry_time = NULL WHERE id = $data[id]", __FILE__ . " linje " . __LINE__);
-        fakturer_ordre($orderId, "email", 0);
+        $order = $orderId > 0 ? db_fetch_array(db_select("SELECT status, fakturanr FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__)) : false;
+        if (!$order) { // no hold, or a hold whose order was not made: nothing to invoice
+            http_response_code(409);
+            echo json_encode(["error" => "The booking has no order"]);
+            exit;
+        }
+        if ((int)$order["status"] >= 3 || trim((string)$order["fakturanr"]) !== "") {
+            // Invoiced already, by an earlier approval or by staff while the hold waited: nothing more to invoice. The
+            // hold is a booking now and no longer expires, so rental/rental.php does not remove it.
+            db_modify("UPDATE rentalperiod SET expiry_time = NULL WHERE id = $bookingId AND expiry_time IS NOT NULL", __FILE__ . " linje " . __LINE__);
+            echo json_encode(["status" => "approved"]);
+            exit;
+        }
+        // fakturer_ordre() answers the order id when it invoiced the order, and otherwise what stopped it.
+        if (fakturer_ordre($orderId, "email", 0) !== $orderId) {
+            http_response_code(500);
+            echo json_encode(["error" => "The booking could not be invoiced"]);
+            exit;
+        }
+        db_modify("UPDATE rentalperiod SET expiry_time = NULL WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
         echo json_encode(["status" => "approved"]);
     }
 
 }
 
-if(isset($_GET["getOrder"])){
-    $id = $_GET["getOrder"];
-    $query = db_select("SELECT * FROM rentalperiod WHERE id = $id", __FILE__ . " linje " . __LINE__);
-    $res = db_fetch_array($query);
-    $query = db_select("SELECT * FROM ordrer WHERE id = $res[order_id]", __FILE__ . " linje " . __LINE__);
-    $order = db_fetch_array($query);
-    $query = db_select("SELECT * FROM ordrelinjer WHERE ordre_id = $res[order_id]", __FILE__ . " linje " . __LINE__);
-    $orderLines = [];
-    while($row = db_fetch_array($query)){
-        $orderLines[] = $row;
-    }
-    $order["orderLines"] = $orderLines;
-    echo json_encode($order);
-}
-
 if(isset($_GET["getClosedDates"])){
     $query = db_select("SELECT * FROM rentalclosed", __FILE__ . " linje " . __LINE__);
     $i = 0;
-    if(db_num_rows($query) <= 0){
-        echo json_encode(["msg" => "Der er ingen lukkede dage", "success" => false]);
-        exit();
-    }
+    $closedDays = []; // a list even when no day is closed: remote.js maps over it to build the calendar
     while($res = db_fetch_array($query)){
         $closedDays[$i]["id"] = $res["id"];
         $closedDays[$i]["date"] = $res["day"];
@@ -220,15 +331,19 @@ if(isset($_GET["getClosedDates"])){
     echo json_encode($closedDays);
 }
 
-if(isset($_GET["getUser"])){
-    $id = $_GET["getUser"];
-    $query = db_select("SELECT * FROM adresser WHERE id = $id", __FILE__ . " linje " . __LINE__);
-    $res = db_fetch_array($query);
-    echo json_encode($res);
-}
-
 if(isset($_GET["getAllBookingsByUser"])){
-    $id = $_GET["getAllBookingsByUser"];
+    $id = (int)$_GET["getAllBookingsByUser"];
+    // Only for the customer Mit salg signed in at this regnskab (mySaleSignIn() in mysale.php, once it has accepted the
+    // customer's link, and the password when the customer has one): the same id at another shop is another customer.
+    // The session is only read.
+    if (session_status() === PHP_SESSION_NONE && isset($_COOKIE[session_name()])) {
+        @session_start(['read_and_close' => true]);
+    }
+    if (!mySaleSignedInAs($_SESSION ?? array(), session_id(), $id, $db)) {
+        http_response_code(403);
+        echo json_encode([]); // a list all the same: mybooking.js sends the visitor to mysale.php to sign in
+        exit;
+    }
     // make a join for rentalitem on item_id from rentalperiod to id in rentalitems
     $query = db_select("SELECT rp.id, rp.rt_from, rp.rt_to, ri.item_name FROM rentalperiod rp LEFT JOIN rentalitems ri ON rp.item_id = ri.id WHERE rp.cust_id = $id", __FILE__ . " linje " . __LINE__);
     $bookings = [];
@@ -244,463 +359,30 @@ if(isset($_GET["getTerms"])){
     echo json_encode(["terms" => $terms]);
 }
 
-function opret_ordrelinje($id,$vare_id,$varenr,$antal,$beskrivelse,$pris,$rabat_ny,$procent,$art,$momsfri,$posnr,$linje_id,$incl_moms,$kdo,$rabatart,$kopi,$saet,$fast_db,$lev_varenr,$lager,$linje) { #20140426
-
-    if (!$id) return("missing ordre ID");
-    global $afd,$barcodeNew;
-    global $db,$db_skriv_id;
-    global $folger,$formularsprog; #20200109
-    global $kundedisplay;	
-    global $momssats;
-    global $procentfakt;
-    global $regnaar;
-    global $sprog_id,$status;
-    global $tilfravalgNy;
-    global $vis_saet;
-    global $webservice;
-    global $voucherNumber;
-
-        if (file_exists("../temp/$db/pos$id.txt")) unlink ("../temp/$db/pos$id.txt");
-
-    if (isset($_POST['timestamp']) && $_POST['timestamp']) { #20240924
-        $timestamp = $_POST['timestamp']."|".$varenr;	
-        $fn = "../temp/$db/timestamp".$bruger_id.".txt";
-        $preTimestamp = file_get_contents($fn);
-        if ($timestamp == $preTimestamp) {
-            return;
-            exit;
-        } else {
-            file_put_contents($fn,$timestamp);
-        }
-    }
-    
-    if (isset($_SESSION['varenr_ny']) && $_SESSION['varenr_ny']) {
-        if ($varenr == $barcodeNew) $varenr = $_SESSION['varenr_ny'];
-        unset($_SESSION["varenr_ny"]);
-    }
-
-    if ($tilfravalgNy && !strpos($tilfravalgNy,chr(9))) {
-        if (is_numeric($tilfravalgNy)) { # don't use is_int - returns false ???
-            $qtxt = "select id from varer where id = '$tilfravalgNy'";
-            if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $tilfravalgNy = '';
-        } else $tilfravalgNy = '';
-    }	
-    if (!is_numeric($saet)) $saet=0;
-    if ($procent=='') $procent=100;
-    if (!is_numeric($fast_db)) $fast_db = 0;
-    if (!is_numeric($rabat_ny)) $rabat_ny = 0;
-    $b2b=$debitorgruppe=$debitorrabatgruppe=$omkunde=$valutakurs=0;
-    if (!$afd) $afd=0;
-    $dd=date("Y-m-d");
-    $tt=date("H:i:s");
-#	if (!is_numeric($pris)) $pris=0; #20130903 - fjernet 20140124
-
-    if ($pris && $pris > 99999999) {
-        return("Ulovlig v&aelig;rdi i prisfelt");
-    }
-#fwrite ($log, __line__." Regnaar $regnaar\n");
-    if (!$regnaar) {
-        $year=date("Y");
-        $month=date("m");
-        $del1="(box1<='$month' and box2<='$year' and box3>='$month' and box4>='$year')";
-        $del2="(box1<='$month' and box2<='$year' and box3<'$month' and box4>'$year')";
-        $del3="(box1>'$month' and box2<'$year' and box3>='$month' and box4>='$year')";
-        $qtxt="select kodenr from grupper where art='RA' and ($del1 or $del2 or $del3)"; #20190318
-    #fwrite ($log, __line__." $qtxt\n");
-        if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-            $regnaar=$r['kodenr']*1;
-        #fwrite ($log, __line__." Regnaar $regnaar\n");
-        } elseif ($r=db_fetch_array(db_select("select max(kodenr) as kodenr from grupper where art='RA'",__FILE__ . " linje " . __LINE__))) {
-            $regnaar=$r['kodenr']*1;
-        } else $regnaar=1;
-    }
-    $qtxt = "select ordrer.art as art,ordrer.status as status,ordrer.valutakurs as valutakurs,ordrer.afd as afd, ";
-    $qtxt.= "adresser.gruppe as debitorgruppe,adresser.rabatgruppe as debitorrabatgruppe from ";
-    $qtxt.= "adresser,ordrer where ordrer.id='$id'and adresser.id=ordrer.konto_id";
-    if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-        $debitorgruppe=$r['debitorgruppe'];
-        $debitorrabatgruppe=$r['debitorrabatgruppe'];
-        $valutakurs=$r['valutakurs'];
-        $status=$r['status'];
-        if (!$afd && $r['afd']) $afd=$r['afd'];
-    }
-    if (!$lager) {
-        if ($afd) {
-            $r=db_fetch_array(db_select("select box1 from grupper where kodenr='$afd' and art = 'AFD'",__FILE__ . " linje " . __LINE__));
-            $lager=$r['box1'];
-            if (!$lager) {
-                $r=db_fetch_array(db_select("select kodenr from grupper where box1='$afd' and art = 'LG'",__FILE__ . " linje " . __LINE__));
-                $lager=$r['kodenr']*1;
-            } 
-        } else $lager=0;
-    }
-
-    if (!$art) $art=$r['art']; #20140424b
-    if ($status>=3) { #20131015
-        return("Der kan ikke tilføjes linjer i en bogført ordre");
-        exit;
-    }
-    $qtxt = "select box8,box9 from grupper where kodenr='$debitorgruppe' and art = 'DG' and fiscal_year = '$regnaar'";
-    if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-        $b2b=$r['box8'];
-        $omkunde=$r['box9'];
-    }
-    $varenr=db_escape_string($varenr);
-    $varenr_low=strtolower($varenr);
-    $varenr_up=strtoupper($varenr);
-
-    $variant_varer=array(); //20181223
-    $x=0;
-    $qtxt="SELECT distinct(vare_id) FROM variant_varer";
-    $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
-    while ($r=db_fetch_array($q)) {
-        $variant_varer[$x]=$r['vare_id'];
-        $x++;
-    }
-    
-    $qtxt="SELECT id,vare_id,variant_type FROM variant_varer WHERE upper(variant_stregkode) = '$varenr_up'";
-    if (strlen($varenr)==12 && is_numeric($varenr)) $qtxt.=" or variant_stregkode='0$varenr'";
-    if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-        $vare_id=$r['vare_id'];
-        $variant_type=$r['variant_type']*1;
-        $variant_id=$r['id'];
-        $qtxt="SELECT beskrivelse FROM variant_typer WHERE id = '$variant_type'";
-        $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-        $variantText=$r['beskrivelse'];
-    } else {
-        $variant_id=0;
-        $variant_type=$variantText=NULL;
-    }
-    
-    $string=NULL;
-    if (isset($vare_id) && $vare_id) $string="select * from varer where id='$vare_id'";
-    elseif ($varenr) {
-        $string = "select * from varer where lower(varenr) = '$varenr_low' or upper(varenr) = '$varenr_up' ";
-        $string.= "or varenr LIKE '$varenr' or lower(stregkode) = '$varenr_low' or upper(stregkode) = '$varenr_up' ";
-        $string.= "or stregkode LIKE '$varenr'";
-        if (strlen($varenr)==12 && is_numeric($varenr)) $string.=" or stregkode='0$varenr'";
-    } elseif ($id && $beskrivelse && $posnr) {
-        $qtxt="insert into ordrelinjer ";
-        $qtxt.="(ordre_id,vare_id,varenr,enhed,beskrivelse,antal,rabat,rabatart,procent,m_rabat,pris,kostpris,momsfri,momssats,";
-        $qtxt.="posnr,projekt,folgevare,rabatgruppe,bogf_konto,kred_linje_id,kdo,serienr,variant_id,leveres,samlevare,omvbet,";
-        $qtxt.="saet,fast_db,tilfravalg,lager) values ";
-        $qtxt.="('$id','0','','','$beskrivelse','0','0','','100','0','0','0','','0','$posnr','0','0','0','0','0','','','0','0',";
-        $qtxt.="'','$omvbet','$saet','$fast_db','',$lager)";
-        fwrite($log, __linr__." $qtxt\n");
-        db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-    } else {
-        return ("Manglende varenr eller beskrivelse");
-        exit;
-    }
-
-    #	fwrite($log,__line__." Pris $pris\n");
-    if ($string && $r=db_fetch_array(db_select("$string",__FILE__ . " linje " . __LINE__))) {
-        $vare_id=$r['id'];
-        $varenr=db_escape_string($r['varenr']);
-        $enhed=db_escape_string($r['enhed']);
-        $folgevare=(int)$r['folgevare'];
-#		$tilfravalg=$r['tilfravalg'];
-        $rabatgruppe=$r['rabatgruppe'];
-        $varegruppe=(int)$r['gruppe'];
-        $samlevare=$r['samlevare'];
-        $varerabatgruppe=$r['dvrg']*1;
-        if (!$pris && $b2b) $pris=(float)$r['tier_price'];
-        $specialType=$r['specialtype'];
-        $special_price=(float)$r['special_price'];
-        $special_from_date=$r['special_from_date'];
-        $special_to_date=$r['special_to_date'];
-        $special_from_time=$r['special_from_time'];
-        $special_to_time=$r['special_to_time'];
-        $serienr=$r['serienr'];
-        $beholdning=($r['beholdning'])*1;
-        (strpos($r['m_antal'],';'))?list($m_antal,$temp)=explode(";",$r['m_antal'],2):$m_antal=$r['m_antal'];
-        $m_antal=trim($m_antal);
-        if (!is_numeric($m_antal)) $m_antal=0;
-        if (!$varegruppe) {
-            return("Varenr $varenr et ikke tilknyttet en varegruppe!");
-        }
-        if (!$variant_id && in_array($vare_id,$variant_varer)) { //20181223
-            return('Brug stregkode ved variant_varer');
-            exit;
-        }
-        if ($folgevare) {
-            $qtxt="select varenr from varer where id='$folgevare'";
-            if (!db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $folgevare=0;
-        }
-        if (!$beskrivelse) {
-            $beskrivelse=db_escape_string(trim($r['beskrivelse']));
-            if ($formularsprog) {
-                $r2=db_fetch_array(db_select("select kodenr from grupper where art='VSPR' and box1 = '$formularsprog'",__FILE__ . " linje " . __LINE__));
-                $kodenr=$r2['kodenr']*1;
-                $r2=db_fetch_array(db_select("select tekst from varetekster where sprog_id='$kodenr' and vare_id='$vare_id'",__FILE__ . " linje " . __LINE__));
-                if ($r2['tekst']) $beskrivelse=db_escape_string($r2['tekst']);
-            }
-        }
-#		if (!$posnr && $art!='PO' && $r2=db_fetch_array(db_select("select max(posnr) as posnr from ordrelinjer where ordre_id = '$id'",__FILE__ . " linje " . __LINE__))) {
-        if (!$posnr && $r2=db_fetch_array(db_select("select max(posnr) as posnr from ordrelinjer where ordre_id = '$id'",__FILE__ . " linje " . __LINE__))) {
-            $posnr=$r2['posnr']+1;
-        } elseif (!$posnr) $posnr=1;
-        $qtxt = "select box4,box6,box7,box8 from grupper ";
-        $qtxt.= "where art = 'VG' and kodenr = '$varegruppe' and fiscal_year = '$regnaar'";
-        if (!$r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-            $alerttekst=findtekst(320,$sprog_id)." $varenr ".findtekst(321,$sprog_id);
-            return ("$alerttekst");
-        }
-        $bogfkto = $r2['box4'];
-        $omvare = $r2['box6'];
-        if (!$momsfri) $momsfri = $r2['box7']; #20170207
-        $lagerfort = $r2['box8'];
-        if (!$bogfkto) 	{
-            $alerttekst=findtekst(319,$sprog_id)." ".$varegruppe."!";
-          return ("$alerttekst");
-        }
-        if ($bogfkto && !$momsfri) {
-            $qtxt="select moms from kontoplan where kontonr = '$bogfkto' and regnskabsaar = '$regnaar'";
-            $r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-            if ($tmp=(int)substr($r2['moms'],1)) {
-                $qtxt="select box1,box2 from grupper where art = 'SM' and kodenr = '$tmp' and fiscal_year = '$regnaar'";
-                $r2 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-                if ($r2['box1']) $vatAccount=$r2['box1']*1;
-                if ($r2['box2']) $varemomssats=$r2['box2']*1;
-            }	else {
-                $varemomssats=$momssats;
-                $vatAccount=0;
-            }	
-        } else {
-            $varemomssats=0;
-            $vatAccount=0;
-        }
-        $SpecialPeriod=0;
-
-        if (($special_from_date < $dd || ($special_from_date == $dd && $special_from_time <= $tt)) && 
-            ($special_to_date > $dd || ($special_to_date == $dd && $special_to_time >= $tt))) $SpecialPeriod=1;
-        if ($SpecialPeriod && $special_price && $specialType=='percent') {
-            if ($rabat_ny == 0) $rabat_ny=$special_price;
-            $special_price=0;
-        }
-
-        if (!$pris) {
-            $ugedag=date('N');
-            $uxtid=date("U");
-            $tidspkt=date("H:i:s");
-            $qtxt = "select salgspris,kostpris from varetilbud where vare_id='$vare_id' and ugedag='$ugedag' ";
-            $qtxt.= "and startdag<='$uxtid' and slutdag >='$uxtid' and starttid <='$tidspkt' and sluttid >='$tidspkt'";
-            if ($r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-                $pris=$r2['salgspris'];
-                $kostpris=$r2['kostpris'];
-            } elseif ($SpecialPeriod && $special_price) {# 20161114
-                $pris=$special_price;
-                $kostpris=$r['campaign_cost']*1;
-            } else {
-                if ($pris!='0') $pris = (float)$r['salgspris']; #20140124
-                $kostpris = (float)$r['kostpris'];
-                if ($pris == 0 && $kostpris < 1) $fast_db=$kostpris;
-            }
-        }	elseif ($momsfri) {
-            $kostpris=(float)$r['kostpris'];
-        } else {
-            $ms=$varemomssats;
-            if ($momssats<$varemomssats) $varemomssats=$momssats;		
-            if ($incl_moms && $varemomssats) $pris=$pris-($pris*$varemomssats/(100+$varemomssats)); # 20190111 fjernet: $art=='PO' && 
-            else $pris*=1; #20140124
-            $kostpris=$r['kostpris']*1;
-        }
-#		fwrite($log,__line__." Pris $pris\n");
-
-        if ($pris && $r['salgspris']==0 && $kostpris<1 && $kostpris>0) {
-            $fast_db=$kostpris;
-            $kostpris=($pris-$pris*$rabat_ny/100)*$kostpris;
-        } else $fast_db=0;
-    } elseif (!$kopi) {
-        if ($webservice) { #20150218
-            if ($varenr) {
-#				fwrite($log,__line__." Varenr: $varenr eksisterer ikke\n");
-                return ("Varenr: $varenr eksisterer ikke");
-            }	else {
-                return ('0');
-            }
-            exit;
-        } else {
-            vareopslag($art,'varenr','beskrivelse',$id,'','','%'.$varenr.'%'); #20150215
-            exit;
-        }
-        return ("Varenr: $varenr eksisterer ikke");
-    }
-    if (!is_numeric($rabatgruppe)) $rabatgruppe = 0;
-    if (!is_numeric($varerabatgruppe)) $varerabatgruppe = 0;
-
-    $vare_id*=1;
-    $m_rabat=0;
-    $rabat_ny*=1;
-    
-    $r2 = db_fetch_array(db_select("select box11 from grupper where art = 'DIV' and kodenr = '3'",__FILE__ . " linje " . __LINE__));
-    $advar_negativ_lager=$r2['box11'];
-    if ($art=='DO' && $lagerfort && !$webservice && $advar_negativ_lager) {  #20140131
-        $r=db_fetch_array(db_select("select beholdning from varer where id='$vare_id'",__FILE__ . " linje " . __LINE__));
-        $beholdning=$r['beholdning'];
-        $r=db_fetch_array(db_select("select sum(ordrelinjer.antal) as antal, sum(ordrelinjer.leveret) as leveret from ordrelinjer,ordrer where ordrelinjer.vare_id='$vare_id' and ordrelinjer.ordre_id=ordrer.id and ordrer.art='DO' and ordrer.status<3",__FILE__ . " linje " . __LINE__));
-        $i_ordre=$r['antal']-$r['leveret'];
-        $raadig=$beholdning-$i_ordre;
-        $tmp=$antal*1;
-        if (!$tmp) $tmp=1;
-        if ($raadig<=$tmp) {
-            $alerttxt="Beholdning:\\t".dkdecimal($beholdning,2)."\\nI ordre:\\t\\t".dkdecimal($i_ordre)."\\nTil rådighed:\\t".dkdecimal($raadig);
-            alert($alerttxt);
-        }
-    }
-    if ($linje_id && $art=='DO') $tmp="id='$linje_id'";
-    elseif ($art=='PO') {
-        $tmp = "vare_id = '$vare_id' and ordre_id='$id' and pris='$pris' and rabat='$rabat_ny' and variant_id='$variant_id' ";
-        $tmp.= "and beskrivelse = '". db_escape_string($beskrivelse) ."' and tilfravalg='$tilfravalgNy' and barcode = '$barcodeNew'";
-    }
-#	fwrite ($log,__line__." $tmp\n");
-    $qtxt="select rabat,posnr,id,antal from ordrelinjer where $tmp";
-#	fwrite($log,__line__." $qtxt\n");
-    if(!$folger && !$saet && ((!$kopi && $linje_id && $art=='DO') || $art=='PO') && $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) { #20200109
-        $antaldiff=$antal;
-        $antal=$r['antal']+$antal;
-        if (($art!='PO' || $antal) && $antaldiff && $r['id']) {
-            if (abs($antal) < 100000000000) {
-                db_modify("update ordrelinjer set m_rabat='0', antal=antal+$antaldiff where id = '$r[id]'",__FILE__ . " linje " . __LINE__);
-                if ($samlevare == 'on') {
-                    db_modify("update ordrelinjer set antal=antal/$r[antal]*$antal where samlevare = '$linje_id'",__FILE__ . " linje " . __LINE__);
-                }
-                $r2=db_fetch_array(db_select("select sum(antal) as antal from ordrelinjer where vare_id='$vare_id' and pris='$pris' and rabat='0' and ordre_id='$id'",__FILE__ . " linje " . __LINE__));
-                $tmpantal=$r2['antal'];
-            }
-            if ($m_antal && $tmpantal >= $m_antal) {
-                m_rabat($r['id'],$vare_id,$r['posnr'],$tmpantal,$id,$pris);
-            } else {
-                db_modify("update ordrelinjer set m_rabat='0' where ordre_id = '$id' and vare_id = '$vare_id'",__FILE__ . " linje " . __LINE__);
-            }
-        } elseif ($art=='PO' && $r['id']) db_modify("delete from ordrelinjer where id = '$r[id]'",__FILE__ . " linje " . __LINE__);
-    } else {
-        if ($kopi || $rabat_ny) $rabat=$rabat_ny;
-        else {
-            if (!$debitorrabatgruppe && !db_fetch_array(db_select("select id from grupper where art='DRG'",__FILE__ . " linje " . __LINE__))){
-                $debitorrabatgruppe=$debitorgruppe;
-            }
-            if (!$varerabatgruppe && !db_fetch_array(db_select("select id from grupper where art='DVRG'",__FILE__ . " linje " . __LINE__))){
-                $varerabatgruppe=$varegruppe;
-            }
-            if (!is_numeric($debitorrabatgruppe)) $debitorrabatgruppe=0;
-            if ( !is_numeric($varerabatgruppe)  ) $varerabatgruppe=0;
-            if (!isset($rabat)) $rabat = 0;
-            $qtxt = "select rabat,rabatart from rabat where vare='$varerabatgruppe' and debitor='$debitorrabatgruppe' order by case when debitorart='NR' and vareart='NR' then 0 else 1 end, id desc limit 1";
-            if ($r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-                $rabat=$r2['rabat'];
-                $rabatart=$r2['rabatart'];
-            }
-        }
-         ($linje_id && $art=='DK')?$kred_linje_id=$linje_id:$kred_linje_id='0';
-        if (!$varemomssats && $varemomssats!='0') {
-            ($momsfri)?$varemomssats='0':$varemomssats=$momssats;
-        }
-        $varemomssats*=1;
-#		fwrite($log,__line__." Varemomssats $varemomssats\n");
-        if ($valutakurs && $valutakurs!=100) {
-            $pris=$pris*100/$valutakurs;
-            $kostpris=$kostpris*100/$valutakurs;
-        }
-        if ($momsfri) $VatPrice=$pris;
-        else $VatPrice=$pris+$pris*$varemomssats/100;
-#		if ($variant_type) {
-#			$varianter=explode(chr(9),$variant_type);
-#			for ($y=0;$y<count($varianter);$y++) {
-#				$qtxt="select variant_typer.beskrivelse as vt_besk,varianter.beskrivelse as var_besk from variant_typer,varianter";
-#				$qtxt.=" where variant_typer.id = '$varianter[$y]' and variant_typer.variant_id=varianter.id";
-#				$r1=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-#				$beskrivelse.=", ".$r1['var_besk']; #.":".$r1['vt_besk'];
-#			}
-#		}
-# exit;
-        ($webservice) ?$leveres=$antal:$leveres=0; 
-        if ($id && is_numeric($posnr)) {
-            $momslog=fopen("../temp/$db/momslog.log","a");
-            fwrite($momslog, "varenr $varenr - Varemoms $varemomssats Momskto $vatAccount\n");
-            fclose ($momslog);
-            if ($varemomssats && !$vatAccount) {
-                $alerttxt= __line__." Manglende konto for salgsmoms (Varenr: $varenr indsat uden moms)";
-                alert ($alerttxt);
-                $varemomssats=0;
-#				return ('0');
-#				exit;
-            }
-            if (($samlevare && !$antal) || $antal=='') $antal=1;
-            ($omkunde && $omvare)?$omvbet='on':$omvbet='';
-            $antal*=1;
-            $leveres*=1;
-            if ($lager<1) $lager=1; 
-            $posnr = abs($posnr); #20200813
-#			if ($barcodeNew && !$serienr) $serienr = $barcodeNew;
-            if ($art != 'PO' && $art != 'DK' && !$webservice && $variantText) $beskrivelse.= " $variantText"; #20211129
-            $qtxt = "insert into ordrelinjer ";
-            $qtxt.= "(ordre_id,vare_id,varenr,enhed,beskrivelse,antal,rabat,rabatart,procent,m_rabat,";
-            $qtxt.= "pris,vat_price,kostpris,momsfri,momssats,posnr,projekt,folgevare,rabatgruppe,";
-            $qtxt.= "bogf_konto,vat_account,kred_linje_id,kdo,serienr,variant_id,leveres,samlevare,";
-            $qtxt.= "omvbet,saet,fast_db,lev_varenr,tilfravalg,lager,barcode) ";
-            $qtxt.= "values ";
-            $qtxt.= "('$id','$vare_id','$varenr','$enhed','$beskrivelse','$antal','$rabat','$rabatart','$procent','$m_rabat',";
-            $qtxt.= "'$pris','$VatPrice','$kostpris','$momsfri','$varemomssats','$posnr','','$folgevare','$rabatgruppe',";
-            $qtxt.= "'$bogfkto','$vatAccount','$kred_linje_id','$kdo','$serienr','$variant_id','$leveres','$samlevare',";
-            $qtxt.= "'$omvbet','$saet','$fast_db','$lev_varenr','$tilfravalgNy','$lager','$barcodeNew')";
-#			fwrite($log, __line__." $qtxt\n");
-            if (abs($antal) < 100000000000) {
-                db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-                if ($kundedisplay) {
-                    kundedisplay($beskrivelse,$VatPrice*$antal,0); #20201206
-                }
-            }
-            if ($samlevare && !$beholdning) {
-                $r=db_fetch_array(db_select("select max(id) as id from ordrelinjer where vare_id='$vare_id' and ordre_id='$id'",__FILE__ . " linje " . __LINE__));
-#				samlevare($id,$art,$r['id'],$vare_id,$antal); udkommenteret 20131129
-            }
-        }
-#fclose($log);		
-        # finder antal af varen på ordren.
-        $qtxt = "select sum(antal) as antal from ordrelinjer where ";
-        $qtxt.= "vare_id='$vare_id' and pris != 0 and rabat='0' and ordre_id='$id'";
-        $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-        $tmpantal=$r['antal'];
-        if ($m_antal && $tmpantal >= $m_antal) {
-            $qtxt = "select max(id) as id from ordrelinjer where ";
-            $qtxt.= "vare_id='$vare_id' and pris != 0 and rabat='0' and ordre_id='$id'";
-            $r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-            m_rabat($r2['id'],$vare_id,0,$tmpantal,$id,$pris);
-        }	else {
-            db_modify("update ordrelinjer set m_rabat='0' where ordre_id = '$id' and vare_id = '$vare_id'",__FILE__ . " linje " . __LINE__);
-        }
-    }
-    if ($vis_saet && $status) db_modify("update ordrer set felt_2='0' where id = '$id'",__FILE__ . " linje " . __LINE__);
-    $sum=$pris*$antal;
-    return($sum);
-#	$varenr=$next_varenr;
-#	$antal=NULL;
-} # endfunc opret_orderlinje
-
 function CreateOrder($data){
     global $regnaar;
+    global $momssats; // opret_ordrelinje() gives the item line no higher rate than the order's, which it reads from here
     $query = db_select("SELECT box1, box2, box3, box4, kodenr FROM grupper WHERE art = 'RA'", __FILE__ . " linje " . __LINE__);
     $currentYear = date('Y');
     $currentMonth = date('m');
     $momssats = 0;
 
-    $query = db_select("SELECT gruppe FROM varer WHERE varenr = '$data[sku]'", __FILE__ . " linje " . __LINE__);
+    $query = db_select("SELECT gruppe FROM varer WHERE varenr = '" . db_escape_string((string)ifset($data, "sku", "")) . "'", __FILE__ . " linje " . __LINE__);
     $gruppe = db_fetch_array($query)["gruppe"];
 
-    $q_vg = db_select("SELECT beskrivelse, kodenr, box4, box7 FROM grupper WHERE fiscal_year = $regnaar AND art = 'VG' AND kodenr = $gruppe", __FILE__ . " linje " . __LINE__);
+    $q_vg = db_select("SELECT beskrivelse, kodenr, box4, box7 FROM grupper WHERE fiscal_year = " . (int)$regnaar . " AND art = 'VG' AND kodenr = '" . (int)$gruppe . "'", __FILE__ . " linje " . __LINE__);
     $r_vg = db_fetch_array($q_vg);
 
     if ($r_vg && is_array($r_vg)) {
         # Get momssats, checks if it is not momsfri
         if ($r_vg["box7"] != "on") {
-            $q_konto = db_select("SELECT moms FROM kontoplan WHERE regnskabsaar = $regnaar AND kontonr = {$r_vg['box4']}", __FILE__ . " linje " . __LINE__);
+            $q_konto = db_select("SELECT moms FROM kontoplan WHERE regnskabsaar = " . (int)$regnaar . " AND kontonr = " . (int)$r_vg['box4'], __FILE__ . " linje " . __LINE__);
             $konto_result = db_fetch_array($q_konto);
             $momstype = $konto_result ? $konto_result["moms"] : null;
 
             if ($momstype) {
                 $momstype = trim($momstype, 'S');
-                $q_moms = db_select("SELECT box2 FROM grupper WHERE fiscal_year = $regnaar AND kode = 'S' AND kodenr = $momstype AND art = 'SM'", __FILE__ . " linje " . __LINE__);
+                $q_moms = db_select("SELECT box2 FROM grupper WHERE fiscal_year = " . (int)$regnaar . " AND kode = 'S' AND kodenr = '" . (int)$momstype . "' AND art = 'SM'", __FILE__ . " linje " . __LINE__);
                 $moms_result = db_fetch_array($q_moms);
                 $momssats = $moms_result ? $moms_result["box2"] : 0;
             } else {
@@ -714,13 +396,13 @@ function CreateOrder($data){
         error_log("Failed to fetch data for gruppe: $gruppe");
     }
     
-    $query = db_select("SELECT * FROM rentalitems WHERE id = $data[item_id]", __FILE__ . " linje " . __LINE__);
+    $query = db_select("SELECT * FROM rentalitems WHERE id = " . (int)$data["item_id"], __FILE__ . " linje " . __LINE__);
     $res = db_fetch_array($query);
     $query = db_select("SELECT invoice_date FROM rentalsettings", __FILE__ . " linje " . __LINE__);
     $invoiceDate = db_fetch_array($query)["invoice_date"];
     $product["product_id"] = $res["product_id"];
     $product["name"] = $res["item_name"];
-    $query = db_select("SELECT * FROM varer WHERE id = $product[product_id]", __FILE__ . " linje " . __LINE__);
+    $query = db_select("SELECT * FROM varer WHERE id = " . (int)$product["product_id"], __FILE__ . " linje " . __LINE__);
     $res = db_fetch_array($query);
     $product["description"] = $res["beskrivelse"];
     $product["product_number"] = $res["varenr"];
@@ -811,7 +493,7 @@ function CreateOrder($data){
     $basePrice = $res["salgspris"];
     
     
-    $query = db_select("SELECT * FROM adresser WHERE id = $data[cust_id]", __FILE__ . " linje " . __LINE__);
+    $query = db_select("SELECT * FROM adresser WHERE id = " . (int)$data["cust_id"], __FILE__ . " linje " . __LINE__);
     $res2 = db_fetch_array($query);
     $customer["id"] = $res2["id"];
     $customer["name"] = $res2["firmanavn"];
@@ -825,24 +507,28 @@ function CreateOrder($data){
     $customer["valuta"] = "DKK";
     $customer["payment_condition"] = "netto";
     $customer["payment_days"] = 1;
-    $customer["konto_id"] = $res2["id"];
+    $customer["konto_id"] = (int)$res2["id"];
     $enhed = $res["enhed"];
     if(strtolower($enhed) == "dag" && $data["days"] > 1){
         $enhed = "Dage";
     }elseif(strtoLower($enhed) == "uge" && $paidWeeks > 1){
         $enhed = "Uger";
     }
+    $esc = array();
+    foreach (array("name", "address", "zip", "city", "email", "account_number") as $key) {
+        $esc[$key] = db_escape_string((string)$customer[$key]);
+    }
     $date = date("Y-m-d");
     $ordrenr = get_next_order_number('DO');
     if($invoiceDate){
-        $query = db_modify("INSERT INTO ordrer (firmanavn, addr1, postnr, bynavn, email, betalingsdage, kontonr, art, valuta, ordredate, fakturadate, levdate, ordrenr, sum, status, konto_id, momssats, nextfakt, moms) VALUES ('$customer[name]', '$customer[address]', '$customer[zip]', '$customer[city]', '$customer[email]', $customer[payment_days], '$customer[account_number]', '$customer[art]', '$customer[valuta]', '$date', '$data[fromDate]', '$data[fromDate]', $ordrenr, $sum, 1, $customer[konto_id], $momssats, '$data[toDate]', $moms)", __FILE__ . " linje " . __LINE__);
+        $query = db_modify("INSERT INTO ordrer (firmanavn, addr1, postnr, bynavn, email, betalingsdage, kontonr, art, valuta, ordredate, fakturadate, levdate, ordrenr, sum, status, konto_id, momssats, nextfakt, moms) VALUES ('$esc[name]', '$esc[address]', '$esc[zip]', '$esc[city]', '$esc[email]', $customer[payment_days], '$esc[account_number]', '$customer[art]', '$customer[valuta]', '$date', '$data[fromDate]', '$data[fromDate]', $ordrenr, $sum, 1, $customer[konto_id], $momssats, '$data[toDate]', $moms)", __FILE__ . " linje " . __LINE__);
     }else{
-        $query = db_modify("INSERT INTO ordrer (firmanavn, addr1, postnr, bynavn, email, betalingsdage, kontonr, art, valuta, ordredate, levdate, ordrenr, sum, status, konto_id, momssats, nextfakt, moms) VALUES ('$customer[name]', '$customer[address]', '$customer[zip]', '$customer[city]', '$customer[email]', $customer[payment_days], '$customer[account_number]', '$customer[art]', '$customer[valuta]', '$date', '$data[fromDate]', $ordrenr, $sum, 1, $customer[konto_id], $momssats, '$data[toDate]', $moms)", __FILE__ . " linje " . __LINE__);
+        $query = db_modify("INSERT INTO ordrer (firmanavn, addr1, postnr, bynavn, email, betalingsdage, kontonr, art, valuta, ordredate, levdate, ordrenr, sum, status, konto_id, momssats, nextfakt, moms) VALUES ('$esc[name]', '$esc[address]', '$esc[zip]', '$esc[city]', '$esc[email]', $customer[payment_days], '$esc[account_number]', '$customer[art]', '$customer[valuta]', '$date', '$data[fromDate]', $ordrenr, $sum, 1, $customer[konto_id], $momssats, '$data[toDate]', $moms)", __FILE__ . " linje " . __LINE__);
     }
     $query = db_select("SELECT id FROM ordrer WHERE ordrenr = $ordrenr AND art LIKE 'D%'", __FILE__ . " linje " . __LINE__);
     $order_id = db_fetch_array($query)["id"];
     opret_ordrelinje($order_id, $product["product_id"], $product["product_number"], $paidWeeks, $product["description"], $basePrice, $discount, '100', 'D', '', '1', '', '', '', $rabatart, '0', '', '', '', '', __LINE__);
-    db_modify("INSERT INTO ordrelinjer (antal, posnr, pris, rabat, momssats, ordre_id, beskrivelse) VALUES (1, 2, 0, 0, 0, $order_id, 'Stand: $product[name]')", __FILE__ . " linje " . __LINE__);
+    db_modify("INSERT INTO ordrelinjer (antal, posnr, pris, rabat, momssats, ordre_id, beskrivelse) VALUES (1, 2, 0, 0, 0, $order_id, '" . db_escape_string("Stand: " . $product["name"]) . "')", __FILE__ . " linje " . __LINE__);
     db_modify("INSERT INTO ordrelinjer (antal, posnr, pris, rabat, momssats, ordre_id, beskrivelse) VALUES (1, 3, 0, 0, 0, $order_id, 'Udlejning: Fra $data[fromDate] til $data[toDate]')", __FILE__ . " linje " . __LINE__);
     if($discountAmount > 0){
         // reduce decimal to 2 digits
@@ -851,7 +537,7 @@ function CreateOrder($data){
         $discountAmount = str_replace(".", ",", $discountAmount);
         db_modify("INSERT INTO ordrelinjer (antal, posnr, pris, rabat, momssats, ordre_id, beskrivelse) VALUES (1, 4, 0, 0, 0, $order_id, 'Rabat $discountAmount kr.')", __FILE__ . " linje " . __LINE__);
     }
-    db_modify("UPDATE rentalperiod SET order_id = $order_id WHERE id = $data[booking_id]", __FILE__ . " linje " . __LINE__);
+    db_modify("UPDATE rentalperiod SET order_id = " . (int)$order_id . " WHERE id = " . (int)$data["booking_id"], __FILE__ . " linje " . __LINE__);
 }
 
 function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
@@ -860,6 +546,7 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 	global $webservice; #20260729 SZ was a local shadow, so db_modify() never saw webservice mode as active on write failure and exited hard instead of returning an error (SD-595)
 	$brugernavn = "Booking";
 	$webservice = 1;
+	$saldi_id = (int)$saldi_id; // the order id goes into every query below
 	
 	/* include("../includes/ordrefunc.php"); */
 	
@@ -916,7 +603,7 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 	$svar=levering($saldi_id,'on',NULL,'on');
 	fwrite($log,__line__." Betalingsbet: $betalingsbet\n");
 	if ($betalingsbet!='Forud' && $betalingsbet!='Lb. Md' && $betalingsbet!='Netto') {
-		$betalingsdiff=abs($ordresum+$ordremoms-$betalingsum);
+		$betalingsdiff=abs($ordresum+$ordremoms-(float)$betalingsum); // felt_2 is text, '' on an order that has no payment
 		if ($pos_betaling && $betalingsdiff >= 0.01) {
 			fwrite($log,__line__." Ordresum : $ordresum\n");
 			fwrite($log,__line__." Ordremoms : $ordremoms\n");
@@ -935,7 +622,7 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 */		
 		$svar=bogfor($saldi_id,'on');
 		if ($tidspkt) {	
-			$qtxt="update ordrer set tidspkt='$tidspkt' where id='$saldi_id'";
+			$qtxt="update ordrer set tidspkt='" . db_escape_string((string)$tidspkt) . "' where id='$saldi_id'";
 			fwrite($log,__line__." $qtxt\n");
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);	
 		}
@@ -951,5 +638,6 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 	if ($db_modify_fejl) { #20260729 SZ a write failed inside the posting transaction; do not report success (SD-595)
 		return "Database write failed while posting order $saldi_id";
 	}
+	shopSyncDrainQueue();
 	return($saldi_id);
 }

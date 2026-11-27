@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/settingsSection.php --- lap 5.0.0 --- 2026.09.29 ---
+// ---- systemdata/settingsSection.php --- ver 5.1.1 --- 2026.11.26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,35 +20,58 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260929 Sawaneh Settings redesign phase 4a: a settings section generated from the registry
-//                  (spec §7.3, §8). Controller: POST with CSRF -> validation -> conflict check ->
-//                  transaction -> audit -> redirect. View below. No hand-written form.
-// 20261002 Sawaneh Phase 4b: actions run through includes/settings/actions.php, sections gated by a module, on_save follow-ups.
-// 20261002 Sawaneh Hand-over 2 Oct (A2, §8.0): a heading above each card, plain tab list, history as its own column, save bar
-//                  only while something is unsaved, no Back button or in-page trail (the shell's topbar has the breadcrumb).
-// 20261005 Sawaneh A field's own permission key is enforced on save and on actions (st_field_access).
-// 20261005 Sawaneh 4d G1.2/G2.3: row actions (set a fiscal year active, delete an old year with its data behind the
-//                  password), the create card of a table, a parent filter (the currency of the rates) kept in the URL,
-//                  and a save that would post amounts first shows them and needs "Bogfør og gem" (audit V9).
-// 20261005 Sawaneh Danger-zone actions ('danger_zone') run only with the user's password (§8.3); a refusal is audited.
-// 20261005 Sawaneh Phase 4c: sections of 'kind' rows - tables through includes/settings/rows.php (validate first,
-//                  then fields, then rows), actions row_delete / row_inactive / row_copy_year, year in the address.
-// 20261004 Sawaneh §8.11: 'back' (a path inside Saldi) from the gear in the sub-bar shows "Tilbage" and survives saves.
-// 20261004 Sawaneh List items with a 'feature' (bank) are hidden until the feature is on.
-// 20261004 Sawaneh settings_after_section_save() runs once after all fields of a save (KDS colours).
-// 20261004 Sawaneh Access follows the section's permission key only, not the old Indstillinger bit (decision 16).
-// 20261004 Sawaneh A stored secret shows when it was set ("sat 12/9-2026") on form sections too.
-// 20261004 Sawaneh G4.3: list items from the database ('items_from'), a one-off flash kept in the session.
-// 20261004 Sawaneh G2.6: FTP test result flash.
-// 20261003 Sawaneh G3.4: a run of fields may carry a heading ('group_label'), a card a help line ('sub_help').
-// 20261003 Sawaneh G6.3: a section may carry its own permission key (settings.email).
-// 20261002 Sawaneh Phase 4b batch 2 (G9): a section of 'kind' list renders includes/settings/listView.php - rows with a drawer
-//                  per integration, each drawer its own form; an empty secret leaves the stored value (P8); item kept over redirects.
-// 20261008 Sawaneh The Assist menu's guide is the section's installed guide (settings decision 21).
-// 20261019 Sawaneh Review 2 (PR #803): row_copy_year takes from_year only when it is a fiscal year (RA) of this ledger other than the target year.
-
+// 20260929 SS Settings redesign phase 4a: a settings section generated from the registry (spec §7.3, §8).
+//             Controller: POST with CSRF -> validation -> conflict check -> transaction -> audit -> redirect.
+//             View below.
+//             No hand-written form.
+// 20261002 SS Phase 4b: actions run through includes/settings/actions.php, sections gated by a module, on_save follow-ups.
+// 20261002 SS Hand-over 2 Oct (A2, §8.0): a heading above each card, plain tab list, history as its own column, save bar only while something is unsaved, no Back button or in-page trail (the shell's topbar has the breadcrumb).
+// 20261005 SS A field's own permission key is enforced on save and on actions (st_field_access).
+// 20261005 SS 4d G1.2/G2.3: row actions (set a fiscal year active, delete an old year with its data behind the password), the create card of a table, a parent filter (the currency of the rates) kept in the URL, and a save that would post amounts first shows them and needs "Bogfør og gem" (audit V9).
+// 20261005 SS Danger-zone actions ('danger_zone') run only with the user's password (§8.3); a refusal is audited.
+// 20261005 SS Phase 4c: sections of 'kind' rows - tables through includes/settings/rows.php (validate first, then fields, then rows), actions row_delete / row_inactive / row_copy_year, year in the address.
+// 20261004 SS §8.11: 'back' (a path inside Saldi) from the gear in the sub-bar shows "Tilbage" and survives saves.
+// 20261004 SS List items with a 'feature' (bank) are hidden until the feature is on.
+// 20261004 SS settings_after_section_save() runs once after all fields of a save (KDS colours).
+// 20261004 SS Access follows the section's permission key only, not the old Indstillinger bit (decision 16).
+// 20261004 SS A stored secret shows when it was set ("sat 12/9-2026") on form sections too.
+// 20261004 SS G4.3: list items from the database ('items_from'), a one-off flash kept in the session.
+// 20261004 SS G2.6: FTP test result flash.
+// 20261003 SS G3.4: a run of fields may carry a heading ('group_label'), a card a help line ('sub_help').
+// 20261003 SS G6.3: a section may carry its own permission key (settings.email).
+// 20261002 SS Phase 4b batch 2 (G9): a section of 'kind' list renders includes/settings/listView.php - rows with a drawer per integration, each drawer its own form; an empty secret leaves the stored value (P8); item kept over redirects.
+// 20261008 SS The Assist menu's guide is the section's installed guide (settings decision 21).
+// 20261019 SS Review 2 (PR #803): row_copy_year takes from_year only when it is a fiscal year (RA) of this ledger other than the target year.
+// 20261101 CL/ASR New design (prototype D, as index/dashboard.php): the head links css/saldi-theme.css, then css/saldi-kit.css and css/unified-components.css follow online.php, so the settings rules come after the kit's base rules.
+//                 The page's root carries the kit's scope class sk (also in listView.php and rowsView.php).
+// 20261101 CL/ASR Settings hub "C - Fold ud" (owner, 1 Nov 2026): the left menu shows the page's hub group as its sub-groups with their rows (settings_hub_menu(), drawn by settings_menu_html() in includes/settings/listView.php for all three views and the frame top.php), the current row marked, no zebra; a Tilbage button above the title on every section.
+// 20261101 CL/ASR Review: an old address that sent the user here (moved=) leaves the navigation stack, so Tilbage does not lead back to it and round to this page again (and this page is kept without the one-off moved= notice).
+//                 Tilbage carries Alt+L, as on the other settings pages.
+// 20261101 CL/ASR Review: css/saldi-kit.css linked as ?v=20261101c, the version the other settings pages link (the kit's list rows lost their zebra).
+// 20261102 CL/ASR Tilbage goes to the hub, or the module page the gear came from; settings_back_button() adds Alt+L itself.
+//                 The kit is linked as ?v=20261102.
+// 20261102 CL/ASR Brugere & ansatte (owner, 2 Nov 2026: one list of everyone, one card with Stamdata and Login og rolle): the one list is usersRoles.php.
+//                 The employee section (organisation.employees) is now - embedded (embed=person, always with popup=1 so the navigation stack skips it): the Stamdata tab of the person card, only that employee's drawer; every redirect of a save or action stays embedded; framed by this site only (frame-ancestors); - Ekstra felter (sub=general, item=general, or the extra-fields field): its extra-fields block as a page of its own; - the list of a user who may not open usersRoles.php (employees only, "Tilføj person" adds one, as before).
+//                 A plain GET of the employee list (an old address: ansatte.php, stamkort.php, a bookmark, a search hit, item=emp_N, field=...emp key) by a user who may open usersRoles.php goes there instead, to the list or the person's card, and leaves the navigation stack - not while a message is waiting or for a framed request.
+//                 "Tilføj person" in usersRoles.php posts the existing add action here (people=1, with the name, initials and e-mail typed in the dialog, checked and capped in includes/settings/people.php); it then opens the new person's card, or the new login form linked to it (then=). css/unified-components.css?v=20261102b.
+// 20261102 CL/ASR Review: Ekstra felter has no lead sentence of its own (it repeated the row's help word for word), only "Gælder for alle i".
+// 20261103 CL/ASR QA: Gendan goes through the normal save (settings_section_save()): the field must be visible, writable and not locked, the old value is validated, and the follow-ups (on_save, settings_after_section_save) run; a value that was not set is restored as the default the readers used.
+//                 Masked history rows (SettingsService::historyMasked(): secrets, CPR, bank, salary) offer no Gendan and are refused.
+//                 A row error no longer saves the page's fields (dry run, spec §7.3).
+// 20261105 CL/LH Every posted form carries thisDb again, as Stamdata did in stamkort.php, so a form drawn before the session moved to another regnskab is refused by online.php and saves nothing there.
+//                The refusal shows online.php's message instead of the settings hub.
+// 20261105 CL/LH online.php now ends a refused request itself, so the page's own check for it after the include is gone.
+// 20261105 CL/LH A save fills an empty By from Postnr. again (st_fill_city_from_zip()), as stamkort.php and ansatte_save.php did: Stamdata and the employee card stored the code without its town.
+// 20261105 CL/LH A section with 'cvr_lookup' (Stamdata) loads javascript/cvrapiopslag.js with its field names (cvrFeltNavne), so a CVR-nr. typed between *, + or / fills the company again, as on stamkort.php.
+// 20261108 CL/ASR css/saldi-theme.css linked as ?v=8, css/saldi-kit.css and css/unified-components.css as ?v=20261108: the page ground is Saldi's classic page colour #eeeef0, the panels and fields stay white (owner, 8 Nov 2026).
+// 20261113 CL/ASR css/saldi-kit.css ?v=20261113 (side margin 16 px, the same as the top).
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261114 CL/ASR The action ledger_reset is gone from the list of actions that write their own audit entry: the reset moved to the admin panel.
+// 20261119 CL/ASR A save reads composite settings (two settings in one stored value, such as Omgående bogføring of sales and purchase orders in DIV/3 box5) again under a row lock inside its transaction and applies the lock rules to what is stored then, so a save of the other setting at the same time can no longer switch one that stays on off again (p1-settings-posting-F1). A refused Gendan shows its own message, also when it is a text key, and no longer says Gendannet. Under the row lock it also asks st_hent_first_error() again, so the last Omgående bogføring setting is not switched on when the other was switched on in between and invoices of its kind wait; then nothing is written and the field shows the message.
+// 20261120 CL/ASR A stored value without a row is created under a named lock that is taken before the save's transaction and held until it has committed (SettingsService::lockCreationBeforeSave(), lockForSave(), releaseLocks()), so two first saves at the same time keep both parts, also under repeatable read, and a save whose locked read or named lock failed rolls back, writes nothing and says to try again (settings.save.lock_failed) (p1-settings-posting-F1r3). The same lock covers a setting of its own in a grupper row the page found missing, such as Hurtigfakturering (DIV/3 box4) saved at the same moment as Omgående bogføring, so the two saves end in one DIV/3 row (fix round 7, review round 1).
+// 20261126 CL/ASR Stripe port review round 1 (I14): javascript/settingsSection.js is loaded as ?v=10, as the port changed it (the rule chains of ruleHolds()).
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
  * @var int    $sprog_id
@@ -59,7 +82,15 @@
 
 @session_start();
 $s_id = session_id();
-ob_start();
+// Every form this page posts carries the regnskab it was drawn in (thisDb), as Stamdata did in stamkort.php: includes/online.php refuses
+// the post when the session has moved to another regnskab since (admin/aaben_regnskab.php keeps the session and its CSRF token).
+// online.php sets $db below, so the field is added on output, as diverse.php adds its token.
+ob_start(function ($buffer) {
+	$thisDb = '<input type="hidden" name="thisDb" value="' . htmlspecialchars(isset($GLOBALS['db']) ? (string) $GLOBALS['db'] : '', ENT_QUOTES) . '">';
+	return preg_replace_callback('/<form\b[^>]*\bmethod=["\']?post\b[^>]*>/i', function ($m) use ($thisDb) {
+		return $m[0] . $thisDb;
+	}, $buffer);
+});
 
 if (!isset($_SESSION['csrf_token'])) {
 	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -67,13 +98,15 @@ if (!isset($_SESSION['csrf_token'])) {
 $csrfToken = $_SESSION['csrf_token'];
 
 $title = "Indstillinger";
-$css = "../css/unified-components.css?v=20261016b";
+$css = "../css/saldi-theme.css?v=11";
 $modulnr = 0; // the section's own permission key is required below
 $permission_key = 'any';
 $permission_post_read = false;
 
 include(__DIR__ . "/../includes/connect.php");
-include(__DIR__ . "/../includes/online.php");
+include(__DIR__ . "/../includes/online.php"); // a form from another regnskab (thisDb) ends there, with online.php's message
+// The kit's tokens and base under .sk, then the settings components (.st-*), which build on them (prototype D).
+print "<link rel='stylesheet' href='../css/saldi-kit.css?v=20261114'><link rel='stylesheet' href='../css/unified-components.css?v=20261108'>\n";
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/settingsRegistry.php");
 include_once(__DIR__ . "/../includes/settings/components.php");
@@ -122,6 +155,31 @@ if ($returnTo !== '') {
 	}
 }
 $section['return_label'] = $returnLabel;
+// An old address (diverse.php?sektion=ordre_valg, syssetup.php?valg=moms, ansatte.php ...) redirected here with moved=<its name>.
+// It is not a page the user saw: it leaves the navigation stack, or Tilbage here (and on the next sections) would lead to it and
+// straight back to this page. Only the entry just before this page, and only when it is that address (its file name starts
+// with the moved name, or a query value is it): the stack may have been cut back to an older entry instead.
+if (isset($_GET['moved']) && is_string($_GET['moved']) && $_GET['moved'] !== '' && $_SERVER['REQUEST_METHOD'] === 'GET'
+	&& function_exists('_nav_read') && function_exists('_nav_write') && function_exists('_nav_page')) {
+	$movedFrom = (string) $_GET['moved'];
+	$navStack = _nav_read();
+	$navCount = count($navStack);
+	if ($navCount >= 1 && _nav_page((string) $navStack[$navCount - 1]) === _nav_page((string) $_SERVER['REQUEST_URI'])) {
+		// This page without the one-off notice, so a Tilbage that leads back here does not show it again.
+		$navStack[$navCount - 1] = rtrim((string) preg_replace('/([?&])moved=[^&#]*(?:&|$)/', '$1', (string) $navStack[$navCount - 1]), '?&');
+		if ($navCount >= 2) {
+			$stubUrl = (string) $navStack[$navCount - 2];
+			$stubFile = basename((string) parse_url($stubUrl, PHP_URL_PATH));
+			$stubQuery = array();
+			parse_str((string) parse_url($stubUrl, PHP_URL_QUERY), $stubQuery);
+			if (!in_array($stubFile, array('settings.php', 'settingsSection.php', 'settingsMoved.php'), true)
+				&& (strpos($stubFile, $movedFrom) === 0 || in_array($movedFrom, array_filter($stubQuery, 'is_string'), true))) {
+				array_splice($navStack, $navCount - 2, 1);
+			}
+		}
+		_nav_write($navStack);
+	}
+}
 $selfUrl = 'settingsSection.php?s=' . rawurlencode($sectionId) . ($returnTo !== '' ? '&back=' . rawurlencode($returnTo) . ($returnLabel !== '' ? '&back_label=' . rawurlencode(st_charset() !== 'UTF-8' ? mb_convert_encoding($returnLabel, 'UTF-8', st_charset()) : $returnLabel) : '') : '');
 $isList = (!empty($section['kind']) && $section['kind'] === 'list');
 $isRows = (!empty($section['kind']) && $section['kind'] === 'rows');
@@ -169,6 +227,37 @@ if ($isList) {
 		$item = '';
 	}
 }
+// Brugere & ansatte (includes/settings/people.php): the employee section embedded in the person card, as Ekstra felter, or as the list of a
+// user without usersRoles.php; a plain visit by anyone else goes on to usersRoles.php (the one list) or the person's card there.
+$peopleEmbed = false;
+if ($sectionId === 'organisation.employees') {
+	include_once(__DIR__ . "/../includes/settings/people.php");
+	$peopleEmbed = isset($_GET['embed']) && $_GET['embed'] === 'person';
+	$peopleFields = !$peopleEmbed && ($item === 'general' || (isset($_GET['sub']) && $_GET['sub'] === 'general')
+		|| (isset($_GET['field']) && $_GET['field'] === 'organisation.employees.extra_fields'));
+	if (!$peopleEmbed && !$peopleFields && $_SERVER['REQUEST_METHOD'] === 'GET') {
+		$peopleTarget = settings_people_list_target($_GET);
+		if ($peopleTarget !== '') {
+			settings_people_nav_drop();
+			ob_end_clean();
+			header('Location: ' . $peopleTarget);
+			exit;
+		}
+	}
+	if ($peopleEmbed) {
+		if (!preg_match('/^emp_[1-9][0-9]{0,9}\z/', $item)) {
+			$item = ''; // only an employee's card is embedded; anything else tells the card it is gone
+		}
+		header("Content-Security-Policy: frame-ancestors 'self'");
+		$selfUrl .= '&embed=person&popup=1';
+		$section['embed'] = true;
+	} elseif ($peopleFields) {
+		$selfUrl .= '&sub=general';
+		$section += array('only_sub' => 'general', 'hub_at' => 'ekstra_felter', 'page_label' => 6611, 'page_lead' => '', 'no_add' => true);
+	} else {
+		$section += array('only_sub' => 'employees', 'add_label' => '7765|Tilføj person');
+	}
+}
 $backUrl = $selfUrl . ($item !== '' ? '&item=' . rawurlencode($item) : '');
 
 $state = array('errors' => array(), 'posted' => null, 'conflict' => null, 'flash' => array());
@@ -184,12 +273,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	$action = isset($_POST['action']) ? (string) $_POST['action'] : 'save';
 
 	if ($action === 'revert') {
+		$reverted = '&reverted=1';
 		$entry = SettingsService::historyEntry(isset($_POST['entry']) ? (int) $_POST['entry'] : 0);
-		if ($entry && $entry['section'] === $sectionId && isset($defs[$entry['setting_key']]) && $defs[$entry['setting_key']]['type'] !== 'secret' && st_field_access($defs[$entry['setting_key']]) === 'write') {
-			SettingsService::saveRaw($entry['setting_key'], (string) $entry['old_value'], null, 'setting.reverted');
+		if ($entry && $entry['section'] === $sectionId && isset($defs[$entry['setting_key']]) && !SettingsService::historyMasked($defs[$entry['setting_key']]) && st_field_access($defs[$entry['setting_key']]) === 'write') {
+			// Through the normal save: visibility, locks, validation and the follow-ups apply as for Gem. A value that was not set
+			// was read as the default, so that is what comes back.
+			$revDef = $defs[$entry['setting_key']];
+			$revRaw = (string) $entry['old_value'];
+			if ($revRaw === '' && array_key_exists('default', $revDef)) {
+				$revRaw = st_default_raw($revDef);
+			}
+			$revState = settings_section_save($sectionId, array($entry['setting_key'] => $revDef), array('f' => array($entry['setting_key'] => st_form_value($revDef, $revRaw)), 'version' => SettingsService::version($sectionId)), true, 'setting.reverted');
+			if ($revState['errors']) {
+				// A text id, or a text key (Omgående bogføring while invoices wait for Hent ordrer).
+				$_SESSION['settings_error'] = st_txt(reset($revState['errors']));
+				$reverted = '';
+			}
 		}
 		ob_end_clean();
-		header('Location: ' . $backUrl . '&reverted=1#' . ($entry ? rawurlencode((string) $entry['setting_key']) : ''));
+		header('Location: ' . $backUrl . $reverted . '#' . ($entry ? rawurlencode((string) $entry['setting_key']) : ''));
 		exit;
 	}
 
@@ -205,14 +307,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		}
 		if (isset($defs[$key]) && $defs[$key]['type'] === 'action' && st_visible($defs[$key], array()) && st_field_access($defs[$key]) === 'write') {
 			// Till and price-list row actions write their own entry with before/after.
-			if (!in_array(isset($defs[$key]['run']) ? $defs[$key]['run'] : '', array('till_add', 'till_remove', 'pricelist_create', 'pricelist_delete', 'card_add', 'card_up', 'card_down', 'card_remove', 'pickup_add', 'pickup_delete', 'gdpr_delete_inactive', 'employee_add', 'employee_up', 'employee_down', 'employee_delete', 'ledger_reset', 'ledger_delete'), true)) {
+			if (!in_array(isset($defs[$key]['run']) ? $defs[$key]['run'] : '', array('till_add', 'till_remove', 'pricelist_create', 'pricelist_delete', 'card_add', 'card_up', 'card_down', 'card_remove', 'pickup_add', 'pickup_delete', 'gdpr_delete_inactive', 'employee_add', 'employee_up', 'employee_down', 'employee_delete', 'ledger_delete'), true)) {
 				audit_log('setting.action', '', 'indstilling', $key);
 			}
 			$GLOBALS['settings_action_inputs'] = array();
 			foreach (isset($defs[$key]['inputs']) ? array_keys($defs[$key]['inputs']) : array() as $in) {
 				$GLOBALS['settings_action_inputs'][$in] = !empty($_POST['opt'][$in]);
 			}
+			// "Tilføj person" (usersRoles.php): the add action with the name, initials and e-mail of the dialog.
+			$peopleAdd = ($sectionId === 'organisation.employees' && $key === 'organisation.employees.add' && !empty($_POST['people']));
+			if ($peopleAdd) {
+				$GLOBALS['settings_action_person'] = settings_people_person_input(isset($_POST['person']) && is_array($_POST['person']) ? $_POST['person'] : array());
+			}
 			$target = settings_run_action($defs[$key], $backUrl);
+			if ($peopleAdd) {
+				$target = settings_people_after_add($target, isset($_POST['then']) ? (string) $_POST['then'] : '');
+			}
+		}
+		if ($peopleEmbed && strpos($target, 'settingsSection.php?s=organisation.employees') === 0 && strpos($target, 'embed=') === false) {
+			$target .= '&embed=person&popup=1'; // move, delete or a refused delete: the card's Stamdata tab stays embedded
 		}
 		ob_end_clean();
 		header('Location: ' . $target);
@@ -293,7 +406,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		// Nothing is written until the amounts the save would post have been seen and confirmed.
 		$state = array('errors' => array(), 'posted' => (isset($_POST['f']) && is_array($_POST['f'])) ? $_POST['f'] : array(), 'conflict' => null, 'flash' => array(), 'confirm' => $rowsState['confirm']);
 	} elseif ($rowsState['errors']) {
-		$state = settings_section_save($sectionId, $defs, $_POST + array('f' => array()));
+		// Validate the fields too, so all errors show at once, but write nothing (dry run).
+		$state = settings_section_save($sectionId, $defs, $_POST + array('f' => array()), false);
 		$state['errors'] = $rowsState['errors'];
 	} else {
 		$state = settings_section_save($sectionId, $defs, $_POST);
@@ -325,9 +439,9 @@ settings_section_view($sectionId, $section, $defs, $state, $canWrite, $csrfToken
  * Validate everything first; save only when nothing is wrong and nobody else saved in between.
  *
  * @param array<string, array<string, mixed>> $defs
- * @return array{errors: array<string, int>, posted: array<string, string>, conflict: array<string, mixed>|null, flash: array<int, mixed>}
+ * @return array{errors: array<string, int|string>, posted: array<string, string>, conflict: array<string, mixed>|null, flash: array<int, mixed>}
  */
-function settings_section_save(string $sectionId, array $defs, array $post): array
+function settings_section_save(string $sectionId, array $defs, array $post, bool $write = true, string $handling = 'setting.changed'): array
 {
 	$posted = array();
 	$originals = array();
@@ -341,10 +455,13 @@ function settings_section_save(string $sectionId, array $defs, array $post): arr
 			$originals[$key] = $value;
 		}
 	}
+	// By left empty next to a Postnr. is filled in before the comparison below, so it is saved even when it was empty already.
+	$posted = st_fill_city_from_zip($defs, $posted);
 
 	// Only fields that were rendered, may be changed and are visible take part (P6, R17).
 	$errors = array();
 	$toSave = array();
+	$wanted = array();
 	foreach ($defs as $key => $def) {
 		if (in_array($def['type'], array('action', 'info', 'link', 'mini'), true) || !isset($posted[$key]) || st_locked($def, null, trim((string) $posted[$key])) || !st_visible($def, $posted) || st_field_access($def) !== 'write') {
 			continue;
@@ -363,6 +480,7 @@ function settings_section_save(string $sectionId, array $defs, array $post): arr
 		}
 		if (!$unchanged) {
 			$toSave[$key] = $res['raw'];
+			$wanted[$key] = trim($posted[$key]);
 		}
 	}
 
@@ -380,12 +498,53 @@ function settings_section_save(string $sectionId, array $defs, array $post): arr
 		$conflict = array('by' => $latest ? (string) $latest[0]['brugernavn'] : '', 'at' => $latest ? (string) $latest[0]['tidspunkt'] : '', 'mine' => $mine);
 	}
 
-	if (!$errors && !$conflict && $toSave) {
+	if ($write && !$errors && !$conflict && $toSave) {
+		// A stored value without a row is created under a named lock that holds until the commit, so a save at the same time
+		// adds its part to that row (F1r3); that includes a grupper row a setting of its own creates (DIV/3 box4
+		// Hurtigfakturering next to box5). The lock is taken before the transaction, so once it is given, the transaction
+		// sees the row the other save created, also under repeatable read.
+		if (!SettingsService::lockCreationBeforeSave(array_keys($toSave))) {
+			SettingsService::releaseLocks();
+			return array('errors' => array_fill_keys(array_keys($toSave), 'settings.save.lock_failed'), 'posted' => $posted, 'conflict' => null, 'flash' => array());
+		}
 		transaktion('begin');
+		// Settings that share one stored value (composites, such as DIV/3 box5 "<sales>;<purchases>") are read again under a
+		// row lock, and the lock rules decide on what is stored now: the other setting may have been saved since this page
+		// read the row. The checks above read the row as it was then (p1-settings-posting-F1).
+		if (!SettingsService::lockForSave(array_keys($toSave))) {
+			// A row was not read under its lock (lock wait timeout, deadlock): nothing is written.
+			transaktion('rollback');
+			SettingsService::releaseLocks();
+			return array('errors' => array_fill_keys(array_keys($toSave), 'settings.save.lock_failed'), 'posted' => $posted, 'conflict' => null, 'flash' => array());
+		}
 		foreach ($toSave as $key => $raw) {
-			SettingsService::saveRaw($key, $raw);
+			if (st_locked($defs[$key], null, $wanted[$key])) {
+				unset($toSave[$key]);
+				continue;
+			}
+			// Omgående bogføring: the other setting may have been switched on since, so waiting invoices of its kind count now.
+			$hentFirst = st_hent_first_error($defs[$key], $wanted[$key]);
+			if ($hentFirst !== null) {
+				$errors[$key] = $hentFirst;
+			}
+		}
+		if ($errors) {
+			// Nothing is written, as when the checks above refuse a field.
+			transaktion('rollback');
+			SettingsService::releaseLocks();
+			return array('errors' => $errors, 'posted' => $posted, 'conflict' => null, 'flash' => array());
+		}
+		foreach ($toSave as $key => $raw) {
+			SettingsService::saveRaw($key, $raw, null, $handling);
+		}
+		if (SettingsService::lockFailed()) {
+			// saveRaw() reads a composite again under its lock; when that read failed, it wrote nothing, and nothing else stays.
+			transaktion('rollback');
+			SettingsService::releaseLocks();
+			return array('errors' => array_fill_keys(array_keys($toSave), 'settings.save.lock_failed'), 'posted' => $posted, 'conflict' => null, 'flash' => array());
 		}
 		transaktion('commit');
+		SettingsService::releaseLocks();
 		foreach ($toSave as $key => $raw) {
 			if (!empty($defs[$key]['on_save'])) {
 				settings_after_save($defs[$key], $raw);
@@ -483,7 +642,7 @@ function settings_section_view(string $sectionId, array $section, array $defs, a
 		$movedText = st_txt(5720) . ' ' . settings_legacy_text($section['old'][$moved], $sprogId) . '. ' . st_txt(5721);
 	}
 
-	$tabs = settings_section_tabs($section['group'], $sprogId);
+	$menu = settings_hub_menu($sprogId, isset($section['hub_at']) ? (string) $section['hub_at'] : $sectionId);
 	$history = SettingsService::history($sectionId, 20);
 	$setAt = SettingsService::lastChanged($sectionId);
 	$version = SettingsService::version($sectionId);
@@ -500,7 +659,7 @@ function settings_section_view(string $sectionId, array $section, array $defs, a
 		settings_rows_render(array(
 			'sectionId' => $sectionId, 'section' => $section, 'defs' => $defs, 'state' => $state, 'canWrite' => $canWrite,
 			'csrfToken' => $csrfToken, 'selfUrl' => $selfUrl, 'values' => $values, 'originals' => $originals, 'flash' => $flash,
-			'movedText' => $movedText, 'tabs' => $tabs, 'version' => $version, 'config' => $config, 'accent' => $accent,
+			'movedText' => $movedText, 'menu' => $menu, 'version' => $version, 'config' => $config, 'accent' => $accent,
 			'accentTxt' => $accentTxt, 'group' => $group, 'sprogId' => $sprogId, 'charset' => $charset,
 			'tables' => $settingsRowsContext['tables'], 'year' => $settingsRowsContext['year'], 'years' => $settingsRowsContext['years'],
 			'rowsPosted' => isset($state['rows_posted']) ? $state['rows_posted'] : array(),
@@ -512,7 +671,7 @@ function settings_section_view(string $sectionId, array $section, array $defs, a
 		settings_list_render(array(
 			'sectionId' => $sectionId, 'section' => $section, 'defs' => $defs, 'state' => $state, 'canWrite' => $canWrite,
 			'csrfToken' => $csrfToken, 'selfUrl' => $selfUrl, 'values' => $values, 'originals' => $originals, 'flash' => $flash,
-			'movedText' => $movedText, 'tabs' => $tabs, 'version' => $version, 'config' => $config, 'accent' => $accent,
+			'movedText' => $movedText, 'menu' => $menu, 'version' => $version, 'config' => $config, 'accent' => $accent,
 			'accentTxt' => $accentTxt, 'group' => $group, 'sprogId' => $sprogId, 'charset' => $charset, 'item' => $item,
 		));
 		return;
@@ -521,10 +680,11 @@ function settings_section_view(string $sectionId, array $section, array $defs, a
 <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
 <script>document.title = <?= json_encode(mb_convert_encoding(st_txt($section['label']), 'UTF-8', $charset)) ?>;</script>
 <?= settings_breadcrumb_script(settings_breadcrumb((string) $section['group'], st_txt($section['label']), $sprogId), $charset, isset($section['return_to']) ? (string) $section['return_to'] : '', isset($section['return_label']) ? (string) $section['return_label'] : '') ?>
-<div class="st-page" style="<?= st_h(st_accent_style((string) $accent, (string) $accentTxt)) ?>">
+<div class="sk st-page" style="<?= st_h(st_accent_style((string) $accent, (string) $accentTxt)) ?>">
   <a class="st-skip" href="#st-form"><?= st_t(5751) ?></a>
   <section class="st-phead">
     <div>
+      <?= settings_back_button($section['return_to'] !== '' ? '..' . $section['return_to'] : '') ?>
       <h1><?= st_t($section['label']) ?><?= st_section_help($section) ?></h1>
       <p class="st-lead"><?= st_t(5706) ?> <?= st_h(st_company()) ?>.</p>
     </div>
@@ -545,18 +705,7 @@ function settings_section_view(string $sectionId, array $section, array $defs, a
 	<?php } ?>
 
   <div class="st-layout">
-    <nav class="st-tabs" aria-label="<?= st_h(html_entity_decode(findtekst($group['label'], $sprogId), ENT_QUOTES | ENT_HTML5, $charset)) ?>">
-      <select class="st-tabs-select" aria-label="<?= st_h(html_entity_decode(findtekst($group['label'], $sprogId), ENT_QUOTES | ENT_HTML5, $charset)) ?>" onchange="if (this.value) { window.location = this.value; }">
-			<?php foreach ($tabs as $tab) { ?>
-        <option value="<?= st_h($tab['url']) ?>"<?= $tab['id'] === $sectionId ? ' selected' : '' ?>><?= st_h($tab['label']) ?></option>
-			<?php } ?>
-      </select>
-      <ul>
-			<?php foreach ($tabs as $tab) { ?>
-        <li><a href="<?= st_h($tab['url']) ?>"<?= $tab['id'] === $sectionId ? ' class="on" aria-current="page"' : '' ?>><span><?= st_h($tab['label']) ?></span><?= $tab['id'] === $sectionId ? '<i class="st-dot" id="st-dot" hidden></i>' : '' ?></a></li>
-			<?php } ?>
-      </ul>
-    </nav>
+    <?= settings_menu_html($menu, $sprogId, array('dot' => true, 'label' => st_txt($section['label']))) ?>
 
     <form class="st-form" id="st-form" method="post" action="<?= st_h($selfUrl) ?>" autocomplete="off" novalidate>
       <input type="hidden" name="csrf_token" value="<?= st_h($csrfToken) ?>">
@@ -686,7 +835,7 @@ function settings_section_view(string $sectionId, array $section, array $defs, a
 				}
 				$shown++;
 				$def = $defs[$key];
-				$secret = ($def['type'] === 'secret' || st_field_access($def) === 'none');
+				$secret = (SettingsService::historyMasked($def) || st_field_access($def) === 'none');
 				$oldText = st_display_value($def, (string) $row['old_value']);
 				?>
         <div class="st-h">
@@ -725,7 +874,18 @@ function settings_section_view(string $sectionId, array $section, array $defs, a
   <div class="st-snack" id="st-snack" role="status" hidden></div>
 </div>
 <script>window.SALDI_SETTINGS = <?= json_encode($config) ?>;</script>
-<script src="../javascript/settingsSection.js?v=9"></script>
+<script src="../javascript/settingsSection.js?v=10"></script>
+	<?php if (!empty($section['cvr_lookup']) && $canWrite) {
+		// Stamdata: a CVR-nr. (or phone number) typed between *, + or / fills the company from cvrapi.dk, as on stamkort.php.
+		// The lookup knows the fields by adresser's column names; cvrFeltNavne gives it their names in this form.
+		$cvrNames = array();
+		foreach ($section['cvr_lookup'] as $cvrName => $cvrKey) {
+			$cvrNames[$cvrName] = 'f[' . $cvrKey . ']';
+		}
+		?>
+<script>var cvrFeltNavne = <?= json_encode($cvrNames, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;</script>
+<script src="../javascript/cvrapiopslag.js?v=20261105"></script>
+	<?php } ?>
 	<?php
 }
 

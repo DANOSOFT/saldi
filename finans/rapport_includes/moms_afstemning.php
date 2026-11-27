@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/moms_afstemning.php --- patch 5.0.0 --- 2026-07-22 ---
+// --- finans/rapport_includes/moms_afstemning.php --- ver 5.1.0 --- 2026-11-03 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260716 MJ R4 – Momsafstemning (momssandsynliggoerelse): pr. (konto, momskode)
 //                  sammenligner bogfoert moms med beregnet moms. Differencer fremhaeves.
@@ -32,9 +32,9 @@
 //                 COALESCE(debet,0)/COALESCE(kredit,0): transaktioner gemmer ubrugt
 //                 side som NULL; NULL-aritmetik gav NULL (vist som 0) i SUM.
 // 20260729 NTR - Reported by CodeRabbit - moved summery of over tolerance above table instead of in the table's body.
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
-// 20261009 Sawaneh The report head on the new page head (page_bar); the print leg untouched.
-// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
+// 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
+//                 moms_afstemning() has braces on its one-line if/else bodies and includes its files via __DIR__ (no behaviour change).
+// 20261103 LOE SST-936 Cast the department filter, and match nothing when it is not a whole number.
 
 function moms_afstemning($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
                          $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart,
@@ -93,7 +93,9 @@ function moms_afstemning($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     $regnslut  = "$slutaar-$slutmaaned-$slutdato";
 
     $dim = '';
-    if ($afd || $afd == '0') $dim = "AND t.afd = $afd ";
+    if ($afd || $afd == '0') {
+        $dim = preg_match('/^\d+$/', (string)$afd) ? "AND t.afd = " . (int)$afd . " " : "AND 1 = 0 ";
+    }
 
     // configurable tolerance — persisted in session so it survives report navigation
     if (array_key_exists('tolerance', $_GET) && $_GET['tolerance'] !== '') {
@@ -103,11 +105,7 @@ function moms_afstemning($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
         $tolerance = isset($_SESSION['moms_afstemning_tolerance']) ? (float)$_SESSION['moms_afstemning_tolerance'] : 0;
     }
 
-    $konto_filter = '';
-    if ($konto_fra && $konto_til && $konto_fra != $konto_til)
-        $konto_filter = "AND kp.kontonr >= '$konto_fra' AND kp.kontonr <= '$konto_til' ";
-    elseif ($konto_fra)
-        $konto_filter = "AND kp.kontonr = '$konto_fra' ";
+    $konto_filter = kontoRangeSqlFragment($konto_fra, $konto_til, 'kp.');
 
     $csvfile = "../temp/$db/moms_afstemning.csv";
     $csv     = fopen($csvfile, "w");
@@ -120,24 +118,37 @@ function moms_afstemning($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
               . "&ansat_fra=$ansat_fra&ansat_til=$ansat_til"
               . "&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til"
               . "&simulering=$simulering&lagerbev=$lagerbev&tolerance=$tolerance";
-    $csv_btn  = "<a href='$csvfile' style='color:#ffffff; text-decoration:none;'><i class='fa fa-download'></i> CSV</a>";
+    $csv_btn  = "<a href='$csvfile' download style='color:#ffffff; text-decoration:none;'><i class='fa fa-download'></i> CSV</a>";
 
-    include("../includes/topline_settings.php");
+    include(__DIR__ . '/../../includes/topline_settings.php');
 
-    if ($menu == 'S') {
-        include_once("../includes/stdFunc/pageBar.php");
-        page_bar(array(
-            'title' => findtekst('3364|Momsafstemning', $sprog_id),
-            'actions' => array(array('CSV', $csvfile, 'bx-download')),
-            'back' => "javascript:confirmClose('$back_url','')",
-        ));
+    if ($menu == 'T') {
+        include_once(__DIR__ . '/../../includes/top_header.php');
+        include_once(__DIR__ . '/../../includes/top_menu.php');
+        print "<div id=\"header\">";
+        print "<div class=\"headerbtnLft headLink\"><a href=\"$back_url\" accesskey=\"L\"><i class='fa fa-close fa-lg'></i> Luk</a></div>";
+        print "<div class=\"headerTxt\">Momsafstemning</div>";
+        print "<div class=\"headerbtnRght headLink\">$csv_btn</div>";
+        print "</div>";
+        print "<div class='content-noside'>";
+    } elseif ($menu == 'S') {
+        $back_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+        print "<table bgcolor='#eeeef0' width='100%' cellpadding='0' cellspacing='0' border='0'><tbody><tr><td colspan=8 align=center>";
+        print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>";
+        print "<td width='5%'><a href=\"javascript:confirmClose('$back_url','')\" accesskey=L>"
+            . "<button class='headerbtn' type='button' style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px;'>"
+            . "$back_icon Tilbage</button></a></td>";
+        print "<td width='80%' align='center' style='$topStyle'>Momsafstemning</td>";
+        print "<td width='10%' align='center' style='$buttonStyle'>$csv_btn</td>";
+        print "<td width='5%'></td>";
+        print "</tbody></table></td></tr></tbody></table>";
     } else {
         print "<table width='100%' cellpadding='0' cellspacing='1px' border='0' valign='top' align='center'>";
         print "<tr><td colspan='6' height='8'>";
         print "<table width='100%' align='center' border='0' cellspacing='3' cellpadding='0'><tbody>";
         print "<td width='10%' $top_bund><a accesskey=L href='$back_url'>Luk</a></td>";
         print "<td width='80%' $top_bund>Rapport - Momsafstemning</td>";
-        print "<td width='10%' $top_bund><a href='$csvfile'>CSV</a></td>";
+        print "<td width='10%' $top_bund><a href='$csvfile' download>CSV</a></td>";
         print "</tbody></table></td></tr></table>";
     }
 
@@ -215,17 +226,19 @@ function moms_afstemning($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     $diff_rows  = 0;
     foreach ($rows as $r) {
         $s = ($r['momssats'] !== null) ? (float)$r['momssats'] : 0;
-        if ($s > 0 && abs(afrund((float)$r['bogfoert_moms'] - afrund((float)$r['omsaetning'] * $s / 100, 2), 2)) > $tolerance)
+        if ($s > 0 && abs(afrund((float)$r['bogfoert_moms'] - afrund((float)$r['omsaetning'] * $s / 100, 2), 2)) > $tolerance) {
             $diff_rows++;
+        }
     }
     if ($total_rows > 0) {
         $sum_bg    = $diff_rows > 0 ? '#ffe0e0' : '#d4edda';
         $sum_color = $diff_rows > 0 ? '#c00'    : '#155724';
         print "<div style='padding:6px 12px; margin:4px 12px 8px; border-radius:4px; background:$sum_bg; color:$sum_color;'>";
-        if ($diff_rows > 0)
+        if ($diff_rows > 0) {
             print "<b>$diff_rows af $total_rows r&aelig;kker</b> har afvigelse over tolerance (" . dkdecimal($tolerance, 2) . " kr.).";
-        else
+        } else {
             print "<b>Ingen afvigelser</b> fundet i $total_rows r&aelig;kker.";
+        }
         print "</div>";
     }
 
@@ -301,6 +314,10 @@ function moms_afstemning($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til,
     print "</tbody></table></div>";
     fclose($csv);
 
-    include_once '../includes/oldDesign/footer.php';
+    if ($menu == 'T') {
+        include_once(__DIR__ . '/../../includes/topmenu/footer.php');
+    } else {
+        include_once(__DIR__ . '/../../includes/oldDesign/footer.php');
+    }
 }
 ?>

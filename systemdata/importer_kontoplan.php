@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/importer_kontoplan.php --- lap 4.0.6 --- 2022-04-03 ---
+// --- systemdata/importer_kontoplan.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,15 +20,13 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003 - 2022 Saldi.dk ApS
+// Copyright (c) 2003 - 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20181112 Håndtering af tegnsæt og MAC linjeskift.
 // 20181204 Valg gemmes i cookie
 // 20210713 LOE - Translated some texts
 // 20220404	PHR function vis_data & overfoer_data: Inserted trim($felt[$y],'"');	
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20261005 Sawaneh Settings redesign G11.2: the column mapping is kept per company (settings importMapping), not in a cookie.
 // 20260825 Sawaneh JOB-086: import ended in a blank page - now returns to import/export with a
 //                  message; file charset detected on upload and lines with an invalid charset are
 //                  rejected instead of aborting the transaction; validation shared between preview
@@ -42,10 +40,20 @@
 // 20260921 Sawaneh JOB-086 review 3: text ids renumbered 5080-5087 -> 5222-5229 (id range clash).
 // 20260921 Sawaneh JOB-086 review 3: find_splitter() stops at EOF, so a file with fewer than three
 //                  rows still gets its separator detected and its columns can be mapped.
-// 20261008 Sawaneh Merge of master (JOB-086 rewrite): the column mapping is read and saved after the includes, in settings
-//                  importMapping (the old cookie is only read as a fallback).
-// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar: title, Tilbage only outside the shell.
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261005 SS Settings redesign G11.2: the column mapping is kept per company (settings importMapping), not in a cookie.
+// 20261008 SS Merge of master (JOB-086 rewrite): the column mapping is read and saved after the includes, in settings importMapping (the old cookie is only read as a fallback).
+// 20261008 SS The page on the new page head (page_bar) instead of the blue bar: title, Tilbage only outside the shell.
+// 20261031 CL/ASR Tilbage and the return after an import go to Indstillinger > Import & eksport (settingsSection.php?s=import_export.data), not via the old diverse.php?sektion=div_io redirect.
+// 20261101 CL/ASR Tilbage is the shared settings button above the title (settings_back_button(), css/saldi-kit.css), as on every settings page, instead of page_bar's link.
+//                 It goes to the settings page the user came from, or the hub; Alt+L kept.
+// 20261102 CL/ASR Tilbage goes to the hub, a fixed target, so it never loops between settings pages; settings_back_button() adds Alt+L itself.
+//                 The kit is linked as ?v=20261102.
+// 20261102 CL/ASR The standard settings layout (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026: every page reached from Indstillinger keeps the left menu).
+//                 The left menu of Finans with Import & eksport marked, Tilbage above the title back to Import & eksport, the breadcrumb Indstillinger / Finans / Import & eksport / this page.
+//                 The page's own Tilbage and page_bar title are gone; its form and steps are unchanged.
+//                 The div that centres the page's content opens inside the content column, so the title and the menu are not centred.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 
@@ -53,7 +61,7 @@ ini_set("auto_detect_line_endings", true);
 
 $css="../css/standard.css";
 
-$returside="diverse.php?sektion=div_io";
+$returside="settingsSection.php?s=import_export.data";
 
 $charsets = array('UTF-8' => 'UTF-8', 'ISO-8859-15' => 'ISO-8859-15 (Windows)', 'cp865' => 'cp865 (DOS)', 'macintosh' => 'MAC');
 $splitters = array('Semikolon' => ';', 'Komma' => ',', 'Tabulator' => chr(9));
@@ -89,10 +97,11 @@ include("../includes/topline_settings.php");
 $title = findtekst('1356|Importér', $sprog_id)." ".findtekst('612|Kontoplan', $sprog_id);
 $filnavn = "../temp/".$db."_".str_replace(" ", "_", $brugernavn).".csv";
 
+// The standard settings layout (includes/settings/layout.php): Tilbage, the title and the left menu with the page's row marked.
+include_once("../includes/settings/layout.php");
+settings_layout_open();
 print "<div align=\"center\">";
 
-include_once("../includes/stdFunc/pageBar.php");
-page_bar(array('title' => $title, 'back' => $returside));
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1 
 print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
@@ -129,6 +138,7 @@ if (isset($_FILES['uploadedfile']['name']) && basename($_FILES['uploadedfile']['
 }
 
 print "</tbody></table>";
+settings_layout_close();
 #####################################################################################################
 function upload() {
 	global $sprog_id;

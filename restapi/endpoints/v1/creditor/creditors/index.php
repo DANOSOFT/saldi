@@ -79,6 +79,12 @@ class CreditorEndpoint extends BaseEndpoint
             return;
         }
 
+        // 20261105 CL/LH Refused like the creditor card, which offers no Slet here.
+        if ($customer->hasEntries()) {
+            $this->sendResponse(false, null, 'Customer has open posts or orders and cannot be deleted', 409);
+            return;
+        }
+
         if ($customer->delete("K")) {
             $this->sendResponse(true, null, 'Customer deleted successfully');
         } else {

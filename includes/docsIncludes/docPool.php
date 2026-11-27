@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.0.0 --- 2026-10-22 ---
+// --- includes/docsIncludes/docPool.php --- ver 5.1.0 --- 2026-11-10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -161,11 +161,12 @@
 //                A background list refresh that fails keeps the list shown, and with it a row being edited; only the first load shows the error.
 // 20261005 CL/SZ SD-716 openPoolFile() opens a clicked document with its own data when nothing was typed in the new line (window.poolFreshDocumentUrl()).
 // 20261005 CL/SZ SD-716 A document no longer in the pool (saved from another tab) is refused before a line is written, with 5253 "Dokumentet er ændret".
-// 20261009 Sawaneh The auto-extract toggle reads and stores the personal setting through topbarAction (was the autoExtract cookie, 4e).
 // 20261005 CL/SZ SD-719 The search in the list finds an amount as shown (5,03 or 1.234,56), as the server's search does (poolListSearch()).
 // 20261005 CL/SZ SD-719 Full-pass re-run: poolShowCurrent() restores the list's scroll position after renderCurrentView() resets it, so clicking an already-visible row no longer jumps the list.
 // 20261006 CL/SZ SD-720 "Gem alle" on a split bilag stays on the page instead of reloading as its first line, so "Gem og næste" afterwards attaches the document to every row, not just the first.
 // 20261006 CL/SZ SD-719 window.poolStillListed() asks the list endpoint whether a document is still in the pool (docPoolSaveNext.js checks it before saving).
+// 20261005 CL/SZ SD-727 The folder sync hashes a batch of rows that have no content hash (poolContentHashBackfill()).
+// 20261005 CL/SZ SD-727 An upload whose document is in the pool already says so (5407 "Findes allerede i puljen") and opens that one, instead of "uploadet" for a copy the next load drops.
 // 20261006 CL/SZ SD-719 Opening a document on a new line with nothing typed keeps the line's date and amount for the match groups, so the first click no longer drops "Dato match" / "Kombination fundet" and re-sorts the list.
 // 20261006 CL/SZ SD-718 "Kombination fundet" shows when every document of the combination is a date match too (they are listed under "Dato match").
 // 20261007 CL/SZ SD-718 "Kombination fundet (N bilag giver …)" counts the documents of the combination it shows and selects, not every document in any combination.
@@ -188,9 +189,21 @@
 //                pool_files.capture_raw, capture_values and captured added to both CREATE TABLE IF NOT EXISTS fallbacks.
 // 20261004 CL/SZ SD-725 A VAT code field per side of each row (dvat/kvat + row number, as in the journal), so the lookup panel fills it when an account is chosen.
 //                It shows the saved code, else the account's own; "Gem", "Gem og næste" and attach send it as debetvat/kreditvat.
+// 20261004 CL/SZ SD-726 The user's "Ctrl + pil op/ned" from the journal's gear box comes in window.saldiShortcuts.
+//                With "Gem og gå til næste/forrige", Ctrl+↓ does what Enter does and Ctrl+↑ saves and opens the previous document (docPoolSaveNext.js).
+// 20261004 CL/SZ SD-727 The periodic folder sync (every 10 minutes) deletes documents archived 12 months ago (poolArchivePurge()).
+//                The archive shows the date each document will be deleted.
+// 20261004 CL/SZ SD-727 A copy of an archived document arriving in the pool folder restores the archived one (the copy is still dropped, MB-42).
+//                poolFolderSync() reports that as a change, so the open pool fetches its list again.
+// 20261004 CL/SZ Pool account check: a save refused for an account that doesn't exist marks Debet / Kredit with what is wrong (poolMarkFields(), docPoolSaveNext.js).
+//                A refused attach shows the server's message (<pool-account-problem>) instead of the general error, and nothing is attached.
 // 20261007 CL/SZ SD-713 A reloaded or restored document window gets the pool's current document; a script run again closes its previous channel.
 // 20261014 CL/NTR SD-713 The document window is opened with 'popup=yes' only and sized and placed by the browser. Explicit width/height/left/top, choosing another screen
 //                  and remembering a place were tried and dropped: they misplaced the window in Firefox, Chrome and Brave on mixed-scale screens.
+// 20261014 MJ SST-868 The insert response is read for the redirect insertDoc.php actually writes -
+//                  a window.location.replace(...) call, not an assignment - so leaving the pool after
+//                  an attach is no longer indistinguishable from reloading it after a silent failure.
+//                  A non-2xx answer carrying a message shows that message instead of the generic one.
 // 20261015 CL/SZ SD-719 (CodeRabbit) poolParams goes into the list script as a JSON string, so a poolFile with ' or </script> can't break out of it.
 // 20261015 CL/SZ SD-719 (CodeRabbit) poolSetLineContext() reloads as many rows as were loaded (200 per request) and keeps the scroll position, and returns its promise
 //                so the in-place switch shows the open document after the reload, not before it. It holds poolLoading meanwhile, so a scroll to the end
@@ -208,17 +221,22 @@
 // 20261022 CL/SZ SD-725 (CodeRabbit) The VAT field gets the other side's saved code too, so a blank chosen next to it stays blank (poolVatShown()).
 // 20261022 CL/SZ MB-91 The list's "Indsæt" refuses the attach while a "Fordeling" row isn't saved (5451), with the cursor in that row; nothing is saved or attached.
 //                It saved only the first row and left the unsaved split rows out without a word. "Gem og næste" is unchanged.
+// 20261029 CL/LH "Opdatér alle" scans only the documents not read yet (poolListData() unscanned=1), not the whole pool again.
+// 20261030 CDX/NTR Stop bulk extraction when the unscanned list cannot be loaded, so captured documents are never retried from cached rows.
+// 20261110 CDX/ASR Confine viewed pool files to the pool and bind XML previews to their session-authorized originals.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
 require_once __DIR__ . "/poolUpload.php";
 require_once __DIR__ . "/poolMetadata.php";
 include_once(__DIR__ . "/docFileFunc.php");
+require_once __DIR__ . '/documentAccess.php';
 include_once(__DIR__ . "/poolVendorSuggestion.php");
 include_once(__DIR__ . "/../kreditorFromCvr.php");
 include_once(__DIR__ . "/poolCapture.php");
 include_once(__DIR__ . "/poolAccountInfo.php");
 include_once(__DIR__ . "/../../finans/kassekladde_includes/journalHistory.php");
+include_once(__DIR__ . "/../../finans/kassekladde_includes/shortcutProfile.php");
 /**
  * Log message to a file in temp/$db/docPool.log
  */
@@ -700,6 +718,9 @@ function syncPuljeFilesToDatabaseUnlocked($docFolder, $db) {
 					// copy is dropped. When the row's file is gone, the row is an orphan the cleanup above
 					// removes (or one too recent for it to touch) and this file is the last copy of the
 					// bilag - so it falls through and gets a row of its own instead of being removed.
+					// SD-727: an archived bilag that arrives again is needed after all (e.g. a reminder), so it comes back to the list
+					require_once __DIR__ . '/poolArchive.php';
+					poolArchiveRestoreOnArrival($syncDuplicate['filename'], $file, 'folder');
 					@unlink($fullPath);
 					docPoolLog("syncPuljeFilesToDatabase: $file has the same content as " . $syncDuplicate['filename'] . ", file removed and no row inserted");
 					continue;
@@ -752,6 +773,11 @@ function syncPuljeFilesToDatabaseUnlocked($docFolder, $db) {
 			db_modify($qtxt, __FILE__ . " line " . __LINE__);
 		}
 	}
+	// Rows an upload's extraction created have no content hash; a batch of them gets it here (MB-42, SD-727)
+	poolContentHashBackfill($puljePath);
+	// SD-727: documents archived 12 months ago are deleted here, with file and row, and written to audit_log and the pool log
+	require_once __DIR__ . '/poolArchive.php';
+	poolArchivePurge($puljePath, $db);
 	update_settings_value("skip_sync", "docs", date("U"), "Skip pool sync after initial run");
 	poolFolderChanged($puljePath, true, $observedMtime, $scanStart);
 }
@@ -870,6 +896,9 @@ function checkIfAllPoolFilesAreInDatabaseUnlocked() {
 				__FILE__ . " line " . __LINE__
 			));
 			if ($duplicateRow && is_file("$puljePath/" . $duplicateRow['filename'])) {
+				// SD-727: an archived bilag that arrives again comes back to the list
+				require_once __DIR__ . '/poolArchive.php';
+				poolArchiveRestoreOnArrival($duplicateRow['filename'], $file, 'folder');
 				@unlink("$puljePath/$file");
 				docPoolLog("checkIfAllPoolFilesAreInDatabase: $file has the same content as " . $duplicateRow['filename'] . ", file removed and no row inserted");
 				continue;
@@ -894,11 +923,13 @@ function checkIfAllPoolFilesAreInDatabaseUnlocked() {
  */
 function poolFolderSync($docFolder, $db) {
 	$before = poolFilesSignature();
+	$restoredBefore = $GLOBALS['poolArchiveRestoredOnArrival'] ?? 0;
 	// No table yet: the full sync creates it, so it runs now instead of waiting for the 10-minute window to end
 	if ($before === '') update_settings_value("skip_sync", "docs", 0, "Skip pool sync after initial run");
 	checkIfAllPoolFilesAreInDatabase();
 	syncPuljeFilesToDatabase($docFolder, $db);
-	return poolFilesSignature() !== $before;
+	// SD-727: a document restored because it arrived again changes neither the row count nor the highest id
+	return poolFilesSignature() !== $before || ($GLOBALS['poolArchiveRestoredOnArrival'] ?? 0) !== $restoredBefore;
 }
 
 /**
@@ -920,6 +951,20 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 
 	global $bruger_id,$db,$exec_path,$buttonStyle, $topStyle;
 	global $params,$regnaar,$sprog_id,$userId,$bgcolor, $bgcolor5, $buttonColor, $buttonTxtColor;
+
+	$poolTenantRoot = docFileTenantRoot($docFolder, $db);
+	foreach ((array)$poolFile as $requestedPoolFile) {
+		if ($requestedPoolFile === '') {
+			continue;
+		}
+		if (!is_string($requestedPoolFile) || poolFileName($requestedPoolFile) !== $requestedPoolFile || str_contains($requestedPoolFile, "\0")) {
+			docAccessDeny();
+		}
+		$requestedPoolPath = "$poolTenantRoot/pulje/$requestedPoolFile";
+		if (file_exists($requestedPoolPath) && docAccessCanonicalPath("$poolTenantRoot/pulje", $requestedPoolPath) === null) {
+			docAccessDeny();
+		}
+	}
 	
 	$afd = $beskrivelse = $debet = $dato = $fakturanr = $kredit = $projekt = $readOnly = $sag = $sum = NULL;
 	$debetvat = $kreditvat = NULL;
@@ -1166,6 +1211,10 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 		if (!empty($poolFiles)) {
 			// A document saved from another tab (or removed) is no longer in the pool: nothing is created for it
 			foreach ($poolFiles as $checkPoolFile) {
+				if (!is_string($checkPoolFile) || poolFileName($checkPoolFile) !== $checkPoolFile || str_contains($checkPoolFile, "\0")
+					|| (is_file("$poolTenantRoot/pulje/$checkPoolFile") && docAccessCanonicalPath("$poolTenantRoot/pulje", "$poolTenantRoot/pulje/$checkPoolFile") === null)) {
+					docAccessDeny();
+				}
 				if (!is_file("$docFolder/$db/pulje/" . basename((string)$checkPoolFile))) {
 					http_response_code(409);
 					print htmlspecialchars(findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id), ENT_QUOTES, 'UTF-8');
@@ -2319,6 +2368,7 @@ if ($source == 'kassekladde') {
 			'stale'     => findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id),
 		),
 	), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ";
+	window.saldiShortcuts = " . json_encode(kkShortcutUserProfile($bruger_id)) . ";
 	" . ($readOnly ? '' : "window.saldiInvoiceReuse = " . json_encode(array(
 		'url'      => '../finans/kassekladde_includes/invoiceReuseCheck.php',
 		'kladdeId' => $escKladde,
@@ -2519,14 +2569,12 @@ print "<input type='text' id='poolSearchBox' placeholder='".findtekst('913|Søg'
 print "</div>";
 // View mode toggle and extract all button
 print "<div style='display: flex; gap: 8px;'>";
-// Auto-extract toggle: the personal setting (settings redesign 4e), no longer the autoExtract cookie.
-include_once(__DIR__ . "/../settings/SettingsService.php");
-$dpAutoExtract = (bool) SettingsService::get('personal.documents.auto_extract', (int) $bruger_id);
+// Auto-extract toggle
 print "<label title='".findtekst('3271|Auto-udtræk fakturadata ved upload', $sprog_id)."' style='display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px; color: #495057; white-space: nowrap; padding: 0 4px;'>";
 print "<span style='position: relative; display: inline-block; width: 36px; height: 20px;'>";
-print "<input type='checkbox' id='autoExtractToggle' " . (!$dpAutoExtract ? "" : "checked") . " onchange='toggleAutoExtract(this)' style='opacity: 0; width: 0; height: 0;'>";
-print "<span id='autoExtractSlider' style='position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: " . (!$dpAutoExtract ? "#ccc" : "#17a2b8") . "; transition: .3s; border-radius: 20px;'></span>";
-print "<span id='autoExtractKnob' style='position: absolute; height: 16px; width: 16px; left: " . (!$dpAutoExtract ? "2px" : "18px") . "; bottom: 2px; background-color: white; transition: .3s; border-radius: 50%;'></span>";
+print "<input type='checkbox' id='autoExtractToggle' " . (isset($_COOKIE['autoExtract']) && $_COOKIE['autoExtract'] === '0' ? "" : "checked") . " onchange='toggleAutoExtract(this)' style='opacity: 0; width: 0; height: 0;'>";
+print "<span id='autoExtractSlider' style='position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: " . (isset($_COOKIE['autoExtract']) && $_COOKIE['autoExtract'] === '0' ? "#ccc" : "#17a2b8") . "; transition: .3s; border-radius: 20px;'></span>";
+print "<span id='autoExtractKnob' style='position: absolute; height: 16px; width: 16px; left: " . (isset($_COOKIE['autoExtract']) && $_COOKIE['autoExtract'] === '0' ? "2px" : "18px") . "; bottom: 2px; background-color: white; transition: .3s; border-radius: 50%;'></span>";
 print "</span>";
 print "AI scan</label>";
 // Extract all button
@@ -2545,6 +2593,7 @@ print "<script>window.saldiPoolArchive = " . json_encode(array(
 		'archive'      => findtekst('5337|Arkivér', $sprog_id),
 		'restore'      => findtekst('5339|Gendan', $sprog_id),
 		'archived'     => findtekst('5343|Arkiveret', $sprog_id),
+		'deletes'      => findtekst('5398|Slettes', $sprog_id),
 		'noneSelected' => findtekst('5345|Ingen bilag valgt.', $sprog_id),
 		'emptyArchive' => findtekst('5344|Ingen arkiverede bilag', $sprog_id),
 	),
@@ -2640,6 +2689,7 @@ $txt29  = findtekst('3294|Klik for at vælge alle bilag i denne kombination', $s
 $txt30  = findtekst('3301|Fakturanummer', $sprog_id);
 $txt31  = findtekst('3302|Fejl ved gemning', $sprog_id);
 $txt32  = findtekst('3303|Prøv igen', $sprog_id);
+$poolListErrorJs = jsString(array($txt21, '. ', $txt32, '.'));
 $txt33  = findtekst('3304|Vælg mindst ét bilag', $sprog_id);
 $txt34  = findtekst('3305|Fejl ved indsætning', $sprog_id);
 $txt35  = findtekst('3306|Er du sikker på at du vil slette', $sprog_id);
@@ -2689,11 +2739,6 @@ $poolAcceptedText = findtekst('5256|Rettet / accepteret', $sprog_id);
 $txtPoolOf   = findtekst('5346|af', $sprog_id);        // SD-719: "50 af 497"
 $txtPoolMore = findtekst('5347|Vis flere', $sprog_id);
 $poolStaleText = findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id);
-// 20261018 Sawaneh Review 2 (PR #803): the auto-extract toggle posts to topbarAction.php, which needs the session's token.
-if (empty($_SESSION['csrf_token'])) {
-	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
-$poolCsrfJs = json_encode((string) $_SESSION['csrf_token']);
 
 print <<<JS
 <script>
@@ -3563,6 +3608,8 @@ print <<<JS
 			const metadataState = row.manuallyEdited ? '{$poolAcceptedText}' : '{$poolSuggestedText}';
 			subjectCell += "<br><small>" + escapeHTML(metadataState) + "</small>";
 			if (row.archived && window.poolArchive) subjectCell += "<br><small>" + escapeHTML(window.poolArchive.archivedNote(row)) + "</small>";
+			// SD-727: the day it will be deleted, on its own line so the cell doesn't cut it off
+			if (row.archived && window.poolArchive && window.poolArchive.deleteNote(row)) subjectCell += "<br><small>" + escapeHTML(window.poolArchive.deleteNote(row)) + "</small>";
 			const dataAttrs = "data-pool-file='" + escapeHTML(poolFileFromHref) + "' " + 
 				(isMatch ? "data-selected='true' " : "") + 
 				(isPerfectMatch ? "data-perfect-match='true' " : "") +
@@ -3891,6 +3938,7 @@ print <<<JS
 			html += '<div style="font-size: 12px; color: #666; display: flex; flex-wrap: wrap; gap: 8px;">';
 			html += '<span>' + escapeHTML(row.manuallyEdited ? '{$poolAcceptedText}' : '{$poolSuggestedText}') + '</span>';
 			if (row.archived && window.poolArchive) html += '<span>' + escapeHTML(window.poolArchive.archivedNote(row)) + '</span>';
+			if (row.archived && window.poolArchive && window.poolArchive.deleteNote(row)) html += '<span>' + escapeHTML(window.poolArchive.deleteNote(row)) + '</span>';
 			if (account) html += '<span><strong>{$txt6}:</strong> ' + escapeHTML(account) + '</span>';
 			if (amount) {
 				let amountHtml = '<span><strong>{$txt10}:</strong> ';
@@ -4111,7 +4159,7 @@ print <<<JS
 			alert('{$txt33}');
 			return;
 		}
-		
+
 		// The list's "Indsæt" saves no rows first, so a "Fordeling" row that isn't saved yet was left out without a word (MB-91).
 		// "Gem og næste" (afterAttach) has saved every row before it gets here.
 		if (typeof afterAttach !== 'function') {
@@ -4322,6 +4370,13 @@ print <<<JS
 
 			if (response.ok || (response.status >= 200 && response.status < 300)) {
 				return response.text().then(text => {
+					// Refused for an account the journal would refuse, also when the status couldn't be set: the message, and the user stays
+					const accountProblem = poolAccountProblemText(text);
+					if (accountProblem) {
+						alert(accountProblem);
+						if (typeof afterAttach === 'function') afterAttach(new Error(accountProblem));
+						return;
+					}
 					// Clear sessionStorage for inserted files
 					selectedFiles.forEach(file => {
 						sessionStorage.removeItem('docPool_checked_' + file);
@@ -4342,9 +4397,12 @@ print <<<JS
 					// Leaving the pool for the kassekladde: keep the list position for the way back.
 					savePoolListView();
 
-					const redirectMatch = text.match(/window\.location\.(replace|href)\s*=\s*['"]([^'"]+)['"]/);
+					// SST-868: insertDoc.php writes a call - window.location.replace('url') - not an
+					// assignment. Matching only the assignment form meant this never fired, so the
+					// pool simply reloaded and a failed attach looked exactly like a successful one.
+					const redirectMatch = text.match(/window\.location\.(?:replace|href)\s*(?:=\s*|\(\s*)['"]([^'"]+)['"]/);
 					if (redirectMatch) {
-						window.location.replace(redirectMatch[2]);
+						window.location.replace(redirectMatch[1]);
 					} else {
 						const kladdeId = url.searchParams.get('kladde_id') || '';
 						const fokus = url.searchParams.get('fokus') || '';
@@ -4362,7 +4420,16 @@ print <<<JS
 			} else {
 				response.text().then(text => {
 					console.error('Insert failed. Response:', response.status, text);
-					alert(response.status === 409 ? '{$poolStaleText}' : '{$txt34} (Status: ' + response.status + '). {$txt32}.');
+					// SST-868: insertDoc.php answers a failed attach with
+					// {"success":false,"message":"..."} so the reason reaches the user. Anything
+					// else keeps the generic text.
+					let insertError = '';
+					try {
+						const payload = JSON.parse(text);
+						if (payload && payload.message) insertError = payload.message;
+					} catch (e) {}
+					if (insertError) alert(insertError);
+					else alert(response.status === 409 ? '{$poolStaleText}' : (poolAccountProblemText(text) || '{$txt34} (Status: ' + response.status + '). {$txt32}.'));
 					if (typeof afterAttach === 'function') afterAttach(new Error('attach failed'));
 				}).catch(() => {
 					alert('{$txt34}. {$txt32}.');
@@ -4377,6 +4444,13 @@ print <<<JS
 		});
 	};
 	
+	// The message insertDoc.php marks when it refuses an account (<pool-account-problem>"…"</pool-account-problem>), or ''
+	function poolAccountProblemText(text) {
+		const match = /<pool-account-problem>([\s\S]*?)<\/pool-account-problem>/.exec(text || '');
+		if (!match) return '';
+		try { return JSON.parse(match[1]); } catch (e) { return ''; }
+	}
+
 	// Save checkbox state to sessionStorage
 	window.saveCheckboxState = function() {
 		const checkboxes = document.querySelectorAll('.file-checkbox');
@@ -4573,9 +4647,7 @@ window.toggleAutoExtract = function(checkbox) {
 		slider.style.backgroundColor = '#ccc';
 		knob.style.left = '2px';
 	}
-	var fd = new FormData();
-	fd.append('action', 'auto_extract'); fd.append('value', checkbox.checked ? '1' : '0'); fd.append('ajax', '1'); fd.append('csrf_token', {$poolCsrfJs});
-	fetch('../index/topbarAction.php', { method: 'POST', body: fd, credentials: 'same-origin' }).catch(function () {});
+	document.cookie = 'autoExtract=' + (checkbox.checked ? '1' : '0') + '; path=/; max-age=31536000';
 };
 
 window.isAutoExtractEnabled = function() {
@@ -4682,14 +4754,22 @@ window.extractPoolFile = function(poolFile) {
 
 // Extract invoice data from ALL pool files
 window.extractAllPoolFiles = async function() {
-	// Every document in the list, not only the loaded pages (SD-719); archived documents are not extracted (SD-717)
+	// Every document in the list, not only the loaded pages (SD-719); archived documents are not extracted (SD-717).
+	// Only the ones not read yet: no snapshot, no amount and not corrected by hand (poolListData() unscanned=1)
 	let activeDocs = [];
 	try {
-		const listResponse = await fetch('_docPoolData.php?dir={$encodedDir}&filesOnly=1', { credentials: 'same-origin' });
+		const listResponse = await fetch('_docPoolData.php?dir={$encodedDir}&filesOnly=1&unscanned=1', { credentials: 'same-origin' });
+		if (!listResponse.ok) {
+			throw new Error();
+		}
 		const listData = await listResponse.json();
-		activeDocs = (listData.files || []).map(function(name) { return { filename: name }; });
+		if (!listData || !Array.isArray(listData.files)) {
+			throw new Error();
+		}
+		activeDocs = listData.files.map(function(name) { return { filename: name }; });
 	} catch (e) {
-		activeDocs = (docData || []).filter(function(row) { return !row.archived; });
+		alert({$poolListErrorJs});
+		return;
 	}
 	if (activeDocs.length === 0) {
 		alert('{$txt41}');
@@ -5449,8 +5529,14 @@ JS;
 	print "<div id='documentViewer' style='flex: 1; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;'>";
 	$docWindowUrl = ''; // docFile.php URL of the shown document, for "Åbn i nyt vindue"
 	$corrected = 0;
+	if ($poolFile && (!is_string($poolFile) || poolFileName($poolFile) !== $poolFile || str_contains($poolFile, "\0"))) {
+		docAccessDeny();
+	}
 	$ext = pathinfo($poolFile, PATHINFO_EXTENSION);
 	$fullName = "$docFolder/$db/pulje/$poolFile";
+	if ($poolFile && is_file($fullName) && docAccessCanonicalPath("$poolTenantRoot/pulje", $fullName) === null) {
+		docAccessDeny();
+	}
 	
 	// Skip processing if poolFile is empty or points to a directory
 	if (empty($poolFile) || is_dir($fullName)) {
@@ -5587,7 +5673,16 @@ JS;
 	if ($corrected == '1') {
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/documents.php?$params&openPool=1&poolFile=$poolFile\">";
 	}
-			if ($poolFile) {
+	if ($poolFile) {
+		$poolPreviewSource = docAccessCanonicalPath("$poolTenantRoot/pulje", $fullName);
+		if ($poolPreviewSource === null) {
+			print docFileMissingBox(basename($fullName), $sprog_id);
+			$poolFile = '';
+		} else {
+			perm_enforce_request(docFilePermissionKey('doc', 'pulje/' . $poolFile), 'read', true, null);
+		}
+	}
+	if ($poolFile) {
 		$poolFileExt = strtolower(pathinfo($poolFile, PATHINFO_EXTENSION));
 		
 		if ($poolFileExt === 'xml') {
@@ -5595,19 +5690,17 @@ JS;
 			$xmlContent = file_get_contents($fullName);
 			if ($xmlContent !== false) {
 				$base64Xml = base64_encode($xmlContent);
-				include "connect.php";
 				// Get the API key from settings
 				$apiKeyQuery = db_select("SELECT var_value FROM settings WHERE var_name = 'apiKey' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
 				$apiKeyRow = db_fetch_array($apiKeyQuery);
 				$easyUblApiKey = $apiKeyRow ? $apiKeyRow['var_value'] : '';
-				session_start();
-				$s_id=session_id();
-				include "online.php";
-
 				// SD-718: rendered once and reused, as showDoc.php already does; a newer XML file is rendered again
-				$htmlTempFile = "../temp/$db/xml_preview_" . md5($poolFile) . ".html";
+				$htmlTempFile = "../temp/$db/xml_preview_" . md5($poolPreviewSource) . ".html";
+				if (is_link($htmlTempFile)) {
+					docAccessDeny();
+				}
 				$xmlCached = is_file($htmlTempFile) && filesize($htmlTempFile) > 0 && filemtime($htmlTempFile) >= filemtime($fullName);
-				if ($xmlCached) {
+				if ($xmlCached && docFileRegisterPreview($db, $poolTenantRoot, $poolPreviewSource, $htmlTempFile)) {
 					$docWindowUrl = docFileUrl($htmlTempFile, $docFolder, $db);
 					$htmlTempUrl = htmlspecialchars($docWindowUrl, ENT_QUOTES);
 					print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$htmlTempUrl\" frameborder=\"0\">";
@@ -5633,6 +5726,9 @@ JS;
 					if ($htmlResult && !$curlError) {
 						// Save the HTML to a temp file for display in iframe
 						file_put_contents($htmlTempFile, $htmlResult);
+						if (!docFileRegisterPreview($db, $poolTenantRoot, $poolPreviewSource, $htmlTempFile)) {
+							docAccessDeny();
+						}
 						$docWindowUrl = docFileUrl($htmlTempFile, $docFolder, $db);
 						$htmlTempUrl = htmlspecialchars($docWindowUrl, ENT_QUOTES);
 						print "<iframe style=\"width:100%;height:100%;border:none;overflow:hidden;\" src=\"$htmlTempUrl\" frameborder=\"0\">";
@@ -6359,6 +6455,8 @@ HTML;
                     var savedBox = savedEntry.querySelector(".targetLineCheckbox");
                     if (savedBox) savedBox.value = data.sourceId;
                 }
+                // An account the journal would refuse: the field is marked, as a missing one is
+                if (data && !data.success && Array.isArray(data.fields) && typeof window.poolMarkFields === 'function') window.poolMarkFields(rowId, data.fields);
                 return data;
             });
     }

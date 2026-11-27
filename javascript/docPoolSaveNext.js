@@ -1,4 +1,4 @@
-// --- javascript/docPoolSaveNext.js --- ver 5.0.0 --- 2026-10-20 ---
+// --- javascript/docPoolSaveNext.js --- ver 5.1.0 --- 2026-11-10 ---
 // Copyright (c) 2026 Danosoft ApS
 // 20261003 CL/SZ SD-716 Created: "Gem og næste" in the document pool.
 //                One action saves every row of the bilag (one after another, so new rows don't race), attaches the shown document and opens the next document with its data transferred.
@@ -16,6 +16,9 @@
 //                After a switch ("poolswitch") the transfer, the focus and the "no more documents" note run again.
 // 20261003 CL/SZ SD-720 Before saving, "Fordeling"'s balance check (docPoolSplit.js) may take the first Enter.
 //                Every new row (new, new2 ...) gets its line id, and a split bilag attaches the document to every row.
+// 20261004 CL/SZ SD-726 With "Gem og gå til næste/forrige" (window.saldiShortcuts), Ctrl+↓ in an entry field does what Enter does.
+//                Ctrl+↑ saves the same way and opens the previous document in the list; without one, the next, as Enter.
+//                An unseen invoice-number warning takes the first Ctrl+↓ / Ctrl+↑, as it takes the first Enter.
 // 20261005 CL/SZ SD-716 Beløb must be a number other than zero ("abc" and "0,00" saved a 0,00 line before).
 // 20261005 CL/SZ SD-716 A document clicked in the list opens on a new line with its data filled in when nothing was typed, as the arrow keys do.
 // 20261006 CL/SZ SD-716 Full-pass re-run: "Gem og næste" and the arrow keys go on from the first document after the last one, instead of
@@ -26,12 +29,16 @@
 //                Also hosted here: needs the arrow keys' open() helper (SD-719).
 // 20261006 CL/SZ SD-719 Before saving, the document must still be in the pool (window.poolStillListed()): a document attached in another tab,
 //                or one not in the loaded list, left a journal line without its document when the attach was then refused.
+// 20261004 CL/SZ Pool account check: window.poolMarkFields() marks the Debet / Kredit the server refused ("eksisterer ikke"), as "Obligatorisk" is, and focuses the first.
 // 20261006 CL/SZ SD-716 A new document puts the cursor in Debet without opening the lookup panel over the list (window.focusAccountQuietly()),
 //                or on "Brug forslag" when Debet has a suggestion; window.poolFocusNewLine() does the same after "Overfør data".
 // 20261009 CL/SZ SD-716 transfer=1 leaves the address while the script loads, before the page's load event, so the main menu (index/main.php) never
 //                takes an address with it (F5 would transfer again, and two quick address writes made the menu reload the page over and over).
 // 20261015 CL/SZ SD-720 (CodeRabbit) A split bilag ticks only the rows this save created; a line that was already there keeps the box as the user left it.
 // 20261020 CL/SZ SD-720 (CodeRabbit) An amount with a dot that is not a thousands separator ("12.50", saved as 1250) or a space inside it is not an amount.
+// 20261106 CL/LH SD-722 Before saving, poolCapture.js takes away a Debet the contra account suggestion wrote for the kreditor Kredit held before.
+//                Enter in Kredit saves without a change event, so that Debet was saved against the kreditor typed after it.
+// 20261110 CDX/NTR Document the save-and-next action and its suggestion refresh guard.
 (function () {
     'use strict';
 
@@ -137,6 +144,12 @@
             var current = currentPoolFile();
             return listedFiles().filter(function (file) { return file !== current; })[0] || null;
         });
+    }
+
+    /** The document before the current one, among those not yet processed; the next one when there is none before it. */
+    function previousDocument() {
+        var before = neighbour(-1);
+        return before ? Promise.resolve(before) : nextDocument();
     }
 
     /** After the last document: the pool without a document, showing "Ingen flere bilag i puljen". */
@@ -262,11 +275,24 @@
         return typeof window.poolStillListed === 'function' ? window.poolStillListed(file) : Promise.resolve(true);
     }
 
-    function saveAndNext() {
+    /**
+     * Start saving editable rows in order, attach the document and open its neighbour.
+     *
+     * Stops before saving when poolCapture.beforeSave() refreshes an outdated
+     * contra-account suggestion, mandatory fields are missing, or split validation refuses.
+     * Reports asynchronous save/attach failures through the existing UI.
+     *
+     * @param {number} step -1 selects the previous document; other values select the next.
+     * @returns {void} Starts asynchronous work without returning its promise.
+     * @see window.poolCapture.beforeSave
+     */
+    function saveAndNext(step) {
         var c = cfg();
         if (busy || !c || c.readOnly) return;
         var entries = editableEntries();
         if (!entries.length) return;
+        // SD-722: a Debet the contra account suggestion wrote for another kreditor than Kredit holds now is taken away, and nothing is saved (poolCapture.js)
+        if (window.poolCapture && typeof window.poolCapture.beforeSave === 'function' && window.poolCapture.beforeSave(entries)) return;
         var missing = firstMissing(entries);
         if (missing) {
             missing.focus();
@@ -284,7 +310,7 @@
         stillInPool(file).then(function (inPool) {
             // Attached from another tab meanwhile, or not in the list loaded: no line is written, so none is left without its document
             if (!inPool) throw new Error(c.texts.stale);
-            return followingDocument();
+            return step === -1 ? previousDocument() : followingDocument();
         }).then(function (found) {
             next = found;
             return saveRowsInOrder(entries);
@@ -318,6 +344,33 @@
     }
 
     window.poolSaveAndNext = saveAndNext;
+
+    /** Marks the fields a save was refused for (insertDoc.php's account check): [{field: 'Debet', text: 'eksisterer ikke'}]. */
+    window.poolMarkFields = function (rowId, fields) {
+        var prefix = 'row_' + rowId + '_';
+        var first = null;
+        fields.forEach(function (item) {
+            var field = document.getElementById(prefix + item.field);
+            if (!field) return;
+            clearMandatory(field);
+            markMandatory(field, item.text);
+            if (!first) first = field;
+        });
+        if (first) {
+            first.focus();
+            if (typeof first.select === 'function') first.select();
+        }
+    };
+
+    // SD-726: "Gem og gå til næste/forrige" - fieldNavigation.js hands Ctrl+↓ / Ctrl+↑ from an entry field here
+    window.fieldNavigationSave = function (field, target, step) {
+        var c = cfg();
+        if (!c || c.readOnly || !field.closest('.kassebilag-entry')) return false;
+        // An unseen invoice-number warning takes the first key, as it takes the first Enter (invoiceReuse.js)
+        if (typeof window.invoiceReuseStopsSave === 'function' && window.invoiceReuseStopsSave(field)) return true;
+        saveAndNext(step > 0 ? 1 : -1);
+        return true;
+    };
     window.poolSkipDocument = skipDocument;
     window.poolFocusNewLine = focusNewLine;
 

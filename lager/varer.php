@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varer.php ---patch 4.1.0 ----2026-09-25--------------
+// --- lager/varer.php --- ver 5.1.1 --- 2026-11-05 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,7 +24,7 @@
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260904 Sawaneh WP-1.3c: luk.php returside now set on the popup=1 request flag, not the popup preference
-
+//
 // 2013.01.15 Wildcard forsvinder efter søgning - tak til Henrik Thomsen fra Basslab for rettelse - søg 20130115
 // 2014.07.28 Timeout ændret fra 30 til 60 - Søg timeout.
 // 2014.12.17	Omskrevet funktionen "find_beholdning" se evt. find_beholdning_xx 
@@ -71,6 +71,7 @@
 //             query above it (status < 3) so drafts are included the same way.
 // 20260907 CDX/LH Carry popup and return context through goods-list searches, sorting and paging.
 // 20260907 CDX/LH Mark new and existing product-card windows as popups.
+// 20260917 CL/LH Lager -> Varer reopens the goods tab the user last worked in (Havemoebelland).
 // 20260921 CDX/MJ MB-54 Varenummer search: restore the * anchor. The term was wrapped in %..%
 //                  even when it already carried a wildcard, so "123*" and "*123" both searched
 //                  "contains" and never narrowed the list the price-tag print is built from.
@@ -86,6 +87,10 @@
 //             token to the fingerprint, switched to remembering a bounded set of recent submissions
 //             instead of just the last one, and genbestil() now reports success so only a fully
 //             successful submission is remembered.
+// 20261023 CL/LH MB-60: Lager -> Varer also reopens the Styklister tab.
+// 20261030 LOE MB-62 A read-only user is not offered the list's Ny controls.
+//              The two list views and the popup view all print Ny only for a user who may create an item.
+// 20261105 CL/MMR SST-951 A purchase proposal order (genbestil) takes the language (Sprog) of the supplier's creditor group.
 
 @session_start();
 $s_id=session_id();
@@ -94,14 +99,14 @@ $vis_lev_felt = NULL;
 
 if (isset($_GET['sort'])) {
 	$sort=$_GET['sort'];
-	saldi_setcookie("saldi_vare_sort", $sort, time()+3600*24*12);
+	setcookie("saldi_vare_sort", $sort, time()+3600*24*12);
 } elseif(isset($_COOKIE['saldi_vare_sort'])) $sort=$_COOKIE['saldi_vare_sort'];
 else $sort = "varenr";
 
 
 if (isset($_GET['lev_kto_navn']) && $_GET['lev_kto_navn']) {
 	$lev_kto_navn=$_GET['lev_kto_navn'];
-#	saldi_setcookie("saldi_lkn", $lev_kto_navn, time()+3600*24*12);
+#	setcookie("saldi_lkn", $lev_kto_navn, time()+3600*24*12);
 } #elseif(isset($_COOKIE['saldi_lkn'])) $lev_kto_navn=$_COOKIE['saldi_lkn'];
 else $lev_kto_navn = "";
 
@@ -114,6 +119,8 @@ $beskrivelse = $fokus = $linjeantal = $slut = $start = $udvalg = $vis_lev = $vis
 
 include("../includes/connect.php");
 include("../includes/online.php");
+# MB-62 creating an item is a write, so a read-only user is not offered the list's Ny button
+$mb62_readonly = ($rettigheder !== '' && (substr($rettigheder, 9, 1) === '2' || substr($rettigheder, 9, 1) < '1'));
 include("../includes/std_func.php");
 include("productCardIncludes/itemVat.php");
 // 20260925 CL/NTR - genbestil() replay guard (see varerIncludes/genbestilReplay.php); included after
@@ -134,13 +141,21 @@ if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 
 // Navigate to new lagersystem
 if ($menu == "S") {
-	header('Location: lister/vareliste.php');
+	// 20260917 CL/LH Reopen the goods tab the user last worked in; tabs the user may not see fall back to the item list.
+	$goodsTab = (int)$bruger_id > 0 ? get_settings_value('vareliste_valg', 'lager', 'vareliste', (int)$bruger_id) : 'vareliste';
+	$goodsTabPages = array(
+		'vareliste'    => 'vareliste.php',
+		'ordrestatus'  => substr($rettigheder, 5, 1) ? 'ordrestatus.php' : 'vareliste.php',
+		'indkob'       => substr($rettigheder, 7, 1) ? rawurlencode('indkøb') . '.php' : 'vareliste.php',
+		'serialnumber' => 'serialnumber.php',
+		'styklister'   => 'styklister.php',
+	);
+	$goodsTabPage = isset($goodsTabPages[$goodsTab]) ? $goodsTabPages[$goodsTab] : 'vareliste.php';
+	header('Location: lister/' . $goodsTabPage);
 	exit;
 }
 	
 // 20260904 Sawaneh WP-1.3c: luk.php only when THIS window is a popup (popup=1 flag),
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
-// 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 // not on the user's popup preference — inline/iframe use otherwise ends on luk.php.
 $isPopupRequest = !empty($_GET['popup']);
 $returside = $isPopupRequest ? '../includes/luk.php' : nav_sanitize_returside($_GET['returside'] ?? null);
@@ -208,7 +223,9 @@ if (isset($_GET)) {
 	$vis_lev=if_isset($_GET['vis_lev']);
 	$alle_varer=if_isset($_GET['alle_varer']);
 	
-	if (isset($_GET['forslag']) && $_GET['forslag']) {
+	// MB-62 the suggestion screen only leads to "Bestil", which writes purchase-order lines: a
+	// read-only Items user stays on the plain list.
+	if (isset($_GET['forslag']) && $_GET['forslag'] && !$mb62_readonly) {
 		$stock=1;
 		$makeSuggestion=1;
 	} else $makeSuggestion=0;
@@ -222,12 +239,12 @@ if (isset($_GET)) {
 	$linjeantal = $start = NULL;
 	if (isset($_GET['start'])) $start = $_GET['start'];
 	elseif (isset($_POST['start'])) $start = $_POST['start'];
-	if ($start)	saldi_setcookie("saldiProductListStart", $start);
+	if ($start)	setcookie("saldiProductListStart", $start);
 	elseif(isset($_COOKIE['saldiProductListStart'])) $start=$_COOKIE['saldiProductListStart'];
 	else $start=1;
 	if (isset($_GET['linjeantal'])) $linjeantal = $_GET['linjeantal'];
 	elseif (isset($_POST['linjeantal'])) $linjeantal = $_POST['linjeantal'];
-	if ($linjeantal)	saldi_setcookie("saldiProductListLines", $linjeantal);
+	if ($linjeantal)	setcookie("saldiProductListLines", $linjeantal);
 	elseif(isset($_COOKIE['saldiProductListLines'])) $linjeantal=$_COOKIE['saldiProductListLines'];
 	else $linjeantal=100;
 	$slut = if_isset($_GET['slut']);
@@ -251,7 +268,11 @@ if (isset($_POST)) {
 	$lev_kto=trim($lev_kto);
 	$lev_navn=trim($lev_navn);
 
-	if (isset($_POST['genbestil_ant'])) {
+	if (isset($_POST['genbestil_ant']) && $mb62_readonly) {
+		// MB-62 a purchase-order suggestion is a write: the controls are not offered, and a posted
+		// form cannot create the lines either.
+		error_log('MB-62: purchase-order suggestion refused for user ' . $brugernavn . ' (Items right ' . substr($rettigheder, 9, 1) . ')');
+	} elseif (isset($_POST['genbestil_ant'])) {
 		// 20260925 CL/NTR MB-35 follow-up - a double-click on "Opret" (or browser Back + resend)
 		// posts this exact genbestil_ant/gb_id_*/gb_antal_* payload twice. genbestil() itself always
 		// inserts a new ordrelinjer row with no check for one already existing for the item on
@@ -439,35 +460,68 @@ $txt3102 = findtekst(3102,$sprog_id); # Opret en ny vare
 $txt3103 = findtekst(3103,$sprog_id); #Luk varelisten....
 $txt3105 = findtekst(3105,$sprog_id); #Opret indkøbsforslag /....
 $txt3101 = findtekst(3101,$sprog_id); #Vælg hvilke varegrupper.....
-if ($menu == 'S') {
-	$vlBase = "varer.php?{$listNavigationQuery}sort=$sort&start=$start&linjeantal=$linjeantal";
-	$vlActions = array();
+if ($menu=='T') {
+#	print "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\">";
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	print "<div id=\"header\">\n";
+	print "<div class=\"headerbtnLft\"></div>\n";
+#	print "<span class=\"headerTxt\">Systemsetup</span>\n";     
+#	print "<div class=\"headerbtnRght\"><!--<a href=\"index.php?page=../debitor/debitorkort.php;title=debitor\" class=\"button green small right\">Ny debitor</a>--></div>";       
+	print "</div><!-- end of header -->";
+	print "<div id=\"leftmenuholder\">";
+	include_once 'left_menu.php';
+	print "</div><!-- end of leftmenuholder -->\n";
+	print "<div class=\"maincontent\">\n";
+	print "<table border=\"0\" cellspacing=\"0\" id=\"dataTable\" class=\"dataTable\"><tbody>"; # -> 1
+
+} elseif ($menu == 'S') {
+	print "<table style='width:100%;height:100%;' border='0' cellspacing='0' cellpadding='0'><tbody>\n";
+	print "<tr><td height = '25' align='center' valign='top'>\n";
+	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>\n";
+	print "<tr><td width='10%'><a href='$retursideHref' accesskey=L>
+		   <button style='$buttonStyle; width:100%' title='$backTitle' onMouseOver=\"this.style.cursor='pointer'\">$txt30</button></a></td>\n";
 	if ($start<$linjeantal) {
 		if ($makeSuggestion) {
-			$vlActions[] = array($txt159, $vlBase, 'bx-undo');
+			print "<td width='10%'><a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal'>";
+			print "<button style='$buttonStyle; width:100%' title='$txt2113' onMouseOver=\"this.style.cursor='pointer'\">";
+			print "$txt159</button></a></td>\n";
 		} else {
-			$vlActions[] = array($txt954, "$vlBase&forslag=ja&beskrivelse=$beskrivelse&find=$find", 'bx-cart');
-		}
-		if ($stock && !$makeSuggestion) {
-			$vlActions[] = array($txt30, $vlBase, 'bx-arrow-back');
-		} elseif ($stock && $makeSuggestion && !$alle_varer) {
-			$vlActions[] = array($txt955, "$vlBase&forslag=ja&beskrivelse=$beskrivelse&alle_varer=ja", 'bx-list-ul');
-		} elseif ($stock && $makeSuggestion && $alle_varer) {
-			$vlActions[] = array('Kun mangler', "$vlBase&forslag=ja&beskrivelse=$beskrivelse", 'bx-filter');
-		} else {
-			$vlActions[] = array($txt953, "$vlBase&beholdning=ja", 'bx-package');
+			print "<td width='10%'>
+				   <a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse&find=$find'>
+				   <button style='$buttonStyle; width:100%' title='$txt3105'
+				   onMouseOver=\"this.style.cursor='pointer'\">
+				   $txt954</button></a></td>\n";
 		}
 	}
-	$vlActions[] = array($txt813, 'varevisning.php', 'bx-slider-alt');
-	include_once("../includes/stdFunc/pageBar.php");
-	page_bar(array(
-		'title' => $txt957,
-		'actions' => $vlActions,
-		'primary' => array(findtekst('7003|Ny vare', $sprog_id), "varekort.php?returside={$listReturnQuery}", 'accesskey' => 'N'),
-		'back' => $returside,
-	));
-	print "<table style='width:100%;height:100%;' border='0' cellspacing='0' cellpadding='0'><tbody>\n";
-	print "<tr><td height='1' align='center' valign='top'></td></tr>\n";
+	print "<td style='$topStyle' align='center'> $txt957</td>\n";
+
+	if ($start<$linjeantal) {
+		if ($stock && !$makeSuggestion) {
+			print "<td width='10%'><a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal'>
+				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$txt30</button></a></td>\n";
+		} elseif ($stock && $makeSuggestion && !$alle_varer) {
+			print "<td width='10%'>
+				   <a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse&amp;alle_varer=ja'>
+				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='Medtager alle varer fra valgte leverand&amp;oslash;rer, uanset ordrestatus'>$txt955</button></a></td>\n";
+		} elseif ($stock && $makeSuggestion && $alle_varer) {
+			print "<td width='10%'>
+				   <a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;forslag=ja&amp;beskrivelse=$beskrivelse'>
+				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='Medtager kun varer fra valgte leverand&amp;oslash;rer, som vil komme under minimum udfra ordrer & tilbud'>Kun mangler</button></a></td>\n";
+		} else {
+			print "<td width='10%'><a href='varer.php?{$listNavigationQuery}sort=$sort&amp;start=$start&amp;linjeantal=$linjeantal&amp;beholdning=ja'>
+				   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='Viser status for tilbud, salgsordrer og indk&oslash;bsordrer'>$txt953</button></a></td>\n";
+		}
+	} #else print "<td width='80%' $top_bund> Visning</td>\n";
+
+	print "<td width='5%'><a href='varevisning.php'>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='$txt3101'>$txt813</button></a></td>";
+	if (!$mb62_readonly) print "<td width='5%'><a href='varekort.php?returside={$listReturnQuery}'>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\" title='Opret en ny vare'>Ny</button></a></td>";
+
+	print "</tr>\n";
+	print "</tbody></table>\n";
+
 } else {
 	print "<table style=\"width:100%;height:100%;\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n";
 	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">\n";
@@ -486,10 +540,10 @@ if ($menu == 'S') {
 	} #else print "<td width=\"80%\" $top_bund> Visning</td>\n";
 	if ($popup) {
 		print "<td width=\"5%\"$top_bund onClick=\"javascript:vare_vis=window.open('varevisning.php','vare_vis','scrollbars=1,resizable=1');vare_vis.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\"> <span title='V&aelig;lg hvilke varegrupper og kreditorer som som vises i varelisten'><u>Visning</u></span></td>";
-		print "<td width=\"5%\" $top_bund onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:var productWindow=window.open('varekort.php?popup=1&amp;opener=varer.php&amp;returside=../includes/luk.php','varekort','scrollbars=1,resizable=1');if(productWindow){productWindow.focus();}\"><span style=\"text-decoration: underline;\" title='Opret en ny vare'>Ny</a></span></td>";
+		if (!$mb62_readonly) print "<td width=\"5%\" $top_bund onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"javascript:var productWindow=window.open('varekort.php?popup=1&amp;opener=varer.php&amp;returside=../includes/luk.php','varekort','scrollbars=1,resizable=1');if(productWindow){productWindow.focus();}\"><span style=\"text-decoration: underline;\" title='Opret en ny vare'>Ny</a></span></td>";
 	} else {
 		print "<td width=\"5%\" $top_bund><a href=\"varevisning.php\"> <span title='V&aelig;lg hvilke varegrupper og kreditorer som som vises i varelisten'><u>Visning</u></span></a></td>";
-		print "<td width=\"5%\" $top_bund><a href=\"varekort.php?returside={$listReturnQuery}\"><span title='Opret en ny vare'>Ny</span></a></td>";
+		if (!$mb62_readonly) print "<td width=\"5%\" $top_bund><a href=\"varekort.php?returside={$listReturnQuery}\"><span title='Opret en ny vare'>Ny</span></a></td>";
 	}
 	print "</tr>\n";
 	print "</tbody></table>\n";
@@ -1095,11 +1149,14 @@ function genbestil($vare_id, $antal) {
 			else $ordrenr=1;
 			$qtxt="select * from adresser where id = $lev_id";
 			$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+			$kgSprog = '';
 			if ($r['gruppe']) {
-				$qtxt = "select box1 from grupper ";
+				$qtxt = "select box1, box4 from grupper ";
 				$qtxt.= "where kode = 'K' and art = 'KG' and kodenr = '$r[gruppe]' and fiscal_year = '$regnaar'";
 				$r1 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				$kode=substr($r1['box1'],0,1); $kodenr=substr($r1['box1'],1);
+				// SST-951: the order prints with the forms of the supplier group's language
+				$kgSprog = trim((string)ifset($r1, 'box4', ''));
 			}	else {
 				$qtxt="select varenr from varer where id = '$vare_id'";
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -1109,12 +1166,12 @@ function genbestil($vare_id, $antal) {
 			$r1 = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			$momssats=$r1['box2']*1;
 			$qtxt="insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,"; #218180822
-			$qtxt.="betalingsdage, betalingsbet, cvrnr, notes, art, ordredate, momssats, status, ref)";
+			$qtxt.="betalingsdage, betalingsbet, cvrnr, notes, art, ordredate, momssats, status, ref, sprog)";
 			$qtxt.=" values ";
 			$qtxt.="('$ordrenr','$r[id]','$r[kontonr]','".db_escape_string($r['firmanavn'])."','".db_escape_string($r['addr1'])."',";
 			$qtxt.= "'".db_escape_string($r['addr2'])."','".db_escape_string($r['postnr'])."','".db_escape_string($r['bynavn'])."',";
 			$qtxt.= "'".db_escape_string($r['land]'])."','$r[betalingsdage]','$r[betalingsbet]','$r[cvrnr]','".db_escape_string($r['notes'])."',";
-			$qtxt.= "'KO','$ordredate','$momssats','0','".db_escape_string($ref)."')";
+			$qtxt.= "'KO','$ordredate','$momssats','0','".db_escape_string($ref)."','".db_escape_string($kgSprog ? $kgSprog : 'Dansk')."')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			$qtxt="select id from ordrer where ordrenr='$ordrenr' and art = 'KO'";
 			$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));

@@ -3,8 +3,10 @@
 // 20261022 CDX/LH Exercise payable with invoice context, required by the shared eligibility guard.
 // 20261022 CDX/LH Assert signup defaults off independently of invoice collection and enrolment.
 // 20261022 CDX/LH Give synthetic pending/paid state fixtures their required status, matching persisted payment rows.
+// 20261118 CDX/ASR Verify that customer mails greet the recipient company rather than a contact person.
+// 20261126 ASR Payment review (GPT-P-1): enrolment inside the caller's transaction leaves it open, so nothing the test made is committed.
 
-require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/support/bootstrap.php';
 
 final class StripeSmokeTest extends StripeDatabaseTestCase
 {
@@ -197,6 +199,7 @@ final class StripeSmokeTest extends StripeDatabaseTestCase
         StripeTestTransport::queueBody(['id' => 'cus_fixture'], 'POST', '/v1/customers/cus_fixture');
         StripeTestTransport::queueBody(['id' => 'pm_fixture'], 'POST', '/v1/payment_methods/pm_fixture');
         $this->assertTrue(stripe_enrol_debtor($invoice, 'pm_fixture', 'visa', '4242'));
+        $this->assertSame(PGSQL_TRANSACTION_INTRANS, pg_transaction_status($GLOBALS['connection']), 'the test transaction is still open');
         $debtorRow = StripeFixtures::row('adresser', $debtor);
         $this->assertSame('on', $debtorRow['stripe']);
         $this->assertSame('pm_fixture', $debtorRow['stripe_pm_id']);
@@ -217,7 +220,7 @@ final class StripeSmokeTest extends StripeDatabaseTestCase
         $this->assertCount(1, StripeTestTransport::$mails);
         $mail = StripeTestTransport::$mails[0];
         $this->assertSame('debtor@stripe-tests.invalid', $mail['to']);
-        $this->assertStringContainsString('Hej Anne, her er jeres faktura.', $mail['text']);
+        $this->assertStringContainsString('Hej Stripe test debtor, her er jeres faktura.', $mail['text']);
         $this->assertStringContainsString(stripe_invoice_url($id), $mail['text']);
         $this->assertStringContainsString('340,00 kr.', $mail['html']);
         $this->assertSame([], StripeTestTransport::$requests);

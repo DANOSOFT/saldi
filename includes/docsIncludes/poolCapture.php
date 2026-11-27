@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/poolCapture.php --- ver 5.0.0 --- 2026-10-21 ---
+// --- includes/docsIncludes/poolCapture.php --- ver 5.1.1 --- 2026-11-10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,9 +27,14 @@
 //                At attach time every field that ends up different is written to pool_capture_log as a correction; the snapshot is kept there too.
 //                "Rapportér fejl i aflæsning" stores a report in pool_capture_log and e-mails it to support (PHPMailer), retried by the pool's folder sync.
 //                The pure functions (snapshot, diff, mail text) have no database access and are unit tested.
+// 20261005 CL/SZ SD-727 The row poolCaptureStore() creates gets its content hash (poolContentHashStore()), so the same bilag arriving again is recognised.
 // 20261007 CL/SZ SD-722 Without the company's own SMTP server a saldi.dk server sends the report as <database>@<server>, with the company in Reply-To,
 //                as sendMail.php does: sent from the company's own domain it was dropped by the receiving server (SPF).
 // 20261021 CL/SZ SD-722 (CodeRabbit) poolCaptureReportId(): this user's latest report of a document, used by poolCaptureReported() and for a new report's id.
+// 20261023 CL/LH SST-868 poolCaptureRecordAttach() takes the pool file name separately ($poolFilename): an attach whose name was taken
+//                lands under a suffixed name, and the snapshot is still read from the pool row under the old one.
+// 20261026 CL/LH poolCaptureClientTexts(): the texts of the Debet suggestion line and its list of other accounts.
+// 20261110 CDX/NTR Document the client text payload and its count placeholders.
 
 require_once __DIR__ . '/poolAmountNormalizer.php';
 require_once __DIR__ . '/poolDateNormalizer.php';
@@ -341,6 +346,9 @@ if (!function_exists('poolCaptureStore')) {
 			db_modify("INSERT INTO pool_files (filename, subject, file_date) VALUES ('$nameSql', '" . db_escape_string(pathinfo($filename, PATHINFO_FILENAME)) . "', '"
 				. date('Y-m-d H:i:s', filemtime($filePath)) . "')$conflict", __FILE__ . " linje " . __LINE__);
 		}
+		// The folder sync never inserts this row, so the content hash it would have set is set here (MB-42, SD-727)
+		include_once(__DIR__ . '/poolContentHash.php');
+		poolContentHashStore($filename, $filePath);
 		$rawJson = json_encode($raw, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
 		// The service's answer is small; a cap keeps a misbehaving answer out of the row
 		if ($rawJson === false || strlen($rawJson) > 65535) $rawJson = null;
@@ -534,16 +542,17 @@ if (!function_exists('poolCaptureRecordAttach')) {
 	 * At attach time, before the pool row is deleted: one correction record per field that was saved differently from what was
 	 * captured, and the snapshot itself, so the document can still be reported from the journal line.
 	 *
-	 * @param string      $filename Pool file name.
+	 * @param string      $filename File name the document was attached under (documents.filename).
 	 * @param int         $sourceId kassekladde.id the document was attached to.
 	 * @param string      $filePath Where the file is now, for its content hash when the pool row has none.
 	 * @param int|null    $userId
 	 * @param string      $userName
+	 * @param string|null $poolFilename Pool file name, when the document landed under another name (SST-868); null when it is $filename.
 	 * @return int Correction records written.
 	 */
-	function poolCaptureRecordAttach($filename, $sourceId, $filePath, $userId, $userName) {
+	function poolCaptureRecordAttach($filename, $sourceId, $filePath, $userId, $userName, $poolFilename = null) {
 		if (!poolCaptureReady() || !(int)$sourceId) return 0;
-		$pool = db_fetch_array(db_select("SELECT capture_values, capture_raw, content_sha256 FROM pool_files WHERE filename = '" . db_escape_string($filename) . "'", __FILE__ . " linje " . __LINE__));
+		$pool = db_fetch_array(db_select("SELECT capture_values, capture_raw, content_sha256 FROM pool_files WHERE filename = '" . db_escape_string($poolFilename ?? $filename) . "'", __FILE__ . " linje " . __LINE__));
 		$snapshot = $pool ? json_decode((string)$pool['capture_values'], true) : null;
 		if (!is_array($snapshot) || !isset($snapshot['fields'])) return 0;
 		$final = poolCaptureFinalValues($sourceId, $filename);
@@ -738,13 +747,56 @@ if (!function_exists('poolCaptureMailLabels')) {
 }
 
 if (!function_exists('poolCaptureClientTexts')) {
-	/** The texts javascript/poolCapture.js shows. */
+	/**
+	 * Translate the labels, messages and suggestion templates consumed by javascript/poolCapture.js.
+	 *
+	 * Count templates retain $antal and $total for the browser's fill() helper.
+	 *
+	 * @param int $sprog_id Language ID passed to findtekst().
+	 * @return array{
+	 *   read: string, Badge for an extracted value.
+	 *   suggested: string, Badge for a suggested account.
+	 *   use: string, Action to accept a suggestion.
+	 *   reject: string, Action to reject a suggestion.
+	 *   ofTotal: string, Voucher-count template containing $antal and $total.
+	 *   oneOther: string, Label for one alternative account.
+	 *   others: string, Alternative-count template containing $antal.
+	 *   searchOther: string, Action to open the normal account lookup.
+	 *   listHead: string, History-list heading containing $antal.
+	 *   viaCvr: string, Supplier match reason: CVR number.
+	 *   viaBank: string, Supplier match reason: bank account.
+	 *   viaName: string, Supplier match reason: name.
+	 *   report: string, Action to open the capture-error report.
+	 *   notice: string, Explanation of the report sent to support.
+	 *   send: string, Submit-report action.
+	 *   cancel: string, Cancel-report action.
+	 *   thanks: string, Successful-report message.
+	 *   already: string, Previously-reported message.
+	 *   failed: string, Report-failure message.
+	 *   noCapture: string, Message when no extracted values exist.
+	 *   field: string, Field-column heading.
+	 *   now: string, Current-value column heading.
+	 *   comment: string, Report-comment label.
+	 *   labels: array{
+	 *     date: string, Date field label.
+	 *     amount: string, Amount field label.
+	 *     invoiceNumber: string, Invoice-number field label.
+	 *     currency: string, Currency field label.
+	 *     kreditor: string, Supplier field label.
+	 *   }, Labels used to describe captured and current values.
+	 * }
+	 */
 	function poolCaptureClientTexts($sprog_id) {
 		return array(
 			'read' => findtekst('5371|Aflæst', $sprog_id),
 			'suggested' => findtekst('5255|Forslag', $sprog_id),
 			'use' => findtekst('5242|Brug forslag', $sprog_id),
 			'reject' => findtekst('5391|Afvis forslaget', $sprog_id),
+			'ofTotal' => findtekst('7660|$antal af $total bilag', $sprog_id),
+			'oneOther' => findtekst('7661|1 anden', $sprog_id),
+			'others' => findtekst('7662|$antal andre', $sprog_id),
+			'searchOther' => findtekst('7664|Søg anden konto', $sprog_id),
+			'listHead' => findtekst('7665|Sidste $antal bilag fra kreditoren', $sprog_id),
 			'viaCvr' => findtekst('5374|Fundet via CVR-nr.', $sprog_id),
 			'viaBank' => findtekst('5375|Fundet via bankkonto', $sprog_id),
 			'viaName' => findtekst('5376|Fundet via navn', $sprog_id),

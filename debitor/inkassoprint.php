@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------------debitor/inkassoprint-----lap 3.7.0---2017.03.24-------
+// ----------------debitor/inkassoprint-----ver 5.1.1---2026.11.27-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,10 +23,14 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2017 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261126 ASR Review LR2-5: the page hands nothing over unless thisDb names the session's ledger (reminder_request_ledger_matches()), as rykkerprint.php.
+//              rykker.php's Inkasso passes it on; the page works on reminder orders (art R1-R3).
+// 20261127 ASR Review CL3-4: after either refusal the page goes back to the open-posts report once the message is read (formReminderAlertThenGo()), as rykker.php does.
+// 20261127 CL/ASR Comments state the current rule; no code change.
 
 
 @session_start();
@@ -37,14 +41,24 @@ $permission_key = 'debitor.konti';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/formfunk.php");
+include_once(__DIR__ . '/../includes/reminderLegal.php');
 
-$inkasso=if_isset($_GET['inkasso']);
-$rykker_id=if_isset($_GET['rykker_id']);
+// 20261126 ASR Review LR2-5: a reminder page drawn in another ledger hands nothing over here (as rykkerprint.php)
+if (!reminder_request_ledger_matches($_GET['thisDb'] ?? null, (string)$db)) {
+	print formReminderAlertThenGo(array(reminder_txt(8210, 'Regnskabet er skiftet, eller rapporten er for gammel. Åbn rapporten igen i det ønskede regnskab, før du arbejder videre med rykkerne.')), 'rapport.php?rapportart=openpost'); // 20261127 ASR Review CL3-4
+	exit;
+}
+$inkasso=(int)if_isset($_GET['inkasso']);
+$rykker_id=(int)if_isset($_GET['rykker_id']);
 $bg="nix";
 $fakturasum=0;
 
-$qtxt="select * from ordrer where id='$rykker_id'";
+$qtxt="select * from ordrer where id='$rykker_id' and art like 'R%'"; # 20261126 ASR Review LR2-5: a reminder only
 $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+if (!$r) {
+	print formReminderAlertThenGo(array(reminder_txt(8230, 'Rykkeren findes ikke længere.')), 'rapport.php?rapportart=openpost'); // 20261127 ASR Review CL3-4
+	exit;
+}
 $txt="<b><big>Inkasso</big></b><br><br>\n";
 $txt.="<b>Rykker id:</b><span style=\"position:absolute;left:100px;\">$r[ordrenr]</span><br>\n";
 $txt.="<hr>";

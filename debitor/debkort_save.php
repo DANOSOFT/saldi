@@ -1,5 +1,5 @@
 <?php
-// ---------------------debitor/debkort_save.php----lap 3.4.1---2014-05-05---
+// ---------------------debitor/debkort_save.php----ver 5.1.1---2026-11-13---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,10 +18,35 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2014 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 2014.05.05 indsat  >>|| $_POST['firmanavn']<< da man ikke kunne oprette nye kunder. (PHR - Danosoft) Søg20140505
+// 20261105 CL/LH Slet keeps a customer that open posts or orders point at and says why, instead of leaving them without an owner (account_has_entries()).
+// 20261105 CL/LH Gem on a card drawn before the card was last saved writes nothing and says so (account_card_begin_save()), as on debitor/debitorkort.php.
+//                It wrote every field back from the old form over a colleague's save.
+//                The save compares the form's version and writes in one transaction that locks the account first; a Gem without a version is refused.
+// 20261110 CDX/ASR Reject generic card saves for CRM leads before any account or contact mutation.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+
+/**
+ * Injected by ../includes/online.php via the entry page that includes this file:
+ * @var int $sprog_id
+ * @var string $charset
+ * Optional customer context supplied by that entry page:
+ * @var int|string|null $id
+ * @var int|string|null $konto_id
+ */
+include_once(__DIR__ . '/../includes/crmLeadGuard.php');
+crm_guard_lead_accounts(
+	array($_GET['id'] ?? null, $_GET['konto_id'] ?? null, $_POST['id'] ?? null, $_POST['konto_id'] ?? null, $id ?? null, $konto_id ?? null),
+	(string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'),
+	(int) ($sprog_id ?? 1),
+	array('inframe' => $_GET['inframe'] ?? $_POST['inframe'] ?? null, 'popup' => $_GET['popup'] ?? $_POST['popup'] ?? null),
+	(string) ($charset ?? 'UTF-8')
+);
+include_once(__DIR__ . '/../includes/stdFunc/accountHasEntries.php');
+include_once(__DIR__ . '/../includes/stdFunc/accountCardVersion.php');
 
 if ($delete_category=if_isset($_GET['delete_category'])) {
 	$r=db_fetch_array(db_select("select * from grupper where art='DebInfo'",__FILE__ . " linje " . __LINE__));
@@ -41,7 +66,12 @@ $rename_category=if_isset($_GET['rename_category']);
 if ($_POST['id'] || $_POST['firmanavn']) { #20140505
 	$submit=db_escape_string(trim($_POST['submit']));
  	$id=(int)$_POST['id'];	# Kommer fra formularen og bruges direkte i SQL nedenfor
- 	if ($submit!="Slet") {
+	if ($submit!="Slet" && !account_card_begin_save($id, $_POST)) {
+		# Drawn before the card was last saved, or posted without the version: this Gem would put that save's fields
+		# back. Nothing is written, and sager/kunder.php draws the card as it is saved. A save that may write holds the
+		# account's lock from here to account_card_end_save().
+		print account_card_stale_alert();
+	} elseif ($submit!="Slet") {
 		$notes=$_POST['notes'];
 		$firmanavn=db_escape_string(trim($_POST['firmanavn']));
 		$addr1=db_escape_string(trim($_POST['addr1']));
@@ -146,7 +176,7 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
 
 		if (substr($ny_kontonr,0,1)=="=") {
 			$ny_kontonr=str_replace("=","",$ny_kontonr);
-
+			account_card_end_save(false);
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=kontofusion.php?returside=$returside&ordre_id=$ordre_id&id=$id&fokus=$fokus&kontonr=$ny_kontonr\">\n";
 			exit;
 		}
@@ -380,6 +410,7 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
 					print "<BODY onLoad=\"javascript:alert('$alerttekst')\"><!--tekst 352-->\n";
 				}
  	 	 	}
+			account_card_end_save();
 #			if (!$pbs) {
 # 	 	 	 	if ($r=db_fetch_array(db_select("select id from pbs_kunder where konto_id = '$id'",__FILE__ . " linje " . __LINE__))) {
 #					
@@ -387,6 +418,8 @@ if ($_POST['id'] || $_POST['firmanavn']) { #20140505
 #				}
 #			}
 		}
+	} elseif (account_has_entries($id)) {
+		print account_has_entries_alert();
 	} else {
 		db_modify("delete from adresser where id = $id",__FILE__ . " linje " . __LINE__);
 		db_modify("delete from shop_adresser where saldi_id = $id",__FILE__ . " linje " . __LINE__);

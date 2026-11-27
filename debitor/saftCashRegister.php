@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/saftCashRegister.php --- patch 4.0.8 --- 2026-06-15 ---
+// --- debitor/saftCashRegister.php --- ver 5.1.1 --- 2026-11-13 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,15 +21,13 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20260615 LOE  Fax updated to Mobile
 // 20260709 SZ Added Grid Framework sticky header to SAF-T Cash Register report
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
-// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 $css = "../css/std.css";
@@ -1146,14 +1144,35 @@ $periodDateTo = $txt2137 . ' ' . $endDay . '. ' . $endMonth . ' ' . $endYear;
 /***************************************************************************************************** */
 
 $newTitle = findtekst('2320|SAF-T', $sprog_id)." ".findtekst('2226|Kasse', $sprog_id);
-if ($menu == 'S') {
+if ($menu == 'T') {
+    $title = findtekst('1142|Rapport', $sprog_id)." • $newTitle";
+
+    include_once '../includes/top_header.php';
+    include_once '../includes/top_menu.php';
+    print "<div id=\"header\">";
+    print "<div class=\"headerbtnLft headLink\"><a href=\"rapport.php\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
+    print "<div class=\"headerTxt\">$title</div>";
+    print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
+    print "</div>";
+    print "<div class='content-noside'>";
+    print "<table class='dataTable' border='0' cellspacing='1' width='100%'>";
+} elseif ($menu == 'S') {
     // Grid Framework header — mirrors Finance -> Reports -> SAF-T (finans/saft.php's $menu=='S'
     // block): a position:sticky wrapper div around the header bar, icon back button (left-aligned,
     // widened to 10% to match Debtors -> Orders/Accounts), 10/85/5 layout.
     // No footer needed for this report (per ticket) — report content below is unaffected.
-    include_once("../includes/stdFunc/pageBar.php");
-    print "<div class='pg-sticky' style=\"position: sticky; top: 0; z-index: 100; background-color: $bgcolor;\">";
-    page_bar(array('title' => findtekst('1142|Rapport', $sprog_id) . " - $newTitle", 'back' => 'rapport.php'));
+    $tilbage_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+
+    print "<div style=\"position: sticky; top: 0; z-index: 100;\">";
+    print "<table bgcolor='#eeeef0' width='100%' cellpadding='0' cellspacing='4' border='0'><tbody>";
+    print "<tr>";
+    print "<td width='10%' align='left'><a href='rapport.php' accesskey=L style=\"text-decoration: none;\">";
+    print "<button class='headerbtn' type='button' style='$buttonStyle; width: 100%; display: flex; align-items: center; gap: 5px; justify-content: flex-start; padding-left: 3px;' onMouseOver=\"this.style.cursor = 'pointer'\">";
+    print "$tilbage_icon " . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
+    print "<td width='85%' align='center' style='$topStyle'>" . findtekst('1142|Rapport', $sprog_id) . " - $newTitle</td>";
+    print "<td width='5%' align='center' style='$topStyle'>&nbsp;</td>";
+    print "</tr>";
+    print "</tbody></table>";
     print "</div>";
 } else {
     print "<table width=100% cellpadding=\"0\" cellspacing=\"1px\" border=\"0\" valign = \"top\" align='center'> ";
@@ -1367,5 +1386,9 @@ if ($fileExist) {
     }
 </script>
 <?php
-include_once '../includes/oldDesign/footer.php';
+if ($menu == 'T') {
+    include_once '../includes/topmenu/footer.php';
+} else {
+    include_once '../includes/oldDesign/footer.php';
+}
 ?>

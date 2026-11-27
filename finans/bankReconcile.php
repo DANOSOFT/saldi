@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/bankReconcile.php --- patch 5.0.0 --- 2026.06.24 ---
+// --- finans/bankReconcile.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,7 +22,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20240213	PHR Copied from bankimport.php
 // 20240403 PHR Added instruction text
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
@@ -31,13 +31,10 @@
 // 20260624 CL/PHR apply 'vend' during reconciliation, show all CSV columns, and remember 'vend'.
 // 20260624 CL/PHR Normalize bank file text encoding when reconciling.
 // 20260916 CDX/LH Confine bank uploads to the tenant and retain all numeric CSV formats and rows.
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20261005 Sawaneh WP-4.10: Tilbage (all menu designs) returns to rapport.php with the received period and accounts.
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
-// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 // 20261006 CL/LH SST-838: vis_data() and bankReconcileFileLines() decode each bank file line byte by byte (valid UTF-8 kept, other bytes read as Windows-1252)
 //                instead of guessing one charset for the whole file, which turned æøå into '?'.
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 ini_set("auto_detect_line_endings", true);
 
 @session_start();
@@ -69,27 +66,35 @@ $kladde_id = null;
 $bilag = null;
 $feltnavn = array();
 $feltantal = 0;
-// WP-4.10: Tilbage returns to the report form with the period and accounts it sent (finans/rapport.php).
-$rapportBackParams = array();
-foreach (array('regnaar', 'maaned_fra', 'maaned_til', 'aar_fra', 'aar_til', 'dato_fra', 'dato_til', 'konto_fra', 'konto_til', 'rapportart') as $k) {
-	if (isset($_GET[$k]) && is_string($_GET[$k]) && $_GET[$k] !== '') {
-		$rapportBackParams[$k] = $_GET[$k];
-	}
-}
-$rapportBackUrl = 'rapport.php' . ($rapportBackParams ? '?' . http_build_query($rapportBackParams) : '');
-$rapportBack = htmlspecialchars($rapportBackUrl, ENT_QUOTES);
 
-if ($menu == 'S') {
-	include_once("../includes/stdFunc/pageBar.php");
-	page_bar(array('title' => findtekst('2213|Bankafstemning', $sprog_id), 'back' => $rapportBackUrl));
+if ($menu == 'T') {
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	print "<div id=\"header\">";
+	print "<div class=\"headerbtnLft headLink\"><a href=bankReconcile.php?kladde_id=$kladde_id accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a></div>";
+	print "<div class=\"headerTxt\">$title</div>";
+	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
+	print "</div>";
+	print "<div class='content-noside'><center>";
+} elseif ($menu == 'S') {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+
+	print "<td width=\"10%\"><a href=rapport.php accesskey=L>
+		   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">"
+		   .findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+
+	print "<td width=\"80%\" align='center' style='$topStyle'>".findtekst('2213|Bankafstemning', $sprog_id)."</td>";
+	print "<td width=\"10%\" align='center' style='$buttonStyle'><br></td>";
+
+	print "</tbody></table>";
 	print "</td></tr>";
 } else {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
-	print "<td width=\"10%\" $top_bund><a href='$rapportBack' accesskey=L>" . findtekst('30|Tilbage', $sprog_id) . "</a></td>";
+	print "<td width=\"10%\" $top_bund><a href=rapport.php accesskey=L>" . findtekst('30|Tilbage', $sprog_id) . "</a></td>";
 	print "<td width=\"80%\" $top_bund>".findtekst('2213|Bankafstemning', $sprog_id)."</td>";
 	print "<td width=\"10%\" $top_bund ><br></td>";
 	print "</tbody></table>";
@@ -198,7 +203,11 @@ if (isset($_FILES['uploadedfile']) && basename($_FILES['uploadedfile']['name']))
 
 print "</tbody></table>";
 
-include_once '../includes/oldDesign/footer.php';
+if ($menu == 'T') {
+	include_once '../includes/topmenu/footer.php';
+} else {
+	include_once '../includes/oldDesign/footer.php';
+}
 
 ################################################################################################################
 function upload($kladde_id, $bilag)

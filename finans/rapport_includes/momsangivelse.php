@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/momsangivelse.php --patch 4.0.8 ----2023-08-31----
+// --- finans/rapport_includes/momsangivelse.php --ver 5.1.0 ----2026-11-13----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20210107 PHR Corrected error in 'deferred financial year'.
 // 20210301 PHR php 7x issues
@@ -29,9 +29,16 @@
 // 20230110 MSC - Implementing new design
 // 20230829 MSC - Copy pasted new design into code
 // 20260515 PK - Removed csv button as it should not be possible to print csv from here
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
-// 20261009 Sawaneh The report head on the new page head (page_bar); the print leg untouched.
+// 20261103 LOE SST-936 Use dimensionSqlFragment() for the department, employee and project filters.
+//              The account range is cast as well, and a year that is not a year falls back to the fiscal year.
+// 20261113 CL/ASR The VAT report range is read for the report's fiscal year with vat_report_range() (includes/vatReportRange.php), not from whichever grupper art='MR' row came first.
+//                 Only D and S accounts add to 'Afgiftsbeløb i alt', so a sum account (Z) in the range no longer counts its accounts twice.
+//                 A VAT account's sign is looked up among the VAT groups (SM, KM, EM, YM) of the year the range was read from.
+// 20261113 CL/ASR The 'Momsindberetning' section (automatic VAT filing to SKAT) is shown only when the company's settings row vat/skat_submission_preview is 'on'.
+//                 It is built on a canned SKAT response (another company, deadlines in 2018) and its buttons do nothing, so users no longer see it; the code stays until SKAT supports the filing.
+//                 The heredoc's end marker sits at the block's indentation again, so the XML starts with its declaration and the preview parses without warnings.
 
+include_once(__DIR__ . "/../../includes/vatReportRange.php");
 
 function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev)
 {
@@ -57,8 +64,13 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 
 	if ($row = db_fetch_array(db_select("select firmanavn from adresser where art='S'", __FILE__ . " linje " . __LINE__)))
 		$firmanavn = $row['firmanavn'];
-	if (($afd) && ($row = db_fetch_array(db_select("select beskrivelse from grupper where art='AFD' and kodenr='$afd'", __FILE__ . " linje " . __LINE__))))
+	// grupper.kodenr is an integer, so only a whole-number department can be looked up - the same test
+	// the transaction filter uses. Department 0 has no row and carries the label the other reports use.
+	if ($afd && preg_match('/^\d+$/', (string)$afd) && ($row = db_fetch_array(db_select("select beskrivelse from grupper where art='AFD' and kodenr='" . (int)$afd . "'", __FILE__ . " linje " . __LINE__)))) {
 		$afd_navn = $row['beskrivelse'];
+	} elseif ($afd == '0') {
+		$afd_navn = 'Kun poster uden afd.';
+	}
 	if (!isset($afgiftssum))
 		$afgiftssum = NULL;
 
@@ -69,8 +81,10 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 
 	$maaned_fra = trim($maaned_fra);
 	$maaned_til = trim($maaned_til);
-	$konto_fra = trim($konto_fra);
-	$konto_til = trim($konto_til);
+	// A bound from ?konto_fra[]= arrives as an array; trim() throws on that, so a value that is
+	// not a scalar is treated as a bound that cannot match (the whole-number test below rejects it).
+	$konto_fra = ($konto_fra === NULL) ? '' : (is_scalar($konto_fra) ? trim((string)$konto_fra) : '?');
+	$konto_til = ($konto_til === NULL) ? '' : (is_scalar($konto_til) ? trim((string)$konto_til) : '?');
 
 	$mf = $maaned_fra;
 	$mt = $maaned_til;
@@ -128,6 +142,15 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 	if (strlen($startdato) < 2)
 		$startdato = "0" . $startdato;
 
+	// The years come from the report form, and they are built straight into a date literal below; a
+	// value that is not a year would turn that literal into a failed query. Fall back to the fiscal
+	// year read from grupper art='RA' instead, the way the months and the day already come from there.
+	if (!preg_match('/^\d{4}$/', (string)$aar_fra)) {
+		$aar_fra = $startaar;
+	}
+	if (!preg_match('/^\d{4}$/', (string)$aar_til)) {
+		$aar_til = $slutaar;
+	}
 
 	$regnstart = $aar_fra . "-" . $startmaaned . "-" . $startdato;
 	$regnslut = $aar_til . "-" . $slutmaaned . "-" . $slutdato;
@@ -136,11 +159,43 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 
 	// load topline settings for menu
 	include("../includes/topline_settings.php");
-	if ($menu == 'S') {
-		$title = findtekst(895, $sprog_id);
+	if ($menu == 'T') {
+		$title = "Rapport • Momsangivelse";
+
+		include_once '../includes/top_header.php';
+		include_once '../includes/top_menu.php';
+		
 		$backUrl = "rapport.php?rapportart=$rapportart&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev";
-		include_once("../includes/stdFunc/pageBar.php");
-		page_bar(array('title' => findtekst('895|Finansrapport', $sprog_id), 'back' => "javascript:confirmClose('$backUrl','')"));
+		$leftbutton = "<a title=\"" . findtekst('30|Tilbage', $sprog_id) . "\" href=\"$backUrl\" accesskey='L' style='text-decoration: none;'><i class='fa fa-close fa-lg'></i> " . findtekst('30|Tilbage', $sprog_id) . "</a>";
+		// $rightbutton = "<a href='$csvfile' title='CSV' style='color:#ffffff; text-decoration: none;'><i class='fa fa-download fa-lg'></i> CSV</a>";
+		
+		print "<div id=\"header\">";
+		print "<div class=\"headerbtnLft headLink\">$leftbutton</div>";
+		print "<div class=\"headerTxt\">" . findtekst(895, $sprog_id) . "</div>";
+		print "<div class=\"headerbtnRght headLink\">$rightbutton</div>";
+		print "</div>";
+		print "<div class='content-noside'>";
+		print "<div style=\"position: sticky; top: 0; z-index: 100;\">";
+		print "<table class='dataTable' border='0' cellspacing='1' width='100%'>";
+	} elseif ($menu == 'S') {
+		$title = findtekst(895, $sprog_id);
+		$tilbage_icon  = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+		
+		$backUrl = "rapport.php?rapportart=$rapportart&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev";
+		
+		print "<table bgcolor='#eeeef0' width='100%' cellpadding='0' cellspacing='0' border='0' id='tableA'><tbody>";
+		print "<tr><td colspan=8 align=center>";
+		print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>";
+		
+		print "<td width=\"5%\"><a href=\"javascript:confirmClose('$backUrl','')\" accesskey=L style='text-decoration: none;'>";
+		print "<button class='headerbtn' type='button' style='$buttonStyle; width: 100%; display: flex; align-items: center; gap: 5px;' onMouseOver=\"this.style.cursor = 'pointer'\">";
+		print "$tilbage_icon " . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
+		
+		print "<td width='90%' align='center' style='$topStyle'>" . findtekst('895|Finansrapport', $sprog_id) . "</td>";
+		print "<td width='5%' align='center' style='$topStyle'>&nbsp;</td>";
+		
+		print "</tbody></table>";
+		print "</td></tr></tbody></table>";
 		print "<div style=\"position: sticky; top: 0; z-index: 100;\">";
 		print "<table class='dataTable' border='0' cellspacing='1' width='100%'>";
 	} else {
@@ -155,7 +210,7 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 	}
 	print "<tr><td colspan=\"4\"><big><big>" . ucfirst($rapportart) . "</span></big></big></td>";
 	print "<td colspan=2 align=right><table style=\"text-align: left; width: 400px;\" border=\"0\" cellspacing=\"1\" cellpadding=\"1\"><tbody><tr>";
-	if ($afd) {
+	if ($afd || $afd == '0') {
 		print "<td>Afdeling</span></td>";
 		print "<td>$afd: $afd_navn</span></td></tr>";
 	}
@@ -187,33 +242,20 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 	print "<tr><td colspan=6><hr></td></tr>";
 
 	$dim = '';
-	if ($afd || $ansat_fra || $projekt_fra) {
-		if ($afd)
-			$dim = "and afd = $afd ";
-		if ($ansat_fra)
-			$dim = $dim . "and ansat = '$ansat_fra' ";
+	if ($afd || $afd == '0' || $ansat_fra || $projekt_fra) {
 		$projekt_fra = str2low($projekt_fra);
 		$projekt_til = str2low($projekt_til);
-		if ($projekt_fra && $projekt_til && $projekt_fra != $projekt_til)
-			$dim = $dim . " and lower(projekt) >= '$projekt_fra' and lower(projekt) <= '$projekt_til' ";
-		elseif ($projekt_fra) {
-			$tmp = str_replace("?", "_", $projekt_fra);
-			if (substr($tmp, -1) == '_') {
-				while (substr($tmp, -1) == '_')
-					$tmp = substr($tmp, 0, strlen($tmp) - 1);
-				$tmp = str2low($tmp) . "%";
-			}
-			$dim = $dim . "and lower(projekt) LIKE '$tmp' ";
-		}
+		$dim = dimensionSqlFragment($afd, $ansat_fra, $ansat_til, $ansatte_id, $projekt_fra, $projekt_til);
 	}
 
-	$row = db_fetch_array($query = db_select("select box1, box2 from grupper where art='MR'", __FILE__ . " linje " . __LINE__));
-	if (($row['box1']) && ($row['box2'])) {
-		$konto_fra = $row['box1'];
-		$konto_til = $row['box2'];
+	// The range of the report's own fiscal year (includes/vatReportRange.php); null when it is not set up.
+	$momsRange = vat_report_range((int)$regnaar);
+	if ($momsRange) {
+		$konto_fra = $momsRange['from'];
+		$konto_til = $momsRange['to'];
 
 		$x = 0;
-		$qtxt = "select * from kontoplan where regnskabsaar='$regnaar' and kontonr>=$konto_fra and kontonr<=$konto_til order by kontonr";
+		$qtxt = "select * from kontoplan where regnskabsaar='$regnaar' " . kontoRangeSqlFragment($konto_fra, $konto_til) . "order by kontonr";
 		$query = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($row = db_fetch_array($query)) {
 			$x++;
@@ -229,22 +271,27 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 		$kontoantal = $x;
 		$kto_aar[$x] = 0;
 		$kto_periode[$x] = 0;
+		$kontoSql = kontoRangeSqlFragment($konto_fra, $konto_til);
+		// Only compared in PHP below, where an empty bound is the whole range.
+		$konto_fraSql = ($konto_fra === '') ? 0 : (preg_match('/^\d+$/', (string)$konto_fra) ? (int)$konto_fra : PHP_INT_MAX);
+		$konto_tilSql = ($konto_til === '') ? PHP_INT_MAX : (preg_match('/^\d+$/', (string)$konto_til) ? (int)$konto_til : 0);
+
 		$ktonr = array();
 		$x = 0;
-		$query = db_select("select * from transaktioner where transdate>='$regnstart' and transdate<='$regnslut' and kontonr>='$konto_fra' and kontonr<='$konto_til' $dim order by kontonr", __FILE__ . " linje " . __LINE__);
+		$query = db_select("select * from transaktioner where transdate>='$regnstart' and transdate<='$regnslut' " . $kontoSql . "$dim order by kontonr", __FILE__ . " linje " . __LINE__);
 		while ($row = db_fetch_array($query)) {
 			if (!in_array($row['kontonr'], $ktonr)) { # Her fanges konto med bevaegelser i perioden.
 				$x++;
 				$ktonr[$x] = $row['kontonr'] * 1;
 				$kto_aar[$x] = 0;
-				if (($medtag_primo && !$afd) && ($r2 = db_fetch_array(db_select("select primo from kontoplan where regnskabsaar='$regnaar' and kontonr=$ktonr[$x] and kontotype='S'", __FILE__ . " linje " . __LINE__)))) {
+				if (($medtag_primo && !($afd || $afd == '0')) && ($r2 = db_fetch_array(db_select("select primo from kontoplan where regnskabsaar='$regnaar' and kontonr=$ktonr[$x] and kontotype='S'", __FILE__ . " linje " . __LINE__)))) {
 					$kto_aar[$x] = afrund($r2['primo'], 2);
 				}
 			}
 			$kto_aar[$x] = $kto_aar[$x] + afrund($row['debet'], 2) - afrund($row['kredit'], 2);
 		}
 		$kto_antal = $x;
-		if ($medtag_primo && !$afd) {
+		if ($medtag_primo && !($afd || $afd == '0')) {
 			for ($x = 1; $x <= $kontoantal; $x++) { # Her fanges konto med primovaerdi og ingen bevaegelser i perioden.
 				if (!in_array($kontonr[$x], $ktonr)) {
 					if ($primo[$x]) {
@@ -270,22 +317,28 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 		}
 
 		for ($x = 1; $x <= $kontoantal; $x++) {
-			if (($kontonr[$x] >= $konto_fra) && ($kontonr[$x] <= $konto_til)) {
+			if (($kontonr[$x] >= $konto_fraSql) && ($kontonr[$x] <= $konto_tilSql)) {
 				print "<tr>";
 				$aarsum[$x] = afrund($aarsum[$x], 0);
 				print "<td>$kontonr[$x] </td>";
 				$tmp = kontobemaerkning($kontobeskrivelse[$x]);
 				print "<td $tmp colspan=3>$kontobeskrivelse[$x] </td>";
-				$qtxt = "select art from grupper where box1='$kontonr[$x]' and art<>'MR'";
+				// The VAT groups of the year the range was read from (the report's year, or the nearest earlier year that has a range).
+				$qtxt = "select art from grupper where box1='$kontonr[$x]' and art in ('SM','KM','EM','YM') and fiscal_year='" . (int)$momsRange['fiscal_year'] . "'";
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				if (isset($r['art']) && ($r['art'] == 'SM' || $r['art'] == 'YM' || $r['art'] == 'EM')) {
 					print "<td>&nbsp;</td>";
 					$tmp = dkdecimal($aarsum[$x] * -1, 2);
-				} else
+				} else {
 					$tmp = dkdecimal($aarsum[$x], 2);
+				}
 				print "<td align=right>$tmp </td>";
 				print "</tr>\n";
-				$afgiftssum = $afgiftssum + $aarsum[$x];
+				// A sum account (Z) repeats the accounts it sums and a heading carries no amount, so only the
+				// D and S accounts make up the total.
+				if ($kontotype[$x] == 'D' || $kontotype[$x] == 'S') {
+					$afgiftssum = $afgiftssum + $aarsum[$x];
+				}
 			}
 		}
 		$tmp = dkdecimal($afgiftssum * -1, 2);
@@ -307,116 +360,122 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 
 		/**************************************************************************************************** */
 		// Automatisk momsindberetning til skat
+		// Filing the VAT to SKAT waits for SKAT's support. Until then this section runs on a canned 'kalenderHent' response (another
+		// company, deadlines in 2018) and its buttons have no handler, so it is a developer preview: it is shown only when the
+		// company's settings row var_grp 'vat', var_name 'skat_submission_preview' is 'on'. Without that row nobody sees it.
+		$qtxt = "select var_value from settings where var_grp = 'vat' and var_name = 'skat_submission_preview' and (user_id is null or user_id = 0) order by id desc limit 1";
+		$skatRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		if ($skatRow && trim((string)$skatRow['var_value']) === 'on') {
+			// This is a response from 'kalenderHent'
+			$kalenderResponse = <<<XML
+			<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+			<ns4:VirksomhedKalenderHent_O xmlns="http://rep.oio.dk/skat.dk/basis/kontekst/xml/schemas/2006/09/01/" xmlns:ns2="http://rep.oio.dk/skat.dk/motor/class/virksomhed/xml/schemas/20080401/" xmlns:ns4="urn:oio:skat:nemvirksomhed:ws:1.0.0" xmlns:ns3="urn:oio:skat:nemvirksomhed:1.0.0">
+				<HovedOplysningerSvar>
+					<TransaktionIdentifikator>f26fe3e6-771b-4b3d-aeeb-0b500a9bc709</TransaktionIdentifikator>
+					<ServiceIdentifikator>NTSE</ServiceIdentifikator>
+					<TransaktionTid>2024-01-23T10:34:15.651+01:00</TransaktionTid>
+					<SvarStruktur/>
+				</HovedOplysningerSvar>
+				<ns2:VirksomhedSENummerIdentifikator>41250313</ns2:VirksomhedSENummerIdentifikator>
+				<ns3:PligtKode>63</ns3:PligtKode>
+				<ns4:AngivelseFrekvensListe>
+					<ns4:AngivelseFrekvens>
+						<ns3:AngivelseFrekvensForholdGyldigFraDate>2014-01-02</ns3:AngivelseFrekvensForholdGyldigFraDate>
+						<ns3:AngivelseFrekvensTypeCode>8</ns3:AngivelseFrekvensTypeCode>
+						<ns4:AngivelseBetalingFristDatoListe>
+							<ns4:AngivelseBetalingFristDato>
+								<ns3:AngivelseFristKalenderFristDato>2018-03-01</ns3:AngivelseFristKalenderFristDato>
+								<ns3:AngivelseFristKalenderBetalingDato>2018-03-01</ns3:AngivelseFristKalenderBetalingDato>
+							</ns4:AngivelseBetalingFristDato>
+							<ns4:AngivelseBetalingFristDato>
+								<ns3:AngivelseFristKalenderFristDato>2018-06-01</ns3:AngivelseFristKalenderFristDato>
+								<ns3:AngivelseFristKalenderBetalingDato>2018-06-01</ns3:AngivelseFristKalenderBetalingDato>
+							</ns4:AngivelseBetalingFristDato>
+							<ns4:AngivelseBetalingFristDato>
+								<ns3:AngivelseFristKalenderFristDato>2018-09-03</ns3:AngivelseFristKalenderFristDato>
+								<ns3:AngivelseFristKalenderBetalingDato>2018-09-03</ns3:AngivelseFristKalenderBetalingDato>
+							</ns4:AngivelseBetalingFristDato>
+							<ns4:AngivelseBetalingFristDato>
+								<ns3:AngivelseFristKalenderFristDato>2018-12-03</ns3:AngivelseFristKalenderFristDato>
+								<ns3:AngivelseFristKalenderBetalingDato>2018-12-03</ns3:AngivelseFristKalenderBetalingDato>
+							</ns4:AngivelseBetalingFristDato>
+						</ns4:AngivelseBetalingFristDatoListe>
+					</ns4:AngivelseFrekvens>
+				</ns4:AngivelseFrekvensListe>
+			</ns4:VirksomhedKalenderHent_O>
+			XML;
 
-		// This is a response from 'kalenderHent'
-		$kalenderResponse = <<<XML
-		<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-		<ns4:VirksomhedKalenderHent_O xmlns="http://rep.oio.dk/skat.dk/basis/kontekst/xml/schemas/2006/09/01/" xmlns:ns2="http://rep.oio.dk/skat.dk/motor/class/virksomhed/xml/schemas/20080401/" xmlns:ns4="urn:oio:skat:nemvirksomhed:ws:1.0.0" xmlns:ns3="urn:oio:skat:nemvirksomhed:1.0.0">
-			<HovedOplysningerSvar>
-				<TransaktionIdentifikator>f26fe3e6-771b-4b3d-aeeb-0b500a9bc709</TransaktionIdentifikator>
-				<ServiceIdentifikator>NTSE</ServiceIdentifikator>
-				<TransaktionTid>2024-01-23T10:34:15.651+01:00</TransaktionTid>
-				<SvarStruktur/>
-			</HovedOplysningerSvar>
-			<ns2:VirksomhedSENummerIdentifikator>41250313</ns2:VirksomhedSENummerIdentifikator>
-			<ns3:PligtKode>63</ns3:PligtKode>
-			<ns4:AngivelseFrekvensListe>
-				<ns4:AngivelseFrekvens>
-					<ns3:AngivelseFrekvensForholdGyldigFraDate>2014-01-02</ns3:AngivelseFrekvensForholdGyldigFraDate>
-					<ns3:AngivelseFrekvensTypeCode>8</ns3:AngivelseFrekvensTypeCode>
-					<ns4:AngivelseBetalingFristDatoListe>
-						<ns4:AngivelseBetalingFristDato>
-							<ns3:AngivelseFristKalenderFristDato>2018-03-01</ns3:AngivelseFristKalenderFristDato>
-							<ns3:AngivelseFristKalenderBetalingDato>2018-03-01</ns3:AngivelseFristKalenderBetalingDato>
-						</ns4:AngivelseBetalingFristDato>
-						<ns4:AngivelseBetalingFristDato>
-							<ns3:AngivelseFristKalenderFristDato>2018-06-01</ns3:AngivelseFristKalenderFristDato>
-							<ns3:AngivelseFristKalenderBetalingDato>2018-06-01</ns3:AngivelseFristKalenderBetalingDato>
-						</ns4:AngivelseBetalingFristDato>
-						<ns4:AngivelseBetalingFristDato>
-							<ns3:AngivelseFristKalenderFristDato>2018-09-03</ns3:AngivelseFristKalenderFristDato>
-							<ns3:AngivelseFristKalenderBetalingDato>2018-09-03</ns3:AngivelseFristKalenderBetalingDato>
-						</ns4:AngivelseBetalingFristDato>
-						<ns4:AngivelseBetalingFristDato>
-							<ns3:AngivelseFristKalenderFristDato>2018-12-03</ns3:AngivelseFristKalenderFristDato>
-							<ns3:AngivelseFristKalenderBetalingDato>2018-12-03</ns3:AngivelseFristKalenderBetalingDato>
-						</ns4:AngivelseBetalingFristDato>
-					</ns4:AngivelseBetalingFristDatoListe>
-				</ns4:AngivelseFrekvens>
-			</ns4:AngivelseFrekvensListe>
-		</ns4:VirksomhedKalenderHent_O>
-XML;
+			$dom = new DOMDocument;
 
-		$dom = new DOMDocument;
+			$dom->loadXML($kalenderResponse);
 
-		$dom->loadXML($kalenderResponse);
+			$angivelseFrekvensTypeCode = $dom->getElementsByTagName('AngivelseFrekvensTypeCode')->item(0);
+			$kalenderHent = $dom->getElementsByTagName('AngivelseFristKalenderFristDato');
 
-		$angivelseFrekvensTypeCode = $dom->getElementsByTagName('AngivelseFrekvensTypeCode')->item(0);
-		$kalenderHent = $dom->getElementsByTagName('AngivelseFristKalenderFristDato');
+			$frekvensTypeCode = array(
+				0 => "Ingen",
+				1 => "Straks",
+				2 => "Daglig",
+				5 => "Ugentlig",
+				6 => "14 dage",
+				7 => "Månedlig",
+				8 => "Kvartal",
+				9 => "Halvårlig",
+				10 => "Årlig",
+				16 => "Variabel",
+				17 => "Lejlighedsvis"
+			);
 
-		$frekvensTypeCode = array(
-			0 => "Ingen",
-			1 => "Straks",
-			2 => "Daglig",
-			5 => "Ugentlig",
-			6 => "14 dage",
-			7 => "Månedlig",
-			8 => "Kvartal",
-			9 => "Halvårlig",
-			10 => "Årlig",
-			16 => "Variabel",
-			17 => "Lejlighedsvis"
-		);
+			$errorCodes = array(
+				4801 => "RSU er ikke delegeret af virksomheden",
+				4802 => "Ikke åben periode",
+				4803 => "Periode ikke afsluttet",
+				4804 => "Periode er mere end 3 år gammel",
+				4810 => "Foreløbig statement ikke godkendt",
+				4813 => "Der findes ingen foreløbig momsindberetning",
+				4816 => "Værdien i <Angivelsestype> findes ikke. Skal være \"Moms\".",
+				4811 => "Ingen kvittering, den foreløbige momsangivelse er afvist",
+				4812 => "Kvittering findes ikke",
+				4817 => "Søgedato start er efter søgedatoslut"
+			);
 
-		$errorCodes = array(
-			4801 => "RSU er ikke delegeret af virksomheden",
-			4802 => "Ikke åben periode",
-			4803 => "Periode ikke afsluttet",
-			4804 => "Periode er mere end 3 år gammel",
-			4810 => "Foreløbig statement ikke godkendt",
-			4813 => "Der findes ingen foreløbig momsindberetning",
-			4816 => "Værdien i <Angivelsestype> findes ikke. Skal være \"Moms\".",
-			4811 => "Ingen kvittering, den foreløbige momsangivelse er afvist",
-			4812 => "Kvittering findes ikke",
-			4817 => "Søgedato start er efter søgedatoslut"
-		);
-
-		/**
-		 * Create a readable date from standart date format '2018-02-01' to '1. februar 2018'
-		 * @param mixed $newDate Date to convert
-		 */
-		function newDate($newDate)
-		{
-			global $md; // global variable with danish monthnames
-			$date = DateTime::createFromFormat('Y-m-d', $newDate);
-			$mn = $date->format('n');
-			$day = $date->format('j');
-			$year = $date->format('Y');
-			return $day . ". " . $md[$mn] . " " . $year;
-		}
-
-		// If RSU (Regnskabsudbyder) is NOT delegated to handle VAT returns for klient. Text and link to skat
-		print "<tr><td colspan=\"6\" style=\"font-size: large;font-weight: lighter;padding: 15px 0;\">Momsindberetning</td></tr>";
-		if (true) {
-			print "<tr><td colspan=\"6\" style=\"padding-bottom:5px;\"><p>Hvis du vil indberettes moms direkte til skat skal du give SALDI tilladelse til at indsende dine momsdata. Det gøres ved at tilmelde SALDI <a href=\"https://skat.dk/erhverv/moms/moms-saadan-goer-du/saadan-indberetter-du-moms\" target=\"_blank\" style=\"color:blue;\">Her</a>.</p></td></tr>";
-			print "<tr><td colspan=\"6\" style=\"padding-bottom:5px;\"><p>Under punktet <mark class=\"mark\"><b>Indberet moms direkte fra dit regnskabsprogram</b></mark> kan du finde en udførlig vejledning i hvordan du giver SALDI lov til at logge på TastSelv Erhverv på dine vegne.</p></td></tr>";
-		}
-		// If RSU is delegated to handle VAT returns for klient. Text and button to get VAT return kalender.
-		if (true) {
-			print "<tr><td colspan=\"6\">Her kan du hente en kalender som viser de datoer som der senest skal indberettes moms.</td></tr>";
-			print "<tr><td colspan=\"6\" style=\"padding-bottom:5px;\"><button>Hent kalender</button></td></tr>";
-		}
-		// If VAT return kalender is present. Text and button for return VAT.
-		if (true) {
-			$nodeValue = $angivelseFrekvensTypeCode->nodeValue;
-			print "<tr><td colspan=\"6\" style=\"padding-bottom:5px;\"><p>Kalender for momsindberetning hvor frekvensen er: " . $frekvensTypeCode[$nodeValue] . "</p></td></tr>";
-			print "<tr><td colspan=\"6\"><table class=\"kalender\">";
-			print "<tr><th>Skal være indberettet og betalt senest</th></tr>";
-			foreach ($kalenderHent as $kalender) {
-				print "<tr><td>" . newDate($kalender->nodeValue) . "</td></tr>";
+			/**
+			 * Create a readable date from standart date format '2018-02-01' to '1. februar 2018'
+			 * @param mixed $newDate Date to convert
+			 */
+			function newDate($newDate)
+			{
+				global $md; // global variable with danish monthnames
+				$date = DateTime::createFromFormat('Y-m-d', $newDate);
+				$mn = $date->format('n');
+				$day = $date->format('j');
+				$year = $date->format('Y');
+				return $day . ". " . $md[$mn] . " " . $year;
 			}
-			print "</table></td></tr>";
-			print "<tr><td colspan=\"6\" style=\"padding-bottom:5px;\"><button>Indberet moms</button></td></tr>";
+
+			// If RSU (Regnskabsudbyder) is NOT delegated to handle VAT returns for klient. Text and link to skat
+			print "<tr><td colspan=\"6\" style=\"font-size: large;font-weight: lighter;padding: 15px 0;\">Momsindberetning</td></tr>";
+			if (true) {
+				print "<tr><td colspan=\"6\" style=\"padding-bottom:5px;\"><p>Hvis du vil indberettes moms direkte til skat skal du give SALDI tilladelse til at indsende dine momsdata. Det gøres ved at tilmelde SALDI <a href=\"https://skat.dk/erhverv/moms/moms-saadan-goer-du/saadan-indberetter-du-moms\" target=\"_blank\" style=\"color:blue;\">Her</a>.</p></td></tr>";
+				print "<tr><td colspan=\"6\" style=\"padding-bottom:5px;\"><p>Under punktet <mark class=\"mark\"><b>Indberet moms direkte fra dit regnskabsprogram</b></mark> kan du finde en udførlig vejledning i hvordan du giver SALDI lov til at logge på TastSelv Erhverv på dine vegne.</p></td></tr>";
+			}
+			// If RSU is delegated to handle VAT returns for klient. Text and button to get VAT return kalender.
+			if (true) {
+				print "<tr><td colspan=\"6\">Her kan du hente en kalender som viser de datoer som der senest skal indberettes moms.</td></tr>";
+				print "<tr><td colspan=\"6\" style=\"padding-bottom:5px;\"><button>Hent kalender</button></td></tr>";
+			}
+			// If VAT return kalender is present. Text and button for return VAT.
+			if (true) {
+				$nodeValue = $angivelseFrekvensTypeCode->nodeValue;
+				print "<tr><td colspan=\"6\" style=\"padding-bottom:5px;\"><p>Kalender for momsindberetning hvor frekvensen er: " . $frekvensTypeCode[$nodeValue] . "</p></td></tr>";
+				print "<tr><td colspan=\"6\"><table class=\"kalender\">";
+				print "<tr><th>Skal være indberettet og betalt senest</th></tr>";
+				foreach ($kalenderHent as $kalender) {
+					print "<tr><td>" . newDate($kalender->nodeValue) . "</td></tr>";
+				}
+				print "</table></td></tr>";
+				print "<tr><td colspan=\"6\" style=\"padding-bottom:5px;\"><button>Indberet moms</button></td></tr>";
+			}
 		}
 
 
@@ -426,11 +485,15 @@ XML;
 
 		print "<tr><td colspan=6><hr></td></tr>";
 		print "</tbody></table>";
-		if ($menu == 'S') {
+		if ($menu == 'T' || $menu == 'S') {
 			print "</div>"; // close sticky wrapper
 		}
 
-		include_once '../includes/oldDesign/footer.php';
+		if ($menu == 'T') {
+			include_once '../includes/topmenu/footer.php';
+		} else {
+			include_once '../includes/oldDesign/footer.php';
+		}
 	} else {
 		print "<BODY onLoad=\"javascript:alert('Rapportspecifikation ikke defineret (Indstillinger -> Moms)')\">";
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=rapport.php?rapportart=kontokort&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&dato_til=$slutdato&maaned_til=$mt&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev\">";

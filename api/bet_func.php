@@ -1,4 +1,5 @@
 <?php
+// 20261127 ASR logon(): with $allowedLedgers in includes/connect.php the ledger must be listed, the master database too, before it is connected (saldi_ledger_allowed()).
 function logon($s_id,$regnskab,$brugernavn,$password,$sqhost,$squser,$sqpass,$sqdb) {
 	$password=md5($password);
 	$unixtime=date("U");
@@ -7,6 +8,7 @@ function logon($s_id,$regnskab,$brugernavn,$password,$sqhost,$squser,$sqpass,$sq
 #	db_modify("delete from online where  session_id = '$s_id'",__FILE__ . " linje " . __LINE__);
 	if ($r=db_fetch_array(db_select("select * from regnskab where regnskab = '$regnskab'",__FILE__ . " linje " . __LINE__))) {
 		if ($db = trim($r['db'])) {
+			if (!saldi_ledger_allowed($db)) return "1".chr(9).saldi_ledger_refusal_text();
 			$connection = db_connect ($sqhost,$squser,$sqpass,$db);
 			if ($connection) {
 				$r=db_fetch_array(db_select("select id from brugere where brugernavn='$brugernavn'",__FILE__ . " linje " . __LINE__));

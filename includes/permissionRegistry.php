@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/permissionRegistry.php --- lap 5.0.0 --- 2026.09.16 ---
+// ---- includes/permissionRegistry.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,24 +20,26 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260916 Sawaneh Central registry of permission keys (spec R1), their mapping to the legacy
-// 20261009 Sawaneh Oversigt keys (front-page addendum 4): dashboard.view + dashboard.block.* as read-only keys in a group of their own,
-//                  first in the matrix, derived from the module keys ('derive_keys'); standard-role defaults per addendum §4.
-//                  16-position rettigheder string, and the built-in default roles (R3).
-//                  Same pattern as systemdata/settingsRegistry.php: one place to maintain.
-// 20260928 Sawaneh pos.kasse key (own group) so point-of-sale access is granted per role.
-// 20260928 Sawaneh Settings-area keys (phase 4, spec S3), one per group of the settings front page.
-// 20260928 Sawaneh Keys and groups aligned with Requirements_settings_redesign_EN.md §4 (11 groups).
-// 20260930 Sawaneh Roles stage 2 (§3.1): settings.roles.manage and settings.audit.read.
-// 20260930 Sawaneh Built-in role descriptions are text ids, so they follow the user's language.
-// 20260930 Sawaneh Audit log for administrators only (Adam 2026-09-30): Bogholder and Revisor no longer read it.
-// 20261002 Sawaneh Standard role matrix for the settings groups as settings redesign §11.4 (hand-over 2 Oct): Administrator
-//                  write, Bogholder read on all eight, every other role none (Lager lost items write / organisation read).
-// 20261002 Sawaneh Keys per settings redesign §11.1: settings.email (was settings.smtp), settings.backup (was system.backup),
-//                  settings.company.danger and settings.organisation.sensitive added; settings.integrations.keys withdrawn.
-
+// 20260916 SS Central registry of permission keys (spec R1), their mapping to the legacy
+// 20261009 SS Oversigt keys (front-page addendum 4): dashboard.view + dashboard.block.* as read-only keys in a group of their own, first in the matrix, derived from the module keys ('derive_keys'); standard-role defaults per addendum §4.
+//             16-position rettigheder string, and the built-in default roles (R3).
+//             Same pattern as systemdata/settingsRegistry.php: one place to maintain.
+// 20260928 SS pos.kasse key (own group) so point-of-sale access is granted per role.
+// 20260928 SS Settings-area keys (phase 4, spec S3), one per group of the settings front page.
+// 20260928 SS Keys and groups aligned with Requirements_settings_redesign_EN.md §4 (11 groups).
+// 20260930 SS Roles stage 2 (§3.1): settings.roles.manage and settings.audit.read.
+// 20260930 SS Built-in role descriptions are text ids, so they follow the user's language.
+// 20260930 SS Audit log for administrators only (Adam 2026-09-30): Bogholder and Revisor no longer read it.
+// 20261002 SS Standard role matrix for the settings groups as settings redesign §11.4 (hand-over 2 Oct): Administrator write, Bogholder read on all eight, every other role none (Lager lost items write / organisation read).
+// 20261002 SS Keys per settings redesign §11.1: settings.email (was settings.smtp), settings.backup (was system.backup), settings.company.danger and settings.organisation.sensitive added; settings.integrations.keys withdrawn.
+// 20261101 CL/ASR dashboard.block.suggestions removed: the Forslag card left the dashboard (the bell holds suggestions).
+// 20261103 CL/ASR QA round 2: Kun visning no longer gets read on dangerous keys (settings.backup), and Bogholder and Revisor get no expiry block, which needs a lager key.
+// 20261104 CL/ASR The batch/expiry tools moved to Varerapport (owner, 4 Nov 2026), so the expiry warning goes to the roles with lager.rapporter: Lager gets Se Oversigt, the expiry warning and news, Indkøb loses the expiry warning.
+//                 dashboard.block.expiry derives from lager.rapporter alone (was lager.varer or lager.rapporter).
+// 20261110 CDX/ASR Add independent CRM access, inheriting the existing debtor level for standard role defaults.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 /**
  * Every permission key the system knows. A key is granted at level none / read / write.
  *
@@ -66,8 +68,7 @@ function permission_registry(): array
 		'dashboard.block.revweek'           => array('group' => 'dashboard', 'label' => '6955|Omsætning pr. dag',        'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('finans.rapporter', 'debitor.rapporter'), 'block' => true),
 		'dashboard.block.varegrp_doughnut'  => array('group' => 'dashboard', 'label' => '6960|Omsætning pr. varegruppe', 'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('debitor.rapporter', 'lager.rapporter'), 'block' => true),
 		'dashboard.block.small'             => array('group' => 'dashboard', 'label' => '7059|Små tal',                  'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('debitor.ordre'), 'block' => true),
-		'dashboard.block.suggestions'       => array('group' => 'dashboard', 'label' => '6968|Forslag klar til bekræftelse', 'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('finans.kassekladde'), 'block' => true),
-		'dashboard.block.expiry'            => array('group' => 'dashboard', 'label' => '7067|Batch-/udløbsadvarsel',    'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('lager.varer', 'lager.rapporter'), 'block' => true),
+		'dashboard.block.expiry'            => array('group' => 'dashboard', 'label' => '7067|Batch-/udløbsadvarsel',    'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('lager.rapporter'), 'block' => true),
 		'dashboard.block.news'              => array('group' => 'dashboard', 'label' => '7068|Nyhedsbanner',              'legacy' => array(), 'dangerous' => false, 'readonly' => true, 'since' => '20261009', 'derive_keys' => array('*'), 'block' => true),
 
 		'finans.kassekladde'     => array('group' => 'finans',   'label' => '601|Kassekladde',         'legacy' => array(2),  'dangerous' => false),
@@ -77,6 +78,9 @@ function permission_registry(): array
 		'debitor.ordre'          => array('group' => 'debitor',  'label' => '1255|Debitorordre',       'legacy' => array(5),  'dangerous' => false),
 		'debitor.konti'          => array('group' => 'debitor',  'label' => '1256|Debitorkonti',       'legacy' => array(6),  'dangerous' => false),
 		'debitor.rapporter'      => array('group' => 'debitor',  'label' => '449|Debitorrapporter',    'legacy' => array(12), 'dangerous' => false),
+
+		// Inherit only at upgrade and legacy fallback; CRM never opens the debtor legacy position.
+		'crm.access' => array('group' => 'crm', 'label' => 'roles.permission.crm_access|Kunder, sager, aktiviteter og kalender', 'legacy' => array(), 'dangerous' => false, 'inherit_from' => 'debitor.konti', 'since' => '20261110'),
 
 		'kreditor.ordre'         => array('group' => 'kreditor', 'label' => '1257|Kreditorordre',      'legacy' => array(7),  'dangerous' => false),
 		'kreditor.konti'         => array('group' => 'kreditor', 'label' => '1258|Kreditorkonti',      'legacy' => array(8),  'dangerous' => false),
@@ -133,6 +137,7 @@ function permission_groups(): array
 		'dashboard' => '2224|Oversigt',
 		'finans'   => '600|Finans',
 		'debitor'  => '604|Debitor',
+		'crm'     => 'roles.group.crm|CRM',
 		'kreditor' => '607|Kreditorer',
 		'lager'    => '608|Lager',
 		'system'   => '2377|System',
@@ -154,7 +159,8 @@ function permission_default_roles(): array
 	$legacyRead = array();
 	foreach (permission_registry() as $key => $def) {
 		$allWrite[$key] = !empty($def['readonly']) ? 'read' : 'write';
-		if ($def['legacy']) {
+		// Kun visning reads every module, but not a dangerous key: read on Sikkerhedskopi (legacy 11) created a full backup.
+		if ($def['legacy'] && empty($def['dangerous'])) {
 			$legacyRead[$key] = 'read';
 		}
 	}
@@ -162,9 +168,15 @@ function permission_default_roles(): array
 	$dashAll = array('dashboard.view' => 'read', 'dashboard.block.kpis' => 'read', 'dashboard.block.unpaid_invoices' => 'read', 'dashboard.block.revgraph' => 'read', 'dashboard.block.customergraph' => 'read',
 		'dashboard.block.revweek' => 'read', 'dashboard.block.varegrp_doughnut' => 'read', 'dashboard.block.small' => 'read', 'dashboard.block.expiry' => 'read', 'dashboard.block.news' => 'read');
 	$dashSalg = array('dashboard.view' => 'read', 'dashboard.block.unpaid_invoices' => 'read', 'dashboard.block.customergraph' => 'read', 'dashboard.block.varegrp_doughnut' => 'read', 'dashboard.block.small' => 'read', 'dashboard.block.news' => 'read');
-	$dashIndkoeb = array('dashboard.view' => 'read', 'dashboard.block.expiry' => 'read', 'dashboard.block.news' => 'read');
+	// The expiry warning leads to lager/udlobsrapport.php under Varerapport (owner, 4 Nov 2026), so only roles with
+	// lager.rapporter get it: Lager gets Oversigt with the warning and news, Indkøb keeps Oversigt and news.
+	$dashIndkoeb = array('dashboard.view' => 'read', 'dashboard.block.news' => 'read');
+	$dashLager = array('dashboard.view' => 'read', 'dashboard.block.expiry' => 'read', 'dashboard.block.news' => 'read');
+	// Roles without lager.rapporter get no expiry block, as the derive rule (lager.rapporter) gives at upgrade.
+	$dashNoStock = $dashAll;
+	unset($dashNoStock['dashboard.block.expiry']);
 	$legacyRead += $dashAll;
-	return array(
+	$roles = array(
 		'administrator' => array(
 			'label'       => '330|Administrator',
 			'beskrivelse' => '5897|Alt, inkl. brugere, roller, integrationer og sikkerhedskopi.',
@@ -182,7 +194,7 @@ function permission_default_roles(): array
 				'debitor.konti' => 'write', 'debitor.rapporter' => 'write',
 				'kreditor.konti' => 'write', 'kreditor.rapporter' => 'write',
 				'debitor.ordre' => 'read', 'kreditor.ordre' => 'read',
-			) + $dashAll + array('dashboard.block.suggestions' => 'read'),
+			) + $dashNoStock,
 		),
 		'salg' => array(
 			'label'       => '5544|Salg',
@@ -206,7 +218,7 @@ function permission_default_roles(): array
 			'levels'      => array(
 				'lager.varer' => 'write', 'lager.varemodtagelse' => 'write', 'lager.produktion' => 'write', 'lager.rapporter' => 'write',
 				'debitor.ordre' => 'read', 'kreditor.ordre' => 'read',
-			),
+			) + $dashLager,
 		),
 		'kunvisning' => array(
 			'label'       => '2475|Kun visning',
@@ -219,7 +231,12 @@ function permission_default_roles(): array
 			'levels'      => array(
 				'finans.kassekladde' => 'read', 'finans.regnskab' => 'read', 'finans.rapporter' => 'read',
 				'system.kontoplan' => 'read', 'debitor.rapporter' => 'read', 'kreditor.rapporter' => 'read',
-			) + $dashAll,
+			) + $dashNoStock,
 		),
 	);
+	foreach ($roles as &$role) {
+		$role['levels']['crm.access'] = $role['levels']['debitor.konti'] ?? 'none';
+	}
+	unset($role);
+	return $roles;
 }

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------/lager/labelprint.php----------------lap 3.9.9---2021-02-04 ---
+// ----------/lager/labelprint.php----------------ver 5.1.1---2026-11-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2016-2021 saldi.dk aps
+// Copyright (c) 2016-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 
 // 2014.06.17 Tilføjet pris pr. enhed på etiketter, hvis de er der. PHR - Danosoft. 20140617
@@ -39,6 +39,7 @@
 //                 'minpris', so a layout using only $minbeskrivelse also counts as mit salg.
 // 20260914 CL/NTR Added single=1: asks newlabel.php for one label cell instead of the template's
 //                 rows x cols grid. Carried through the layout chooser and Brother qty forms.
+// 20261127 ASR With $allowedLedgers in includes/connect.php the ledger of the link or cookie must be listed, the master database too, before a session row is written (saldi_ledger_guard()).
 
 @session_start();
 $s_id=session_id();
@@ -55,9 +56,10 @@ if (isset($_COOKIE['mylabel'])) {
 	list($account,$db)=explode("|",$_COOKIE['mylabel']);
 	$qtxt = "select * from online where session_id = '$s_id'";
 	if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-		saldi_setcookie("mylabel","$account|$db",time()-60,"/");
+		setcookie("mylabel","$account|$db",time()-60,"/");
 		$account=NULL;
 	} else {
+		saldi_ledger_guard($db);
 		$qtxt = "insert into online(session_id,brugernavn,db,dbuser,rettigheder,regnskabsaar,logtime,revisor)";
 		$qtxt.= " values ";
 		$qtxt.= "('$s_id','". db_escape_string($account) ."','". db_escape_string($db) ."','". db_escape_string($squser) ."',";

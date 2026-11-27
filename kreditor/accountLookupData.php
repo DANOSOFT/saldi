@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/accountLookupData.php --- Patch 5.0.0. --- 2026.05.12 ---
+// --- kreditor/accountLookupData.php --- ver 5.1.1 --- 2026.11.13 ---
 /// LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,22 +20,26 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2015-2026 saldi.dk ApS
+// Copyright (c) 2015-2026 Danosoft ApS
 // -----------------------------------------------------------------------------------
 // 20260304 LOE Updated to work with grid framework (same pattern as debitor/accountLookupData.php)
 // 20260512 CL/PHR Fixed error in search
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261110 CDX/ASR Scope lookup access to its customer/supplier context and keep preferences per user.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 
+/** @var int $bruger_id Authenticated user ID injected by includes/online.php. */
 header('Content-Type: application/json');
 
 try {
     @session_start();
     $s_id = session_id();
 
-    include_once('../includes/connect.php');
-    $permission_key = 'kreditor.ordre';
-    include_once('../includes/online.php');
-    global $bruger_id;
+    include_once(__DIR__ . '/../includes/connect.php');
+    $permission_key = 'kreditor.ordre|kreditor.konti';
+    $permission_post_read = true; // Only lookup data and this user's grid preferences are handled.
+    include_once(__DIR__ . '/../includes/online.php');
+    $bruger_id = (int)$bruger_id;
 
     if (!function_exists('db_escape_string')) {
         throw new Exception('Database functions not loaded');
@@ -98,7 +102,7 @@ try {
                    WHERE tabel_id = '" . db_escape_string($grid_id) . "' AND user_id = '$bruger_id'", 
                    __FILE__ . " linje " . __LINE__);
     } else {
-        $q = "SELECT rowcount FROM datatables WHERE tabel_id = '$grid_id' AND user_id = '$bruger_id' LIMIT 1";
+        $q = "SELECT rowcount FROM datatables WHERE tabel_id = '" . db_escape_string((string)$grid_id) . "' AND user_id = '$bruger_id' LIMIT 1";
         $r = db_fetch_array(db_select($q, __FILE__ . " linje " . __LINE__));
         $rowcount = $r['rowcount'] ?? 100;
     }
@@ -107,7 +111,7 @@ try {
     $offset = $requestParams['offset'];
     if ($shouldModifyDatabase) {
         db_modify("UPDATE datatables SET \"offset\" = $offset 
-                   WHERE tabel_id = '" . db_escape_string($grid_id) . "'", 
+                   WHERE tabel_id = '" . db_escape_string($grid_id) . "' AND user_id = '$bruger_id'",
                    __FILE__ . " linje " . __LINE__);
     }
 

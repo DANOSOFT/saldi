@@ -5,7 +5,7 @@
 //         \__ \/ _ \| |_| |) | | _ | |) |  <
 //         |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/restApiIncludes/CreateDebitor.php --- lap 4.0.5 --- 2022-03-09 ---
+// --- api/restApiIncludes/CreateDebitor.php --- ver 5.1.1 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,10 +21,13 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2016-2022 saldi.dk aps
+// Copyright (c) 2016-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260911 Sawaneh Blank the literal "dummyvalue" Shoptech sends for empty address
 //                     fields via strip_placeholder_value(); if_isset converted to ifset (JOB-115)
+// 20261105 CL/LH A debtor without kontonr gets getNextAccountNo()'s number within minNo and maxNo, and the request answers getNextAccountNo()'s error text when that range is used up.
+//                The cvr and ean that were sent are stored (the insert used $cvrnr and $ean, which were never set), and kontonr, gruppe, betalingsbet and betalingsdage are escaped in its SQL.
+//                afd is cast to a number, so a text afd no longer stops the request with a TypeError.
 
 function CreateDebitor() {
 	global $db;
@@ -34,11 +37,12 @@ function CreateDebitor() {
 	
 	$addr1         = strip_placeholder_value(ifset($_GET, 'addr1'));
 	$addr2         = strip_placeholder_value(ifset($_GET, 'addr2'));
-	$afd           = ifset($_GET, 'afd')*1;
+	$afd           = (int)ifset($_GET, 'afd');
 	$betalingsbet  = ifset($_GET, 'betalingsbet');
 	$betalingsdage = ifset($_GET, 'betalingsdage');
 	$bynavn        = strip_placeholder_value(ifset($_GET, 'bynavn'));
 	$cvr           = strip_placeholder_value(ifset($_GET, 'cvr'));
+	$ean           = strip_placeholder_value(ifset($_GET, 'ean'));
 	$firmanavn     = strip_placeholder_value(ifset($_GET, 'firmanavn'));
 	$efternavn     = ifset($_GET, 'efternavn');
 	$fornavn       = ifset($_GET, 'fornavn');
@@ -67,10 +71,11 @@ function CreateDebitor() {
 	if (!$kontonr) {
 		include("restApiIncludes/getNextAccountNo.php");
 		$kontonr = getNextAccountNo('D');
+		if (!is_int($kontonr)) return $kontonr; // no free number from minNo to maxNo
 	} 
 #	return ("$kontonr");
 #	exit;
-    $qtxt = "select id from adresser where kontonr='$kontonr' and art = 'D'";
+    $qtxt = "select id from adresser where kontonr='" . db_escape_string((string)$kontonr) . "' and art = 'D'";
     $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
     if ($id=$r['id']) {
         return ("Account $kontonr allready exists");
@@ -89,17 +94,17 @@ function CreateDebitor() {
 	$qtxt.= "lev_postnr,lev_bynavn,lev_land,";
 	$qtxt.= "lev_kontakt,lev_tlf,lev_email,lukket)";
 	$qtxt.= " values ";
-	$qtxt.="('$kontonr','".db_escape_string($firmanavn)."','".db_escape_string($addr1)."','".db_escape_string($addr2)."',";
+	$qtxt.="('".db_escape_string((string)$kontonr)."','".db_escape_string($firmanavn)."','".db_escape_string($addr1)."','".db_escape_string($addr2)."',";
 	$qtxt.="'".db_escape_string($postnr)."','".db_escape_string($bynavn)."','".db_escape_string($land)."',";
-	$qtxt.="'".db_escape_string($cvrnr)."','".db_escape_string($ean)."','".db_escape_string($email)."','".db_escape_string($tlf)."',";
-	$qtxt.="'$gruppe','D','$betalingsbet','$betalingsdage','".db_escape_string($kontakt)."',";
+	$qtxt.="'".db_escape_string((string)$cvr)."','".db_escape_string((string)$ean)."','".db_escape_string($email)."','".db_escape_string($tlf)."',";
+	$qtxt.="'".db_escape_string((string)$gruppe)."','D','".db_escape_string((string)$betalingsbet)."','".db_escape_string((string)$betalingsdage)."','".db_escape_string($kontakt)."',";
 	$qtxt.="'".db_escape_string($lev_firmanavn)."','".db_escape_string($lev_addr1)."','".db_escape_string($lev_addr2)."',";
 	$qtxt.="'".db_escape_string($lev_postnr)."','".db_escape_string($lev_bynavn)."','".db_escape_string($lev_land)."',";
 	$qtxt.="'".db_escape_string($lev_kontakt)."','".db_escape_string($lev_tlf)."','".db_escape_string($lev_email)."','')";
 	fwrite($log,__line__." $qtxt\n");
 	$qtxt=chk4utf8($qtxt);
     db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-   $qtxt = "select id from adresser where kontonr='$kontonr' and art = 'D'";
+   $qtxt = "select id from adresser where kontonr='" . db_escape_string((string)$kontonr) . "' and art = 'D'";
     $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$id=$r['id'];
 

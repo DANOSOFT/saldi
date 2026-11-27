@@ -1,5 +1,5 @@
 <?php
-// --- includes/docsIncludes/moveDoc.php -----patch 4.1.0 ----2024-03-05---
+// --- includes/docsIncludes/moveDoc.php -----ver 5.1.0 ----2026-11-10---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,31 +16,35 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2024-2024 Saldi.dk ApS
+// Copyright (c) 2024-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260925 LOE MB-42 The pool row this writes carries content_sha256, like every other pool writer.
 // 20230707 LOE Added kassekladde part
 // 20230724 LOE made some modifications to include alert also
 // 20240305 PHR Varioous corrections
+// 20261110 CDX/ASR Require an exact tenant/source/document match before touching files.
+
 
 
 include_once(__DIR__ . "/poolContentHash.php");
 
 if ($moveDoc) {
-	// Decode the URL-encoded path
-	$moveDoc = urldecode($moveDoc);
-	
-	// Normalize the path - remove double slashes
-	$moveDoc = str_replace('//', '/', $moveDoc);
-	$moveDoc = preg_replace('#/+#', '/', $moveDoc); // Remove multiple slashes
-	$tmpA = explode("/",$moveDoc);
+	require_once __DIR__ . '/documentAccess.php';
+	$documentRoot = realpath("$docFolder/$db");
+	$actionDocument = docAccessFindDocument("$docFolder/$db", (string)$moveDoc, (string)$source, (int)$sourceId);
+	if (!$actionDocument || !$documentRoot) {
+		docAccessDeny();
+	}
+	$moveDoc = $actionDocument['canonicalPath'];
+	$documentId = $actionDocument['id'];
+	$fileName = $actionDocument['filename'];
+	$sourceId = $actionDocument['source_id'];
+	$source = $actionDocument['source'];
+	$kladde_id = (int)$kladde_id;
+	$tmpA = explode('/', $moveDoc);
+	$x = count($tmpA) - 1;
+	$h = count($tmpA) - 3;
 
-	$x = count($tmpA)-1;
-	$h = count($tmpA)-3;
-
-	$bilag_id = $tmpA[$h];
-	$fileName = $tmpA[$x];
-	
 	// Security check: Block if locked and older than 24h
 	$locked = 0;
 	if ($source == 'creditor') {
@@ -57,7 +61,7 @@ if ($moveDoc) {
 		}
 	}
 	
-	$qtxt = "select timestamp from documents where source = '$source' and source_id = '$sourceId' and filename = '".db_escape_string($fileName)."'";
+	$qtxt = "select timestamp from documents where id = '$documentId'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$docTimestamp = $r ? $r['timestamp'] : 0;
 	
@@ -69,16 +73,16 @@ if ($moveDoc) {
 		exit;
 	}
 
-	$new = '';
-
-	for ($i=0;$i<count($tmpA)-4;$i++) {
-		if ($tmpA[$i]) $new.= $tmpA[$i]."/";
+	$poolRoot = $documentRoot . '/pulje';
+	if (!is_dir($poolRoot) && !mkdir($poolRoot, 0755)) {
+		docAccessDeny();
 	}
-	$new.= "pulje";
-	if (!file_exists($new)) mkdir($new, 0777);
-	$new.= "/$tmpA[$x]";
-	$new = str_replace(' ','',$new);
-	
+	$poolRoot = realpath($poolRoot);
+	if (!$poolRoot || !str_starts_with($poolRoot, $documentRoot . DIRECTORY_SEPARATOR)) {
+		docAccessDeny();
+	}
+	$new = $poolRoot . '/' . basename($fileName);
+
 	// Move the actual file to pulje
 	if (file_exists($moveDoc) && !file_exists($new)) {
 		$moveResult = rename($moveDoc, $new);
@@ -132,7 +136,7 @@ if ($moveDoc) {
 	
 	if (file_exists($extractFilePath) && strtolower(pathinfo($fileName, PATHINFO_EXTENSION)) === 'pdf') {
 		// Include the extraction API
-		include_once("docsIncludes/invoiceExtractionApi.php");
+		include_once(__DIR__ . '/invoiceExtractionApi.php');
 		
 		if (function_exists('extractInvoiceData')) {
 			$invoiceId = 'move-' . pathinfo($fileName, PATHINFO_FILENAME) . '-' . time();
@@ -211,8 +215,7 @@ if ($moveDoc) {
 	}
 	
 	// Delete from documents database
-	$qtxt = "delete from documents where source = '$source' and source_id = '$sourceId' ";
-	$qtxt.= "and filename = '".db_escape_string($fileName)."'";
+	$qtxt = "delete from documents where id = '$documentId'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	
 	// Check if there are any remaining documents for this sourceId

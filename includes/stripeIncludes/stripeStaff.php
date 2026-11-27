@@ -1,5 +1,7 @@
 <?php
 // 20261022 CDX/LH Validate debitorkort Afmeld before mutation and show the current saved card from local payment data.
+// 20261126 CL/ASR Review round 1 (I10): stripe_staff_card_row_visible(): the customer card shows its Stripe row only where the ledger takes invoice payments, or for a customer who is signed up.
+// 20261126 CL/ASR Review round 1 (SM-3): the stripe_payments check filters on this database's schema (saldi_schema_filter()).
 
 /**
  * Apply master's session-bound token/hash_equals pattern to Afmeld.
@@ -32,6 +34,24 @@ function stripe_staff_unenrol($kontoId, $method, $input, $sessionToken) {
 }
 
 /**
+ * Whether the customer card shows the Stripe row: in a ledger that takes invoice payments
+ * (stripe_invoice_link_available()), or for a customer signed up for automatic card payment, so Afmeld stays reachable.
+ *
+ * @param array $debtor Loaded adresser row.
+ * @return bool
+ */
+function stripe_staff_card_row_visible($debtor) {
+	if (($debtor['stripe'] ?? '') === 'on') {
+		return true;
+	}
+	if (!array_key_exists('stripe', $debtor)) {
+		return false;
+	}
+	include_once(__DIR__ . '/stripeInvoice.php');
+	return stripe_invoice_link_available();
+}
+
+/**
  * Read the stored details for this debtor's current saved PM, never an unrelated/latest card.
  * Older tenants without the invoice-payment table can still open debitorkort.
  *
@@ -42,7 +62,7 @@ function stripe_staff_saved_card($debtor) {
 	if (($debtor['stripe'] ?? '') !== 'on' || empty($debtor['stripe_pm_id']) || empty($debtor['id'])) {
 		return '';
 	}
-	$table = db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'stripe_payments' and column_name = 'pm_last4'", __FILE__ . ' linje ' . __LINE__));
+	$table = db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'stripe_payments' and column_name = 'pm_last4'" . saldi_schema_filter(), __FILE__ . ' linje ' . __LINE__));
 	if (!$table) {
 		return '';
 	}

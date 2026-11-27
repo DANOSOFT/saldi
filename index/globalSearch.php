@@ -1,5 +1,5 @@
 <?php
-// ---- index/globalSearch.php --- lap 5.0.0 --- 2026.10.05 ---
+// ---- index/globalSearch.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,13 +15,14 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261005 Sawaneh Topbar addendum 2026-10-05 §6: record lookups for the global search in the top bar - customers,
-//                  suppliers, orders/invoices, cash journals, items and accounts - and the recently visited pages.
-//                  Read-only JSON; every group only for users who may open that area; at most 4 per group with
-//                  LIMIT in SQL. Pages and settings are matched in the shell (sidebar) and by settingsSearch.php.
-
+// 20261005 SS Topbar addendum 2026-10-05 §6: record lookups for the global search in the top bar - customers, suppliers, orders/invoices, cash journals, items and accounts - and the recently visited pages.
+//             Read-only JSON; every group only for users who may open that area; at most 4 per group with LIMIT in SQL.
+//             Pages and settings are matched in the shell (sidebar) and by settingsSearch.php.
+// 20261031 CL/ASR $skipLogtime: the top bar's lookups do not touch online.logtime (includes/online.php).
+// 20261103 CL/ASR QA: a recently visited page links to its full path from the Saldi root (the request path without the install prefix, as page_came_from() does), not the last two segments: Lager » Varer (lager/lister/vareliste.php) gave a 404.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 ob_start();
 @session_start();
 $s_id = session_id();
@@ -30,6 +31,7 @@ $webservice = true;
 $modulnr = 0;
 $permission_key = 'any';
 $permission_post_read = true;
+$skipLogtime = true; // a lookup from the top bar is no page activity (includes/online.php)
 
 include(__DIR__ . "/../includes/connect.php");
 include(__DIR__ . "/../includes/online.php");
@@ -57,6 +59,9 @@ if (!empty($_GET['recent'])) {
 		$stack = array_reverse(_nav_read());
 		array_shift($stack);
 		$seen = array();
+		// The install prefix (/asr_dash): what precedes this endpoint's own path in the request.
+		$reqPath = (string) parse_url(isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '', PHP_URL_PATH);
+		$prefix = (substr($reqPath, -strlen('/index/globalSearch.php')) === '/index/globalSearch.php') ? substr($reqPath, 0, -strlen('/index/globalSearch.php')) : '';
 		foreach ($stack as $url) {
 			$path = function_exists('page_chrome_path') ? page_chrome_path((string) $url) : '';
 			if ($path === '' || isset($seen[$path]) || $path === 'index/dashboard.php' || $path === 'index/menu.php') {
@@ -65,7 +70,12 @@ if (!empty($_GET['recent'])) {
 			$seen[$path] = true;
 			$query = strpos((string) $url, '?') !== false ? substr((string) $url, strpos((string) $url, '?')) : '';
 			$label = isset($_SESSION['page_chrome'][$path]['label']) ? (string) $_SESSION['page_chrome'][$path]['label'] : '';
-			$out[] = array('href' => '/' . $path . $query, 'path' => '/' . $path, 'label' => $label);
+			$full = (string) parse_url((string) $url, PHP_URL_PATH);
+			if ($prefix !== '' && strpos($full, $prefix . '/') === 0) {
+				$full = substr($full, strlen($prefix));
+			}
+			$href = (strpos($full, '/') === 0 && substr($full, -strlen($path)) === $path) ? $full : '/' . $path;
+			$out[] = array('href' => $href . $query, 'path' => '/' . $path, 'label' => $label);
 			if (count($out) >= 5) {
 				break;
 			}

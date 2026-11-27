@@ -1,5 +1,5 @@
 <?php
-// -------- debitor/ansatte_save.php (modul nr. 6)----------lap 2.9.4 ----- 2010.03.26----------
+// -------- debitor/ansatte_save_stillads.php (modul nr. 6)----------ver 5.1.0 ----- 2026.11.04----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -14,52 +14,55 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2012 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261103 CL/MMR SD-799 A contact is deleted when its Delete button (slet_kontakt) is posted, whatever the button's label in the user's language.
+//                 The contact and account ids from the request are cast to integers before they go into the SQL.
+// 20261104 CL/MMR SD-799 A contact is only deleted together with the customer it belongs to.
 
- if ($_GET){
-	if (isset($_GET['id'])) (int)$ansat_id=$_GET['id'];
+if ($_GET){
+	if (isset($_GET['id'])) $ansat_id=(int)$_GET['id'];
 	else $ansat_id = $_GET['ansat_id']*1;
- 	$returside= $_GET['returside'];
- 	$ordre_id = $_GET['ordre_id'];
- 	$fokus = $_GET['fokus'];
-	$konto_id=$_GET['konto_id'];
+	$returside= $_GET['returside'];
+	$ordre_id = $_GET['ordre_id'];
+	$fokus = $_GET['fokus'];
+	$konto_id=(int)$_GET['konto_id'];
 }
 
 if ($_POST){
-	if (isset($_POST['id'])) (int)$ansat_id=$_POST['id'];
- 	else $ansat_id=(int)$_POST['ansat_id'];
- 	$submit=db_escape_string(trim($_POST['submit']));
- 	$konto_id=$_POST['konto_id'];
- 	$navn=db_escape_string(trim($_POST['navn']));
- 	$addr1=db_escape_string(trim($_POST['addr1']));
- 	$addr2=db_escape_string(trim($_POST['addr2']));
- 	$postnr=db_escape_string(trim($_POST['postnr']));
- 	$bynavn=db_escape_string(trim($_POST['bynavn']));
- 	$tlf=db_escape_string(trim($_POST['tlf']));
- 	$mobile=db_escape_string(trim($_POST['mobile']));
- 	$mobil=db_escape_string(trim($_POST['mobil']));
- 	$email=db_escape_string(trim($_POST['email']));
- 	$cprnr=db_escape_string(trim($_POST['cprnr']));
- 	$notes=db_escape_string(trim($_POST['notes']));
- 	$ordre_id = $_GET['ordre_id'];
- 	$returside=$_POST['returside'];
- 	$fokus=$_POST['fokus'];
+	if (isset($_POST['id'])) $ansat_id=(int)$_POST['id'];
+	else $ansat_id=(int)$_POST['ansat_id'];
+	$submit=db_escape_string(trim(ifset($_POST, 'submit', '')));
+	$konto_id=(int)$_POST['konto_id'];
+	$navn=db_escape_string(trim($_POST['navn']));
+	$addr1=db_escape_string(trim($_POST['addr1']));
+	$addr2=db_escape_string(trim($_POST['addr2']));
+	$postnr=db_escape_string(trim($_POST['postnr']));
+	$bynavn=db_escape_string(trim($_POST['bynavn']));
+	$tlf=db_escape_string(trim($_POST['tlf']));
+	$mobile=db_escape_string(trim($_POST['mobile']));
+	$mobil=db_escape_string(trim($_POST['mobil']));
+	$email=db_escape_string(trim($_POST['email']));
+	$cprnr=db_escape_string(trim($_POST['cprnr']));
+	$notes=db_escape_string(trim($_POST['notes']));
+	$ordre_id = $_GET['ordre_id'];
+	$returside=$_POST['returside'];
+	$fokus=$_POST['fokus'];
 
- 	if ($submit=="Slet") {
- 	 	if ($ansat_id) db_modify("delete from ansatte where id = '$ansat_id'",__FILE__ . " linje " . __LINE__); 
- 		print "<meta http-equiv=\"refresh\" content=\"0;URL=kunder.php?funktion=ret_kunde&amp;konto_id=$konto_id\">";
- 	} else {
+	if (isset($_POST['slet_kontakt']) || $submit=="Slet") {
+		if ($ansat_id && $konto_id) db_modify("delete from ansatte where id = '$ansat_id' and konto_id = '$konto_id'",__FILE__ . " linje " . __LINE__);
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=kunder.php?funktion=ret_kunde&amp;konto_id=$konto_id\">";
+	} else {
 		if ($postnr && !$bynavn) $bynavn=bynavn($postnr);
- 	 	if (($ansat_id==0)&&($navn)){
- 	 	 	$query = db_modify("insert into ansatte (navn, konto_id, addr1, addr2, postnr, bynavn, tlf, mobile, mobil, email, cprnr, notes, lukket) values ('$navn', '$konto_id', '$addr1', '$addr2', '$postnr', '$bynavn', '$tlf', '$mobile', '$mobil', '$email', '$cprnr', '$notes', '')",__FILE__ . " linje " . __LINE__);
- 	 	 	$query = db_select("select id from ansatte where konto_id = '$konto_id' and navn='$navn' order by id desc",__FILE__ . " linje " . __LINE__);
- 	 	 	$row = db_fetch_array($query);
- 	 	 	$ansat_id = $row['id'];
- 	 	}
- 	 	elseif ($ansat_id > 0){
+		if (($ansat_id==0)&&($navn)){
+			$query = db_modify("insert into ansatte (navn, konto_id, addr1, addr2, postnr, bynavn, tlf, mobile, mobil, email, cprnr, notes, lukket) values ('$navn', '$konto_id', '$addr1', '$addr2', '$postnr', '$bynavn', '$tlf', '$mobile', '$mobil', '$email', '$cprnr', '$notes', '')",__FILE__ . " linje " . __LINE__);
+			$query = db_select("select id from ansatte where konto_id = '$konto_id' and navn='$navn' order by id desc",__FILE__ . " linje " . __LINE__);
+			$row = db_fetch_array($query);
+			$ansat_id = $row['id'];
+		}
+		elseif ($ansat_id > 0){
 			db_modify("update ansatte set navn = '$navn', konto_id = '$konto_id', addr1 = '$addr1', addr2 = '$addr2', postnr = '$postnr', bynavn = '$bynavn', email = '$email', tlf = '$tlf', mobile = '$mobile', mobil = '$mobil', cprnr = '$cprnr', notes = '$notes', lukket = '' where id = '$ansat_id'",__FILE__ . " linje " . __LINE__);
- 	 	}
- 	}
+		}
+	}
 }
 ?>

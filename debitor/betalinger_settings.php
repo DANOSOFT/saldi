@@ -15,10 +15,10 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------------------------------
-// 20261002 Sawaneh Retired (settings redesign G2.5): the payment days live under Finans → Kassekladde & betalinger.
-//                  The links in the payment lists still point here, so this page only redirects.
+// 20261002 SS Retired (settings redesign G2.5): the payment days live under Finans → Kassekladde & betalinger.
+//             The links in the payment lists still point here, so this page only redirects.
 
 header('Location: ../systemdata/settingsSection.php?s=finance.cash_journal&moved=betalinger#sub-due');
 exit;

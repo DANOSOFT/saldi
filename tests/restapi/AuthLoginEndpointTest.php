@@ -12,6 +12,8 @@
 // 20260904 CL/NTR Drop the throwaway tenant again in tearDownAfterClass().
 // 20260928 CL/NTR Account names come from RestApiEnv::accountOpen()/accountClosed()
 //                 (per-process suffix) instead of the removed constants.
+// 20261105 CL/LH A user whose IP limit does not list the client's address is refused with 403 and no token.
+// 20261111 CDX/NTR Give each REST class its own fresh database.
 
 use PHPUnit\Framework\TestCase;
 
@@ -25,7 +27,7 @@ final class AuthLoginEndpointTest extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
-        RestApiEnv::bootstrapTenantOnce();
+        RestApiEnv::bootstrapTenant(static::class);
     }
 
     public static function tearDownAfterClass(): void
@@ -78,6 +80,27 @@ final class AuthLoginEndpointTest extends TestCase
 
         $this->assertSame(403, $res['status'], $res['body']);
         $this->assertFalse($res['json']['success']);
+    }
+
+    public function test_login_from_an_address_the_users_ip_limit_does_not_list_is_rejected_403(): void
+    {
+        // 192.0.2.1 is TEST-NET-1 (RFC 5737): no client ever has it.
+        RestApiEnv::setUserIpLimit('192.0.2.1');
+        try {
+            $res = RestApiEnv::login(RestApiEnv::user(), RestApiEnv::password(), RestApiEnv::accountOpen());
+            $wrongPassword = RestApiEnv::login(RestApiEnv::user(), 'wrong-password', RestApiEnv::accountOpen());
+        } finally {
+            RestApiEnv::setUserIpLimit('');
+        }
+
+        $this->assertSame(403, $res['status'], $res['body']);
+        $this->assertFalse($res['json']['success']);
+        $this->assertSame('Your IP address is not approved to log in.', $res['json']['message']);
+        $this->assertNull($res['json']['data'], 'no token for an address the limit does not list');
+        $this->assertSame(401, $wrongPassword['status'], 'without the password the answer does not reveal the limit: ' . $wrongPassword['body']);
+
+        $again = RestApiEnv::login(RestApiEnv::user(), RestApiEnv::password(), RestApiEnv::accountOpen());
+        $this->assertSame(200, $again['status'], 'an empty limit lets every address in: ' . $again['body']);
     }
 
     public function test_login_without_required_fields_is_rejected_400(): void

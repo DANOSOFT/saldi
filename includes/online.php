@@ -1,11 +1,10 @@
 <?php
-include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcookie() on every page, also before login
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/online.php --- ver 5.0.0 --- 2026-10-02---
+// --- includes/online.php --- ver 5.1.1 --- 2026-11-27---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -64,41 +63,53 @@ include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcook
 // 20260424 PHR Added thisDb to prevent admins updating in the wrong accunt
 // 20260904 Sawaneh WP-1.3: nav_push popup arg now uses the popup=1 request flag, not the user preference
 // 20260909 CDX/LH SST-782: Use the light default for missing or empty background settings.
-// 20260916 Sawaneh Denied module access is now written to audit_log (the message always said so).
-//                  Phase 3 gate: perm_enforce_request() after the legacy check ($permission_key /
-//                  $permission_level / $permission_post_read declared by the page, $modulnr as
-//                  fallback); auditor sessions get the Revisor role once enforcement is 'deny'.
-// 20261001 Sawaneh Settings insert skipped when a parallel request already added the key (unique index on settings).
-// 20261002 Sawaneh Same for the USET row in grupper (unique index on the settings arts of grupper).
-// 20261004 Sawaneh $brugernavn_raw holds the user name unescaped; $brugernavn stays escaped as before.
+// 20260916 SS Denied module access is now written to audit_log (the message always said so).
+//             Phase 3 gate: perm_enforce_request() after the legacy check ($permission_key / $permission_level / $permission_post_read declared by the page, $modulnr as fallback); auditor sessions get the Revisor role once enforcement is 'deny'.
 // 20260924 Sawaneh SST-757: Empty online.regnskabsaar falls back to the newest open fiscal year and is written back to online and brugere.
 //                  Users created via Sager -> Ansatte had none, and every fiscal_year = '' query failed on Postgres.
+// 20261001 SS Settings insert skipped when a parallel request already added the key (unique index on settings).
+// 20261002 SS Same for the USET row in grupper (unique index on the settings arts of grupper).
 // 20261002 CL/SZ SST-812: Inline javascript/posScanBuffer.js first in the head of the POS Ordre page, so scanner keystrokes typed while the page loads are not lost.
+// 20261004 SS $brugernavn_raw holds the user name unescaped; $brugernavn stays escaped as before.
+// 20261031 CL/ASR <html data-theme/data-size> and css/saldi-fonts.css only on the shell, the dashboard and the settings pages (systemdata except kontoplan.php and kontokort.php).
+//                 Every other page prints master's plain <html>.
+// 20261031 CL/ASR $skipLogtime (set by the topbar's polling endpoints, index/notifications.php and index/globalSearch.php) leaves online.logtime alone, so a tab that only polls still ages out.
+// 20261101 CL/ASR The per-user colours (settings colors/buttonColor and buttonTxtColor) are no longer read: $buttonColor and $buttonTxtColor are always the standard #114691 / #ffffff, as for a user who never chose a colour.
+// 20261102 CL/ASR $regnskab_pakke: the account's package from the self-service signup, used by finans/bogfor.php.
+// 20261103 CL/ASR QA round 2: the old module gate refuses through perm_refuse(), so both gates give the same translated text (5548), HTTP 403 and the way back to Oversigt.
+// 20261104 CL/ASR A fatal PHP error (E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR) on an HTML page with a session shows the error box of includes/errorReport.php, so the user can send a report.
+//                 API, JSON, webservice and CLI requests, redirects and non-HTML answers (PDF, CSV) are left as before.
+//                 A page load also shows the box of an earlier page that moved on before it could be seen (a meta refresh right after a failed query).
+// 20261105 CL/LH The tenant's lower grupper version goes to regnskab.version through tjek4opdat_skriv_version(), which writes only under the update lock, as at login.
+// 20261105 CL/LH A form drawn in another regnskab (thisDb) ends the request after the message, instead of running the page on an emptied $_POST and $_GET.
+//                On diverse.php (Kontoindstillinger) that died in the settings permission gate and the page chrome.
+//                The posted thisDb in the message goes through jsString(), so a forged value cannot run script.
+// 20261105 CL/LH The old module gate checks the Kontoplan right (position 0) on the pages that declare system.kontoplan: kontoplan.php, kontokort.php and stdktoplan.php refuse a user without it.
+//                $modulnr 0 means no module check, so such a user opened the chart of accounts and its balances by URL.
+//                This includes a user without a rights string (NULL, '' or '0'), such as a Sager employee's login, which the gate skipped before.
+// 20261105 CL/MMR SD-807 'Session expired' uses the language chosen on the login page (languageId cookie), as there is no online row, and 'Account closed' is translated.
+//                 'Account closed' uses the login page language during login and loads std_func.php itself, as some pages include online.php first.
+// 20261106 CL/MMR SD-812 The 'account switched', 'logged out' and 'no rights' messages are translated; the account switch alert is JS-escaped.
+//                 Their blocks include std_func.php through __DIR__.
+// 20261109 ASR The CRM (debitor/crm.php) is a UI chrome page too: it is built from css/saldi-kit.css, so it gets css/saldi-fonts.css
+//              (Inter, Saldi Grotesk), data-theme and data-size like the dashboard and the settings pages.
+// 20261109 NTR - Moved the cookie include below the comment header.
+// 20261113 CDX/NTR Merge translated session messages with role enforcement and error reporting.
+// 20261113 CDX/NTR Normalize the file header for guardrail checks.
+// 20261114 CL/ASR Saldi's own message box (javascript/saldi-dialog.js via includes/dialogHead.php) in place of the browser's alert() and confirm() on every page with this head, except the POS pages.
+// 20261114 CL/ASR A session that still owes its two-factor code ($_SESSION['twofactor_pending'], set by index/login.php) is not logged in on any page but the login itself.
+// 20261127 ASR With $sharedWithLive in includes/connect.php the user's rights string comes from the role (perm_session_rights()), as the stored one holds read as '0'.
+// 20261127 ASR With $allowedLedgers in includes/connect.php a session is served only for a listed ledger (the master database too); any other is refused before its ledger is opened (includes/ledgerAllowList.php).
+// 20261127 ASR $sharedWithLive is read through saldi_install_setting() (includes/installSettings.php).
+include_once(__DIR__ . '/stdFunc/cookie.php'); // 20261009 Sawaneh saldi_setcookie() on every page, also before login
 
 #include("../includes/connect.php"); #20211001
 if (!isset($buttonColor))    $buttonColor = '#114691';
 if (!isset($buttonTxtColor)) $buttonTxtColor = '#ffffff';
 if (!isset($uiTheme))        $uiTheme = 'light';
-// Settings spec decision 23 (2026-10-09): no dark mode in round 1 - the theme choice is hidden and every page renders
-// light. Set to true in round 2 (the dark tokens and the chip/personal-settings controls are kept behind it).
-if (!defined('SALDI_THEME_CHOICE')) define('SALDI_THEME_CHOICE', false);
 if (!isset($uiSize))         $uiSize = 'normal'; // text size: normal | large (front-page addendum 3 §3.3), printed as data-size
 if (!isset($nextver))        $nextver = 0;
 if (!isset($useSettings))    $useSettings = '';
-
-// 20261018 Sawaneh Review 2 (PR #803): the session cookie carries SameSite=Lax. Pages start the session before any
-// include, so the cookie is re-sent here with the same path and flags plus SameSite; nothing else about it changes.
-if (session_status() === PHP_SESSION_ACTIVE && !headers_sent() && session_id() !== '') {
-	$sessCookie = session_get_cookie_params();
-	setcookie(session_name(), session_id(), array(
-		'expires'  => !empty($sessCookie['lifetime']) ? time() + (int) $sessCookie['lifetime'] : 0,
-		'path'     => $sessCookie['path'] !== '' ? $sessCookie['path'] : '/',
-		'domain'   => (string) $sessCookie['domain'],
-		'secure'   => !empty($sessCookie['secure']) || (function_exists('saldi_request_is_https') && saldi_request_is_https()),
-		'httponly' => true,
-		'samesite' => (isset($sessCookie['samesite']) && $sessCookie['samesite'] !== '') ? $sessCookie['samesite'] : 'Lax',
-	));
-}
 
 $url = $_SERVER['REQUEST_URI'];
 $questionMarkPos = strpos($url, '?');
@@ -112,11 +123,7 @@ $relativePath = str_repeat('../', max(0, $slashCount - 2));
 
 // 20261005 Sawaneh The timezone cookie is gone (settings redesign G1.3): the setting below decides.
 // 20261006 Sawaneh Every page prints its breadcrumb for the shell (page_auto_breadcrumb(), stdFunc/pageChrome.php).
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
-// 20261008 Sawaneh $uiTheme (settings ui/theme per user: light, dark or system) read with the colours and printed on <html data-theme>.
-// 20261009 Sawaneh $uiTheme falls back to the saldi_theme cookie (auditor/master-admin sessions have no settings row).
-// 20261009 Sawaneh SALDI_THEME_CHOICE (false in round 1, decision 23): the theme choice is hidden and $uiTheme stays light.
-// 20261009 Sawaneh $uiSize (settings ui/text_size per user) printed as <html data-size>, css/saldi-fonts.css linked on every page.
+// 20261009 Sawaneh $uiSize (settings ui/text_size per user) printed as <html data-size>, css/saldi-fonts.css linked (shell/settings/dashboard only).
 // 20261013 Sawaneh data-size is also set by a one-line script: pages print a <title> before this html tag, and not every
 //                  parser merges the attributes of a second html tag onto the element it already created.
 date_default_timezone_set('Europe/Copenhagen');
@@ -170,9 +177,28 @@ $unixtime        = date("U");
 
 $qtxt = "select * from online where session_id = '$s_id' order by logtime desc limit 1";
 $q = db_select($qtxt, __FILE__ . " linje " . __LINE__, true);
-if ($r = db_fetch_array($q)) {
+$r = db_fetch_array($q);
+// Two-factor login: index/login.php sets $_SESSION['twofactor_pending'] (ledger and user) when the password is right
+// and removes it when the code is right too. Until then that login is not a session, on any page but the login
+// itself, even if it has a row in online (the row is there for a moment while the code is sent as a text message).
+// A row for another ledger or user in the same browser (mySale, a ledger opened from the admin pages) is left alone.
+$tfaPending = (isset($_SESSION['twofactor_pending']) && is_array($_SESSION['twofactor_pending'])) ? $_SESSION['twofactor_pending'] : null;
+if ($r && $tfaPending && empty($GLOBALS['saldiLoginFlow']) && isset($tfaPending['db'], $tfaPending['user'])
+	&& (string) $tfaPending['db'] === trim((string) $r['db'])
+	&& mb_strtolower((string) $tfaPending['user'], 'UTF-8') === mb_strtolower((string) $r['brugernavn'], 'UTF-8')) {
+	db_modify("delete from online where session_id = '$s_id'", __FILE__ . " linje " . __LINE__, true);
+	$r = false;
+}
+if ($r) {
 	$dbuser = trim(if_isset($r['dbuser'], ''));
 	$db = trim(if_isset($r['db'], ''));
+	// An installation with $allowedLedgers (includes/connect.php) serves only the listed ledgers, the master database too: a
+	// session for any other ledger (a row in online made by another installation that shares the master database) is refused,
+	// and nothing is opened or updated. Without the setting every session is served, as before.
+	include_once(__DIR__ . '/ledgerAllowList.php');
+	if (!saldi_ledger_allowed($db)) {
+		saldi_ledger_refuse($db);
+	}
 	$regnaar = trim(if_isset($r['regnskabsaar'], ''));
 	$brugernavn = db_escape_string($r['brugernavn']);
 	$brugernavn_raw = (string) $r['brugernavn']; // unescaped, for values that are escaped again later (audit_log)
@@ -182,7 +208,7 @@ if ($r = db_fetch_array($q)) {
 	$logtime = $r['logtime'];
 	($r['language_id']) ? $languageID = $r['language_id'] : $languageID = 0;
 	$sprog_id = $languageID;
-	if ($logtime) {
+	if ($logtime && empty($skipLogtime)) {
 		$qtxt = "update online set logtime = '$unixtime' where session_id = '$s_id'";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__, true);
 	}
@@ -191,8 +217,13 @@ if ($r = db_fetch_array($q)) {
 	else {
 		if (!$nextver) { # 20150125
 			// check if std_func exists in the includes folder
-			include($relativePath . "includes/std_func.php");
-			$txt = '&nbsp;Din session er udl&oslash;bet - du skal logge ind igen';
+			include(__DIR__ . '/std_func.php');
+			// No online row, so the texts (also the close button of tekstboks()) use the language chosen on the login page.
+			$sprog_id = (int) ifset($_COOKIE, 'languageId', 1);
+			if ($sprog_id < 1 || $sprog_id > 3) {
+				$sprog_id = 1;
+			}
+			$txt = '&nbsp;' . findtekst('8433|Din session er udløbet - du skal logge ind igen', $sprog_id);
 			print tekstboks($txt);
 			print "<meta http-equiv=\"refresh\" content=\"4;URL=../index/logud.php\">";
 			exit;
@@ -200,9 +231,13 @@ if ($r = db_fetch_array($q)) {
 	}
 }
 if (isset($_POST['thisDb']) && $db && strpos($db,'_') && $db != $_POST['thisDb']) {
-	alert ("Du har skiftet regnskab fra $_POST[thisDb] til $db, handling afbrudt");
+	include_once(__DIR__ . '/std_func.php'); // findtekst(), and jsString() through stdFunc/jsString.php
+	$postedDb = is_scalar($_POST['thisDb']) ? (string) $_POST['thisDb'] : ''; // posted by the form, so escaped for the script below
+	$txt = sprintf(findtekst('8463|Du har skiftet regnskab fra %s til %s, handling afbrudt', $sprog_id), $postedDb, $db);
+	print "<script type='text/javascript'>alert(" . jsString(array($txt)) . ");</script>";
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/index.php\">";
 	$_POST = $_GET = NULL;
+	exit; // the rest of this file and the page do not run on the emptied request (the settings gate and the page chrome need arrays)
 }
 
 $labelprint = 0;
@@ -210,8 +245,8 @@ if ($sqdb == 'udvikling') $labelprint = 1;
 $kundedisplay = 0;
 
 if ($modulnr && $modulnr < 100 && $db == $sqdb) { #Lukker vinduet hvis revisorbruger er logget af
-	include($relativePath . "includes/std_func.php");
-	$txt = 'Du har logget ud - vinduet lukkes';
+	include(__DIR__ . '/std_func.php');
+	$txt = findtekst('8464|Du har logget ud - vinduet lukkes', $sprog_id);
 	print tekstboks($txt);
 	print "<meta http-equiv=\"refresh\" content=\"4;URL=../includes/luk.php\">";
 	exit;
@@ -222,6 +257,7 @@ if ($row = db_fetch_array(db_select("select * from regnskab where db = '$db'", _
 	$db_ver = $row['version']; # 20150104
 	$regnskab = $row['regnskab'];
 	$max_posteringer = $row['posteringer'];
+	$regnskab_pakke = (string)($row['pakke'] ?? ''); // package from the self-service signup ('' = account set up by hand)
 	$lukket = $row['lukket'];
 
 	if ($lukket != 'on' && !empty($row['lukkes']) && $row['lukkes'] !== '2099-12-31') {
@@ -255,11 +291,11 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				if ($r['box1'] < $db_ver) {
 					$db_ver = $r['box1'];
-					include("../includes/connect.php");
-					db_modify("update regnskab set version = '$db_ver' where id = '$db_id'", __FILE__ . " linje " . __LINE__);
+					include(__DIR__ . '/connect.php');
+					include_once(__DIR__ . '/tjek4opdat.php');
+					tjek4opdat_skriv_version($db_ver);
 #				}
 				if ($version > $db_ver && $title != 'Aaben regnskab') {
-					include("../includes/tjek4opdat.php");
 					tjek4opdat($db_ver, $version);
 				}
 #			} else {
@@ -301,13 +337,25 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 	} else $baseCurrency = 'DKK';
 	if (!$revisor) {
 		if ($lukket) {
-			echo "regnskabet er lukket";
+			// Some pages include online.php before std_func.php, so findtekst() may not be loaded yet.
+			include_once(__DIR__ . '/std_func.php');
+			// During login there is no online row yet (the closing date has just passed), so use the language chosen on the login page.
+			$closedLanguageId = (ifset($title) == 'login') ? (int) ifset($_COOKIE, 'languageId', 1) : (int) $sprog_id;
+			if ($closedLanguageId < 1 || $closedLanguageId > 3) {
+				$closedLanguageId = 1;
+			}
+			echo findtekst('8434|Regnskabet er lukket', $closedLanguageId);
 			print "<meta http-equiv=\"refresh\" content=\"4;URL=../index/index.php\">";
 			exit;
 		}
 		$r = db_fetch_array(db_select("select * from brugere where brugernavn= '$brugernavn'", __FILE__ . " linje " . __LINE__));
 		$bruger_id = $r['id'];
 		$rettigheder = trim(if_isset($r['rettigheder'], ''));
+		if (!empty(saldi_install_setting('sharedWithLive'))) {
+			// The stored string holds read as '0' in an installation that shares its ledgers; the role gives the levels here.
+			include_once(__DIR__ . "/permissions.php");
+			$rettigheder = perm_session_rights($r);
+		}
 		$ansat_id = $r['ansat_id'] * 1;
 		#		if ($r['language_id']) $languageID=$sprog_id=$r['language_id'];
 		if ($ansat_id) { #20120905 
@@ -357,31 +405,13 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		// opened by others polluted the opener's stack.
 		nav_push(null, !empty($_GET['popup']) || !empty($_POST['popup']));
 		if ($db_ver > '3.7.4') {
-			$qtxt = "select var_value from settings where var_name = 'buttonColor' and var_grp = 'colors' and user_id = '$bruger_id'";
-			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-				$buttonColor = "#$r[var_value]";
-			} else {
-				$buttonColor = '#114691'; // Default button color
-			}
-			$qtxt = "select var_value from settings where var_name = 'buttonTxtColor' and var_grp = 'colors' and user_id = '$bruger_id'";
-			if ($useSettings && $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-				$buttonTxtColor = "#$r[var_value]";
-			} else {
-				$buttonTxtColor = '#ffffff'; // Default button text color
-			}
-			// The user's theme (Lys / Mørk / System, prototype_dashboard_tema v5): every page gets it on <html data-theme>;
-			// pages built on the Saldi tokens (css/saldi-theme.css) follow it, older pages ignore it.
+			// The personal colour choice is gone: everyone gets the standard colours (stored rows are left alone).
+			$buttonColor = '#114691'; // Default button color
+			$buttonTxtColor = '#ffffff'; // Default button text color
+			// The user's text size (Normal / Større, front-page addendum 3 §3.3): <html data-size> on the shell, settings and dashboard.
 			$qtxt = "select var_value from settings where var_name = 'text_size' and var_grp = 'ui' and user_id = '$bruger_id'";
 			if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 				if (trim((string) $r['var_value']) === 'large') $uiSize = 'large';
-			}
-			if (SALDI_THEME_CHOICE) {
-				$qtxt = "select var_value from settings where var_name = 'theme' and var_grp = 'ui' and user_id = '$bruger_id'";
-				if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-					if (in_array(trim((string) $r['var_value']), array('light', 'dark', 'system'), true)) $uiTheme = trim((string) $r['var_value']);
-				} elseif (isset($_COOKIE['saldi_theme']) && in_array($_COOKIE['saldi_theme'], array('light', 'dark', 'system'), true)) {
-					$uiTheme = $_COOKIE['saldi_theme']; // auditor/master-admin sessions have no user row: the chip's choice lives in the cookie
-				}
 			}
 		}
 		$textcolor = "#000077";
@@ -405,14 +435,22 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 		}
 		if (!isset($bgnuance1)) $bgnuance1 = "+01+01-55"; # Aendring af nuancen til gult ved skiftende linjer
 	}
-	if (($rettigheder) && ($modulnr) && (substr($rettigheder, $modulnr, 1) < '1')) { #20190529
-		include($relativePath . "includes/std_func.php");
-		if (function_exists('audit_log')) {
-			audit_log('denied', 'modulnr ' . (int) $modulnr . ' ' . (isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : ''));
-		}
-		$txt = "Du har ikke nogen rettigheder her - din aktivitet er blevet logget";
-		print tekstboks($txt);
-		exit;
+	if ($menu == 'T') {
+		$header = 'nix';
+		$bg = 'nix';
+		$css = NULL;
+	}
+	// $modulnr 0 means "no module check", so a page cannot name the Kontoplan right (position 0) with it. The chart-of-accounts
+	// pages (systemdata/kontoplan.php, kontokort.php, stdktoplan.php) declare that right's key instead, and are checked on position 0.
+	// Those pages are checked for a user without a rights string too (NULL, '' or '0'; a Sager employee's login has none), who holds
+	// no right. Other pages still skip the check for such a user, as before.
+	$kontoplanPage = !$modulnr && isset($permission_key) && $permission_key === 'system.kontoplan';
+	$legacyModulnr = ($modulnr) ? $modulnr : ($kontoplanPage ? 0 : NULL);
+	if (($rettigheder || $kontoplanPage) && $legacyModulnr !== NULL && (substr((string) $rettigheder, $legacyModulnr, 1) < '1')) { #20190529
+		// One refusal for both gates (20261103): the text 5548, HTTP 403, JSON to scripts and a way back to Oversigt; logged as before.
+		include_once(__DIR__ . "/std_func.php");
+		include_once(__DIR__ . "/permissions.php");
+		perm_refuse('modulnr ' . (int) $legacyModulnr, isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '');
 	}
 	// 20260916 Phase 3 gate (spec R4). Pages declare $permission_key ('any' = every logged-in
 	// user), optionally $permission_level = 'write' and $permission_post_read = true (POST is a
@@ -421,7 +459,6 @@ if (isset($db_id) && isset($db) && isset($sqdb) && $db != $sqdb) { #20200928
 	// The helpers (perm_require_post_csrf, audit_log) are available on every page; the gate itself runs as before.
 	include_once(__DIR__ . "/permissions.php");
 	if (!$webservice && !$nextver) {
-		include_once(__DIR__ . "/permissions.php");
 		perm_enforce_request(
 			isset($permission_key) ? (string) $permission_key : null,
 			isset($permission_level) ? (string) $permission_level : 'read',
@@ -445,10 +482,13 @@ if (!file_exists($cssPath)) {
 if ($header != 'nix') {
 	if ($db_encode == "UTF8") $charset = "UTF-8";
 	else $charset = "ISO-8859-1";
+	// The new layout's fonts, text size and light tokens: only the shell, the dashboard, the settings pages
+	// (systemdata, except the chart of accounts, which keeps master's look) and the CRM. Every other page gets a plain <html>.
+	$uiChromePage = isset($_SERVER['SCRIPT_NAME']) && preg_match('#/(index/(main|dashboard)|systemdata/(?!(kontoplan|kontokort)\.php$)[A-Za-z0-9_]+|debitor/crm)\.php$#', (string) $_SERVER['SCRIPT_NAME']);
 	print "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n
 	
-	<html data-theme=\"$uiTheme\"" . ($uiSize === 'large' ? " data-size=\"large\"" : '') . ">\n
-	<head><title>$title</title>" . ($uiSize === 'large' ? "<script>document.documentElement.setAttribute('data-size','large')</script>" : '') . "<meta http-equiv=\"content-type\" content=\"text/html; charset=$charset;\">\n
+	" . ($uiChromePage ? "<html data-theme=\"$uiTheme\"" . ($uiSize === 'large' ? " data-size=\"large\"" : '') . ">" : "<html>") . "\n
+	<head><title>$title</title>" . (($uiChromePage && $uiSize === 'large') ? "<script>document.documentElement.setAttribute('data-size','large')</script>" : '') . "<meta http-equiv=\"content-type\" content=\"text/html; charset=$charset;\">\n
 	<meta http-equiv=\"content-language\" content=\"da\">\n
 	<meta name=\"google\" content=\"notranslate\">\n";
 	// print '<!DOCTYPE html>';
@@ -462,7 +502,7 @@ if ($header != 'nix') {
 		print "$meta_returside"; #20140502
 	// Before the stylesheets and other scripts, so scanner keystrokes that arrive while the page loads are kept (SST-812).
 	if ($title == 'POS Ordre') print "<script type=\"text/javascript\">" . file_get_contents(__DIR__ . '/../javascript/posScanBuffer.js') . "</script>\n";
-	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/saldi-fonts.css?v=2\">\n"; // 20261009 Sawaneh fonts + text size on every page
+	if ($uiChromePage) print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/saldi-fonts.css?v=2\">\n"; // 20261009 Sawaneh fonts + text size (shell/settings/dashboard only)
 	if ($css) print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$css\">\n";
 	else      print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/saldimenu.css\"/>\n";
 	print "<link rel=\"stylesheet\" type=\"text/css\" href=\"$cssPath/saft.css\"/>\n";
@@ -477,6 +517,11 @@ if ($header != 'nix') {
 	print "<script type=\"text/javascript\" src=\"$javaPath/jquery.autosize.js\"></script>\n"; #20140502
 	print "<script LANGUAGE=\"JavaScript\" src=\"$javaPath/overlib.js\"></script>\n";
 	print "<script language=\"javascript\" type=\"text/javascript\" src=\"$javaPath/confirmclose.js\"></script>\n"; #20140502
+	// Saldi's message box instead of the browser's alert()/confirm() (owner, 14 Nov 2026). Not on the POS pages: a scanner keeps typing while a box is open.
+	if (substr((string) $title, 0, 3) != 'POS') {
+		include_once(__DIR__ . '/dialogHead.php');
+		print saldi_dialog_head($javaPath, $javaPath . '/../index/dialogPref.php');
+	}
 	print "<script src=\"$javaPath/flatpickr.js\"></script>\n"; #20231107
 	/* print "<script src=\"https://npmcdn.com/flatpickr/dist/flatpickr.min.js\"></script>\n"; #20231107
 	print "<script src=\"https://npmcdn.com/flatpickr/dist/l10n/da.js\"></script>\n"; #20231107 */
@@ -610,6 +655,11 @@ $isApiCall = (
     isset($_GET['api']) ||
     isset($_POST['api'])
 );
+// 20261104 CL/ASR A fatal PHP error on an HTML page shows the error box (includes/errorReport.php), and so does a box an earlier page moved past; API, JSON and webservice requests are left alone.
+if (!$isApiCall && !$webservice && PHP_SAPI !== 'cli') {
+	include_once(__DIR__ . '/errorReport.php');
+	saldi_error_page_start();
+}
 
 $pathParts = explode('/', trim($path, '/'));
 $firstFolder = '';

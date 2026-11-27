@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 use PHPUnit\Framework\TestCase;
 
+// 20261111 CDX/NTR Own a fresh UUID tenant instead of relying on a pre-existing saldi_chartest.
+
+require_once __DIR__ . '/../../support/database/TestDatabase.php';
+
 /**
  * CHARACTERIZATION suite for lager/labelprint_includes/newlabel.php, pinning
  * two things:
@@ -26,34 +30,33 @@ use PHPUnit\Framework\TestCase;
  * against a real Postgres tenant, mirroring the reproduction used to
  * root-cause MB-16.
  *
- * Requires a local Postgres reachable with includes/connect.php's checked-in
- * dev credentials (localhost/postgres), and a "saldi_chartest" database
- * already cloned from the saldidb template - the same tenant convention
- * used by tests/characterization/order-creation on the SD-600 branch.
+ * The common helper installs this class's own UUID tenant. Only the test
+ * master and PostgreSQL connection settings are required; no existing tenant.
  */
 final class NewlabelCharacterizationTest extends TestCase
 {
-    private const TENANT_DB = 'saldi_chartest';
+    private static ?TestDatabase $database = null;
     private const KONTONR = '87654321';
-
-    // includes/connect.php's own checked-in dev defaults. Not read back off
-    // its globals: connect.php is require_once'd from inside this method,
-    // so its top-level `$sqhost = ...`-style assignments land in THIS
-    // method's local scope, not the true global scope db_connect() reads -
-    // reusing them via `global $sqhost` would silently pull undefined
-    // globals and leave the connection on connect.php's own default (the
-    // schema-less "saldidb" master, which has none of the tenant tables
-    // below).
-    private const PG_HOST = 'localhost';
-    private const PG_USER = 'postgres';
-    private const PG_PASS = 'saul3112';
 
     private static string $repoRoot;
     private static string $originalCwd;
     private static int $accountId;
+    private static bool $connected = false;
 
     public static function setUpBeforeClass(): void
     {
+        $reason = TestDatabase::unavailableReason();
+        if ($reason !== null) {
+            self::markTestSkipped($reason);
+        }
+        self::$database = TestDatabase::create(static::class);
+
+        // Must come BEFORE the require below: an included file's top-level code
+        // runs in the includer's scope, so connect.php's $sqhost/$squser/$sqpass
+        // assignments would otherwise be trapped as locals of this method
+        // instead of landing in the global scope db_connect() reads.
+        global $sqhost, $squser, $sqpass, $sqdb, $db_type, $db_encode, $connection, $db;
+
         self::$repoRoot = dirname(__DIR__, 4);
         self::$originalCwd = getcwd();
 
@@ -70,9 +73,10 @@ final class NewlabelCharacterizationTest extends TestCase
         require_once self::$repoRoot . '/includes/std_func.php';
         ob_end_clean();
 
-        global $db, $connection;
-        $db = self::TENANT_DB;
-        $connection = db_connect(self::PG_HOST, self::PG_USER, self::PG_PASS, $db);
+        $db = self::$database->name();
+        $db_type = 'postgresql';
+        $connection = TestDatabase::connect($db);
+        self::$connected = true;
 
         db_modify("delete from adresser where kontonr = '" . self::KONTONR . "'", __FILE__ . ' linje ' . __LINE__);
         db_modify(
@@ -99,11 +103,15 @@ final class NewlabelCharacterizationTest extends TestCase
 
     public static function tearDownAfterClass(): void
     {
-        db_modify('delete from mylabel where account_id = ' . self::$accountId, __FILE__ . ' linje ' . __LINE__);
-        db_modify("delete from adresser where kontonr = '" . self::KONTONR . "'", __FILE__ . ' linje ' . __LINE__);
-        foreach (['knXXX', 'knPLAIN', 'knZERO', 'knZERO2', 'knPRICED', 'knSINGLE', 'knLEGACY', 'knLEGACY2', 'knDKKZERO', 'knDKKPRICED', 'knDKKLEGACY', 'knDKKLEGACY2'] as $prefix) {
-            db_modify("delete from varer where varenr = '" . $prefix . self::KONTONR . "'", __FILE__ . ' linje ' . __LINE__);
+        if (!self::$connected) {
+            return;
         }
+        global $connection;
+        pg_close($connection);
+        $connection = null;
+        self::$connected = false;
+        self::$database->release();
+        self::$database = null;
         chdir(self::$originalCwd);
     }
 

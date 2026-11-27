@@ -16,6 +16,8 @@
 // 20260916 CDX/LH Isolate disposable test tenants and retain child-process failure diagnostics.
 // 20261022 CL/NTR Dropped the no-op `use CharacterizationEnv;` (PHP warning on load) and the unused
 //                 saldiFor(), which called a rows() helper this class does not have.
+// 20261111 CDX/NTR Isolate the test class database and session.
+// 20261117 CL/ASR Two concurrent Bogfør requests for one journal post it once (bookkeeping F1).
 
 use PHPUnit\Framework\TestCase;
 
@@ -33,7 +35,7 @@ final class KassekladdePostingCharacterizationTest extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
-        CharacterizationEnv::bootstrapTenant();
+        CharacterizationEnv::bootstrapTenant(static::class);
         self::$tenant = CharacterizationEnv::connect(CharacterizationEnv::testDb());
         $ra = CharacterizationEnv::one(self::$tenant, "SELECT max(kodenr) AS ra FROM grupper WHERE art = 'RA'");
         self::$regnaar = (int)$ra['ra'];
@@ -115,7 +117,7 @@ final class KassekladdePostingCharacterizationTest extends TestCase
     {
         $result = CharacterizationEnv::runChild(
             __DIR__ . '/../support/run_bogfor_page.php',
-            [$mode, $kladdeId, CharacterizationEnv::SESSION_ID]
+            [$mode, $kladdeId, CharacterizationEnv::sessionId()]
         );
         $this->assertSame(0, $result['exit'], $result['stderr'] . $result['stdout']);
         return $result;
@@ -231,6 +233,147 @@ final class KassekladdePostingCharacterizationTest extends TestCase
         }
         $this->assertEqualsWithDelta($saldoBefore[$acctA] + 640.00, $saldoAfter[$acctA], 0.005, 'debit account saldo increases');
         $this->assertEqualsWithDelta($saldoBefore[$acctB] - 640.00, $saldoAfter[$acctB], 0.005, 'credit account saldo decreases');
+    }
+
+    /**
+     * Start the posting page as a background child, like runPage(), with its own session save path: PHP's
+     * files handler locks a session file until the request ends, so two children sharing one would run one
+     * after the other. SALDI_CHAR_DEBUG makes the runner repeat the page's HTML on stderr.
+     *
+     * @return array{proc: resource, out: resource, err: resource, sessionDir: string}
+     */
+    private function startPage(string $mode, int $kladdeId, string $login): array
+    {
+        $sessionDir = sys_get_temp_dir() . '/chartest-session-' . $login . '-' . bin2hex(random_bytes(6));
+        mkdir($sessionDir, 0700);
+        $out = tmpfile();
+        $err = tmpfile();
+        $env = getenv();
+        $env['SALDI_CHAR_DEBUG'] = '1';
+        $proc = proc_open(
+            [PHP_BINARY, __DIR__ . '/../support/run_bogfor_page.php', $mode, (string)$kladdeId, CharacterizationEnv::sessionId(), $sessionDir],
+            [0 => ['file', '/dev/null', 'r'], 1 => $out, 2 => $err],
+            $pipes,
+            null,
+            $env
+        );
+        $this->assertIsResource($proc, 'could not start the posting page');
+        return ['proc' => $proc, 'out' => $out, 'err' => $err, 'sessionDir' => $sessionDir];
+    }
+
+    /**
+     * Wait for a child from startPage(); it is stopped after $timeout seconds.
+     *
+     * @param array{proc: resource, out: resource, err: resource, sessionDir: string} $child
+     * @return array{exit: int, output: string}
+     */
+    private function finishPage(array $child, float $timeout): array
+    {
+        // Only the first status that reports the child as stopped carries its exit code.
+        $deadline = microtime(true) + $timeout;
+        $status = proc_get_status($child['proc']);
+        while ($status['running'] && microtime(true) < $deadline) {
+            usleep(50000);
+            $status = proc_get_status($child['proc']);
+        }
+        if ($status['running']) {
+            proc_terminate($child['proc'], 9);
+        }
+        proc_close($child['proc']);
+        $exit = $status['running'] ? -1 : $status['exitcode'];
+        $output = '';
+        foreach (['out', 'err'] as $stream) {
+            rewind($child[$stream]);
+            $output .= stream_get_contents($child[$stream]);
+            fclose($child[$stream]);
+        }
+        array_map('unlink', glob($child['sessionDir'] . '/*') ?: []);
+        rmdir($child['sessionDir']);
+        return ['exit' => $exit, 'output' => $output];
+    }
+
+    /** Other connections to the test database that wait for a lock in a statement on kladdeliste. */
+    private function journalLockWaiters(): int
+    {
+        $r = CharacterizationEnv::one(
+            self::$tenant,
+            "SELECT count(*) AS n FROM pg_stat_activity
+             WHERE datname = current_database() AND pid <> pg_backend_pid()
+               AND wait_event_type = 'Lock' AND query LIKE '%kladdeliste%'"
+        );
+        return (int)$r['n'];
+    }
+
+    /** @return array<int, float> kontoplan.saldo of the current fiscal year by account number */
+    private function saldi(int ...$accounts): array
+    {
+        $saldi = [];
+        foreach ($accounts as $kontonr) {
+            $r = CharacterizationEnv::one(
+                self::$tenant,
+                'SELECT saldo FROM kontoplan WHERE regnskabsaar = $1 AND kontonr = $2',
+                [self::$regnaar, $kontonr]
+            );
+            $saldi[$kontonr] = (float)($r['saldo'] ?? 0);
+        }
+        return $saldi;
+    }
+
+    /**
+     * Two logins press Bogfør on the same journal while the first posting is still running. Both requests
+     * pass the page's check of kladdeliste.bogfort before either has committed. The journal must be posted
+     * once: the second request waits for the first, finds bogfort 'V' and writes nothing (bookkeeping F1).
+     */
+    public function test_two_concurrent_postings_of_one_journal_post_it_once(): void
+    {
+        [$acctA, $acctB] = $this->plainAccounts();
+        $kladdeId = $this->createKladde([
+            ['debet' => $acctA, 'kredit' => $acctB, 'amount' => 375.00, 'tekst' => 'chartest concurrent'],
+        ]);
+        $saldoBefore = $this->saldi($acctA, $acctB);
+
+        // A third connection holds the journal row, as a long first posting would. Both requests get past
+        // the page's own check, open their posting transaction and wait for this lock inside it.
+        $blocker = CharacterizationEnv::connect(CharacterizationEnv::testDb());
+        CharacterizationEnv::rows($blocker, 'BEGIN');
+        CharacterizationEnv::rows($blocker, 'SELECT id FROM kladdeliste WHERE id = $1 FOR UPDATE', [$kladdeId]);
+        $children = [];
+        try {
+            $children[] = $this->startPage('bogfor', $kladdeId, 'one');
+            $children[] = $this->startPage('bogfor', $kladdeId, 'two');
+            $deadline = microtime(true) + 60;
+            while ($this->journalLockWaiters() < 2 && microtime(true) < $deadline) {
+                usleep(100000);
+            }
+            $waiting = $this->journalLockWaiters();
+        } finally {
+            pg_query($blocker, 'ROLLBACK');
+            pg_close($blocker);
+        }
+        $results = array_map(fn($child) => $this->finishPage($child, 120), $children);
+        $this->assertSame(2, $waiting, 'both requests waited inside their posting transaction at the same time');
+        foreach ($results as $result) {
+            $this->assertSame(0, $result['exit'], $result['output']);
+        }
+
+        $rows = $this->ledgerRows('transaktioner', $kladdeId);
+        $this->assertCount(2, $rows, 'one posting: one debit and one credit row');
+        $byKonto = [];
+        foreach ($rows as $r) {
+            $byKonto[(int)$r['kontonr']] = [(float)$r['debet'], (float)$r['kredit']];
+        }
+        $this->assertEqualsWithDelta([375.00, 0.00], $byKonto[$acctA] ?? null, 0.001, 'debit account posted once');
+        $this->assertEqualsWithDelta([0.00, 375.00], $byKonto[$acctB] ?? null, 0.001, 'credit account posted once');
+
+        $saldoAfter = $this->saldi($acctA, $acctB);
+        $this->assertEqualsWithDelta($saldoBefore[$acctA] + 375.00, $saldoAfter[$acctA], 0.005, 'debit account saldo moved once');
+        $this->assertEqualsWithDelta($saldoBefore[$acctB] - 375.00, $saldoAfter[$acctB], 0.005, 'credit account saldo moved once');
+
+        $kladde = CharacterizationEnv::one(self::$tenant, 'SELECT bogfort FROM kladdeliste WHERE id = $1', [$kladdeId]);
+        $this->assertSame('V', trim((string)$kladde['bogfort']), 'kladde is marked posted');
+
+        $refused = array_filter($results, fn($result) => str_contains($result['output'], "Kladde $kladdeId er allerede bogført. Ingen posteringer er gemt."));
+        $this->assertCount(1, $refused, 'exactly one request tells the user the journal is already posted');
     }
 
     public function test_unbalanced_kladde_does_not_reach_the_ledger(): void

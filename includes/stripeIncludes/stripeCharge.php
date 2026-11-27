@@ -2,6 +2,9 @@
 // 20261022 CDX/LH Shared charge runner, durable authentication recovery and synchronous/asynchronous backup handling.
 // 20261022 CL/LH S5 Greeting and invoice details in the authentication mail; customer and raw Stripe code in bookkeeper alerts.
 // 20261022 CDX/LH Share the full repair/collection job and exit code with tenant-only regression tests.
+// 20261116 CDX/ASR Do not promise or schedule card collection below the DKK minimum.
+// 20261126 CL/ASR Review round 1 (I9): stripe_invoice_enrolled_since() is the one check that an invoice is dated on or after the customer's enrolment, for the charge and the payment page's 'enrolled' state.
+// 20261126 ASR Review PAY-R2-1: an invoice paid by bank or credited (stripe_invoice_settled_reason(), from its open items) is not resumed, gets no decline mail and no authentication alert.
 
 /**
  * Run the CLI's tenant work after bootstrap and acquisition of the whole-job lock.
@@ -45,13 +48,24 @@ function stripe_charge_job_lock($ledger, $directory = null) {
 	return $handle;
 }
 
+/**
+ * The consent covers the invoices from the day the card was saved: an invoice dated before the customer's enrolment
+ * (adresser.stripe_date) is never charged automatically, so it is paid from the link like any other.
+ *
+ * @param array $inv Loaded invoice.
+ * @return bool Whether the invoice is dated on or after the enrolment.
+ */
+function stripe_invoice_enrolled_since($inv) {
+	$since = substr((string)($inv['debtor']['stripe_date'] ?? ''), 0, 10);
+	return $since !== '' && substr((string)($inv['o']['fakturadate'] ?? ''), 0, 10) >= $since;
+}
+
 /** @return bool Whether automatic collection was authorized for this issued invoice. */
 function stripe_auto_charge_allowed($inv) {
-	if (!$inv || !stripe_invoice_collectable($inv) || !$inv['enrolled']
+	if (!$inv || !stripe_invoice_collectable($inv) || stripe_invoice_below_card_minimum($inv) || !$inv['enrolled']
 		|| !stripe_feature_on('invoice_payments') || !stripe_feature_on('enrolment') || stripe_setting('enabled', 'off') !== 'on'
 		|| trim((string)$inv['o']['udskriv_til']) !== 'Stripe') return false;
-	$since = substr((string)($inv['debtor']['stripe_date'] ?? ''), 0, 10);
-	if ($since === '' || substr((string)$inv['o']['fakturadate'], 0, 10) < $since) return false;
+	if (!stripe_invoice_enrolled_since($inv)) return false;
 	foreach ($inv['payments'] as $row) {
 		if (!empty($row['action_required_at'])) return false;
 	}
@@ -122,7 +136,10 @@ function stripe_payment_resume($ordreId) {
 	stripe_invoice_collection_lock((int)$ordreId);
 	try {
 		$inv = stripe_invoice_load($ordreId);
-		if (!$inv || $inv['paid'] || $inv['paid_bank'] || !stripe_invoice_collectable($inv) || !$inv['fully_open']
+		// A waiting authentication on an invoice paid by bank or credited meanwhile is not resumed.
+		$settled = $inv ? stripe_invoice_settled_reason($inv) : '';
+		if ($settled !== '') return array('ok' => false, 'error' => $settled === 'credited' ? 'credited' : 'already_paid');
+		if (!$inv || !stripe_invoice_collectable($inv) || !$inv['fully_open']
 			|| !stripe_feature_on('invoice_payments') || stripe_setting('enabled', 'off') !== 'on') return array('ok' => false, 'error' => 'not_payable');
 		$row = $inv['pending'];
 		if (!$row || $row['status'] !== 'requires_action') return array('ok' => false, 'error' => 'in_progress');
@@ -165,7 +182,7 @@ function stripe_auto_failure_followup($ordreId) {
 			return in_array($p['source'], array('auto', 'backup'), true) && stripe_payment_attempt_failed($p) && empty($p['failure_handled_at']);
 		});
 		if (!$failed) return 'idle';
-		if ($inv['paid'] || $inv['paid_bank']) {
+		if (stripe_invoice_settled_reason($inv) !== '') {
 			stripe_payment_modify("update stripe_payments set failure_handled_at = CURRENT_TIMESTAMP where ordre_id = $id and source in ('auto', 'backup') and status in ('failed', 'canceled')");
 			return 'handled';
 		}
@@ -200,7 +217,7 @@ function stripe_auto_failure_followup($ordreId) {
 				$backups = array_values(array_filter($inv['payments'], function ($p) { return $p['source'] === 'backup'; }));
 			}
 		}
-		if ($inv['paid'] || $inv['paid_bank'] || ($inv['pending'] && $inv['pending']['status'] === 'requires_action')) {
+		if (stripe_invoice_settled_reason($inv) !== '' || ($inv['pending'] && $inv['pending']['status'] === 'requires_action')) {
 			stripe_payment_modify("update stripe_payments set failure_handled_at = CURRENT_TIMESTAMP where ordre_id = $id and source in ('auto', 'backup') and status in ('failed', 'canceled')");
 			return 'handled';
 		}
@@ -224,7 +241,7 @@ function stripe_auto_failure_followup($ordreId) {
 
 /** @return void Alert when authentication remains unpaid after the invoice's last retry date. */
 function stripe_auto_action_alert($inv) {
-	if ($inv['paid'] || $inv['paid_bank']) return;
+	if (stripe_invoice_settled_reason($inv) !== '') return;
 	$base = stripe_setting('charge_on', 'due') === 'invoice_date' ? substr((string)$inv['o']['fakturadate'], 0, 10) : $inv['due'];
 	foreach ($inv['payments'] as $p) {
 		if (!empty($p['action_required_at']) && in_array($p['source'], array('auto', 'backup', 'manual'), true)) {

@@ -50,11 +50,24 @@ if [ ! -d /var/www/html/saldi/vendor ] && [ -f /var/www/html/saldi/includes/comp
     ln -sf /var/www/html/saldi/includes/vendor /var/www/html/saldi/vendor
 fi
 
-# Ensure required writable directories exist with correct permissions
+# 20261029 CDX/NTR Share runtime directories with www-data and migrate logs before starting workers.
+# Ensure required writable directories exclude unrelated local accounts.
+# The base PHP image makes this ancestor sticky and writable by everyone.
+chmod o-w /var/www/html
+# 20261102 CL/NTR Resolve the group in PHP (balances when www-data belongs to it); a refused migration
+# leaves the app on its unmigrated fallback instead of stopping the container.
+shared_runtime_group="$(php -r 'require "/var/www/html/saldi/includes/sharedFile.php"; echo sharedFileGroupName();')"
+# 20261103 CDX/NTR Let migration validate a symlinked temp before startup changes its target's permissions.
 for dir in includes logolib temp bank_integration restapi; do
+    if [ "$dir" = temp ] && [ -L "/var/www/html/saldi/$dir" ]; then
+        continue
+    fi
     mkdir -p /var/www/html/saldi/$dir
-    chmod 777 /var/www/html/saldi/$dir
+    chgrp "$shared_runtime_group" /var/www/html/saldi/$dir
+    chmod 2770 /var/www/html/saldi/$dir
 done
+php /var/www/html/saldi/tools/migrate_shared_runtime.php /var/www/html/saldi/temp \
+    || echo "Shared runtime migration refused; see doc/runtime-permissions.md" >&2
 
 # Create vendor symlink at /var/www/html/vendor/ so relative paths like
 # ../../vendor/autoload.php resolve correctly when CWD is saldi/debitor/

@@ -1,12 +1,13 @@
 <?php
 // 20261025 CL/ASR Fee for manual payment: which paid invoices give a fee on the next invoice, once, and when it is waived.
 // 20261109 CL/ASR The fee line is added by stripe_bogfor_add_fee_line(), shared with the link reminder fee: same line as before.
+// 20261126 CL/ASR Review round 1 (I13): a Kontant or Kreditkort order gets no fee and decides nothing; the next invoice on account still charges it.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 
-require_once __DIR__ . '/bootstrap.php';
-require_once __DIR__ . '/reminderFixtures.php';
+require_once __DIR__ . '/support/bootstrap.php';
+require_once __DIR__ . '/support/reminderFixtures.php';
 require_once __DIR__ . '/../../includes/stripeIncludes/stripeManualFee.php';
 
 final class StripeManualFeeTest extends StripeDatabaseTestCase
@@ -100,6 +101,22 @@ final class StripeManualFeeTest extends StripeDatabaseTestCase
         $this->assertSame([], $decision['charge']);
         $this->assertSame([], $decision['exempt']);
         $this->assertNull($decision['vare']);
+    }
+
+    public function testACashOrCardSaleGetsNoFeeAndTheNextInvoiceOnAccountStillDoes(): void
+    {
+        $debtor = StripeFixtures::debtor();
+        $bank = $this->invoice($debtor, [], true);
+        foreach (['Kontant', 'kreditkort', ' KREDITKORT '] as $terms) {
+            $sale = StripeFixtures::order($debtor, ['betalingsbet' => $terms, 'betalingsdage' => 0]);
+            $decision = stripe_manual_fee_decide($sale);
+            $this->assertSame([], $decision['charge'], $terms);
+            $this->assertSame([], $decision['waive'], $terms);
+            $this->assertSame([], $decision['exempt'], $terms);
+            $this->assertNull($decision['vare'], $terms);
+        }
+        // Nothing was decided, so the fee goes on the customer's next invoice on account.
+        $this->assertSame([$bank], self::ids(stripe_manual_fee_decide(StripeFixtures::order($debtor))['charge']));
     }
 
     public function testCustomerWhoPaysAutomaticallyNowHasPendingFeesWaived(): void

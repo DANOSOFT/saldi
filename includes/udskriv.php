@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/udskriv.php --- ver 5.0.0 --- 2026-10-08---
+// --- includes/udskriv.php --- ver 5.1.1 --- 2026-11-13---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -50,6 +50,14 @@
 // 20260925 CL/LH SST-823 + SST-780: PostScript prints use only the .ps (it has every page; appending the _N.htm pages
 //             printed pages 2..N twice) and keep the document name instead of "udskrift". HTML pages merge in numeric order.
 // 20261006 CL/LH SST-851: Tilbage/Luk on the print page acts once; a repeated click while the order loads is ignored.
+// 20261023 CL/LH MB-58: Tilbage after printing from an order returns to that order again, not the order list.
+//                The route now follows where the print started (bulk/list/order) instead of the area file,
+//                which only records the list tab the last order was opened from.
+// 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
+// 20261104 CL/ASR A PDF print that cannot be made shows the error box (includes/errorReport.php) with a report to Saldi instead of "Kontakt support"; Tilbage stays below it.
+// 20261105 CL/MMR SD-807 The PDF error texts and the print choice screen (Luk, Udskriftsvalg) are shown in the user's language.
+//                 The print-batch error is escaped in the page charset.
+// 20261113 CDX/NTR Keep error reporting and translate the PDF fallback in the page charset.
 
 @session_start();
 $s_id=session_id();
@@ -66,7 +74,7 @@ include("../includes/online.php");
 include("../includes/std_func.php");
 
 if (!isset($exec_path)) $exec_path="/usr/bin";
-$localPrint = (get_settings_value('localPrint', 'print', '', (int) $bruger_id) === 'on') ? 'on' : if_isset($_COOKIE, NULL, 'localPrint'); #20261002 personal setting, cookie kept one release
+$localPrint=if_isset($_COOKIE, NULL, 'localPrint');
 $udfil=$zx=NULL;
 
 $ps_fil        = if_isset($_GET, NULL, 'ps_fil');
@@ -87,9 +95,6 @@ $ordre_antal   = if_isset($_GET, NULL, 'ordre_antal');
 $returside    = if_isset($_GET, NULL, 'returside');
 // 20260812 MJ Begraens til same-origin stier — afviser protokoller (javascript:, http://) og cross-origin URL'er
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20261002 Sawaneh Local print read from the user's personal setting first; the old cookie still counts for one release.
-// 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
-// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
 // 20261008 CDX/PHR Explain unavailable print files without incorrectly blaming PS2PDF.
 $returside = (function($s) {
     $s = trim((string)$s);
@@ -104,10 +109,12 @@ $returside = (function($s) {
     return '';
 })($returside);
 $locat      = if_isset($_GET, NULL, 'locat');
+$bulk       = if_isset($_GET, NULL, 'bulk'); # formularprint() was called with id=-1
 error_log("DIAG: udskriv.php called with id=$id, valg=$valg, udskriv_til=$udskriv_til, art=$art, ordreliste=$ordreliste, ordre_antal=$ordre_antal, returside=$returside");
 if ($art == 'R' && $id) {
 	$returside = "../debitor/rykker.php?rykker_id=" . (int)$id;
 }
+$requestedReturside = $returside; # before the udskriv_til=PDF default below
 if ($udskriv_til == 'PDF') { // refer ../includes/udskriv.php
 	
 	if (substr($art,0,1) == 'K' && !$returside) $returside = '../kreditor/ordreliste.php';
@@ -207,7 +214,7 @@ if ($valg) {
 			);
 		} catch (RuntimeException $error) {
 			fwrite($log, 'Print batch failed: ' . $error->getMessage() . "\n");
-			print '<p>' . htmlspecialchars(findtekst('PDF-udskriften kunne ikke oprettes. Kontakt support.', $sprog_id), ENT_QUOTES, 'UTF-8') . '</p>';
+			if (!function_exists('saldi_error_box') || saldi_error_box(__FILE__ . ' linje ' . __LINE__, 'Print batch failed: ' . $error->getMessage(), '', false, 'app') === 'nosession') print '<p>' . htmlspecialchars(findtekst('8446|PDF-udskriften kunne ikke oprettes. Kontakt support.', $sprog_id), ENT_QUOTES, $charset) . '</p>';
 			print '<a href="' . htmlspecialchars($returside ?: '../debitor/ordreliste.php', ENT_QUOTES, 'UTF-8') . '">' . findtekst('30|Tilbage', $sprog_id) . '</a>';
 			exit;
 		}
@@ -375,10 +382,6 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 			global $menu;
 
 			include("../includes/topline_settings.php");
-            ############
-			$path = "../temp/$db/area$bruger_id.txt";
-			$value = file_exists($path) ? file_get_contents($path) : null;
-			###########
 			if ($menu == 'S') {
 				print "<table width=100% height=100%><tbody>"; 
 				if ($returside) {
@@ -388,34 +391,28 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 					$href="\"../kreditor/ordre.php?tjek=$id&id=$id&returside=" . urlencode($returside) . "\" accesskey=\"L\"";
 				 } elseif (strpos($returside, '../debitor/ordre.php?') === 0) {
 					$href = "\"" . htmlspecialchars($returside, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . "\" accesskey=\"L\"";
-				 } elseif ($art == ('DO' || 'PO') && (strpos($returside, "ordreliste.php") !== false) && $locat) {
+				 } elseif (strpos($returside, "ordreliste.php") !== false && ($bulk || $locat || $requestedReturside)) {
+					// Bulk print, or a print started from the order list: back to the list. Any art (DO, DK, PO)
+					// reaches this point; R and K* are handled above.
 					$href = "../debitor/ordreliste.php";
 				 } else {
-					if($art == 'DO'){
-						if($value == 'faktura'){
-							$href = "../debitor/ordre.php?tjek=$id&id=$id&valg=faktura&returside=" . urlencode($returside);
-
-						}else{
-							$href = "../debitor/ordreliste.php";
-						}
-					}else{
-					  $href = "../debitor/ordre.php?tjek=$id&id=$id&returside=" . urlencode($returside);
-					}
-				 }  
+					// Single print started from the order itself (e.g. right after invoicing); returside is only
+					// the udskriv_til=PDF default here: back to that order.
+					$href = "../debitor/ordre.php?tjek=$id&id=$id&returside=" . urlencode($returside);
+				 }
 				} else { 
 					$href = "udskriv.php?valg=tilbage&id=$id&art=$art\" accesskey=\"L\"";
 				} 
-				// $href carries the old quoting hacks (a closing quote + accesskey inside); the page head gets the bare url.
-				$backHref = preg_replace('/^"|"\s+accesskey="L"$|"$/', '', $href);
-				include_once("../includes/stdFunc/pageBar.php");
-				print "<tr><td colspan='3'>";
-				page_bar(array(
-					'title' => trim("$ordre_antal " . findtekst('880|Udskriv', $sprog_id)),
-					'actions' => array(array(findtekst('2180|Vis PDF udskrift', $sprog_id), "../temp/$ps_fil.pdf", 'bx-file', '_blank')),
-					'back' => $backHref,
-					'back_onclick' => "if (this.dataset.navigating) { return false; } this.dataset.navigating = '1';",
-				));
-				print "</td></tr>";
+				// A second click while the order page is still loading must not reach the
+				// order's own Tilbage/Luk, which sits at the same spot (SST-851).
+				print "<td width='10%'><a href=$href onclick=\"if (this.dataset.navigating) { return false; } this.dataset.navigating = '1'; this.querySelector('button').disabled = true;\">
+					   <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$ordre_antal ".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
+
+				print "<td width='80%' align='center' title='".findtekst('2179|Klik her for at åbne filen i nyt vindue, højreklik her for at gemme', $sprog_id)."'>
+					   <a href=../temp/$ps_fil.pdf target=blank>
+					   <button style='$topStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">".findtekst('2180|Vis PDF udskrift', $sprog_id)."</button></a></td>";
+
+				print "<td width='10%' align='right' style='$topStyle'></td>";
 				print "<tr><td width=100% height=99% align='center' valign='middle' colspan='3'><iframe frameborder='0' width='100%' height='100%' scrolling='auto' src='../temp/$ps_fil.pdf'></iframe></td></tr>";
 				print "</tbody></table>";
 
@@ -435,7 +432,8 @@ if (file_exists("../temp/$ps_fil.pdf")) {
 
 		} else {
 			$fejl_retur = $returside ? htmlspecialchars($returside, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') : '../debitor/ordreliste.php';
-			print "<BODY onLoad=\"javascript:alert('PDF-filen kunne ikke oprettes eller er ikke længere tilgængelig. Dan udskriften igen.')\">";
+			$pdfFejl = jsString(array(findtekst('8447|PDF-filen kunne ikke oprettes eller er ikke længere tilgængelig. Dan udskriften igen.', $sprog_id)));
+			print "<BODY onLoad=\"javascript:alert(" . htmlspecialchars($pdfFejl, ENT_QUOTES, 'UTF-8') . ")\">";
 			print "<p><a href=\"$fejl_retur\">" . findtekst('2172|Luk', $sprog_id) . "</a></p>";
 		}
 	}
@@ -463,10 +461,18 @@ global $menu;
 include ("../includes/topline_settings.php");
 
 if ($menu == 'S') {
-	include_once("../includes/stdFunc/pageBar.php");
-	page_bar(array('title' => findtekst('7014|Udskriftsvalg', $sprog_id), 'back' => 'udskriv.php?valg=tilbage'));
 	print "<table width=\"100%\" height=\"75%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td height=\"1%\" align=\"center\" valign=\"top\">";
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"1\" cellpadding=\"0\"><tbody>";
+
+	print "<td width=\"10%\"><a href=\"udskriv.php?valg=tilbage\" accesskey=\"L\">
+		   <button style='$butUpStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" . findtekst('2172|Luk', $sprog_id) . "</button></a></td>";
+
+	print "<td width=\"80%\" align=\"center\" style='$topStyle'>" . findtekst('8448|Udskriftsvalg', $sprog_id) . "</td>";
+
+	print "<td width=\"10%\" align = \"right\" style='$topStyle'><br></td>";
+
+	print "</tbody></table>";
 	print "</td></tr>";
 	print "<tr><td height=\"99%\" align = center valign = middle>";
 	print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
@@ -484,8 +490,8 @@ if ($menu == 'S') {
 	print "<table width=\"100%\" height=\"75%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 	print "<tr><td height=\"1%\" align=\"center\" valign=\"top\">";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"1\" cellpadding=\"0\"><tbody>";
-	print "<td width=\"10%\" $top_bund><a href=\"udskriv.php?valg=tilbage\" accesskey=\"L\">Luk</a></td>";
-	print "<td width=\"80%\" $top_bund align=\"center\">Udskriftsvalg</td>";
+	print "<td width=\"10%\" $top_bund><a href=\"udskriv.php?valg=tilbage\" accesskey=\"L\">" . findtekst('2172|Luk', $sprog_id) . "</a></td>";
+	print "<td width=\"80%\" $top_bund align=\"center\">" . findtekst('8448|Udskriftsvalg', $sprog_id) . "</td>";
 	print "<td width=\"10%\" $top_bund align = \"right\"><br></td>";
 	print "</tbody></table>";
 	print "</td></tr>";

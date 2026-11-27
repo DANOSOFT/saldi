@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/boxCountMethods/findBoxSale.php --- lap 5.0.0 --- 2026.09.07 ---
+// --- debitor/pos_ordre_includes/boxCountMethods/findBoxSale.php --- ver 5.1.1 --- 2026.11.18 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,7 +24,7 @@
 // ----------------------------------------------------------------------
 //
 // 20260605 CL/PHR findBoxSale: inkluder kasse_nr=0 transaktioner for ordrer tilhørende denne kasse i kasseopgørelsen
-
+//
 // PHR Changed DKK to $baseCurrency
 // 20260523 CL/PHR Fixed typo: status = ' 3' (space before 3) corrected to status = '3' in else-branch
 // 20260523 CL/PHR Changed INNER JOIN with pos_betalinger to LEFT JOIN with COALESCE fallback to ordrer.felt_1/valuta,
@@ -32,9 +32,24 @@
 // 20260523 CL/PHR Fixed negative tilgang: skip retur calculation when pos_betalinger has no rows (NULL amount)
 // 20260907 CDX/PHR Expose included orders for cash report assignment.
 // 20260908 CDX/LH Limit immediate-posting report assignments to counted accounts; keep calculation read-only.
-// 20261009 Sawaneh The till account per currency comes from settings VK/till_account_<currency> per till (decision 22); box4 list only as fallback.
+// 20261019 CL/LH MB-70: Count only POS orders (and debtor orders when sets are enabled), as posbogfor() posts them.
+//                Ordinary invoices with a transaction on the register no longer inflate the turnover.
+//                A sale without payment type is logged and shown as "Ukendt betalingstype" instead of a nameless bucket.
+//                A missing (NULL) payment type no longer reaches substr()/strtolower().
+// 20261009 SS The till account per currency comes from settings VK/till_account_<currency> per till (decision 22); box4 list only as fallback.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261117 CL/ASR POS-F2: Cash taken in a foreign currency on a POS order (the order is in the base currency) is counted as that currency's takings.
+//                 It is no longer a card named 'Kontant' in the base-currency count when the count assistant counts that currency.
+//                 With immediate posting it is taken out of the base-currency takings until the count has moved it to its own till account.
+//                 With immediate posting, today's postings of earlier counts on the currency's till account are its float, so a later count does not move them again.
+// 20261117 CL/ASR An unposted (status 3) sale dated before the active fiscal year is counted, as the day close now posts it.
+//                 With POS box9 (posted at the sale) the status 3 sales of account customers are counted too, as the day close posts them.
+// 20261118 CL/ASR A status 3 sale counts only when posSaleFiscalYear() gives it a fiscal year, the rule posbogfor() posts by: a sale dated in a deleted fiscal year or in none is not counted.
+//                 With box9, cash taken in a foreign currency on a status 3 sale is counted with that currency and not as a card named 'Kontant', as without box9.
 function findBoxSale ($kasse,$optalt,$valuta,&$reportOrderIds = null) {
+	include_once(__DIR__ . '/posSaleFiscalYear.php');
 	$reportOrderIds = array();
+	$saleYear = array(); # posSaleFiscalYear() per sale date: a status 3 sale without a fiscal year is not posted by posbogfor(), so it is not counted
 	echo "<!-- function findBoxSale begin -->"; 
   	global $baseCurrency,$db,$regnaar;
 	global $sprog_id,$straksbogfor;
@@ -66,15 +81,35 @@ function findBoxSale ($kasse,$optalt,$valuta,&$reportOrderIds = null) {
 	$kortkonti=$r['box6'];
 	$kortkonto=explode(chr(9),$kortkonti);
 	$straksbogfor=$r['box9'];
+	$baseTillAccount = (int)($kassekonti[$kasse-1] ?? 0); # the sale posts all cash to this account, also foreign cash
 	$o_liste=NULL; #20150519
 	if ($valuta!=$baseCurrency) {
 		$kortantal=0;
 		$kortnavn=array();
 	}
-	$qtxt = "select box1,box6 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
+	$qtxt = "select box1,box2,box6,box12 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
 	$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	($byttepenge=$r['box1'])?$fast_morgen=1:$fast_morgen=0;
 	$otherCardsAccount = (int)$r['box6'];
+	# Select orders as posbogfor() in pos_ordre.php does: POS orders only, plus debtor
+	# orders handed in at the register when sets are enabled (vis_saet, box12).
+	$includeDebtorOrders = (bool)trim((string)($r['box12'] ?? ''));
+	# Cash taken in a currency the count assistant (box2, as in cashBalance.php) counts in the till (VK box4 '1')
+	# is counted with that currency, which moves it to its own till account, so it is left out of the base currency.
+	$countedCurrencies = array();
+	if ($valuta == $baseCurrency && !empty($r['box2'])) {
+		$q = db_select("select box1 from grupper where art = 'VK' and box4 = '1' order by box1",__FILE__ . " linje " . __LINE__);
+		while ($r2 = db_fetch_array($q)) {
+			if ($r2['box1'] && $r2['box1'] != $baseCurrency) $countedCurrencies[] = $r2['box1'];
+		}
+	}
+	# A POS order is in the base currency: cash taken in a foreign currency is found by its payment row.
+	if ($valuta == $baseCurrency) {
+		$orderCurrencySql = "ordrer.valuta = '$valuta'";
+	} else {
+		$currencySql = db_escape_string($valuta);
+		$orderCurrencySql = "(ordrer.valuta = '$currencySql' or (pos_betalinger.valuta = '$currencySql' and pos_betalinger.betalingstype = 'Kontant'))";
+	}
 	$acountExists = $kortsum = array();
 	for ($i=0;$i<count($kortnavn);$i++) {
 		if (!in_array($kortkonto[$i],$acountExists)) {
@@ -127,6 +162,8 @@ function findBoxSale ($kasse,$optalt,$valuta,&$reportOrderIds = null) {
 			$qtxt = "select distinct(t.ordre_id) from transaktioner t left join ordrer o on t.ordre_id = o.id";
 			$qtxt.= " where (t.logdate > '$logdate' or (t.logdate = '$logdate' and t.logtime > '$logtime'))";
 			$qtxt.= " and (t.kasse_nr='$kasse' or (t.kasse_nr=0 and o.felt_5='$kasse'))";
+			if ($includeDebtorOrders) $qtxt.= " and (o.art = 'PO' or o.art like 'D%')";
+			else $qtxt.= " and o.art = 'PO'";
 			$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 			$o=0;
 			$oList=array();
@@ -174,6 +211,81 @@ function findBoxSale ($kasse,$optalt,$valuta,&$reportOrderIds = null) {
 		$qtxt.="where transdate >= '$regnstart' and transdate = '$dd' and kontonr = '$kassekonti[$k]'";
 		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)); # and kasse_nr='$kasse'
 		$tilgang=$r['debet']-$r['kredit'];
+		# The sale posts foreign cash to the base-currency till account, and the count moves it to the currency's own
+		# till account ('Kassesalg <currency>'). Cash taken since the last count is still on the base-currency account:
+		# it is taken out of the base-currency takings and counted as the takings of its own currency.
+		$cashCurrencies = ($valuta == $baseCurrency) ? $countedCurrencies : array($valuta);
+		if ($cashCurrencies && $baseTillAccount) {
+			$qtxt = "select id from transaktioner where transdate >= '$regnstart' and beskrivelse like 'Kasseoptaelling%' ";
+			$qtxt.= "and kontonr='0' and debet='0' and kredit='0' and kasse_nr='" . (int)$kasse . "' order by id desc limit 1";
+			$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+			$lastCountId = ($r) ? (int)$r['id'] : 0;
+			$qtxt = "select sum(pos_betalinger.amount) as amount from pos_betalinger, ordrer ";
+			$qtxt.= "where pos_betalinger.ordre_id = ordrer.id and ordrer.felt_5 = '" . (int)$kasse . "' and pos_betalinger.betalingstype = 'Kontant' ";
+			$qtxt.= "and pos_betalinger.valuta in ('" . implode("','", array_map('db_escape_string', $cashCurrencies)) . "') ";
+			$qtxt.= "and ordrer.id in (select ordre_id from transaktioner where id > $lastCountId ";
+			$qtxt.= "and transdate >= '$regnstart' and kontonr = '$baseTillAccount')";
+			$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+			$foreignCash = ($r) ? (float)$r['amount'] : 0;
+			if ($valuta == $baseCurrency) {
+				$tilgang -= $foreignCash;
+			} else {
+				# Postings on the currency's own till account today come from earlier counts (no sale posts there):
+				# they are what the till held after that count, not takings for posbogfor() to move again.
+				if (!$fast_morgen) $byttepenge += $tilgang;
+				$tilgang = $foreignCash;
+			}
+		}
+		# 20261117 box9 posts a sale at once only without a customer (konto_id 0). A sale to an account customer stays
+		# at status 3 and posbogfor() posts it at the day close, so it is counted here as in the branch below:
+		# Konto as sale on account, cards per card, cash net of change in the till.
+		$qtxt="select ordrer.id as ordre_id, ";
+		$qtxt.="COALESCE(pos_betalinger.betalingstype, ordrer.felt_1) as betalingstype, ";
+		$qtxt.="COALESCE(pos_betalinger.amount, ordrer.sum + ordrer.moms) as amount, ";
+		$qtxt.="COALESCE(pos_betalinger.valuta, ordrer.valuta) as valuta, ordrer.sum, ordrer.moms, ordrer.fakturadate ";
+		$qtxt.="from ordrer left join pos_betalinger on ordrer.id = pos_betalinger.ordre_id ";
+		$qtxt.="where ordrer.felt_5='$kasse' and ordrer.status = '3' and ordrer.fakturadate <= '$dd' and $orderCurrencySql ";
+		if ($includeDebtorOrders) $qtxt.= "and (ordrer.art = 'PO' or ordrer.art like 'D%') ";
+		else $qtxt.= "and ordrer.art = 'PO' ";
+		$qtxt.="order by ordrer.id";
+		$openOrderSum = array();
+		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
+		while ($r=db_fetch_array($q)) {
+			if (!isset($saleYear[$r['fakturadate']])) $saleYear[$r['fakturadate']] = posSaleFiscalYear($r['fakturadate']);
+			if (!$saleYear[$r['fakturadate']]) continue;
+			$betalingstype=(string)$r['betalingstype'];
+			if (trim($betalingstype) === '') {
+				error_log(sprintf("findBoxSale: order %d on register %d has no payment type", $r['ordre_id'], $kasse));
+				$betalingstype = findtekst('5450|Ukendt betalingstype', $sprog_id);
+			}
+			if (substr($betalingstype,0,14)=='Betalingskort|')$betalingstype='Betalingskort';
+			if (!isset($openOrderSum[$r['ordre_id']])) {
+				$openOrderSum[$r['ordre_id']] = $r['sum']+$r['moms'];
+				$reportOrderIds[] = (int)$r['ordre_id'];
+			}
+			if (strtolower($betalingstype)=='konto') $kontosum+=$r['amount'];
+			elseif ($betalingstype=='Kontant' && ($r['valuta'] == $valuta || ($valuta==$baseCurrency && $r['valuta'] == ''))) {
+				$tilgang+=$r['amount'];
+			} elseif ($betalingstype=='Kontant' && in_array($r['valuta'],$countedCurrencies)) {
+				# Counted with its own currency (see $countedCurrencies), not as a card.
+			} else {
+				if (!in_array(strtolower($betalingstype),$l_cardName)) {
+					$i = count($kortnavn);
+					$l_cardName[$i] = strtolower($betalingstype);
+					$kortnavn[$i]   = $betalingstype;
+					$kortkonto[$i]  = $otherCardsAccount;
+					$kortsum[$i]    = 0;
+				}
+				for ($x=0;$x<count($kortnavn);$x++) {
+					if (strtolower($betalingstype)==strtolower($kortnavn[$x])) $kortsum[$x]+=$r['amount'];
+				}
+			}
+		}
+		foreach ($openOrderSum as $openOrderId => $openSum) {
+			$qtxt="select sum(amount) as amount from pos_betalinger where ordre_id='$openOrderId'";
+			$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
+			if ($valuta==$baseCurrency && is_numeric($r['amount'])) $tilgang-=$r['amount']-$openSum;
+		}
 	} else {
 		$tilgang=0;
 		$oid=0;
@@ -187,17 +299,30 @@ function findBoxSale ($kasse,$optalt,$valuta,&$reportOrderIds = null) {
 		$qtxt.="COALESCE(pos_betalinger.betalingstype, ordrer.felt_1) as betalingstype, ";
 		$qtxt.="COALESCE(pos_betalinger.amount, ordrer.sum + ordrer.moms) as amount, ";
 		$qtxt.="COALESCE(pos_betalinger.valuta, ordrer.valuta) as valuta, ";
-		$qtxt.="ordrer.sum, ordrer.moms, ordrer.status ";
+		$qtxt.="ordrer.sum, ordrer.moms, ordrer.status, ordrer.fakturadate ";
 		$qtxt.="from ordrer left join pos_betalinger on ordrer.id = pos_betalinger.ordre_id ";
-		$qtxt.="where ordrer.felt_5='$kasse' $tmp and ordrer.fakturadate >= '$regnstart' ";
-		$qtxt.="and ordrer.fakturadate <= '$dd' and ordrer.valuta = '$valuta' ";
+		# 20261117 An unposted sale from before regnstart is counted too, as posbogfor() posts it in its own fiscal year.
+		$qtxt.="where ordrer.felt_5='$kasse' $tmp and (ordrer.fakturadate >= '$regnstart' or ordrer.status = '3') ";
+		$qtxt.="and ordrer.fakturadate <= '$dd' and $orderCurrencySql ";
+		if ($includeDebtorOrders) $qtxt.= "and (ordrer.art = 'PO' or ordrer.art like 'D%') ";
+		else $qtxt.= "and ordrer.art = 'PO' ";
 		if (count($oList)) $qtxt.= "and ordrer.status >= '3' ";
 		else $qtxt.= "and ordrer.status = '3'";
 		$qtxt.=" order by betalingstype, ordrer.id";
 		$q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($r=db_fetch_array($q)) {
+			if ($r['status'] == '3') {
+				if (!isset($saleYear[$r['fakturadate']])) $saleYear[$r['fakturadate']] = posSaleFiscalYear($r['fakturadate']);
+				if (!$saleYear[$r['fakturadate']]) continue;
+			}
 			if ($r['status'] == '3' || in_array($r['ordre_id'],$oList)) {
 				$betalingstype=$r['betalingstype']; #20170317
+				if (trim((string)$betalingstype) === '') {
+					# A nameless bucket is added to the turnover but never saved as a payment row
+					# on the report, so name it and leave a trace of the order behind it.
+					error_log(sprintf("findBoxSale: order %d on register %d has no payment type", $r['ordre_id'], $kasse));
+					$betalingstype = findtekst('5450|Ukendt betalingstype', $sprog_id);
+				}
 				if (substr($betalingstype,0,14)=='Betalingskort|')$betalingstype='Betalingskort';	
 				if (!in_array($r['ordre_id'],$oid)) {
 					$oid[$b]  = $r['ordre_id'];
@@ -209,11 +334,13 @@ function findBoxSale ($kasse,$optalt,$valuta,&$reportOrderIds = null) {
 					$b++;
 				}
 #					if (strtolower($r['betalingstype'])=='konto') $kontosalg.=$oid[$b].chr(9);
-				if (strtolower($r['betalingstype'])=='konto') $kontosum+=$r['amount'];
+				if (strtolower((string)$r['betalingstype'])=='konto') $kontosum+=$r['amount'];
 				elseif ($valuta==$baseCurrency && $r['betalingstype']=='Kontant' && ($r['valuta'] == $valuta || $r['valuta'] == '')) {
 					$tilgang+=$r['amount'];
 				} elseif ($valuta!=$baseCurrency && $r['betalingstype']=='Kontant' && $r['valuta'] == $valuta) {
 					$tilgang+=$r['amount'];
+				} elseif ($r['betalingstype']=='Kontant' && in_array($r['valuta'],$countedCurrencies)) {
+					# Counted with its own currency (see $countedCurrencies), not as a card.
 				} else {
 					if (!in_array(strtolower($betalingstype),$l_cardName)) {
 						$i = count($kortnavn);

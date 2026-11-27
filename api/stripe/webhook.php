@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/stripe/webhook.php --- 2026.10.26
+// --- api/stripe/webhook.php --- 2026.11.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,9 +26,22 @@
 // 20260807 CL/LH Created: Stripe webhook receiver. Contract:
 //                doc/stripe/INTERFACE_CONTRACT.md.
 // 20260818 CL/LH Hardened claims, DB failures, and invoice identity.
+// 20261126 CL/ASR Stripe port (#821): payment_intent.* events for a Saldi invoice (metadata saldi_ordre_id) go to stripe_webhook_payment_intent() in includes/stripeIncludes/stripeInvoice.php.
+//                 Intents of a Stripe invoice (the subscription customers) are ignored here, and an intent that maps to no invoice raises an alert mail.
 // 20261022 CDX/LH Route invoice events through retryable booking and manual refund/dispute handling.
-// 20261026 CL/NTR Multi-ledger: the endpoint URL carries the ledger (?r=<db>, verified by that ledger's own
-//                 webhook secret); events for objects tagged with another ledger (saldi_db) are acknowledged unrecorded.
+// 20261126 CL/ASR Stripe port (#850): payment_intent.*, charge.refunded and charge.dispute.created for Saldi invoices go to stripe_invoice_webhook_dispatch() (includes/stripeIncludes/stripeInvoiceWebhook.php) ahead of the charge.refunded pilot handler and replace the #821 payment_intent block.
+// 20261026 CL/NTR Multi-ledger: the endpoint URL carries the ledger (?r=<db>, verified by that ledger's own webhook secret); events for objects tagged with another ledger (saldi_db) are acknowledged unrecorded.
+// 20261126 CL/ASR Stripe port (#889): each ledger's endpoint (?r=) now processes events; before the port only the pinned ledger received them.
+//                 As ported, untagged events (subscriptions created before saldi_db) were processed in whichever ledger the endpoint resolves (see I8 below).
+// 20261126 CL/ASR Review round 1 (I8): untagged subscription events (checkout, invoice paid/failed, subscription deleted) are processed only in the pinned ledger; other ledgers acknowledge them unrecorded.
+//                 The pilot refund alert goes out only in the pinned ledger, for a tagged object or for a customer the ledger knows.
+// 20261126 CL/ASR Review round 1 (I20): a delivery answered 5xx for a retryable reason (unmatched subscription invoice, invoice database or delivery error) leaves its row 'failed' with that reason, and Stripe's redelivery claims it at once instead of getting 'duplicate'.
+//                 The unmatched-invoice alert says so.
+// 20261126 CL/ASR Review round 1 (S3, review): a claimed row is reclaimable too: still 'retrying' 15 minutes after the claim (its process died, or releasing the row failed).
+//                 The claim stores its time in processed_at, so a slow claim is not taken over at once because the event was received long ago.
+// 20261126 ASR Payment review (GPT-P-5): the delivery that inserted or claimed a row keeps its token in error until it finishes, and only that delivery finishes or releases the row.
+//              A delivery whose claim was taken over after 15 minutes no longer overwrites what the new one does.
+//              A redelivery that finds the row held by another delivery that has not finished is answered 409 in_progress instead of 200 duplicate, so Stripe sends the event again and a later redelivery takes it over if that delivery died.
 //
 // PILOT MODE OF RECORD = record-only: verify + dedupe + record + PDF + alert;
 // nothing is booked. The import path is gated behind the import_enabled
@@ -38,9 +51,11 @@
 // never book anything half-wired.
 //
 // Response policy: 2xx fast and always - EXCEPT (a) signature failure -> 400,
-// (b) infrastructure failure (boot/insert) -> 5xx, and (c) the documented
+// (b) infrastructure failure (boot/insert) -> 5xx, (c) the documented
 // unmapped_customer case -> 5xx so Stripe's retry ladder absorbs webhook
-// ordering races instead of permanently dropping a first payment.
+// ordering races instead of permanently dropping a first payment, and
+// (d) an event another delivery holds and has not finished -> 409, so Stripe
+// sends it again instead of counting it as delivered.
 //
 // stripe_events.payload stores the BASE64 of the raw verified body:
 // injecttjek() (db_query.php) pattern-matches SQL text and could otherwise
@@ -172,8 +187,18 @@ function stripe_wh_object_ledger($obj) {
 	}
 	return '';
 }
+// Subscription events without saldi_db come from subscriptions created before the tag, which only the pinned ledger
+// (stripeConfigDb()) could create. Every other ledger on the account acknowledges them unrecorded, so it never caches
+// another ledger's customers, files its invoice PDFs or alerts its own bookkeeper about them.
+// Untagged payment intents, refunds and disputes are not decided here: the handlers below match them on their own ids,
+// and a dispute carries no saldi_db at all.
+function stripe_wh_untagged_elsewhere($eventType, $objectLedger, $db) {
+	$pilotEvents = array('checkout.session.completed', 'invoice.paid', 'invoice.payment_failed', 'customer.subscription.deleted');
+	return $objectLedger === '' && in_array($eventType, $pilotEvents, true) && $db !== stripeConfigDb();
+}
 $objectLedger = stripe_wh_object_ledger($obj);
 if ($objectLedger !== '' && $objectLedger !== $db) stripe_wh_respond(200, 'other_ledger');
+if (stripe_wh_untagged_elsewhere($eventType, $objectLedger, $db)) stripe_wh_respond(200, 'other_ledger');
 $mode      = stripe_setting('mode');
 $liveMode  = !empty($event['livemode']);
 if (!in_array($mode, ['test', 'live'], true)) {
@@ -183,27 +208,43 @@ if (!in_array($mode, ['test', 'live'], true)) {
 
 // 5. Dedupe via the DB unique index, with an ownership token so a concurrent
 // duplicate delivery can never double-process. The token borrows the error
-// column for the microseconds between insert and claim-check.
+// column while this delivery holds the row: from the insert or claim until
+// stripe_wh_finish() or the invoice dispatcher finishes or releases it, and
+// those writes apply only while the row still carries this token.
 $eventIdEsc = db_escape_string($eventId);
 $token = bin2hex(random_bytes(16));
+// A redelivery takes over an existing row when the earlier delivery was answered 5xx for a retryable reason (status
+// 'failed' with that reason as its error: an unmatched subscription invoice here, a database or delivery error from
+// stripe_invoice_webhook_dispatch()), or when its process died mid-processing or could not release the row: still
+// 'received' 15 minutes after it was received, or still 'retrying' 15 minutes after a redelivery claimed it (the claim
+// stores its time in processed_at; a row claimed before that has none and counts from received_at).
+// Every other existing row is a duplicate.
+function stripe_wh_claimable_sql($dbType) {
+	$ago = ($dbType === 'mysql' || $dbType === 'mysqli') ? 'CURRENT_TIMESTAMP - INTERVAL 15 MINUTE' : "CURRENT_TIMESTAMP - INTERVAL '15 minutes'";
+	return "((status = 'received' and received_at < $ago) or (status = 'retrying' and coalesce(processed_at, received_at) < $ago)"
+		. " or (status = 'failed' and error in ('unmapped_customer', 'database_error', 'delivery_error')))";
+}
+// A row this delivery could not claim: another delivery that has not finished holds it ('received' or 'retrying' with a
+// claim younger than 15 minutes), so the answer is 409 and Stripe sends the event again; once that claim is 15 minutes old
+// a redelivery takes the row over. Any other row is finished: a duplicate.
+function stripe_wh_not_claimed($row) {
+	if ($row && in_array($row['status'], array('received', 'retrying'), true)) stripe_wh_respond(409, 'in_progress');
+	stripe_wh_respond(200, 'duplicate');
+}
 $existing = db_fetch_array(stripe_wh_db_select("select id, status from stripe_events where event_id = '$eventIdEsc'"));
 if ($existing) {
-	if ($existing['status'] !== 'received') stripe_wh_respond(200, 'duplicate');
-	// Crashed mid-processing >15 min ago: claim it for reprocessing.
-	$staleSql = ($db_type === 'mysql' || $db_type === 'mysqli')
-		? 'received_at < CURRENT_TIMESTAMP - INTERVAL 15 MINUTE'
-		: "received_at < CURRENT_TIMESTAMP - INTERVAL '15 minutes'";
-	stripe_wh_require_modify("update stripe_events set status = 'retrying', error = '$token' where id = " . (int)$existing['id']
-		. " and status = 'received' and $staleSql");
-	$claim = db_fetch_array(stripe_wh_db_select("select error from stripe_events where id = " . (int)$existing['id']));
-	if (!$claim || $claim['error'] !== $token) stripe_wh_respond(200, 'duplicate');
+	if (!in_array($existing['status'], array('received', 'retrying', 'failed'), true)) stripe_wh_respond(200, 'duplicate');
+	stripe_wh_require_modify("update stripe_events set status = 'retrying', error = '$token', processed_at = CURRENT_TIMESTAMP where id = " . (int)$existing['id']
+		. " and " . stripe_wh_claimable_sql($db_type));
+	$claim = db_fetch_array(stripe_wh_db_select("select status, error from stripe_events where id = " . (int)$existing['id']));
+	if (!$claim || $claim['error'] !== $token) stripe_wh_not_claimed($claim);
 	$rowId = (int)$existing['id'];
 } else {
 	$insertResult = stripe_wh_db_modify("insert into stripe_events (event_id, event_type, payload, status, error) values ('$eventIdEsc', '"
 		. db_escape_string($eventType) . "', '" . db_escape_string(base64_encode($rawBody)) . "', 'received', '$token')");
-	$mine = db_fetch_array(stripe_wh_db_select("select id, error from stripe_events where event_id = '$eventIdEsc'"));
+	$mine = db_fetch_array(stripe_wh_db_select("select id, status, error from stripe_events where event_id = '$eventIdEsc'"));
 	if ($insertResult === false) {
-		if ($mine && $mine['error'] !== $token) stripe_wh_respond(200, 'duplicate');
+		if ($mine && $mine['error'] !== $token) stripe_wh_not_claimed($mine);
 		stripe_log("webhook: stripe_events insert failed for $eventId - responding 500");
 		stripe_wh_respond(500, 'store_failed');
 	}
@@ -212,17 +253,19 @@ if ($existing) {
 		stripe_log("webhook: stripe_events insert failed for $eventId - responding 500");
 		stripe_wh_respond(500, 'store_failed');
 	}
-	if ($mine['error'] !== $token) stripe_wh_respond(200, 'duplicate'); // concurrent delivery won the index race
+	if ($mine['error'] !== $token) stripe_wh_not_claimed($mine); // concurrent delivery won the index race
 	$rowId = (int)$mine['id'];
 }
-stripe_wh_require_modify("update stripe_events set error = null where id = $rowId");
 
+// Finishes the row only while this delivery still holds it (its token in error); the finish clears the token. A delivery
+// whose claim was taken over leaves the row to the delivery that took it, and still answers Stripe.
 function stripe_wh_finish($rowId, $status, $respCode, $respMsg, $orderId = 0, $invoiceNumber = '', $error = '') {
+	global $token;
 	$set = "status = '" . db_escape_string($status) . "', processed_at = CURRENT_TIMESTAMP";
 	if ($orderId > 0)            $set .= ", saldi_order_id = " . (int)$orderId;
 	if ($invoiceNumber !== '')   $set .= ", invoice_number = '" . db_escape_string($invoiceNumber) . "'";
-	if ($error !== '')           $set .= ", error = '" . db_escape_string(stripe_redact($error)) . "'";
-	stripe_wh_require_modify("update stripe_events set $set where id = " . (int)$rowId);
+	$set .= ", error = " . ($error !== '' ? "'" . db_escape_string(stripe_redact($error)) . "'" : 'null');
+	stripe_wh_require_modify("update stripe_events set $set where id = " . (int)$rowId . " and error = '" . db_escape_string($token) . "'");
 	stripe_wh_respond($respCode, $respMsg);
 }
 
@@ -357,7 +400,8 @@ if ($eventType === 'invoice.paid') {
 		stripeAlertMail('Stripe-faktura kunne ikke matches til en kunde',
 			"Event: $eventId\nStripe-faktura: " . (isset($obj['number']) ? $obj['number'] : $obj['id'])
 			. "\nStripe customer: " . (isset($obj['customer']) ? $obj['customer'] : '?')
-			. "\n\nWebhooken svarer 5xx, så Stripe prøver igen automatisk. Sker det ved sidste retry (efter ~3 døgn), skal fakturaen håndteres manuelt.",
+			. "\n\nWebhooken svarer 5xx, og Stripe sender hændelsen igen efter sin retry-plan (i live-tilstand i op til ca. 3 døgn); hver ny levering forsøges matchet igen."
+			. "\nMatches den stadig ikke, når Stripe holder op, står hændelsen som failed i stripe_events, og fakturaen skal håndteres manuelt.",
 			'unmapped_' . (string)$obj['id'], 3600);
 		stripe_wh_finish($rowId, 'failed', 500, 'unmapped_customer', 0, (string)(isset($obj['number']) ? $obj['number'] : ''), 'unmapped_customer');
 	}
@@ -412,18 +456,25 @@ if (strpos($eventType, 'payment_intent.') === 0 || in_array($eventType, array('c
 	http_response_code(500);
 	include_once(__DIR__ . '/../../includes/stripeIncludes/stripeInvoiceWebhook.php');
 	if (file_exists(__DIR__ . '/../../includes/auditLog.php')) include_once(__DIR__ . '/../../includes/auditLog.php');
-	$response = stripe_invoice_webhook_dispatch($rowId, $eventType, $obj, $eventId);
+	$response = stripe_invoice_webhook_dispatch($rowId, $eventType, $obj, $eventId, $token);
 	if ($response !== null) stripe_wh_respond($response['code'], $response['message']);
 	http_response_code(200);
 }
 
 if ($eventType === 'charge.refunded') {
 	$kontonr = '';
+	$knownCustomer = false;
 	$cEsc = db_escape_string((string)(isset($obj['customer']) ? $obj['customer'] : ''));
 	if ($cEsc !== '') {
 		$r = db_fetch_array(stripe_wh_db_select("select kontonr from stripe_customers where stripe_customer_id = '$cEsc'"));
-		if ($r) $kontonr = (string)$r['kontonr'];
+		if ($r) {
+			$kontonr = (string)$r['kontonr'];
+			$knownCustomer = true;
+		}
 	}
+	// An untagged refund reaches every ledger on the account: only the pinned ledger, whose pilot subscriptions carry
+	// no saldi_db, or a ledger that knows the customer alerts its bookkeeper.
+	if (!$knownCustomer && $objectLedger === '' && $db !== stripeConfigDb()) stripe_wh_finish($rowId, 'ignored', 200, 'other_ledger');
 	$refKr = number_format(((int)(isset($obj['amount_refunded']) ? $obj['amount_refunded'] : 0)) / 100, 2, ',', '.');
 	stripeAlertMail('Stripe-REFUSION - konto ' . ($kontonr !== '' ? $kontonr : (string)(isset($obj['customer']) ? $obj['customer'] : '?')),
 		"Charge: " . (isset($obj['id']) ? $obj['id'] : '?') . "\nRefunderet: $refKr kr\nKonto: $kontonr\n\nManuel handling: kreditnota/ompostering efter den faste procedure.",

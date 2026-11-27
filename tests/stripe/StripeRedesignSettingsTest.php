@@ -3,11 +3,12 @@
 // 20261023 CDX/LH Assert the real integration read/write permission and regress missing-table checks without warnings.
 // 20261109 CL/ASR Link reminders: the six settings in Salg › Betalingsbetingelser & rykkere (stored 'on'/'off' in var_grp stripe, read by stripe_reminder_settings()) and the renteloven § 9 b warnings on the reminder settings.
 // 20261109 CL/ASR Review fix: the warning text is hidden with its switch when "Altid klassisk" hides the switch (a chain of visible_if rules).
+// 20261126 ASR Review I14: the help of the Frister card says reminders go out automatically only when Automatiske rykkere is switched on (text 8212, not 6202).
 
-require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/support/bootstrap.php';
 require_once __DIR__ . '/../../systemdata/diverseIncludes/stripeValg.php';
 require_once __DIR__ . '/../../includes/settings/SettingsService.php';
-require_once __DIR__ . '/reminderFixtures.php';
+require_once __DIR__ . '/support/reminderFixtures.php';
 if (is_file(__DIR__ . '/../../includes/stripeIncludes/stripeReminder.php')) {
     require_once __DIR__ . '/../../includes/stripeIncludes/stripeReminder.php';
 }
@@ -159,6 +160,23 @@ final class StripeRedesignSettingsTest extends StripeDatabaseTestCase
         }
         $this->assertSame(['auto', 'classic'], array_keys($defs['sales.reminders.reminder_format']['options']));
         $this->assertSame(['setting', 'sales.reminders.reminder_close_warning', true], $defs['sales.reminders.reminder_close_text']['visible_if']);
+    }
+
+    public function testTheDeadlinesHelpDoesNotSayRemindersAreNeverSentAutomatically(): void
+    {
+        $section = getSettingsSections()['sales.reminders'];
+        $this->assertArrayHasKey('sales.reminders.automation', settings_section_definitions('sales.reminders'), 'the page has Automatiske rykkere');
+        $help = (int)$section['sub_help']['deadlines'];
+        $this->assertNotSame(6202, $help, 'text 6202 says reminders are not sent automatically');
+        $texts = [];
+        foreach (file(__DIR__ . '/../../importfiler/tekster.csv', FILE_IGNORE_NEW_LINES) as $line) {
+            $cells = explode("\t", $line);
+            $texts[$cells[0]] = $cells;
+        }
+        $this->assertCount(4, $texts[(string)$help] ?? [], 'Danish, English and Norwegian');
+        $this->assertStringContainsString('Automatiske rykkere', $texts[(string)$help][1]);
+        $this->assertStringNotContainsString('sendes ikke automatisk', $texts[(string)$help][1]);
+        $this->assertStringContainsString('Automatic reminders', $texts[(string)$help][2]);
     }
 
     public function testLinkReminderSettingsAreStoredOnOrOffAndReadByTheReminderCode(): void

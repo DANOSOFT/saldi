@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/betalinger.php --- Patch 4.1.1 --- 20261020 ---
+// --- kreditor/betalinger.php --- ver 5.1.1 --- 20261103 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------------------------------
 //
 // 20220201 PHR Copied from debitor/betalinger.php and adjusted
@@ -28,20 +28,22 @@
 // 20230501 Created kladdeliste option
 // 20260713 CL/NTR Fixed SQL injection: cast $_GET[kladde_id] with intval()
 //                  before interpolating into the query
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261003 CL/SZ SD-721 A kreditor's bank details read from an invoice (adresser.bank_unconfirmed) are not used for a payment before "Bekræft".
 //                Its payment lines get no "Modtager konto" and show "Ubekræftede bankoplysninger" with "Bekræft", which confirms the details and fills the account in.
 // 20261005 CL/SZ SD-721 The "Ubekræftede bankoplysninger" marker gets a light background; it could hardly be read on the line's red "missing account" cell.
 // 20261005 CL/SZ SD-721 "Ubetalte" and a journal's invoices no longer leave out the first invoice (the one due first): the "nothing found" check read it from the result.
 // 20261020 CL/SZ SD-721 (CodeRabbit) The unconfirmed check goes by the kreditor's id; with two kreditorer of the same name, the first one's unconfirmed account was used.
 //                A name two kreditorer share gets the marker without "Bekræft" (confirmed on the kreditor card), so one's account can't fill the other's line.
-
+// 20261027 CL/SZ MB-93 "Bekræft" saves the list first (posts gem with bekraeft_bank); it reloaded the list without saving and lost the user's other unsaved edits.
+// 20261103 CL/ASR QA round 2: gated on the kreditor right ($modulnr 13, kreditor.rapporter) instead of the debitor one, so Indkøb opens the page and Salg does not.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 $dan_liste=$gem=$listenote=$slet_ugyldige=$udskriv=NULL;
 
 @session_start();
 $s_id=session_id();
 		
-$modulnr=12;	
+$modulnr=13; // Kreditorrapport (was 12, Debitorrapport)
+$permission_key = 'kreditor.rapporter';
 $title="Betalinger til bank";
 $css="../css/std.css";
 
@@ -158,7 +160,13 @@ if (kreditorCvrReady()) {
 $linjebg=$bgcolor;
 $erh_title= "ERH355 = Bankoverf. med normal advisering";
 
-include_once '../includes/oldDesign/header.php';
+if ($menu=='T') {
+	include_once '../includes/topmenu/header.php';
+	print "<div class='$kund'>$title</div>
+	<div class='content-noside'>";
+	print "<div class='dataTablediv'><table cellpadding='1' cellspacing='0' border='0' width='100%' valign = 'top' class='dataTable'><thead>";
+} else {
+	include_once '../includes/oldDesign/header.php';
 	//print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>";
 	//print "<tr><td height = '25' align='center' valign='top'>";
 	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
@@ -182,6 +190,7 @@ include_once '../includes/oldDesign/header.php';
 	print "</td></tr>";
 	print "<tr><td valign='top'>";
 	print "<table cellpadding='1' cellspacing='0' border='0' width='100%' valign = 'top'><tbody>";
+}
 
 if (!$liste_id) {
 	$tidspkt=microtime();
@@ -418,7 +427,11 @@ if ($udskriv) {
 	print "<tr>";
 	if ($bogfort!='-'){
 		print "<td colspan=11 align='center'><b>$listenote</b></td></tr>";
+		if ($menu=='T') {
+		print "<tr><td colspan=11 class='border-hr-bottom'></td></tr>\n";
+	} else {
 		print "<tr><td colspan=11><hr></td></tr>\n";
+	}
 	}	else {
 		print "<td><b> <span title= 'Her kan skrives en bem&aelig;rkning til kladden'>Bem&aelig;rkning:</b></td>";
 		print "<td colspan=10><input type=\"text\" style='width:100%;' name=listenote value=\"$listenote\"></td></tr>";
@@ -452,7 +465,11 @@ if ($udskriv) {
 		<th><span title='Se i nyt vindue'><b>Se</b></span></td>";
 		if ($bogfort!='V') print "<th align='center'><span title='Slet linjen fra listen'><b>Slet</b></span></th>";
 		print "</tr>";
-		print "";
+		if ($menu=='T') {
+			print "</thead><tbody>";
+		} else {
+			print "";
+		}
 		
 #print"<tr><td colspan=11><hr></td></tr>";
 	$x=0;
@@ -530,8 +547,9 @@ $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 				if (trim((string)$r['til_kto']) === '' && isset($bankUnconfirmed[$r['modt_navn']])) {
 					// SD-721: the kreditor's bank details are unconfirmed
 					print "<br><span style='color:#7c2d12;background:#fff3cd;padding:1px 4px;border-radius:3px;font-size:11px;' title=\"" . htmlspecialchars(findtekst('5363|Bankoplysningerne er læst fra en faktura og bruges ikke til betaling, før de er bekræftet.', $sprog_id), ENT_QUOTES) . "\">&#9888; " . htmlspecialchars(findtekst('5361|Ubekræftede bankoplysninger', $sprog_id), ENT_QUOTES) . "</span>";
-					// type=button: as a submit button it would be the form's default, and Enter in any field would confirm
-					if ($bankUnconfirmed[$r['modt_navn']]) print " <button type='button' style='font-size:11px;padding:0 6px;' onclick=\"var h=document.createElement('input');h.type='hidden';h.name='bekraeft_bank';h.value='" . $bankUnconfirmed[$r['modt_navn']] . "';this.form.appendChild(h);HTMLFormElement.prototype.submit.call(this.form);\">" . htmlspecialchars(findtekst('5362|Bekræft', $sprog_id), ENT_QUOTES) . "</button>";
+					// type=button: as a submit button it would be the form's default, and Enter in any field would confirm.
+					// It posts gem too, so the save block stores the user's other edits before the confirm fills the account in.
+					if ($bankUnconfirmed[$r['modt_navn']]) print " <button type='button' style='font-size:11px;padding:0 6px;' onclick=\"var f=this.form,v={gem:'1',bekraeft_bank:'" . $bankUnconfirmed[$r['modt_navn']] . "'};for(var n in v){var h=document.createElement('input');h.type='hidden';h.name=n;h.value=v[n];f.appendChild(h);}HTMLFormElement.prototype.submit.call(f);\">" . htmlspecialchars(findtekst('5362|Bekræft', $sprog_id), ENT_QUOTES) . "</button>";
 				}
 				print "</td>";
 				if(isset($k4_bg[$x])){
@@ -599,7 +617,11 @@ $q=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		}
 	} 
 
-	print "";
+	if ($menu=='T') {
+		print "</tbody><tfoot>";
+	} else {
+		print "";
+	}
 
 	$modtagerantal=$x;
 	#($kn_kontrol)?$modtagerantal=0:$modtagerantal=$x;

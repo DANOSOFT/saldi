@@ -1,4 +1,5 @@
 <?php
+// 20261127 ASR With $allowedLedgers in includes/connect.php only the listed ledgers are listed and opened.
 /**
  * GET /user/tenants
  *
@@ -124,6 +125,10 @@ class UserTenantsEndpoint extends BaseEndpoint
         $tenants = [];
         
         while ($r = db_fetch_array($q)) {
+            // An installation with $allowedLedgers (includes/connect.php) lists and opens only the listed ledgers.
+            if (!saldi_ledger_allowed($r['db'])) {
+                continue;
+            }
             // Get CVR from adresser table if available
             $cvr = '';
             $email = isset($r['email']) ? $r['email'] : '';

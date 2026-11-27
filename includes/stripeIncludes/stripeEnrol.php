@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stripeIncludes/stripeEnrol.php --- 2026.10.25
+// --- includes/stripeIncludes/stripeEnrol.php --- 2026.11.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,12 +23,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261019 CL/ASR Created (S2 enrolment, Requirements par. 7): when a payment with "gem kortet"
-//                 succeeds, the card becomes the debtor's card on file. adresser gets
-//                 stripe='on', stripe_customer_id, stripe_pm_id, stripe_date (mirrors pbs*),
-//                 the Stripe customer gets the card as default, and "Udskriv til" becomes
-//                 'Stripe' on the debtor and on the recurring order the invoice came from, so
-//                 recurring invoicing keeps running and the charge job collects on the due date.
+// 20261019 CL/ASR Created (S2 enrolment, Requirements par. 7): when a payment with "gem kortet" succeeds, the card becomes the debtor's card on file. adresser gets stripe='on', stripe_customer_id, stripe_pm_id, stripe_date (mirrors pbs*), the Stripe customer gets the card as default, and "Udskriv til" becomes 'Stripe' on the debtor and on the recurring order the invoice came from, so recurring invoicing keeps running and the charge job collects on the due date.
 //                 Un-enrolment reverses it. The nextfakt date is read for series eligibility, never written.
 // 20261022 CDX/LH Refuse new enrolment when invoice payments or enrolment are disabled.
 // 20261022 CDX/LH Apply central invoice eligibility before changing a customer or saved card.
@@ -37,16 +32,28 @@
 // 20261022 CL/LH S5 Greet by first name in the outstanding-invoice mail sent after Afmeld.
 // 20261025 CL/ASR Afmeld puts Link (or e-mail) back on the debtor and its orders.
 // 20261025 CL/ASR The outstanding-invoice mail after Afmeld uses the shared mail layout (Saldi logo); PDF still attached.
-// 20261027 CL/ASR stripe_enrolled_copy_delivery(): genfakt gives a customer with automatic card payment its next invoice
-//                 as Stripe in every series, so enrolment on any invoice (also a one-off) covers all next invoices.
+// 20261027 CL/ASR stripe_enrolled_copy_delivery(): genfakt gives a customer with automatic card payment its next invoice as Stripe in every series, so enrolment on any invoice (also a one-off) covers all next invoices.
+// 20261126 CL/ASR Review round 1 (I9): stripe_enrolled_copy_delivery() takes the copy's invoice date; a copy dated before the enrolment keeps Link/e-mail (a Stripe template gives it Link), as it is never charged.
+//                 The switches are read through stripe_card_charging_on() (I10).
+// 20261126 ASR Payment review (GPT-P-1): stripe_enrol_debtor() takes the payment whose card it applies and writes the customer and the payment's card_state in one transaction under the customer's row lock.
+//              A payment captured before Afmeld, or before a later payment's card was applied, is superseded and not applied by a retry; Afmeld supersedes the payments still waiting.
+// 20261126 ASR Payment review (GPT-P-1): inside a caller's open transaction stripe_enrol_debtor() writes in it instead of beginning and committing its own (stripe_enrol_in_transaction()).
+// 20261126 ASR Payment review (GPT-G-1, GPT-G-6): stripe_enrol_in_transaction() uses stripe_payment_in_transaction() (stripePaymentBooking.php), which the refund and dispute transaction uses too.
+// 20261126 ASR Review PAY-R2-1: the invoice mail after Afmeld is not sent for an invoice paid by bank or credited (stripe_invoice_settled_reason(), from its open items).
 
 include_once(__DIR__ . '/stripeHttp.php');
 include_once(__DIR__ . '/stripeSettings.php');
 include_once(__DIR__ . '/stripeInvoice.php');
 
 if (!function_exists('stripe_enrol_debtor')) {
-	/** @return bool Enrol only after the PaymentIntent customer accepts its saved card as default. */
-	function stripe_enrol_debtor($inv, $pmId, $brand = '', $last4 = '', $piCustomer = '') {
+	/**
+	 * Enrol only after the PaymentIntent customer accepts its saved card as default.
+	 *
+	 * @param int $paymentId The captured payment whose card this is: its card_state is set in the same transaction, and the
+	 *   customer is left as it is when Afmeld or a later payment's card came after it (superseded). 0 for a direct caller.
+	 * @return bool Whether the card is applied or the payment was found superseded; false when it should be tried again.
+	 */
+	function stripe_enrol_debtor($inv, $pmId, $brand = '', $last4 = '', $piCustomer = '', $paymentId = 0) {
 		if (!stripe_invoice_collectable($inv)) return false;
 		if (!stripe_feature_on('enrolment') || !stripe_feature_on('invoice_payments') || stripe_setting('enabled', 'off') !== 'on') return false;
 		$d = $inv['debtor'];
@@ -58,19 +65,50 @@ if (!function_exists('stripe_enrol_debtor')) {
 		if (!$r['ok']) { stripe_log('enrol: default pm failed: ' . $r['error']); return false; }
 		$role = stripeHttpRequest('POST', '/v1/payment_methods/' . rawurlencode($pmId), array('metadata' => array('saldi_role' => 'primary')));
 		if (!$role['ok']) return false;
-		// Keep the original enrolment date when replacing a card.
-		$pm = db_escape_string($pmId);
-		stripe_payment_modify("update adresser set stripe = 'on', stripe_customer_id = '" . db_escape_string($cus) . "', stripe_pm_id = '$pm', stripe_date = case when stripe = 'on' and stripe_date is not null then stripe_date else '" . db_escape_string(stripe_today()) . "' end, udskriv_til = 'Stripe' where id = " . (int)$d['id'], __FILE__ . " linje " . __LINE__);
-		// Only the current source row for this series is a recurring template. Old
-		// invoices can retain nextfakt too; neither those nor another series are rewritten.
-		$ordrenr = (int)$inv['o']['ordrenr'];
-		$today = db_escape_string(stripe_today());
-		$template = db_fetch_array(stripe_payment_select("select max(id) as id from ordrer where art = 'DO'
-			and ordrenr = $ordrenr and nextfakt >= '$today' and konto_id = " . (int)$d['id']));
-		if (!empty($template['id'])) stripe_payment_modify("update ordrer set udskriv_til = 'Stripe' where id = " . (int)$template['id']);
-		stripe_payment_modify("update stripe_customers set status = 'active', updated_at = CURRENT_TIMESTAMP where stripe_customer_id = '" . db_escape_string($cus) . "'", __FILE__ . " linje " . __LINE__);
+		$kontoId = (int)$d['id'];
+		$paymentId = (int)$paymentId;
+		// transaktion() passes BEGIN and COMMIT straight on, so a caller's transaction is used as it is, not committed here.
+		$own = !stripe_enrol_in_transaction();
+		if ($own) stripe_payment_transaction('begin');
+		try {
+			// Afmeld (stripe_unenrol_debtor()) changes the same row first, so the two run one after the other.
+			stripe_payment_select("select id from adresser where id = $kontoId for update");
+			if ($paymentId) {
+				// A later payment's card that was already applied wins, and Afmeld after this payment has superseded it.
+				$later = db_fetch_array(stripe_payment_select("select p.id from stripe_payments p join ordrer o on o.id = p.ordre_id
+					where o.konto_id = $kontoId and p.id > $paymentId and p.card_state = 'applied' limit 1"));
+				$state = $later ? 'superseded' : 'applied';
+				$claimed = stripe_payment_update_returning("card_state = '$state'", "id = $paymentId and coalesce(card_state, '') = ''");
+				if (!$claimed || $state !== 'applied') {
+					if ($own) stripe_payment_transaction('commit');
+					return true;
+				}
+				// Earlier payments of this customer still waiting for their card are replaced by this one.
+				stripe_payment_modify("update stripe_payments set card_state = 'superseded' where coalesce(card_state, '') = '' and save_card = true
+					and id < $paymentId and ordre_id in (select id from ordrer where konto_id = $kontoId)");
+			}
+			// Keep the original enrolment date when replacing a card.
+			$pm = db_escape_string($pmId);
+			stripe_payment_modify("update adresser set stripe = 'on', stripe_customer_id = '" . db_escape_string($cus) . "', stripe_pm_id = '$pm', stripe_date = case when stripe = 'on' and stripe_date is not null then stripe_date else '" . db_escape_string(stripe_today()) . "' end, udskriv_til = 'Stripe' where id = $kontoId", __FILE__ . " linje " . __LINE__);
+			// Only the current source row for this series is a recurring template. Old
+			// invoices can retain nextfakt too; neither those nor another series are rewritten.
+			$ordrenr = (int)$inv['o']['ordrenr'];
+			$today = db_escape_string(stripe_today());
+			$template = db_fetch_array(stripe_payment_select("select max(id) as id from ordrer where art = 'DO'
+				and ordrenr = $ordrenr and nextfakt >= '$today' and konto_id = $kontoId"));
+			if (!empty($template['id'])) stripe_payment_modify("update ordrer set udskriv_til = 'Stripe' where id = " . (int)$template['id']);
+			stripe_payment_modify("update stripe_customers set status = 'active', updated_at = CURRENT_TIMESTAMP where stripe_customer_id = '" . db_escape_string($cus) . "'", __FILE__ . " linje " . __LINE__);
+			if ($own) stripe_payment_transaction('commit');
+		} catch (Throwable $e) {
+			if ($own) stripe_payment_transaction('rollback');
+			throw $e;
+		}
 		if (function_exists('audit_log_write') && function_exists('tbl_exists')) audit_log_write('stripe.enrolled', 'adresser', (string)$d['id'], json_encode(array('kontonr' => (string)$d['kontonr'], 'card' => stripe_card_label($brand, $last4), 'ordre' => (int)$inv['id'])), 'stripe');
 		return true;
+	}
+	/** @return bool Whether the connection is already inside a transaction (stripe_payment_in_transaction()). */
+	function stripe_enrol_in_transaction() {
+		return stripe_payment_in_transaction();
 	}
 	/**
 	 * Stop future automatic collection and durably queue delivery of every issued unpaid invoice.
@@ -87,6 +125,9 @@ if (!function_exists('stripe_enrol_debtor')) {
 		stripe_payment_transaction('begin');
 		try {
 			stripe_payment_modify("update adresser set stripe = '', stripe_pm_id = null, udskriv_til = case when udskriv_til = 'Stripe' then '$back' else udskriv_til end where id = $kontoId");
+			// A card saved with a payment the customer had already made is not applied by a later retry of that payment.
+			stripe_payment_modify("update stripe_payments set card_state = 'superseded' where coalesce(card_state, '') = '' and save_card = true
+				and status in ('succeeded', 'processing', 'requires_action', 'refunded', 'disputed') and ordre_id in (select id from ordrer where konto_id = $kontoId)");
 			$q = stripe_payment_select("select id from ordrer where konto_id = $kontoId and art = 'DO'
 				and udskriv_til = 'Stripe' and coalesce(betalt, '') <> 'on' and coalesce(fakturanr, '') not in ('', '0')
 				and not exists (select 1 from stripe_payments p where p.ordre_id = ordrer.id and (p.journal_line_id is not null or p.status in ('succeeded', 'duplicate_paid', 'refunded', 'disputed', 'unmapped')))");
@@ -123,7 +164,7 @@ function stripe_unenrol_mail_retry($kontoId = 0, $dryRun = false) {
 			if ($row['sent_at']) continue;
 			$inv = stripe_invoice_load($id);
 			if (!$inv) throw new RuntimeException('Un-enrolled invoice missing');
-			if (!$inv['paid'] && !$inv['paid_bank']) {
+			if (stripe_invoice_settled_reason($inv) === '') {   // not for an invoice paid by bank or credited meanwhile
 				$ok = stripe_invoice_payable($inv) ? stripe_mail_invoice_link($inv) : stripe_mail_invoice_classic($inv);
 				if (!$ok) throw new RuntimeException('Un-enrolled invoice delivery failed');
 			}
@@ -158,17 +199,30 @@ if (!function_exists('stripe_enrolled_copy_delivery')) {
 	 * the card was saved on, as the consent promises ("dine næste fakturaer"). Only e-mail and link copies switch;
 	 * PBS, OIOUBL and print keep their channel, and issued invoices are never changed.
 	 *
+	 * A copy dated before the customer's enrolment is never charged, so it keeps Link/e-mail (a Stripe template gives it Link).
+	 *
 	 * @param array $template ordrer row the copy is made from.
-	 * @return string 'Stripe' or the template's own delivery.
+	 * @param string $invoiceDate The copy's invoice date (YYYY-MM-DD); '' skips the enrolment-date check.
+	 * @return string 'Stripe', 'Link', 'email' or the template's own delivery.
 	 */
-	function stripe_enrolled_copy_delivery($template) {
+	function stripe_enrolled_copy_delivery($template, $invoiceDate = '') {
 		$delivery = (string)($template['udskriv_til'] ?? '');
 		$kontoId = (int)($template['konto_id'] ?? 0);
-		if (!in_array($delivery, array('email', 'Link'), true) || $kontoId <= 0) return $delivery;
-		if (stripe_setting('enabled', 'off') !== 'on' || !stripe_feature_on('invoice_payments') || !stripe_feature_on('enrolment')) return $delivery;
-		// Same blocks as the payment page (Stripe ledger, DKK, terms, PBS, card opt-out, existing Stripe subscription).
-		if (stripe_invoice_uncollectable_reason(array('o' => $template)) !== '') return $delivery;
-		$d = db_fetch_array(stripe_payment_select("select stripe, stripe_pm_id from adresser where id = $kontoId", __FILE__ . " linje " . __LINE__));
+		if (!in_array($delivery, array('email', 'Link', 'Stripe'), true) || $kontoId <= 0) return $delivery;
+		if ($delivery !== 'Stripe') {
+			if (!stripe_card_charging_on()) return $delivery;
+			// Same blocks as the payment page (Stripe ledger, DKK, terms, PBS, card opt-out, existing Stripe subscription).
+			if (stripe_invoice_uncollectable_reason(array('o' => $template)) !== '') return $delivery;
+		}
+		$d = db_fetch_array(stripe_payment_select("select stripe, stripe_pm_id, stripe_date from adresser where id = $kontoId", __FILE__ . " linje " . __LINE__));
+		// The consent covers invoices from the day the card was saved (stripe_invoice_enrolled_since()): a copy dated before it
+		// is never charged, so it keeps Link/e-mail. A template that enrolment set to Stripe gives such a copy Link (or e-mail).
+		$since = substr((string)($d['stripe_date'] ?? ''), 0, 10);
+		$date = substr((string)$invoiceDate, 0, 10);
+		if ($since !== '' && $date !== '' && $date < $since) {
+			return $delivery === 'Stripe' ? (stripe_invoice_link_available() ? 'Link' : 'email') : $delivery;
+		}
+		if ($delivery === 'Stripe') return $delivery;
 		return ($d && (string)$d['stripe'] === 'on' && trim((string)$d['stripe_pm_id']) !== '') ? 'Stripe' : $delivery;
 	}
 }

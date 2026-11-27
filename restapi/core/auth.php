@@ -1,4 +1,5 @@
 <?php
+// 20261127 ASR access_check(): with $allowedLedgers in includes/connect.php the database must be listed, the master database too, before it is read or connected.
 
 include_once __DIR__."/logging.php";
 
@@ -33,6 +34,11 @@ function access_check($db, $saldiuser, $user_apikey)
     global $squser;
     global $sqpass;
     global $regnaar;
+
+    # An installation with $allowedLedgers (includes/connect.php) serves only the listed ledgers, the master database too
+    if (isset($db) && !saldi_ledger_allowed($db)) {
+        return saldi_ledger_refusal_text();
+    }
 
     # Check the db format
     if (isset($db)) {

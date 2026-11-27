@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- mysale/mylabel.php --- lap 4.1.1 --- 2025-03-06 ---
+// --- mysale/mylabel.php --- ver 5.1.1 --- 2026-11-27 ---
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2020 - 2025 saldi.dk aps
+// Copyright (c) 2020-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20200617 PHR Support for more pages.
 // 20200702 PHR Support for single label.
@@ -43,8 +43,10 @@
 // 20250306 PHR inserted ceil after '$rows = ' as last row was not saved if rows was not divisible by 5
 // 20260914 CL/NTR The per-cell print link and the printLabels batch pass single=1 to labelprint.php
 //                 so they render one cell each; the printSheet button still fills the page grid.
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-
+// 20260921 CDX/LH Retain ssl3 early label-condition default during master deployment.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261127 ASR With $allowedLedgers in includes/connect.php the ledger of the link or cookie must be listed, the master database too, before a session row is written (saldi_ledger_guard()).
 @session_start();
 $s_id = session_id();
 
@@ -98,8 +100,9 @@ if (!is_numeric($account)) {
 $accountId *= 1;
 $account *= 1;
 
-saldi_setcookie("mylabel", "$account|$db", 0, "/");
+setcookie("mylabel", "$account|$db", 0, "/");
 include('../includes/connect.php');
+saldi_ledger_guard($db);
 $qtxt = "insert into online(session_id,brugernavn,db,dbuser,rettigheder,regnskabsaar,logtime,revisor)";
 $qtxt .= " values ";
 $qtxt .= "('$s_id','" . db_escape_string($account) . "','" . db_escape_string($db) . "','" . db_escape_string($squser) . "',";
@@ -121,7 +124,10 @@ else
 #if ($showForSale) $medlem = 1;
 if (isset($_GET['page']))
 	$page = $_GET['page'];
-(isset($_GET['condition'])) ? $condition = $_GET['condition'] : $condition = 'used';
+$condition = $_GET['condition'] ?? 'used';
+if (!$condition) {
+	$condition = 'used';
+}
 (isset($_POST['mySale'])) ? $mySale = $_POST['mySale'] : $mySale = NULL;
 (isset($_POST['new'])) ? $new = $_POST['new'] : $new = NULL;
 (isset($_POST['all'])) ? $all = "checked='checked'" : $all = NULL;
@@ -296,8 +302,6 @@ $qtxt = "select var_value from settings where var_name='medlemSetting'";
 if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) $medlem=$r['var_value'];
 */
 
-if (!$condition)
-	$condition = 'used';
 ($condition == 'new') ? $tmp = 'n' : $tmp = 'b';
 
 

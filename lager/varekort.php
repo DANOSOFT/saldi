@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varekort.php --- ver 5.0.0 --- 2026-10-01 ---
+// --- lager/varekort.php --- ver 5.1.1 --- 2026-11-16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -125,18 +125,27 @@
 // 20260921 Sawaneh Merge with the 20260902 layout: the batchExpiryEnabled/box9 condition now wraps the
 //                  pcSecExpiry box instead of the old include inside the Diverse box.
 // 20260923 CDX/PHR Deduplicate fiscal-year warehouses and preserve actual warehouse numbers.
-// 20261006 Sawaneh WP-5.8-5.10: back links join their parameters without repeating keys (stykliste/posmenu retursides) and
-//                  leave out an empty order id; Ny passes the order id (not the item id); nested retursides urlencoded.
 // 20261001 MJ SST-826 Save a warehouse location for an item that has no lagerstatus row:
 //                  create the row with no stock instead of discarding the location. The insert
 //                  had been commented out, so on an account with warehouses a location typed
 //                  for a new item vanished without a message and could never reach the picking
 //                  list. An empty field still creates nothing.
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
-// 20261008 Sawaneh The card on the new page head (page_bar): title, POS menuer as a page action, Ny vare as the primary button.
-// 20261009 Sawaneh The supplier lookup head (kontoopslag) on the page head too; the employee footer in debitor/ansatte lost its blue spacer cells.
-// 20261009 Sawaneh The record (varenr + name, or Nyt varekort) as the last breadcrumb level (decision 22).
+// 20261016 CL/MJ SST-876 Saving the card reports a webshop that refuses the stock update instead of discarding the answer. This is the path Havemoebelland found did push a figure through, so it is also the path where a refusal has to become visible rather than look like success.
+// 20261019 CL/MJ SST-876 (review) The warning on the stock-change confirmation path names the item. It read $varenr, which is only filled from the post further down the file, so on that one path the message stopped after "for:".
+// 20261021 CL/MJ SST-876 (review) An assembled item reports a refusal too. That branch hands over to vareproduktion.php and exits, so it never reached the check at the end of the block and a refusal recorded while the variants were saved only reached the log.
+// 20261026 LOE MB-65: read-only is refused at every write, and viewing the item card writes nothing.
 //
+// 20261027 CDX/MJ SST-876 Retain master read-only protections while merging SST-876 stock-sync warnings.
+// 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
+// 20261030 LOE MB-62 A read-only user is offered only the buttons that read, not the ones that write.
+//              The Ny control in either header layout is not offered either: it opens the blank card the page refuses.
+//              Nor are the happy-hour and varenr-alias links, which lead to pages that now refuse the same user.
+// 20261114 CL/ASR Grupper stands beside Priser and Tilbud, and Colli moves to the second row.
+// 20261114 CL/ASR In menu S the gear of Tilpas visning is a button next to Ny, the same as in the kassekladde top line.
+// 20261114 CL/ASR The Diverse box is three boxes, Beholdning, Lokation and Salg, and Kategorier and Varianter move to the next row.
+// 20261114 CL/ASR In menu S the POS menuer button only shows when the card was opened from the POS menu editor (posmenuer.php), also after saves.
+// 20261116 CL/ASR Annuller on the Salgspris, Kostpris and Beskrivelse questions only puts the old value back (Kostpris also saved the card, before the answer with Saldi's message box), and the submit an Enter in the field or Gem's accesskey starts waits for the answer, also while Saldi's question is open.
+// 20261116 CL/ASR OK on the Salgspris, Kostpris and Beskrivelse questions clicks Gem only when it is on the card, so a user who may only read items gets no script error.
 ob_start(); //Starts output buffering
 
 @session_start();
@@ -195,6 +204,7 @@ include("productCardIncludes/itemVat.php");
 include("productCardIncludes/percentageField.php");
 include_once("../includes/emballage_schema.php");
 $packagingModuleEnabled = (get_settings_value("packagingModuleEnabled", "items", "off") === "on");
+if ($packagingModuleEnabled) ensure_emballage_schema();
 $batchExpiryEnabled = (get_settings_value("batchExpiryEnabled", "items", "off") === "on");
 
 $qtxt = "SELECT column_name FROM information_schema.columns WHERE table_name='varer' and column_name='specialtype'";
@@ -262,17 +272,46 @@ $numberOfStocks = count($warehouseNames);
 
 $opener = if_isset($_GET, NULL, 'opener');
 $id = (int) if_isset($_GET, NULL, 'id');
+# MB-62 no id means a new item: a read-only user gets no create form at all
+if (!$id && $noEdit) {
+    error_log('MB-62: item create refused for user ' . $brugernavn . ' (Items right ' . $rettigheder[9] . ')');
+    # MB-62 a refused page offers a way back in the Saldi button look: a left arrow and the Tilbage text,
+    # and the top window, so the SPA shell opens instead of leaving the user inside the frame
+    print "<div style='text-align:center;margin-top:14px;'><a target='_top' title='Tilbage til varelisten'";
+    print " href='../index/main.php#/lager/lister/vareliste.php?inframe=1'";
+    print " style='display:inline-block;padding:8px 18px;border:1px solid #18689b;border-radius:5px;background:#1c7cb9;"
+    	. "color:#fff;text-decoration:none;font:14px Arial,Helvetica,sans-serif;'>&#8592; " . findtekst('30|Tilbage', $sprog_id) . "</a></div>\n";
+    exit;
+}
 $returside = nav_sanitize_returside($_GET['returside'] ?? null);
 if ($returside) {
     $ordre_id = if_isset($_GET, NULL, 'ordre_id') * 1;
     $fokus = if_isset($_GET, NULL, 'fokus');
     $vare_lev_id = if_isset($_GET, NULL, 'leverandor');
     $vis_samlevarer = if_isset($_GET, NULL, 'vis_samlevarer');
-    saldi_setcookie("saldi", $returside, $ordre_id, $fokus, $vare_lev_id);
+    setcookie("saldi", $returside, $ordre_id, $fokus, $vare_lev_id);
 }
 $funktion = if_isset($_GET, NULL, 'funktion');
 if (in_array($funktion, ['kontoopslag'], true)) {
     $funktion(if_isset($_GET, NULL, 'sort'), if_isset($_GET, NULL, 'fokus'), $id, if_isset($_GET, NULL, 'vis_kost'), '', if_isset($_GET, NULL, 'find'), 'varekort.php');
+}
+# MB-65 a read-only or rightless user may open the card, but nothing here may write. The handlers
+# below write from GET as well as POST, so the refusal has to come before them, not inside the POST path.
+$mb65_write = false;
+foreach (array('copy', 'saveItem', 'deleteItem', 'acceptStockChange', 'delete_category', 'delete_var_type', 'rename_category', 'ChangeDescription', 'supplierLookUp', 'submit') as $mb65_key) {
+    if (isset($_POST[$mb65_key]) || isset($_GET[$mb65_key])) $mb65_write = true;
+}
+if (isset($_GET['konto_id']) && (int)$_GET['konto_id']) $mb65_write = true;
+if (isset($_GET['vare_id']) && cirkeltjek($_GET['vare_id']) == 0 && (int)$id != (int)$_GET['vare_id']) $mb65_write = true;
+if ($mb65_write && $rettigheder !== '' && ($rettigheder[9] === '2' || $rettigheder[9] < '1')) {
+    error_log('MB-65: item write refused for user ' . $brugernavn . ' (Items right ' . $rettigheder[9] . ')');
+    # MB-62 a refused page offers a way back in the Saldi button look: a left arrow and the Tilbage text,
+    # and the top window, so the SPA shell opens instead of leaving the user inside the frame
+    print "<div style='text-align:center;margin-top:14px;'><a target='_top' title='Tilbage til varelisten'";
+    print " href='../index/main.php#/lager/lister/vareliste.php?inframe=1'";
+    print " style='display:inline-block;padding:8px 18px;border:1px solid #18689b;border-radius:5px;background:#1c7cb9;"
+    	. "color:#fff;text-decoration:none;font:14px Arial,Helvetica,sans-serif;'>&#8592; " . findtekst('30|Tilbage', $sprog_id) . "</a></div>\n";
+    exit;
 }
 if ($konto_id = (int) if_isset($_GET, NULL, 'konto_id')) {
     db_modify("insert into vare_lev (lev_id, vare_id, posnr) values ('$konto_id', '$id', '1')", __FILE__ . " linje " . __LINE__);
@@ -318,9 +357,13 @@ if ($acceptStockChange) {
     $beholdning = if_isset($_POST, NULL, 'beholdning');
     $ny_beholdning = if_isset($_POST, NULL, 'ny_beholdning');
     $stockchange = $ny_beholdning - $beholdning;
-    $qtxt = "select kostpris from varer where id=$id";
+    $qtxt = "select kostpris, varenr from varer where id=$id";
     $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
     $cost = $r['kostpris'] * 1;
+    // 20261019 CL/MJ SST-876 Read here because $varenr still holds the NULL from the top of the
+    // file on this path - it is only taken from the post further down - so the warning below
+    // named no item at all. This row is already being fetched, so it costs nothing.
+    $stockChangeItemNo = $r ? (string)$r['varenr'] : '';
     $userName = substr($brugernavn, 0, 10);
     $qtxt = "insert into stocklog (item_id,username,initials,reason,correction,logtime) values ";
     $qtxt .= "('$id','" . db_escape_string($userName) . "','" . db_escape_string($initials) . "','" . db_escape_string($reason) . "',";
@@ -333,8 +376,16 @@ if ($acceptStockChange) {
             continue;
         }
         #       if ($ny_lagerbeh[$x]!=$lagerbeh[$x]) {
-        lagerreguler($id, $ny_lagerbeh[$x], $cost, $x, date("Y-m-d"), '0');
+        $shopSync = lagerreguler($id, $ny_lagerbeh[$x], $cost, $x, date("Y-m-d"), '0');
+        if (shopSyncFailed($shopSync)) {
+            $shopSyncFailed = true;
+        }
         #       }
+    }
+    # SST-876: said before the redirect, or the page reloads and the refusal is never seen.
+    if (!empty($shopSyncFailed)) {
+        error_log("saldi: shop stock sync failed when adjusting stock for vare_id $id");
+        shopSyncAlert($stockChangeItemNo, $sprog_id);
     }
     print "<meta http-equiv='refresh' content='0;URL=varekort.php?{$productNavigationQuery}id=$id'>";
     exit;
@@ -347,6 +398,20 @@ if (isset($_POST['copy']) && $_POST['copy'])
 if (isset($_POST['supplierLookUp']) && $_POST['supplierLookUp'])
     $submit = 'supplierLookUp';
 
+# MB-65 every path into this block writes, whatever button carried it, so the refusal sits here as
+# well as at the action names above: a new action cannot reach the save by not being named there.
+# It tests what the block tests, so a read-only user still sees the card on a plain GET.
+$mb65_save_request = $saveItem || (bool) trim((string) $submit);
+if ($mb65_save_request && $rettigheder !== '' && ($rettigheder[9] === '2' || $rettigheder[9] < '1')) {
+    error_log('MB-65: item save refused for user ' . $brugernavn . ' (Items right ' . $rettigheder[9] . ')');
+    # MB-62 a refused page offers a way back in the Saldi button look: a left arrow and the Tilbage text,
+    # and the top window, so the SPA shell opens instead of leaving the user inside the frame
+    print "<div style='text-align:center;margin-top:14px;'><a target='_top' title='Tilbage til varelisten'";
+    print " href='../index/main.php#/lager/lister/vareliste.php?inframe=1'";
+    print " style='display:inline-block;padding:8px 18px;border:1px solid #18689b;border-radius:5px;background:#1c7cb9;"
+    	. "color:#fff;text-decoration:none;font:14px Arial,Helvetica,sans-serif;'>&#8592; " . findtekst('30|Tilbage', $sprog_id) . "</a></div>\n";
+    exit;
+}
 if ($saveItem || $submit = trim($submit)) {
     $id = (int) if_isset($_POST, 0, 'id');
     $beskrivelse = if_isset($_POST, NULL,'beskrivelse');
@@ -631,8 +696,13 @@ if ($saveItem || $submit = trim($submit)) {
             $r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
             transaktion('begin');
             $lager = $l;
-            lagerreguler($id, $variantVarerQty[$x][$l], $kostpris[0], $lager, date('Y-m-d'), $variant_vare_id[$x]);
+            $shopSync = lagerreguler($id, $variantVarerQty[$x][$l], $kostpris[0], $lager, date('Y-m-d'), $variant_vare_id[$x]);
             transaktion('commit');
+            # SST-876: the variant quantity is saved; this only records that a shop refused it.
+            if (shopSyncFailed($shopSync)) {
+                error_log("saldi: shop stock sync failed for variant $variant_vare_id[$x] of vare_id $id");
+                $shopSyncFailed = true;
+            }
         }
     }
     // When processing the form submission:
@@ -1227,14 +1297,34 @@ if ($stockItem) {
         }
         if ($ny_lagerbeh[$x] != $lagerbeh[$x]) {
             if ($samlevare) {
+                # SST-876: this path leaves for vareproduktion.php and exits, so the check at
+                # the end of the block is never reached. A refusal recorded while the variants
+                # were saved further up would otherwise only reach the log. Printed before the
+                # refresh below, which is what makes the browser run it first.
+                if (!empty($shopSyncFailed)) {
+                    error_log("saldi: shop stock sync failed when saving vare_id $id");
+                    shopSyncAlert((string)$varenr, $sprog_id);
+                }
                 print "<meta http-equiv=\"refresh\" content=\"0;URL=vareproduktion.php?id=$id&antal=1&lager=$x&ny_beholdning=$ny_lagerbeh[$x]&samlevare=$samlevare\">";
                 exit;
             } elseif (!count($variant_vare_id)) { #20210208
-                lagerreguler($id, $ny_lagerbeh[$x], $kostpris[0], $x, date("Y-m-d"), '0');
+                $shopSync = lagerreguler($id, $ny_lagerbeh[$x], $kostpris[0], $x, date("Y-m-d"), '0');
+                if (shopSyncFailed($shopSync)) {
+                    $shopSyncFailed = true;
+                }
             }
         } elseif ($api_fil && !count($variant_vare_id) && $x == array_key_last($warehouseNames)) { #20170210 - fixed typo
-            sync_shop_vare($id, 0, $x); // 20220203 outcommented lines above 
+            $shopSync = sync_shop_vare($id, 0, $x); // 20220203 outcommented lines above
+            if (shopSyncFailed($shopSync)) {
+                $shopSyncFailed = true;
+            }
         }
+    }
+    # SST-876: the item is saved either way - this only reports that a shop would not take the
+    # new figure, so a refusal is not mistaken for a successful publish.
+    if (!empty($shopSyncFailed)) {
+        error_log("saldi: shop stock sync failed when saving vare_id $id");
+        shopSyncAlert((string)$varenr, $sprog_id);
     }
 } else {
     sync_shop_price($id);
@@ -1243,22 +1333,6 @@ if ($stockItem) {
 if (!$returside) {
     $returside = $productNavigationQuery !== '' ? "../includes/luk.php?popup=1" : "varer.php";
 }
-// WP-5.8: back links add their parameters with the right separator and never repeat a key the returside already has (a
-// stykliste returside carries the parent's id; a second id=0 opened a blank card), and an empty order id is left out.
-$varekortBack = function (array $add) use ($returside) {
-    $base = (string) $returside;
-    $query = array();
-    if (($p = strpos($base, '?')) !== false) {
-        parse_str(substr($base, $p + 1), $query);
-        $base = substr($base, 0, $p);
-    }
-    foreach ($add as $k => $v) {
-        if (!array_key_exists($k, $query) && (string) $v !== '' && !($k === 'id' && !(int) $v)) {
-            $query[$k] = $v;
-        }
-    }
-    return $query ? $base . '?' . http_build_query($query) : $base;
-};
 $tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 
 if ($begin)
@@ -1291,30 +1365,97 @@ if ($saveItem && $beskrivelse[0] != $oldDescription) {
 include("../includes/topline_settings.php");
 
 print "<center><table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n";
-if ($menu == 'S') {
-    // 20261008 Sawaneh The new page head (topbar addendum §5, prototype_dashboard_tema v5) instead of the blue bar.
-    include_once("../includes/stdFunc/pageBar.php");
-    $confirmTekstJs = json_encode((string) $tekst);
-    $reloadOpener = $popup ? "if (window.opener) { window.opener.location.reload(); }" : "";
+if ($menu == 'T') {
+    include_once '../includes/top_menu.php';
+    include_once '../includes/top_header.php';
+    print "<div id=\"header\"> 
+    <div class=\"headerbtnLft\"><a title=\"Klik her for at lukke varekortet\" class=\"button red small left\" href=$returside accesskey=\"L\">Luk</a></div>
+    <span class=\"headerTxt\">$title</span>";
+    print "<div class=\"headerbtnRght\"></div>";
+    print "</div><!-- end of header -->
+        <div class=\"maincontentLargeHolder\">\n";
+    print "<center><table border='0' cellspacing='1' width='75%' align='center';>";
+} elseif ($menu == 'S') {
+    print "<tr><td align=\"center\" valign=\"top\">\n";
+    print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>\n";
+
+    $tmp = ($popup) ? "onClick=\"javascript=opener.location.reload();\"" : "";
+       $contains = false;
+
     if (strpos($returside, 'debitorkort.php') !== false) {
-        $backHref = $returside;
-    } elseif ($opener != 'varer.php') {
-        $backHref = "javascript:" . $reloadOpener . "confirmClose(" . json_encode($varekortBack(array('id' => $ordre_id, 'fokus' => $fokus, 'vare_id' => $id))) . "," . $confirmTekstJs . ")";
-    } else {
-        $backHref = "javascript:" . $reloadOpener . "confirmClose(" . json_encode($returside) . "," . $confirmTekstJs . ")";
+        $contains = true;
     }
-    $actions = array();
-    $primary = null;
+
+    $icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 8l-4 4 4 4M16 12H9"></path></svg>';
+
+    // $returside/$opener are request-controlled; confirmTekst/confirmUrl below are
+    // JS-string-encoded via json_encode() then HTML-attribute-escaped, since they're
+    // interpolated into javascript: hrefs, not just plain HTML attributes.
+    $confirmTekst = htmlspecialchars(json_encode((string)$tekst), ENT_QUOTES);
+
+    if ($contains) {
+        print "<td width='200px'>
+            <a href=\"" . htmlspecialchars($returside, ENT_QUOTES) . "\" accesskey=L>
+            <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor = 'pointer'\">"
+            . $icon_back . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
+
+        print "<style>
+            a {
+                text-decoration: none !important;
+            } </style>";
+    }else{
+       if ($opener != 'varer.php') {
+            $confirmUrl = htmlspecialchars(json_encode("$returside?id=$ordre_id&fokus=$fokus&vare_id=$id"), ENT_QUOTES);
+            print "<td width=\"10%\">
+                <a href=\"javascript:confirmClose($confirmUrl,$confirmTekst)\" accesskey=L>
+                <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor='pointer'\">"
+                . $icon_back . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
+        } else {
+            $confirmUrl = htmlspecialchars(json_encode("$returside?"), ENT_QUOTES);
+            print "<td /*width=\"10%\"*/ $tmp><a href=\"javascript:confirmClose($confirmUrl,$confirmTekst)\" accesskey=L>
+                <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor='pointer'\">"
+                . $icon_back . findtekst('2172|Luk', $sprog_id) . "</button></a></td>\n";
+        }
+    }
+    print "<style>.center-btn{display:flex;align-items:center;text-decoration:none;gap:5px;}</style>\n";
+    print "<td align='center' style='$topStyle'>".findtekst('566|Varekort', $sprog_id)."</td>\n";
+    // print "<td width='10%' align='center' style='$topStyle'><br></td>\n";
+
+    # Open pos menus
+    $icon_posmenu = '<svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 -960 960 960" fill="#ffffff"><path d="M120-520v-320h320v320H120Zm0 400v-320h320v320H120Zm400-400v-320h320v320H520Zm0 400v-320h320v320H520ZM200-600h160v-160H200v160Zm400 0h160v-160H600v160Zm0 400h160v-160H600v160Zm-400 0h160v-160H200v160Z"/></svg>';
+    $add_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 -960 960 960" fill="#ffffff"><path d="M440-280h80v-160h160v-80H520v-160h-80v160H280v80h160v160Zm40 200q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>';
     if ($id) {
         if ($usePos) {
-            $actions[] = array('POS menuer', '#', 'bx-grid-alt', 'onclick' => "confirmClose(`../systemdata/posmenuer.php?menu_id=\${getCookie('pos_menu_location').split('-')[0]}&ret_row=\${getCookie('pos_menu_location').split('-')[1]}&ret_col=\${getCookie('pos_menu_location').split('-')[2]}`,'$tekst');");
+            # Back to the POS menu editor (MB-23). Hidden until the script below sees that the card was opened from there:
+            # the referrer is posmenuer.php, or this card itself after a save while the flag for this item is set.
+            print "<td id='pcPosBack' width='10%' align='right' style='display:none'>
+        <a href=\"javascript:confirmClose(`../systemdata/posmenuer.php?menu_id=\${getCookie('pos_menu_location').split('-')[0]}&ret_row=\${getCookie('pos_menu_location').split('-')[1]}&ret_col=\${getCookie('pos_menu_location').split('-')[2]}`,'$tekst'); \" accesskey=B>
+        <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor='pointer'\">" . $icon_posmenu . "POS menuer" . "</button></a></td>\n";
+            print "<script>(function () {
+                try {
+                    var ref = document.referrer || '', key = 'saldiCardFromPos', item = '" . (int) $id . "';
+                    if (ref.indexOf('/systemdata/posmenuer.php') !== -1) { sessionStorage.setItem(key, item); }
+                    else if (ref.indexOf('/lager/varekort.php') === -1) { sessionStorage.removeItem(key); }
+                    if (sessionStorage.getItem(key) === item) { document.getElementById('pcPosBack').style.display = ''; }
+                } catch (e) {}
+            })();</script>\n";
         }
-        $primary = array(findtekst('7003|Ny vare', $sprog_id), '#', 'accesskey' => 'N',
-            'onclick' => "confirmClose(" . json_encode("varekort.php?{$productNavigationQuery}opener=$opener&returside=" . urlencode($returside) . "&ordre_id=$ordre_id") . "," . $confirmTekstJs . ");");
+        # Create new item: a read-only user is not offered the blank card it would be refused
+        $confirmNewUrl = htmlspecialchars(json_encode("varekort.php?{$productNavigationQuery}opener=$opener&returside=$returside&ordre_id=$id"), ENT_QUOTES);
+        if (!$noEdit) {
+            print "<td width='10%' align='right'>
+         <a href=\"javascript:confirmClose($confirmNewUrl,$confirmTekst)\" accesskey=N>
+         <button type='button' class='center-btn' style='$buttonStyle; width:100%; justify-content:flex-start' onMouseOver=\"this.style.cursor='pointer'\">" . $add_icon . findtekst('39|Ny', $sprog_id) . "</button></a></td>\n";
+        }
+        # Gear of the Tilpas visning panel (productCardIncludes/fieldVisibility.php), as in the kassekladde top line
+        $pcVisDocked = true;
+        $gear_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#FFFFFF"><path d="M370-80l-16-128q-13-5-24.5-12T307-235l-119 50L78-375l103-78q-1-7-1-13.5v-27q0-6.5 1-13.5L78-585l110-190 119 50q11-8 23-15t24-12l16-128h220l16 128q13 5 24.5 12t22.5 15l119-50 110 190-103 78q1 7 1 13.5v27q0 6.5-2 13.5l103 78-110 190-118-50q-11 8-23 15t-24 12L590-80H370Zm112-260q58 0 99-41t41-99q0-58-41-99t-99-41q-59 0-99.5 41T342-480q0 58 40.5 99t99.5 41Z"/></svg>';
+        $gear_title = htmlspecialchars(findtekst('3380|Tilpas visning', $sprog_id), ENT_QUOTES);
+        print "<td width='3%' align='right'>
+         <button type='button' id='pcVisToggle' class='center-btn' style='$buttonStyle; width:100%; justify-content:center' title='$gear_title' onMouseOver=\"this.style.cursor='pointer'\">$gear_icon</button></td>\n";
     }
-    page_bar(array('title' => findtekst('566|Varekort', $sprog_id), 'back' => $backHref, 'actions' => $actions, 'primary' => $primary));
-    print "<style>a { text-decoration: none !important; }</style>\n";
-    print "<tr><td align=\"center\" valign=\"top\"></td></tr>\n";
+    print "</td></tbody></table>\n";
+    print "</td></tr>\n";
     print "<td align = center valign = center>\n";
     print "<table cellpadding='1' cellspacing='1' border='0' width='80%'><tbody>\n";
 } else {
@@ -1322,18 +1463,18 @@ if ($menu == 'S') {
     print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>\n";
     $tmp = ($popup) ? "onClick=\"javascript=opener.location.reload();\"" : "";
     if ($opener != 'varer.php')
-        print "<td width=\"10%\" $top_bund><a href=\"javascript:confirmClose('" . htmlspecialchars($varekortBack(array('id' => $ordre_id, 'fokus' => $fokus, 'vare_id' => $id)), ENT_QUOTES) . "','$tekst')\" accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></td>\n";
+        print "<td width=\"10%\" $top_bund><a href=\"javascript:confirmClose('$returside?id=$ordre_id&fokus=$fokus&vare_id=$id','$tekst')\" accesskey=L>".findtekst('30|Tilbage', $sprog_id)."</a></td>\n";
     else
-        print "<td width=\"10%\" $tmp $top_bund> <a href=\"javascript:confirmClose('" . htmlspecialchars($returside, ENT_QUOTES) . "','$tekst')\" accesskey=L>Luk</a></td>\n";
+        print "<td width=\"10%\" $tmp $top_bund> <a href=\"javascript:confirmClose('$returside?','$tekst')\" accesskey=L>Luk</a></td>\n";
     print "<td width=\"70%\" $top_bund align=\"center\">".findtekst('566|Varekort', $sprog_id)."</td>\n";
 
     # Open pos menus
     if ($id)
         print "<td width=\"10%\" $top_bund align=\"right\"><a href=\"javascript:console.log(getCookie('pos_menu_location'));confirmClose(`../systemdata/posmenuer.php?menu_id=\${getCookie('pos_menu_location').split('-')[0]}&ret_row=\${getCookie('pos_menu_location').split('-')[1]}&ret_col=\${getCookie('pos_menu_location').split('-')[2]}`,'$tekst'); \" accesskey=B>" . "POS menuer" . "</a>\n";
 
-    # Create new item
-    if ($id) {
-        print "<td width=\"10%\" $top_bund align=\"right\"><a href=\"javascript:confirmClose('varekort.php?{$productNavigationQuery}opener=$opener&returside=" . urlencode($returside) . "&ordre_id=$ordre_id','$tekst')\" accesskey=N>".findtekst('39|Ny', $sprog_id)."</a>\n";
+    # Create new item: a read-only user is not offered the blank card it would be refused
+    if ($id && !$noEdit) {
+        print "<td width=\"10%\" $top_bund align=\"right\"><a href=\"javascript:confirmClose('varekort.php?{$productNavigationQuery}opener=$opener&returside=$returside&ordre_id=$id','$tekst')\" accesskey=N>".findtekst('39|Ny', $sprog_id)."</a>\n";
     }
     print "</td></tbody></table>\n";
     print "</td></tr>\n";
@@ -1341,12 +1482,10 @@ if ($menu == 'S') {
     print "<table cellpadding=\"1\" cellspacing=\"1\" border=\"0\" width=\"80%\"><tbody>\n";
 }
 $vare_varianter = array();
-if ($menu == 'S' && $id <= 0 && function_exists('page_record')) print page_record(findtekst('7026|Nyt varekort', $sprog_id));
 if ($id > 0) {
     $query = db_select("select * from varer where id = '$id'", __FILE__ . " linje " . __LINE__);
     $row = db_fetch_array($query);
     $varenr = $row['varenr'];
-    if ($menu == 'S' && function_exists('page_record')) print page_record(trim((string) $row['varenr'] . ' ' . (string) $row['beskrivelse']));
     $stregkode = $row['stregkode'];
     $beskrivelse[0] = $row['beskrivelse'];
     $beskrivelseAlias = $row['beskrivelse_alias'];
@@ -1647,9 +1786,13 @@ if (substr($rettigheder,7,1) && $id) {
     print "<tr><td colspan=\"1\"></td>\n";
     print "<td colspan=\"1\" align=\"center\"><b>".findtekst('917|Varenr.', $sprog_id).": <a href=\"$href\">$varenr</a></b>";
     if($varenrAlias) { 
-        print "<b style='margin-left: 1rem;'>Varenr alias: <a href='ret_varenralias.php?id=$id' >$varenrAlias</a></b></td>";
+        // MB-62 a read-only Items user sees the alias as text: ret_varenralias.php refuses the edit.
+        print "<b style='margin-left: 1rem;'>Varenr alias: ";
+        print ($noEdit) ? $varenrAlias : "<a href='ret_varenralias.php?id=$id' >$varenrAlias</a>";
+        print "</b></td>";
     }else{
-        print "<a href='ret_varenralias.php?id=$id' style='margin-left: 1rem;'><b>Tilføj varenr alias</b></a></td>";
+        print ($noEdit) ? "" : "<a href='ret_varenralias.php?id=$id' style='margin-left: 1rem;'><b>Tilføj varenr alias</b></a>";
+        print "</td>";
     }
     $query = db_select("select * from vare_lev where vare_id='$id'", __FILE__ . " linje " . __LINE__);
     if (db_fetch_array($query)) {
@@ -1708,7 +1851,11 @@ if (!$varenr) {
     print "<input class=\"inputbox\" type=\"text\" size=\"25\" name=\"varenr\" value=\"$varenr\" pattern='" . $pattern . "' ";
     print "onchange=\"javascript:docChange = true;\"></td></tr>\n";
     print "<tr><td align=center>".findtekst('2021|Tilladte tegn er: a-z A-Z 0-9 . + -_', $sprog_id)."</td>\n";
+    # MB-62 a mass import is a write, so a read-only user is not offered it (the target page does not
+    # exist in the repository either - logged as BUG-20261027-1)
+    if (!$noEdit) {
     print "<tr><td align=center><a href='varescanimport.php?returside=varekort.php'><button type='button'>Masse vare scan</button></a></td></tr>\n";
+    }
 } else {
     print "<input type=\"hidden\" name=\"varenr\" value=\"$varenr\">\n";
     print "<tr><td colspan='4' width='100%'><table bordercolor='#FFFFFF' border='1' cellspacing='5' width='100%'><tbody>\n";
@@ -1766,36 +1913,48 @@ if (!$varenr) {
     print "\n<!-- productCardIncludes/showDiscounts.php end -->\n";
     print "</tbody></table></td>";# <- Tilbudstabel 
 
-    print "<td id='pcSecColli' valign=top width=33%><table border=0 width=100%><tbody>"; # Collitabel ->
+    print "<td id='pcSecGroups' valign=top width=33%><table border=0 width=100%><tbody>"; # Gruppe tabel ->
+    print "\n<!-- productCardIncludes/showGroups.php begin -->\n";
+    include('productCardIncludes/showGroups.php');
+    print "\n<!-- productCardIncludes/showGroups.php end -->\n";
+    print "</tbody></table></td></tr>";# <- Gruppe tabel
+
+    print "<tr><td id='pcSecColli' valign=top><table border=0 width=100%><tbody>"; # Collitabel ->
     print "\n<!-- productCardIncludes/showColli.php begin -->\n";
     include_once("productCardIncludes/showColli.php");
     print "\n<!-- productCardIncludes/showColli.php end -->\n";
+    print "</tbody></table></td>";# <- Collitabel
 
-    print "</tbody></table></td></tr>";# <- Collitabel 
-    print "<tr><td id='pcSecUnits' valign=top><table border='0' width='100%'><tbody>"; # Enhedstabel ->
+    print "<td id='pcSecUnits' valign=top><table border='0' width='100%'><tbody>"; # Enhedstabel ->
     print "\n<!-- productCardIncludes/showUnits.php begin -->\n";
     include('productCardIncludes/showUnits.php');
     print "\n<!-- productCardIncludes/showUnits.php end -->\n";
     print "</tbody></table></td>";
-
-    print "<td id='pcSecGroups' valign=top><table border=0 width=100%><tbody>"; # Gruppe tabel ->
-    print "\n<!-- productCardIncludes/showGroups.php begin -->\n";
-    include('productCardIncludes/showGroups.php');
-    print "\n<!-- productCardIncludes/showGroups.php end -->\n";
-    print "</tbody></table></td>";# <- Gruppe tabel
 
     print "<td id='pcSecQtyDiscounts' valign=\"top\"><table border=\"0\" width=\"100%\"><tbody>"; # M-rabat tabel ->
     print "\n<!-- productCardIncludes/showQtyDiscounts.php begin -->\n";
     include('productCardIncludes/showQtyDiscounts.php');
     print "\n<!-- productCardIncludes/showQtyDiscounts.php end -->\n";
     print "</tbody></table></td></tr>";# <- M-rabat tabel 
-    print "<tr><td id='pcSecMisc' valign=\"top\" height=\"200px\"><table border=\"0\" width=\"100%\"><tbody>"; # Diverse tabel ->
+    # Beholdning, Lokation and Salg: showLocations.php fills one buffer per box; an empty box is left out
     print "\n<!-- productCardIncludes/showLocations.php begin -->\n";
     include('productCardIncludes/showLocations.php');
     print "\n<!-- productCardIncludes/showLocations.php end -->\n";
-    print "</tbody></table></td>";#  <- Diverse tabel
+    $pcStockHead = $operation ? findtekst('items.card.operation|Montage', $sprog_id) : findtekst('980|Beholdning', $sprog_id);
+    $pcBoxes = array(
+        'pcSecStock'    => array($pcStockHead, $pcStockHtml),
+        'pcSecLocation' => array(findtekst('2045|Lokation', $sprog_id), $pcLocationHtml),
+        'pcSecSales'    => array(findtekst('5544|Salg', $sprog_id), $pcSalesHtml),
+    );
+    print "<tr>";
+    foreach ($pcBoxes as $pcBoxId => $pcBox) {
+        if (trim($pcBox[1]) === '') continue;
+        print "<td id='$pcBoxId' valign='top'><table border='0' width='100%'><tbody>";
+        print "<tr><td colspan='6'><b>$pcBox[0]</b></td></tr>$pcBox[1]</tbody></table></td>";
+    }
+    print "</tr>";
 #################### KATEGORIER ###########################
-    print "<td id='pcSecCategories' valign=\"top\" height=\"200px\">";
+    print "<tr><td id='pcSecCategories' valign=\"top\" height=\"200px\">";
     print "<div class=\"vindue\">";
     print "<table border=0 width=100%><tbody>"; # Kategori tabel ->
     print "\n<!-- productCardIncludes/showCategories.php begin -->\n";
@@ -1846,8 +2005,11 @@ if (!$varenr) {
                 if ($x == 1 && !$lev_varenr[$x] && !$kostpris[$x]) {
                     $lev_varenr[$x] = $varenr;
                     $kostpris[$x] = $kostpris[0] * 1;
-                    $qtxt = "update vare_lev set lev_varenr='" . db_escape_string($lev_varenr[$x]) . "',kostpris='$kostpris[$x]' where id='$row[id]'";
-                    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+                    # MB-65 the default is shown either way; only a user who may edit stores it
+                    if (!$noEdit) {
+                        $qtxt = "update vare_lev set lev_varenr='" . db_escape_string($lev_varenr[$x]) . "',kostpris='$kostpris[$x]' where id='$row[id]'";
+                        db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+                    }
                 }
             }
             $lev_ant = $x;
@@ -1927,8 +2089,13 @@ if (!$varenr) {
             $query2 = db_select("select * from varer where id = $row[indgaar_i]", __FILE__ . " linje " . __LINE__);
             $row2 = db_fetch_array($query2);
             if ($row2['id'] == $id) { #20131007
-                db_modify("delete from styklister where id='$row[id]'", __FILE__ . " linje " . __LINE__);
-                $txt = "Cirkulær reference konstateret, varenr.: $row2[varenr] fjernet fra stykliste";
+                # MB-65 the alert is shown either way; only a user who may edit removes the row
+                if (!$noEdit) {
+                    db_modify("delete from styklister where id='$row[id]'", __FILE__ . " linje " . __LINE__);
+                    $txt = "Cirkulær reference konstateret, varenr.: $row2[varenr] fjernet fra stykliste";
+                } else {
+                    $txt = "Cirkulær reference konstateret, varenr.: $row2[varenr] - kontakt en bruger med rettigheder";
+                }
                 print "<BODY onLoad=\"javascript:alert('$txt')\">";
             } else {
                 $x++;
@@ -1980,7 +2147,7 @@ if (!$varenr) {
     # Vises hvis varen indegår i en stykliste
     if ($delvare == 'on') {
         if ($vis_samlevarer) {
-            print "<tr><td valign=top width=10%><span title='Klik her for at lukke oversigten'><a href=varekort.php?{$productNavigationQuery}opener=$opener&id=$id&returside=" . urlencode($returside) . ">Indg&aring;r i</a></td><td></td><td><table width=80% border=0><tbody>";
+            print "<tr><td valign=top width=10%><span title='Klik her for at lukke oversigten'><a href=varekort.php?{$productNavigationQuery}opener=$opener&id=$id&returside=$returside>Indg&aring;r i</a></td><td></td><td><table width=80% border=0><tbody>";
             print "<tr><td> Pos.</td><td width=80> V.nr.</td><td width=300> Beskrivelse</td><td> Antal</td></tr>";
             for ($x = 1; $x <= $ant_indg_i; $x++) {
                 print "<tr><td><input class=\"inputbox\" type = 'text' size=2 name=indg_i_ant[$x] value=$x></td><td><a href='?id=$indg_i_id[$x]'>$indg_i_vnr[$x]</a></td><td>$indg_i_beskrivelse[$x]</td><td align=\"right\">$indg_i_ant[$x]</td></tr>";
@@ -1988,7 +2155,7 @@ if (!$varenr) {
             print "<input type=\"hidden\" name=\"vis_samlevarer\" value=\"on\">";
         } else {
             print "<tr><td colspan=3><table width=100% border='0' cellspacing='1'><tbody>";
-            print "<tr><td width=100% align=center><a href=varekort.php?{$productNavigationQuery}opener=$opener&id=$id&returside=" . urlencode($returside) . "&vis_samlevarer=on>Denne vare indg&aring;r i andre varer - Klik for oversigt</a></td></tr>";
+            print "<tr><td width=100% align=center><a href=varekort.php?{$productNavigationQuery}opener=$opener&id=$id&returside=$returside&vis_samlevarer=on>Denne vare indg&aring;r i andre varer - Klik for oversigt</a></td></tr>";
         }
 
         #   print "<tr><td><input class=\"inputbox\" type = 'text' size=2 name=indg_i_ant[$x] value=$x></td><td colspan=2><SELECT class=\"inputbox\" NAME=indg_i_ant[0]>";
@@ -2008,7 +2175,11 @@ if (!$varenr) {
 if (!isset($kostpris[0]))
     $kostpris[0] = 0;
 
-$hrlinje = "<hr width=100%>";
+if ($menu == 'T') {
+    $hrlinje = "<hr width=75%>";
+} else {
+    $hrlinje = "<hr width=100%>";
+}
 print "<tr><td colspan=4><center>$hrlinje</td></tr>";
 print "<tr><td colspan=4 align=center><table width=100%><tbody>";
 
@@ -2021,23 +2192,33 @@ print "<input type = 'hidden' name=gl_kostpris value='$kostpris[0]'>";
 print "<input type = 'hidden' name='oldRetailPrice' value='$retail_price'>";
 
 
-print "<tr><td align = center><input class='button green medium' style='width:150px;' type=submit accesskey=\"g\" ";
-print "value=\"".findtekst('3|Gem', $sprog_id)."\" name=\"saveItem\" onclick=\"javascript:docChange = false;\" $noEdit></td>";
+# MB-62 the row opens either way; a read-only user gets no Save in it
+print "<tr>";
+if (!$noEdit) {
+print "<td align = center><input class='button green medium' style='width:150px;' type=submit accesskey=\"g\" ";
+print "value=\"".findtekst('3|Gem', $sprog_id)."\" name=\"saveItem\" onclick=\"javascript:docChange = false;\"></td>";
+}
 
 ($beholdning || $noEdit) ? $disabled = 'disabled' : $disabled = '';
+# MB-62 a read-only user is shown what may be read and nothing that writes: copy, item lookup,
+# supplier lookup and delete all run a save, so they are not drawn at all
 if ($varenr && $samlevare == 'on') {
     $txt1100 = findtekst('1100|Kopier', $sprog_id); //Kopier
+    if (!$noEdit) {
     print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='k' value='$txt1100' name='copy'></td>";
     print "<td align = center><input class='button blue medium' style='width:150px;' type=submit title='Inds&aelig;t varer i stykliste' accesskey=\"l\" value=\"Vareopslag\" name=\"submit\" onclick=\"javascript:docChange = false;\" $disabled></td>";
+    }
 } elseif ($varenr) {
     $txt1100 = findtekst('1100|Kopier', $sprog_id); //Kopier
     $txt2049 = findtekst('2049|Leverandøropslag', $sprog_id); //Leverandøropslag
     $txt3056 = findtekst('3295|Lagerhistorik', $sprog_id);    //Lagerhistorik
+    if (!$noEdit) {
     print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='k' value='$txt1100' name='copy'></td>";
-    print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='l' value='$txt2049' name='supplierLookUp' onclick='javascript:docChange = false;' $noEdit></td>";
+    print "<td align = center><input class='button blue medium' style='width:150px;' type=submit accesskey='l' value='$txt2049' name='supplierLookUp' onclick='javascript:docChange = false;'></td>";
+    }
     print "<td align = center><input class='button blue medium' style='width:150px;' type=button accesskey='o' value='$txt3056' name='stockHistory' onclick='javascript:docChange = false;location.href = \"productCardIncludes/stockLog.php?id=$id\"'></td>";
 }
-if ($id) {
+if ($id && !$noEdit) {
     $txt1099 = findtekst('1099|Slet', $sprog_id); //Slet
     $q = db_select("select distinct(id) from ordrelinjer where vare_id = $id", __FILE__ . " linje " . __LINE__);
     if (!db_fetch_array($q) && $lev_ant < 1 && $ant_be_af < 1 && $ant_indg_i < 1) {
@@ -2045,7 +2226,8 @@ if ($id) {
         print "value=\"$txt1099\" name=\"deleteItem\" OnClick=\"return confirm('Slet varenr $varenr ?')\"></td>";
     }
 }
-if ($id && $packagingModuleEnabled) {
+# MB-62 the packaging page only writes, so a read-only user is offered no button to it
+if ($id && $packagingModuleEnabled && !$noEdit) {
     $emb_btn   = ($sprog_id == 2) ? 'Packaging' : 'Emballage';
     $emb_btn_t = ($sprog_id == 2) ? 'Manage packaging for this product' : 'Administrér emballage for denne vare';
     print "<td align=center><a href='emballage.php?id=$id' style='text-decoration:none;'><input style='width:150px;' class='button blue medium' type='button' value='$emb_btn' title='$emb_btn_t'></a></td>";
@@ -2242,37 +2424,54 @@ function kontoopslag($sort, $fokus, $id)
     global $fokus;
     global $vare_lev_id;
     global $opener;
-    global $menu, $sprog_id;
+    global $menu;
 
     include("../includes/topline_settings.php");
 
     # Malenes topmenu
-    if ($menu == 'S') {
-        include_once("../includes/stdFunc/pageBar.php");
-        page_bar(array(
-            'title' => findtekst('566|Varekort', $sprog_id),
-            'primary' => array(findtekst('7002|Ny kreditor', $sprog_id), '#', 'onclick' => "window.open('../kreditor/kreditorkort.php?returside=../includes/luk.php', '', 'statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes,resizable=yes');"),
-            'back' => "varekort.php?opener=$opener&returside=" . urlencode($returside) . "&ordre_id=$ordre_id&vare_id=$id&id=$id&fokus=$fokus",
-        ));
-        print "</td></tr>";
+    if ($menu == 'T') {
+        include_once '../includes/top_header.php';
+        include_once '../includes/top_menu.php';
+        print "<div id=\"headerSmallWindow\">
+        <div class=\"headerLittlebtnLft\"><a class=\"button red small right\" href=$returside accesskey=L>Luk</a></div>
+        <span class=\"headerLittleTxt\">Varekort</span>";
+        print "<div class=\"headerLittlebtnRght\"></div>";
+        print "</div><!-- end of header -->
+            <div class=\"maincontentLargeHolder\">\n";
+        print "<table class='dataTable2' cellpadding=\"1\" cellspacing=\"1\" border=\"0  \" width=\"100%\" valign = \"top\">";
+        print "<tbody><tr><td colspan=8>";
+        print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>";
+
+    } elseif ($menu == 'S') {
+        print "<table width='100%'><tbody>";
+
+        print "<td width=\"10%\">
+           <a href=varekort.php?opener=$opener&returside=$returside&ordre_id=$ordre_id&vare_id=$id&id=$id&fokus=$fokus accesskey=L>
+           <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Luk</button></a></td>";
+
+        print "<td width=\"80%\" align='center' style='$topStyle'>Varekort</td>";
+
+        print "<td width=\"10%\" align=\"right\" onClick=\"JavaScript:window.open('../kreditor/kreditorkort.php?returside=../includes/luk.php', '', 'statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes,resizable=yes');\">
+           <button style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">Ny</button></td>";
+        print "</tbody></table></td></tr>";
 
     } else {
         print "<table width='100%'><tbody>";
-        print "<td width=\"10%\" $top_bund><a href=varekort.php?{$productNavigationQuery}opener=$opener&returside=" . urlencode($returside) . "&ordre_id=$ordre_id&vare_id=$id&id=$id&fokus=$fokus accesskey=L>Luk</a></td>";
+        print "<td width=\"10%\" $top_bund><a href=varekort.php?{$productNavigationQuery}opener=$opener&returside=$returside&ordre_id=$ordre_id&vare_id=$id&id=$id&fokus=$fokus accesskey=L>Luk</a></td>";
         print "<td width=\"80%\" $top_bund align=\"center\">Varekort</td>";
         print "<td width=\"10%\" $top_bund align=\"right\" onMouseOver=\"this.style.cursor = 'pointer'\"; onClick=\"JavaScript:window.open('../kreditor/kreditorkort.php?returside=../includes/luk.php', '', 'statusbar=no,menubar=no,titlebar=no,toolbar=no,scrollbars=yes,resizable=yes');\"><u>Ny</u></td>";
         print "</tbody></table></td></tr>";
     }
     print "<table width='100%'><tbody>";
-    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=kontonr&funktion=kontoOpslag&id=$id&returside=" . urlencode($returside) . "&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Kontonr</b></td>";
-    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=firmanavn&funktion=kontoOpslag&id=$id&returside=" . urlencode($returside) . "&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Navn</b></td>";
-    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=addr1&funktion=kontoOpslag&id=$id&returside=" . urlencode($returside) . "&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Adresse</b></td>";
-    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=addr2&funktion=kontoOpslag&id=$id&returside=" . urlencode($returside) . "&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Adresse2</b></td>";
-    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=postnr&funktion=kontoOpslag&id=$id&returside=" . urlencode($returside) . "&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Postnr</b></td>";
-    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=bynavn&funktion=kontoOpslag&id=$id&returside=" . urlencode($returside) . "&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>bynavn</b></td>";
-    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=land&funktion=kontoOpslag&id=$id&returside=" . urlencode($returside) . "&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>land</b></td>";
+    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=kontonr&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Kontonr</b></td>";
+    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=firmanavn&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Navn</b></td>";
+    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=addr1&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Adresse</b></td>";
+    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=addr2&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Adresse2</b></td>";
+    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=postnr&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Postnr</b></td>";
+    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=bynavn&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>bynavn</b></td>";
+    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=land&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>land</b></td>";
     #   print"<td><b><a href=varekort.php?opener=$opener&sort=kontakt&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Kontaktperson</b></td>";
-    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=tlf&funktion=kontoOpslag&id=$id&returside=" . urlencode($returside) . "&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Telefon</b></td>";
+    print "<td><b><a href=varekort.php?{$productNavigationQuery}opener=$opener&sort=tlf&funktion=kontoOpslag&id=$id&returside=$returside&ordre_id=$ordre_id&vare_id=$id&$fokus=$fokus>Telefon</b></td>";
     print " </tr>";
 
     if (!isset($_GET['sort']))
@@ -2286,7 +2485,7 @@ function kontoopslag($sort, $fokus, $id)
     while ($row = db_fetch_array($q)) {
         $kontonr = str_replace(" ", "", $row['kontonr']);
         print "<tr>";
-        print "<td><a href=varekort.php?{$productNavigationQuery}id=$id&konto_id=$row[id]&returside=" . urlencode($returside) . "&vare_lev_id=$row[id]>$row[kontonr]</a></td>";
+        print "<td><a href=varekort.php?{$productNavigationQuery}id=$id&konto_id=$row[id]&returside=$returside&vare_lev_id=$row[id]>$row[kontonr]</a></td>";
         print "<td>$row[firmanavn]</td>";
         print "<td>$row[addr1]</td>";
         print "<td>$row[addr2]</td>";
@@ -2301,7 +2500,18 @@ function kontoopslag($sort, $fokus, $id)
     print "</tbody></table></td></tr></tbody></table>";
     exit;
 }
-if ($menu == 'S') {
+if ($menu == 'T') {
+    print "</tbody>
+    </table>
+    </td></tr>
+    <tr><td align = \"center\" valign = \"bottom\">
+            <table width=\"75%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>
+                <td width=\"75%\"><br></td>
+            </tbody></table>
+    </td></tr>
+    </tbody></table></body></html>
+    ";
+} elseif ($menu == 'S') {
     print "</tbody>
     </table>
     </td></tr>
@@ -2326,6 +2536,30 @@ document.varekort.$fokus.focus();
 </script>";
 ?>
 <script>
+    // Saldi's message box (javascript/saldi-dialog.js) answers confirm() in a change event with false at once and shows the
+    // question. OK sets the new value again and repeats the change, and confirm() then answers true, so OK saves below.
+    // The false branch therefore only puts the old value back. A submit the browser starts straight after the change
+    // (Enter in the field, or Gem's accesskey, which first moves the focus to Gem) is held, so the answer decides. With
+    // Saldi's box a submit is also held while its question is on screen (Gem's accesskey pressed on the open question).
+    // The box cancels that click itself as well; the card holds it too, as a browser may still run an older copy of the
+    // box from its cache. The first submit after the answer goes through.
+    // The browser's own box has the answer already: there only Enter is held, and Gem saves as it did.
+    // A user who may only read items has no Gem (MB-62): there OK saves nothing.
+    function pcKeepOldValue(field, oldValue) {
+        field.value = oldValue;
+        const form = field.form;
+        if (!form || (!window.SaldiDialog && document.activeElement !== field)) return;
+        const unsaved = window.docChange;
+        const asking = () => document.querySelector("#sdlg-root [role=alertdialog]") !== null;
+        let sameTask = true;
+        const hold = (ev) => {
+            if (!sameTask && !asking()) { form.removeEventListener("submit", hold, true); return; }
+            ev.preventDefault(); ev.stopImmediatePropagation(); window.docChange = unsaved;
+        };
+        form.addEventListener("submit", hold, true);
+        setTimeout(() => { sameTask = false; if (!asking()) form.removeEventListener("submit", hold, true); }, 0);
+    }
+
     const salgspris = document.querySelector("input[name=salgspris]");
     if (salgspris) {
         const oldPrice = salgspris.value;
@@ -2335,9 +2569,9 @@ document.varekort.$fokus.focus();
                 if (confirm("Er du sikker på du vil ændre salgsprisen?") == true) {
                     salgspris.value = e.target.value;
                     const form = document.querySelector("[name=saveItem]");
-                    form.click()
+                    if (form) form.click()
                 } else {
-                    salgspris.value = oldPrice;
+                    pcKeepOldValue(salgspris, oldPrice);
                 }
             })
         }
@@ -2352,11 +2586,9 @@ document.varekort.$fokus.focus();
                 if (confirm("Er du sikker på du vil ændre kostprisen?") == true) {
                     kostpris.value = e.target.value;
                     const form = document.querySelector("[name=saveItem]");
-                    form.click()
+                    if (form) form.click()
                 } else {
-                    kostpris.value = oldCost;
-                    const form = document.querySelector("[name=saveItem]");
-                    form.click()
+                    pcKeepOldValue(kostpris, oldCost);
                 }
             })
         }
@@ -2371,9 +2603,9 @@ document.varekort.$fokus.focus();
                 if (confirm("Er du sikker på du vil ændre beskrivelsen?") == true) {
                     beskrivelse.value = e.target.value;
                     const form = document.querySelector("[name=saveItem]");
-                    form.click()
+                    if (form) form.click()
                 } else {
-                    beskrivelse.value = oldDescription;
+                    pcKeepOldValue(beskrivelse, oldDescription);
                 }
             })
         }

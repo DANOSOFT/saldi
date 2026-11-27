@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| | | |
 //                        |___/_/ \_|___|__/|_|
 //
-// --- finans/listeangivelse.php --- lap 5.0.0 --- 2026-06-04 ---
+// --- finans/listeangivelse.php --- ver 5.1.0 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2010-2026 Saldi.dk ApS
+// Copyright (c) 2010-2026 Danosoft ApS
 // ----------------------------------------------------------------------------
 // 
 // 20130210 Break ændret til break 
@@ -32,18 +32,23 @@
 // 20260303 PHR - PHP8
 // 20260522 PHR - Fiscal year
 // 20260604 CL/PHR reads baseCountry from settings, passes to cvrnr_land/cvrnr_omr
-// 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
-// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
+// 20261113 CL/ASR Goods or services is decided by eu_sales_list_kind() (includes/euSalesListKind.php), not by MR box3/box4.
+//                 Those are the box A purchase accounts, so EU service sales were listed as goods.
+//                 The EU sales account the line was posted to decides (MR box6 services, box5 goods), then the item group's Varer/ydelser setting, then box4 as before.
+//                 The MR row is the one of the fiscal year (as the VAT report reads it), not the last row of any year.
+//                 The period's month and year are cast to whole numbers, and record 2 carries the period's last day again ($kvartal_slutdato was left undefined when the list went from quarters to months in 2014, so the field was empty).
+//                 Bulgaria and Croatia count as EU countries (cvrnr_omr() in includes/std_func.php).
 
 @session_start();
 $s_id=session_id();
-$title = findtekst('7013|Listeangivelse', $sprog_id);
+$title="Listeangivelse";
 $modulnr=4;
 $css="../css/standard.css";
 
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include_once(__DIR__ . "/../includes/euSalesListKind.php");
 
 
 $listefilnavn = "../temp/listeangivelse_".trim($db)."_".date('ymdH').".csv";
@@ -75,13 +80,9 @@ while ($row=db_fetch_array($query)) {
 	$adrhtml.= $row['postnr']." ".$row['bynavn'];
 }
 
-# Kan forbedres ved at slaa op i kontoplan og se om kontiene er samlekonti og i stedet have euvarekonti[] og euydelsekonti[]
-$query=db_select("select box3, box4 from grupper where art = 'MR'",__FILE__ . " linje " . __LINE__);
-while ($row=db_fetch_array($query)) {
-        $euvarekonto=$row['box3'];
-        $euydelseskonto=$row['box4'];
-}
-$debughtml.="<p>[".$euvarekonto."|".$euydelseskonto."]</p>\n";
+// The EU sales accounts of Indstillinger > Moms (MR box5/box6, and box4 as the list read it before) for the fiscal year.
+$euAccounts = eu_sales_accounts((int) $regnaar);
+$debughtml.="<p>[".$euAccounts['goods']."|".$euAccounts['services']."|".$euAccounts['legacy_services']."]</p>\n";
 
 if ($_POST){ # 20140729 Start afsnit 1
         $listeperiode=isset($_POST['listeperiode'])? $_POST['listeperiode']:NULL;
@@ -90,12 +91,15 @@ if ($_POST){ # 20140729 Start afsnit 1
 } else {
 	# $bodyhtml.=vis_alle_kvartaler();
 	$bodyhtml.="\n<h1>Ingen perioder valgt</h1>\n<p>Klik p&aring; linket Tilbage og v&aelig;lg en periode.</p>\n\n";
-	$tophtml = listetopmenu(findtekst('7013|Listeangivelse', $sprog_id));
+	$tophtml = listetopmenu("Listeangivelse");
 	print $tophtml.$bodyhtml.$bottomhtml;
 	exit;
 }
 
-list($liste_md, $liste_aar) = explode(".", $listeperiode);
+// The period is month.year from the request: whole numbers only, as they go into the SQL below.
+$listeParts = explode(".", (string) $listeperiode);
+$liste_md = (int) $listeParts[0];
+$liste_aar = isset($listeParts[1]) ? (int) $listeParts[1] : 0;
 
 if ( $liste_md > 12 ) {
 	$liste_md=$liste_md-12;
@@ -145,16 +149,17 @@ while ($row = db_fetch_array($query)) {
 		$modtagerfirma=$r['firmanavn'];
 		$modtagerlandekode = strtoupper(substr($modtagercvrnr, 0, 2));
 		$modtagercvrnr = strtoupper(substr($modtagercvrnr, 2));
-		$qtxt="select ordrelinjer.pris as pris, ordrelinjer.antal as antal, ordrelinjer.rabat as rabat, grupper.box12 as konto from "; #20171130
-		$qtxt.="ordrelinjer, varer, grupper where ordrelinjer.ordre_id = '$r[id]' and ordrelinjer.vare_id=varer.id ";
-		$qtxt.="and varer.gruppe=grupper.kodenr and grupper.art='VG' and grupper.fiscal_year='$regnaar' order by ordrelinjer.posnr";
+		$qtxt="select ordrelinjer.pris as pris, ordrelinjer.antal as antal, ordrelinjer.rabat as rabat, grupper.box12 as konto, grupper.box5 as varetype from "; #20171130
+		$qtxt.="ordrelinjer, varer, grupper where ordrelinjer.ordre_id = '" . (int) $r['id'] . "' and ordrelinjer.vare_id=varer.id ";
+		$qtxt.="and varer.gruppe=grupper.kodenr and grupper.art='VG' and grupper.fiscal_year='" . (int) $regnaar . "' order by ordrelinjer.posnr";
 		$qq=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($rr = db_fetch_array($qq)) {
 			$debughtml.="<tr><td>".$rr['antal']." a ".$rr['pris']." (-".$rr['rabat']."</td><td>Konto: ".$rr['konto']."</td></tr>\n";
-			if (( $euvarekonto && $rr['konto'] == $euvarekonto) ||  ($rr['konto'] && $rr['konto'] != $euydelseskonto) || (!$rr['konto'] && !$euydelseskonto)) { #20160824 #20160602
+			// A line of a group without an EU sales account only counts while no EU services account is set up (#20160824 #20160602).
+			$kind = eu_sales_list_kind($rr['varetype'], $rr['konto'], $euAccounts);
+			if ($kind == 'goods') {
 				$varesumdkk+= number_format($r['valutakurs']*$rr['pris']*$rr['antal']*((100-$rr['rabat'])/100)/100,0,'','');
-			}	
-			if ($euydelseskonto && $rr['konto'] == $euydelseskonto ) { #20160602
+			} elseif ($kind == 'services') {
 				$ydelsessumdkk+= number_format($r['valutakurs']*$rr['pris']*$rr['antal']*((100-$rr['rabat'])/100)/100,0,'','');
 			}
 		}
@@ -173,7 +178,7 @@ while ($row = db_fetch_array($query)) {
 		if ( $varesumdkk <> 0 || $ydelsessumdkk <> 0 ) {
 			$totalsumdkk+=$varesumdkk+$ydelsessumdkk;
 			$antal_poster++;
-			$datalinje="2,".$internref.",".$kvartal_slutdato.",".$egetcvrnr.",".$modtagerlandekode.",".$modtagercvrnr.",".$varesumdkk.",0,".$ydelsessumdkk;
+			$datalinje="2,".$internref.",".$liste_slutdato.",".$egetcvrnr.",".$modtagerlandekode.",".$modtagercvrnr.",".$varesumdkk.",0,".$ydelsessumdkk;
 			$datafil .= "\n".$datalinje;
 		}
 
@@ -188,7 +193,7 @@ while ($row = db_fetch_array($query)) {
 	$debughtml.= "</table>\n\n";
 } 
 
-$tophtml = listetopmenu(findtekst('7013|Listeangivelse', $sprog_id) . " " . $liste_md . ". " . lcfirst(findtekst('1217|Måned', $sprog_id)) . " " . $liste_aar); # 20140729 afsnit 3
+$tophtml = listetopmenu("Listeangivelse ".$liste_md.". måned ".$liste_aar); # 20140729 afsnit 3
 
 if ( $antal_poster > 0 ) {
 	$datafil .= "\n10,".$antal_poster.",".$totalsumdkk.",,,,,,\n";
@@ -209,7 +214,7 @@ if ( $antal_poster > 0 ) {
 	$bodyhtml.="<h2>Data til udfyldelse af papirblanket</h2>\n\n";
 	$bodyhtml.="<p>S&aelig;lgers CVR-/SE-nr.: <strong>".$egetcvrnr."</strong></p>\n";
 	$bodyhtml.="<p>S&aelig;lgers navn og adresse:<br /><strong>".$adrhtml."</strong></p>\n";
-	$bodyhtml.="<p>Periode (1): <strong>".$kvartal_slutdato_yymmdd."</strong></p>\n"; # Sidste dag i perioden i formatet YYMMDD
+	$bodyhtml.="<p>Periode (1): <strong>".$liste_slutdato_yymmdd."</strong></p>\n"; # Sidste dag i perioden i formatet YYMMDD
 	$bodyhtml.="<p>Periodens samlede varesalg, ydelsessalg og trekantshandel til EUlande<br />\nuden moms i hele danske kr. (2):<br />\n";
 	$bodyhtml.="<strong>".$totalsumdkk."</strong></p>\n";
 	$bodyhtml.="<table>\n";
@@ -247,15 +252,19 @@ if ( isset($_POST['debug']) || isset($_GET['debug']) ) {
 function listetopmenu($tekst) {
 	global $returside, $bgcolor, $buttonStyle, $topStyle, $sprog_id;
 
-	include_once("../includes/stdFunc/pageBar.php");
-	ob_start();
-	page_bar(array('title' => $tekst, 'back' => $returside));
-	$head = ob_get_clean();
+	$tilbage_icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
 
 	$html  = "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}</style>\n";
 	$html .= "<div id='laPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
-	$html .= "<div style='flex:0 0 auto;box-sizing:border-box;'>\n";
-	$html .= $head;
+	$html .= "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
+	$html .= "<table bgcolor='#eeeef0' width='100%' cellpadding='0' cellspacing='0' border='0' id='tableA'><tbody>";
+	$html .= "<tr><td colspan=8 align=center>";
+	$html .= "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>";
+	$html .= "<td width='10%' align='center'><a accesskey=L href=\"$returside\">
+		   <button style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px;' onMouseOver=\"this.style.cursor='pointer'\">$tilbage_icon".findtekst(30, $sprog_id)."</button></a></td>";
+	$html .= "<td width='90%' align='center' style='$topStyle'>$tekst</td>";
+	$html .= "</tbody></table>";
+	$html .= "</td></tr></tbody></table>";
 	$html .= "</div>\n";
 	$html .= "<div id='laGridWrapper' style='flex:1 1 auto;min-height:0;overflow-y:auto;width:100%;background-color:$bgcolor;padding:0 8px;box-sizing:border-box;'>\n";
 

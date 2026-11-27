@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/stripe/afbrudt.php --- 2026.10.26
+// --- api/stripe/afbrudt.php --- 2026.11.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,7 @@
 // 20260820 CL/LH Presentation only: shared shell from stripePage.php. The
 //                retry link still renders ONLY on a verified id+sig pair.
 // 20261026 CL/NTR Multi-ledger: the retry link keeps the ledger (r=).
+// 20261126 CL/ASR Stripe port (#889): the retry link is built with stripe_link_ledger_param().
 
 header('Content-Type: text/html; charset=utf-8');
 header('Cache-Control: no-store');

@@ -24,6 +24,16 @@ jobs:
     name: PHPUnit + Playwright
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      # Every docker compose call in this job (bootstrap-stack.sh and
+      # e2e/seed-user.mjs too) adds the CI file, which keeps the stack away from
+      # the production locator.
+      COMPOSE_FILE: docker-compose.yml:tools/ci/compose.ci.yml
+      # Local-only credentials for the throwaway stack this job installs.
+      # SALDI_E2E_TENANT_DB is exported by tools/ci/bootstrap-stack.sh.
+      SALDI_PGPASS: password
+      SALDI_E2E_ACCOUNT: saldi_chatbot_test
+      SALDI_E2E_PASSWORD: e2etest-ci-local-2026
 
     steps:
       - uses: actions/checkout@v4
@@ -50,7 +60,20 @@ jobs:
         run: bash tools/ci/bootstrap-stack.sh
 
       - name: PHPUnit
-        run: docker compose exec -T -w /var/www/html/saldi web php vendor/bin/phpunit --testdox
+        # Each group creates its own UUID-owned fresh installation. SQL-only
+        # groups share an empty owned database through private schemas/TEMP tables.
+        # The installed tenant below is only for Playwright, never a PHPUnit template.
+        run: >-
+          docker compose exec -T
+          -e SALDI_CHAR_PGUSER=user
+          -e SALDI_CHAR_PGPASS="$SALDI_PGPASS"
+          -w /var/www/html/saldi web
+          php vendor/bin/phpunit --testdox --display-skipped --log-junit /tmp/phpunit-junit.xml
+
+      - name: No unexpected skipped tests
+        run: >-
+          docker compose exec -T -w /var/www/html/saldi web
+          php tools/ci/check-skips.php /tmp/phpunit-junit.xml
 
       - uses: actions/setup-node@v4
         with:

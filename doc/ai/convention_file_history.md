@@ -9,6 +9,8 @@ metadata:
 
 File headers in this codebase follow a fixed layout: company ASCII banner → versioning line → LICENSE → copyright disclaimer → separator → history block. All of these are contiguous `//` comment lines — no blank or uncommented line breaks the sequence anywhere in that stack.
 
+Empty separators anywhere in the header must themselves be comments, such as `//`. A physically empty or whitespace-only line is not allowed between the opening PHP tag and the end of the header, including between banner, license, copyright and history sections. Empty lines inside an existing `/* ... */` license block are already commented. A blank line after the completed header may separate it from code or a function's PHPDoc. Apply this to the entire header of files being changed; leave untouched files alone.
+
 New history entries are appended at the **bottom** of the existing history block (most recent last), immediately following the last existing history line, in this format:
 
 ```
@@ -23,7 +25,7 @@ Continuation lines start with `//` followed by spaces padding out to the column 
 
 ```
 // 20260713 CL/PHR Added invoice history convention support to the header history block.
-//                  Also updated related tests.
+//                 Also updated related tests.
 ```
 
 **Why:** Lets the team (and future AI sessions) tell at a glance which changes were AI-assisted and by which tool, without disturbing the existing header layout or legacy history lines.
@@ -43,5 +45,7 @@ Continuation lines start with `//` followed by spaces padding out to the column 
 
 1. Run `whoami`. If the login name is a plausible 2-4 letter token, use it (uppercased) as the initials.
 2. Otherwise look at the current working directory's folder name. If it is 2-4 letters, use it (uppercased) as the initials.
-3. Only if neither step produced a candidate, ask the user directly what initials (2-4 letters) they want recorded in history for this project.
+3. Only if neither step produced a candidate, ask the user directly what initials they want recorded in history for this project.
 4. Save the resulting initials to local memory (not to a repo file) so future sessions in this working copy don't need to ask again.
+
+**Enforced by:** `tools/guardrails` check `file-history` (no uncommented blank lines anywhere in an edited PHP header; a history line exists, is well-formed and sits below older entries; the header date and copyright moved along). The `ver` marker is checked by `file-version`: when a PHP file's code changes (not only comments or whitespace), its header marker must match `$version` in `includes/version.php`.

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/batch_udfyld.php --- ver 5.0.0 --- 2026-10-20 ---
+// --- lager/batch_udfyld.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,11 +32,15 @@
 // 20261013 CL/ASR Review: Post/Redirect/Get after saving, no LIKE ESCAPE clause (MySQL), leave guard
 //                 on the filter link and search form, lock only the batch row.
 // 20261020 CL/ASR 'for update of bk' only on Postgres; MariaDB has no OF clause in its locking clause.
-
+// 20261103 CL/ASR QA round 2: the page edits batches and splits stock, so it needs write on Varer ($modulnr 9, lager.varer) instead of the Debitorrapport right.
+// 20261104 CL/ASR Without a return page it goes back to the expiry report only for users who may open it (Varerapport, right 15), otherwise to the item list.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 $css = "../css/standard.css";
-$modulnr = 12;
+$modulnr = 9; // Varer (was 12, Debitorrapport): the page changes batch data and splits stock
+$permission_key = 'lager.varer';
+$permission_level = 'write';
 
 global $menu, $bruger_id, $buttonStyle, $topStyle;
 
@@ -50,7 +54,8 @@ $title = batch_txt('title');
 if (!function_exists('batch_udfyld_returside')) {
 	/**
 	 * Return page for the back link: a plain page in this folder with a simple query string,
-	 * otherwise the expiry report, so the value cannot become an open redirect.
+	 * otherwise the expiry report (the item list for a user who may not open it), so the value cannot
+	 * become an open redirect.
 	 *
 	 * @param string $value Raw returside request value.
 	 * @return string Safe link target.
@@ -58,7 +63,7 @@ if (!function_exists('batch_udfyld_returside')) {
 	function batch_udfyld_returside($value) {
 		$value = trim((string)$value);
 		if ($value === '' || !preg_match('/^[A-Za-z0-9_]+\.php(\?[A-Za-z0-9_=&%.+-]*)?$/', $value)) {
-			return 'udlobsrapport.php';
+			return batch_reports_allowed() ? 'udlobsrapport.php' : 'varer.php';
 		}
 		return $value;
 	}

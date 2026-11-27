@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/topLineKassekladde.php --- patch 5.0.0 --- 2026.01.26 ---
+// --- finans/kassekladde_includes/topLineKassekladde.php --- patch 5.0.0 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,13 +20,14 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------------------------------
 // 20260126 PHR fixed $exitDraft
 // 20260904 Sawaneh Gear button for the Customize view panel added next to 'Ny' (editable journals only);
 //                  the panel itself and its logic live in kassekladde.php.
 // 20260908 SZ SST-755: Back/Ny now release the lock through includes/luk.php unconditionally,
 //           instead of exitDraft (which only fired when the back target equaled kladdeliste.php).
+// 20261113 CL/ASR The Hjælp cell is hidden (the top bar has Hjælp); it stays in the page for the tour.
 
 $border = 'border:1px';
 $TableBG = "bgcolor=$bgcolor";
@@ -86,7 +87,7 @@ print "<td width=5% style='$buttonStyle'>
 	</td>
 <?php
 
-print "<td id='tutorial-help' width=5% style='$buttonStyle'>";
+print "<td id='tutorial-help' hidden width=5% style='$buttonStyle'>";
 print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
 print $help_icon;
 print findtekst('2564|Hjælp', $sprog_id)."</button></td>";

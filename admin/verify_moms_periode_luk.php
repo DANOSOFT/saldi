@@ -17,6 +17,7 @@
 //
 // History:
 // 20260815 CL/SZ SD-646: created.
+// 20261127 ASR With $allowedLedgers in includes/connect.php only the listed ledgers are checked; the others are listed as skipped.
 
 if (PHP_SAPI !== 'cli') {
     http_response_code(403);
@@ -57,6 +58,10 @@ echo str_repeat('-', 80) . "\n";
 while ($row = db_fetch_array($tenants)) {
     $regnskabNavn = (string)$row['regnskab'];
     $tenantDb = (string)$row['db'];
+    if (!saldi_ledger_allowed($tenantDb)) {
+        printf("%-30s %-20s %s\n", $regnskabNavn, $tenantDb, 'SKIPPED (not in $allowedLedgers)');
+        continue;
+    }
     $total++;
 
     $connection = @db_connect($sqhost, $squser, $sqpass, $tenantDb);

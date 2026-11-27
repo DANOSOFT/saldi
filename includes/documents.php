@@ -1,5 +1,5 @@
 <?php
-// --- includes/documents.php --- ver 5.0.0 --- 2026-10-06 ---
+// --- includes/documents.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,9 +33,6 @@
 //                  via FileReservation instead of file_exists() polling, closing the window in
 //                  which two concurrent uploads could pick the same name (SST-776 follow-up).
 // 20260910 CDX/PHR Enable local UBL XML invoice upload and extraction.
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20261018 Sawaneh Review 2 (PR #803): the documents' own module decides access (source), not 'any'; uploading needs write.
-
 // 20261003 CL/SZ SD-722 An upload that was extracted stores the document's snapshot on its pool row (poolCapture.php).
 //                A document attached to a journal line gets "Rapportér fejl i aflæsning" in the viewer's left panel, when the company has it switched on.
 // 20261004 CDX/LOE Share browser upload handling and redirect form uploads before rendering.
@@ -43,9 +40,26 @@
 //                  Delete, unlink, move and the pool are handed back to the journal tab, so a line is never edited in two places.
 // 20261005 CL/SZ SD-701 The voucher tab opens on the first of the line's documents whose file is still on the server,
 //                  instead of always the first regardless, so a missing first file no longer hides the others.
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
-// 20261009 Sawaneh Auto-extract on upload follows the personal setting (was the autoExtract cookie, settings redesign 4e).
+// 20261006 CL/SZ SD-727 An upload whose content matches an archived pool row brings that row back to
+//                the list instead of staying refused as a duplicate (poolUploadRestoreIfArchived(), poolUpload.php).
 // 20261003 CL/SZ SD-723 Documents, including the "Link bilag" preview, load through docFile.php instead of their direct path.
+// 20261019 MJ SST-868 (review) This page holds its own output buffer, so an attach that fails
+//                  deep in docPool.php can still answer the pool with a status it reads. The
+//                  page frame from online.php and the ~700 lines printed here had already gone
+//                  past php.ini's 4096-byte buffer by then, so insertDocAttachFailed() found
+//                  headers_sent() true and fell back to an alert() that fetch() never
+//                  evaluates - a failed attach answered http 200 and looked like a success.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261018 SS Review 2 (PR #803): the documents' own module decides access (source), not 'any'; uploading needs write.
+// 20261110 CDX/ASR Require write access for document and pool unlink, delete, move, link and cleanup actions.
+// 20261113 CL/ASR The Hjælp cell is hidden (the top bar has Hjælp); it stays in the page for the tour.
+//
+// SST-868: must stay above every include. online.php prints the page frame as it is included,
+// and php.ini buffers only 4096 bytes, so without a buffer of our own the response is already
+// committed by the time docPool.php decides whether an attach worked.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+ob_start();
+
 @session_start();
 $s_id=session_id();
 $css="../css/std.css";
@@ -56,13 +70,21 @@ $fokus=$dokument = $openPool=$docFocus=$deleteDoc=$showDoc= $poolFile=$moveDoc=$
 
 $globalId = 0;
 
-include("../includes/connect.php");
+require_once __DIR__ . '/docsIncludes/documentAccess.php';
+include(__DIR__ . '/../includes/connect.php');
 $docSource = isset($_POST['source']) ? (string) $_POST['source'] : (isset($_GET['source']) ? (string) $_GET['source'] : '');
-$permission_key = ($docSource === 'kassekladde') ? 'finans.kassekladde' : (($docSource === 'debitorOrdrer') ? 'debitor.ordre' : (($docSource === 'creditorOrder') ? 'kreditor.ordre' : 'debitor.konti|kreditor.konti'));
-include("../includes/online.php");
-include("../includes/std_func.php");
-include("../includes/topline_settings.php");
-include("docsIncludes/invoiceExtractionApi.php");
+$permission_key = docAccessSourcePermission($docSource);
+$permission_level = 'read';
+foreach (['deleteDoc', 'unlinkDoc', 'moveDoc', 'doLink', 'unlink', 'unlinkFile', 'cleanupOrphans'] as $documentAction) {
+	if (!empty($_GET[$documentAction])) {
+		$permission_level = 'write';
+		break;
+	}
+}
+include(__DIR__ . '/../includes/online.php');
+include(__DIR__ . '/../includes/std_func.php');
+include(__DIR__ . '/../includes/topline_settings.php');
+include(__DIR__ . '/docsIncludes/invoiceExtractionApi.php');
 include_once(__DIR__ . "/docsIncludes/poolCapture.php");
 include_once(__DIR__ . "/docsIncludes/FileReservation.php");
 include_once(__DIR__ . "/docsIncludes/docFileFunc.php");
@@ -104,6 +126,14 @@ if(($_GET)||($_POST)) {
 		$poolFile = $_GET['poolFile'];
 	}
 }
+
+// The same validated context drives both the gate and every following document query.
+if ($docSource !== '' && docAccessSourcePermission($docSource) === null) {
+	docAccessDeny();
+}
+$source = $docSource;
+$sourceId = (int)$sourceId;
+$kladde_id = (int)$kladde_id;
 
 if (file_exists('../owncloud')) $docFolder = '../owncloud';
 elseif (file_exists('../bilag')) $docFolder = '../bilag';
@@ -210,9 +240,8 @@ if (ifset($_GET, 'viewOnly') == '1' && $source && $sourceId) {
 if (!empty($_FILES['uploadedFile']['name'])) {
 	$isAjax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
 		|| !empty($_POST['openPool']);
-	include_once(__DIR__ . "/settings/SettingsService.php");
 	$uploadResult = poolUploadFile($_FILES['uploadedFile'], "$docFolder/$db/pulje",
-		(bool) SettingsService::get('personal.documents.auto_extract', (int) $bruger_id), $isAjax);
+		!isset($_COOKIE['autoExtract']) || $_COOKIE['autoExtract'] !== '0', $isAjax);
 	// SD-722: what the extraction read, kept before anything is saved or corrected
 	if ($uploadResult['success'] && !empty($uploadResult['extracted'])) {
 		poolCaptureStoreExtraction($uploadResult['filename'], "$docFolder/$db/pulje/" . $uploadResult['filename'], $uploadResult['extracted']);
@@ -237,9 +266,10 @@ if (!empty($_FILES['uploadedFile']['name'])) {
 		exit;
 	}
 	// online.php prints the page frame before this branch runs, so the Location header above only
-	// works while PHP's output buffer still holds that output (output_buffering in php.ini). Once it
-	// has been flushed, send the user on with the page's own refresh instead of leaving a
-	// half-rendered page behind after the file was already stored.
+	// works while the output buffer still holds that output. Since SST-868 this page opens its own
+	// buffer at the top, so the header is what normally goes out; this stays as the fallback for a
+	// caller that has already flushed, sending the user on with the page's own refresh instead of
+	// leaving a half-rendered page behind after the file was already stored.
 	print "<meta http-equiv='refresh' content='0;URL=" . htmlspecialchars($redirectUrl, ENT_QUOTES, 'UTF-8') . "'>";
 	exit;
 }
@@ -257,7 +287,30 @@ if (isset($_SESSION['poolUploadNotice'])) {
 }
 
 // Render the header before any content
-if ($source == 'kassekladde' || $source == 'creditorOrder' || $source == 'debitorOrdrer') {
+if ($menu == 'T') {
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	
+	// Determine back URL based on source
+	if ($source == "kassekladde") {
+		$backUrl = "../finans/kassekladde.php?kladde_id=$kladde_id&id=$sourceId&fokus=$fokus";
+	} elseif ($source == "debitorOrdrer") {
+		$backUrl = "../debitor/ordre.php?id=$sourceId&fokus=$fokus";
+	} elseif ($source == "creditorOrder") {
+		$backUrl = "../kreditor/ordre.php?id=$sourceId&fokus=$fokus";
+	} else {
+		$backUrl = "../debitor/historikkort.php?id=$sourceId&fokus=$fokus";
+	}
+	
+	$headerTitle = findtekst('1408|Dokumenter', $sprog_id);
+	
+	print "<div id='header'>";
+	print "<div class='headerbtnLft headLink'><a href='$backUrl' accesskey='L' title='".findtekst('30|Tilbage', $sprog_id)."'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
+	print "<div class='headerTxt'>$headerTitle</div>";
+	print "<div class='headerbtnRght headLink'></div>";
+	print "</div>";
+	print "<div class='content-noside'>";
+} elseif ($source == 'kassekladde' || $source == 'creditorOrder' || $source == 'debitorOrdrer') {
 	// Don't render header here - docPool.php handles it for non-modern layouts
 } elseif ($menu == 'S') {
 	// Sidebar menu - use topLineDocuments.php matching the grid framework structure
@@ -286,7 +339,7 @@ if ($source == 'kassekladde' || $source == 'creditorOrder' || $source == 'debito
 		print "<table class='topLine' width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody><tr class='header-row'>";
 		print "<td width=5% style='$buttonStyle'><a href='$backUrl' accesskey='L'><button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$icon_back ".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 		print "<td width=90% style='$topStyle' align=left><table border=0 cellspacing=2 cellpadding=0><tbody><td width='200px' align=center id='documents-btn'><button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$icon_documents ".findtekst('1408|Dokumenter', $sprog_id)."</button></td></tbody></table></td>";
-		print "<td id='tutorial-help' width=5% style='$buttonStyle'><button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$help_icon ".findtekst('2564|Hjælp', $sprog_id)."</button></td>";
+		print "<td id='tutorial-help' hidden width=5% style='$buttonStyle'><button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$help_icon ".findtekst('2564|Hjælp', $sprog_id)."</button></td>";
 		print "</tr></tbody></table></td></tr>";
 	}
 	print "</tbody></table>";
@@ -362,9 +415,12 @@ $linkDocId = isset($_GET['linkDocId']) ? intval($_GET['linkDocId']) : 0;
 
 if ($doLink && $linkDocId && $sourceId && $source == 'kassekladde') {
 	// Get the original document info
-	$qtxt = "SELECT * FROM documents WHERE id = '$linkDocId'";
+	$qtxt = "SELECT * FROM documents WHERE id = '$linkDocId' AND source = 'kassekladde'";
 	$origDoc = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	
+	if ($origDoc && !docAccessFindDocument("$docFolder/$db", "$docFolder/$db/$origDoc[filepath]/$origDoc[filename]", 'kassekladde', (int)$origDoc['source_id'])) {
+		docAccessDeny();
+	}
 	if ($origDoc) {
 		// Check if this exact document is already linked to this source_id
 		$checkQtxt = "SELECT id FROM documents WHERE source = 'kassekladde' AND source_id = '$sourceId' AND filename = '" . db_escape_string($origDoc['filename']) . "' AND filepath = '" . db_escape_string($origDoc['filepath']) . "'";
@@ -1064,6 +1120,9 @@ print "</td></tr>";
 print "</tbody></table>";
 
 // Close content div if using modern menu
+if ($menu == 'T') {
+	print "</div>"; // Close content-noside div
+}
 
 print "</body></html>";
 ?>

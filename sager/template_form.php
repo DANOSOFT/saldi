@@ -246,6 +246,6 @@ if(isset($_GET['edit']) && is_numeric($_GET['edit']))
             </div><!-- end of maincontent -->
 
         </div><!-- end of wrapper -->  
-        <div id="footer"><p>Pluder | Pluder</p></div>
+        <!-- <div id="footer"><p>Pluder | Pluder</p></div> -->
     </body>
 </html>

@@ -1,4 +1,10 @@
-// ---- javascript/settingsRows.js --- lap 5.0.0 --- 2026.10.06 ---
+// ---- javascript/settingsRows.js --- ver 5.1.0 --- 2026.11.05 ---
+// 20261105 CL/LH Gem posts only the cells of stored rows that changed, and the new rows.
+//                Every cell was posted, so a table of more than about 1000 cells (the values of variant "." on Varianter) went past PHP's max_input_vars, and a value added at the end was lost without a message.
+// 20261105 CL/LH A table card's inaktiv flag is data-can-inactive (rowsView.php), so only the eye is a [data-inactive] target.
+//                A click into a cell found the card, which has no row, and threw "Cannot read properties of null (reading 'dataset')".
+// 20261103 CL/ASR QA: a switch among the page's fields (Momsregistreret on Moms) toggles (click, Space): its hidden value and aria-checked;
+//                 Fortryd also puts the switches and the discount matrix's cells and types back, and ?field= / #key lights up the field.
 // 20261006 Sawaneh A row action can ask for one value in its dialog (data-input), e.g. the new control account.
 // 20261005 Sawaneh 4d: row action buttons (set active, delete a year with data...) post through the dialog form;
 //                  a danger-zone action asks for the user's password there.
@@ -175,6 +181,17 @@
 	document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !dialog.hidden) { closeDialog(); } });
 
 	form.addEventListener('click', function (e) {
+		var sw = e.target.closest('.st-switch');
+		if (sw) {
+			var swField = sw.closest('.st-field'), swHidden = swField ? swField.querySelector('[data-control]') : null;
+			if (!sw.disabled && swHidden) {
+				var on = sw.getAttribute('aria-checked') !== 'true';
+				swHidden.value = on ? '1' : '0';
+				sw.setAttribute('aria-checked', on ? 'true' : 'false');
+				refresh();
+			}
+			return;
+		}
 		var add = e.target.closest('[data-add]');
 		if (add) { addRow(add.closest('.st-rows'), 0); return; }
 		var seed = e.target.closest('[data-seed]');
@@ -191,7 +208,7 @@
 			}
 			var code = tr.dataset.code || '';
 			if (tr.dataset.use) {
-				var canInactive = card.dataset.inactive === '1' && !tr.classList.contains('st-row-inactive');
+				var canInactive = card.dataset.canInactive === '1' && !tr.classList.contains('st-row-inactive');
 				openDialog(fmt(cfg.cannotTitle, code), fmt(cfg.usedBody, tr.dataset.use), canInactive ? cfg.inactiveVerb : '', { action: 'row_inactive', table: card.dataset.table, id: tr.dataset.row, value: '1' }, false);
 				document.getElementById('st-dialog-cancel').textContent = cfg.close || '';
 				return;
@@ -236,12 +253,30 @@
 	form.addEventListener('input', refresh);
 	form.addEventListener('change', refresh);
 	form.addEventListener('submit', function () { window.docChange = false; });
+	// Only what changed is posted: a cell of a stored row that still holds what was drawn, which refresh() does not count
+	// as unsaved, stays out of the post; settings_rows_save() keeps the stored value of a cell or row that is not posted.
+	// Every cell went along before, so a long table (one variant's 2690 values) passed PHP's max_input_vars (1000),
+	// which drops the rest of the post without a word: a value added at the end, or an edit further down, was lost.
+	form.addEventListener('formdata', function (e) {
+		form.querySelectorAll('.st-rows tr[data-row]:not(.st-new)').forEach(function (tr) {
+			tr.querySelectorAll('.st-rin, .st-rcheck').forEach(function (c) {
+				if (c.name && valueOf(c) === origOf(c)) { e.formData.delete(c.name); }
+			});
+		});
+	});
 	if (undo) {
 		undo.addEventListener('click', function () {
 			controls().forEach(function (c) {
 				if (isNewRow(c)) { return; }
 				if (c.type === 'checkbox') { c.checked = origOf(c) !== ''; } else { c.value = c.dataset.orig !== undefined ? c.dataset.orig : origOf(c); }
 			});
+			// A switch shows its hidden value; the discount matrix's cells and types go back to what the page was drawn with.
+			form.querySelectorAll('.st-field .st-switch').forEach(function (sw) {
+				var h = sw.closest('.st-field').querySelector('[data-control]');
+				if (h) { sw.setAttribute('aria-checked', h.value === '1' ? 'true' : 'false'); }
+			});
+			form.querySelectorAll('.st-mcell').forEach(function (i) { i.value = i.defaultValue; });
+			form.querySelectorAll('.st-mtype').forEach(function (s) { Array.prototype.forEach.call(s.options, function (o) { o.selected = o.defaultSelected; }); });
 			form.querySelectorAll('tr.st-new').forEach(function (tr) {
 				var card = tr.closest('.st-rows');
 				tr.remove();
@@ -257,6 +292,17 @@
 
 	var firstError = form.querySelector('[aria-invalid="true"]');
 	if (firstError) { firstError.scrollIntoView({ block: 'center' }); try { firstError.focus({ preventScroll: true }); } catch (err) {} }
+	// A link to one field (?field=<key> or #<key>, from search or the gear) lights it up, as on the other settings pages.
+	(function () {
+		var id = new URLSearchParams(window.location.search).get('field') || decodeURIComponent((window.location.hash || '').replace('#', ''));
+		var el = (!firstError && id) ? document.getElementById(id) : null;
+		if (!el || !el.classList.contains('st-field')) { return; }
+		el.classList.add('st-highlight');
+		el.scrollIntoView({ block: 'center' });
+		var hc = el.querySelector('.st-switch, [data-control]:not([type="hidden"])');
+		if (hc) { try { hc.focus({ preventScroll: true }); } catch (err) {} }
+		window.setTimeout(function () { el.classList.remove('st-highlight'); }, 3000);
+	})();
 	refresh();
 	if (window.history && window.history.replaceState) {
 		var url = window.location.pathname + window.location.search.replace(/([?&])(saved|moved|err)=[^&]*/g, '$1').replace(/[?&]+$/, '').replace(/([?&])&+/g, '$1');

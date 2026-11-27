@@ -1,0 +1,103 @@
+# Shared runtime files
+
+Online/login and database logs use `includes/sharedFile.php`. Files use `0660`;
+directories use `02770` (setgid), so new entries inherit the shared group. The
+group is `balances` when that group exists and `www-data` is a member of it (the
+setup in `INSTALLATION.md`), and `www-data` otherwise. Set
+`SALDI_SHARED_FILE_GROUP` consistently for PHP workers and CLI jobs to use a
+dedicated group instead. PHP's POSIX extension is required. Only trusted
+application accounts belong to this group.
+
+PHP needs access as the operating-system account running the worker. If that
+account is `www-data`, ownership or membership in the shared group supplies its
+access; permission bits for other users are not required. PHP-FPM pools can use
+a different account, which must also belong to the configured shared group.
+PHP source files need read access, and every directory traversed needs execute
+access for that account.
+
+The helpers validate every parent component before changing permissions or
+opening a file, including before a `w` open can truncate it. Special files,
+parents writable by others, and parents writable by unrelated groups are refused.
+Symlinked installations work: a symlink in the path is followed when the
+directory holding it passed the check (so only trusted accounts can replace it),
+and the directories it points to are checked the same way. A log file or tenant
+directory that is itself a symlink is used without changing its permissions.
+Sticky system ancestors such as `/tmp` are allowed only above an entry
+owned by root or the current account; the immediate parent is never allowed to
+be writable by others. Directory owners and members of the shared group are
+trusted. Deploy the application under trusted owners and restrict write access
+to its parent directories as well.
+Relative paths such as `../temp/log` also traverse the page's directory before
+stepping up. A group-writable `finans`, `index`, `admin` or `debitor` directory
+must therefore use the shared group; migrating `temp` alone does not repair it.
+
+## One-time setup and migration
+
+An unprivileged web worker cannot chmod a CLI user's `0600`/`0644` logs. Deploying
+PHP code alone cannot repair that situation. Before enabling the helpers:
+
+1. Stop web workers and CLI jobs that write runtime files. Check the runtime tree
+   for unexpected entries; the migration refuses symlinks and special files
+   inside it. A symlinked `temp` directory itself is migrated at its target.
+   That target must be private application storage: world-writable or sticky
+   targets such as `/var/tmp` are refused without changing them. A direct
+   installation `temp` can still be migrated from legacy `0777` permissions.
+   The argument must resolve to this installation's `temp`; other trees are refused.
+2. Have an administrator add each CLI account to the shared group, for example
+   `sudo usermod -a -G SHARED_GROUP YOUR_CLI_ACCOUNT`. Print `SHARED_GROUP` from
+   the installation directory with
+   `php -r 'require "includes/sharedFile.php"; echo sharedFileGroupName(), "\n";'`
+   (run it with the same `SALDI_SHARED_FILE_GROUP` as the web workers, if set).
+   Ensure the web account also belongs to this group. Start a new login session
+   for group membership changes.
+3. Remove write access for unrelated accounts from application ancestors,
+   including the application directory itself. Use `chmod o-w` on each affected
+   ancestor and ensure any group with write access is the trusted shared group.
+   The migration refuses unsafe ancestors rather than trying to repair them.
+4. Run the migration as an administrator, using the actual installation path:
+
+   ```sh
+   sudo php tools/migrate_shared_runtime.php /absolute/path/to/saldi/temp
+   ```
+
+   For a dedicated group, pass it explicitly to the administrator's process:
+
+   ```sh
+   sudo env SALDI_SHARED_FILE_GROUP=saldi-runtime php tools/migrate_shared_runtime.php /absolute/path/to/saldi/temp
+   ```
+
+   This migrates existing files to the shared group and `0660`, and directories
+   to root ownership, the shared group and `02770`, preserving file contents and
+   file owners. The entire `temp` tree, including tenant directories, is covered.
+   Refused entries are reported while other entries continue to be migrated.
+   An incomplete migration exits nonzero; resolve the reported entries before restarting.
+5. Restart web workers and CLI jobs, with the same shared-group configuration.
+   Verify that a CLI-created log can be appended by the web account and that an
+   unrelated account cannot read it or replace entries in its parent directory.
+
+The Docker entrypoint applies the directory permissions and runs this migration
+as root before starting Apache. It leaves a symlinked `temp` untouched until the
+migration validates its target. On other installations, run the steps above
+explicitly before deployment.
+
+Existing files already using the correct group and mode work across owners
+without chmod. A foreign-owned file the caller cannot repair raises an actionable
+migration warning and is then written only if its current permissions allow it;
+there is no privilege escalation. Repeat the administrator migration while
+writers are stopped. There is no fallback to access for every local user.
+
+Until an installation is migrated (an untrusted parent such as a `777` `temp`
+directory, a symlink pointing into one, or an unknown group), the helpers keep
+writing without changing existing permissions through that chain. New files
+exclude other users by adding `0007` to the caller's creation mask, then restoring
+it. New directories request `0770`, subject to that mask (master requested `0775`).
+Each distinct diagnostic goes directly to the server error log once per request;
+it does not invoke PHP error handlers or display filesystem paths in the response.
+On trusted chains, overwrites open the file without truncating it, compare the
+opened file with the path, and truncate only when they match. Failed truncation
+closes the stream and reports failure. Special-file targets, including symlinks
+to FIFOs, are refused before opening.
+
+Other legacy temporary-file writers still need to be migrated to these helpers
+when changed; a setgid directory supplies group inheritance, but each writer's
+creation mask still determines group write access.

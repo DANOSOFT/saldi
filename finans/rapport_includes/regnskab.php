@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/regnskab.php--patch 4.1.0 ----2024-06-14--------------
+// --- finans/rapport_includes/regnskab.php--ver 5.1.1 ----2026-11-19--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20190430 PHR Definition of undefined variables
@@ -39,8 +39,13 @@
 //                 accounts that balance out to 0 are still shown. Budget flag now checks
 //                 the summed amount, and lastYear sum uses $lastYearYear instead of
 //                 indexing the integer $lastYear.
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
-// 20261009 Sawaneh The report head on the new page head (page_bar); the print leg untouched.
+// 20261103 CL/MMR SST-933 The csv link carries the download attribute, so Safari saves the file instead of showing it as text.
+//                 regnskab() has braces on its one-line if/else/while bodies and includes its files via __DIR__ (no behaviour change).
+// 20261103 LOE SST-936 Cast or escape the department, employee and project filters before they reach the query.
+//              The department-name lookup is cast as well.
+// 20261119 CL/ASR Without a Sideskift account Resultat, Budget and Sidste år show the result side and Balance the balance side of the chart, split by account type in regnskab_kontoside(), while every amount is computed as before.
+//                 A sum over both sides goes with the first account it adds up when its range starts at that account, else with most of them (one over the whole chart by its place), and a heading over both sides with the sum that closes its group.
+// 20261119 CL/ASR The entry above keeps each sentence on one line (header only, no behaviour change).
 
 function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev) {
 	print "<!--Function regnskab start-->\n";
@@ -60,26 +65,9 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	#if ($rapportart=='lastYear')$show0=1;
 	$dim = '';
 	if (($afd || $afd == '0' || $ansat_fra || $projekt_fra) && $rapportart != 'budget') { #20190923
-		if ($afd || $afd == '0')
-			$dim = "and afd = '$afd' ";
-		if ($ansat_fra && $ansat_til) {
-			$tmp = str_replace(",", " or ansat=", $ansatte_id);
-			$dim = $dim . " and (ansat=$tmp) ";
-		} elseif ($ansat_fra)
-			$dim = $dim . "and ansat = '$ansat_fra' ";
 		$projekt_fra = str2low($projekt_fra);
 		$projekt_til = str2low($projekt_til);
-		if ($projekt_fra && $projekt_til && $projekt_fra != $projekt_til)
-			$dim = $dim . " and lower(projekt) >= '$projekt_fra' and lower(projekt) <= '$projekt_til' ";
-		elseif ($projekt_fra) {
-			$tmp = str_replace("?", "_", $projekt_fra);
-			if (substr($tmp, -1) == '_') {
-				while (substr($tmp, -1) == '_')
-					$tmp = substr($tmp, 0, strlen($tmp) - 1);
-				$tmp = str2low($tmp) . "%";
-			}
-			$dim = $dim . "and lower(projekt) LIKE '$tmp' ";
-		}
+		$dim = dimensionSqlFragment($afd, $ansat_fra, $ansat_til, $ansatte_id, $projekt_fra, $projekt_til);
 	}
 
 
@@ -110,19 +98,26 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	}
 
 	$qtxt = "select firmanavn,cvrnr from adresser where art='S'";
-	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		$firmanavn = $r['firmanavn'];
-		$vatNo     = $r['cvrnr'];
-	$qtxt = "select beskrivelse from grupper where art='AFD' and kodenr='$afd'";
-	if (($afd || $afd == '0') && ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))))
+	}
+	$vatNo     = $r['cvrnr'];
+	$qtxt = "select beskrivelse from grupper where art='AFD' and kodenr='" . (int)$afd . "'";
+	if (($afd || $afd == '0') && ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__)))) {
 		$afd_navn = $r['beskrivelse'];
+	}
 
 	$regnaar = $regnaar * 1; #fordi den er i tekstformat og skal vaere numerisk
 
 	$maaned_fra = trim($maaned_fra);
 	$maaned_til = trim($maaned_til);
-	$konto_fra = trim($konto_fra);
-	$konto_til = trim($konto_til);
+	// A bound from ?konto_fra[]= arrives as an array; trim() throws on that, so a value that is
+	// not a scalar is treated as a bound that cannot match (the whole-number test below rejects it).
+	$konto_fra = ($konto_fra === NULL) ? '' : (is_scalar($konto_fra) ? trim((string)$konto_fra) : '?');
+	$konto_til = ($konto_til === NULL) ? '' : (is_scalar($konto_til) ? trim((string)$konto_til) : '?');
+	// An empty bound is the whole range; a bound that is not a whole number matches nothing.
+	$konto_fraSql = ($konto_fra === '') ? 0 : (preg_match('/^\d+$/', (string)$konto_fra) ? (int)$konto_fra : PHP_INT_MAX);
+	$konto_tilSql = ($konto_til === '') ? PHP_INT_MAX : (preg_match('/^\d+$/', (string)$konto_til) ? (int)$konto_til : 0);
 
 	$mf = $maaned_fra;
 	$mt = $maaned_til;
@@ -158,10 +153,11 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	$slutdato = 31;
 /*
 	if ($aar_fra < $aar_til) { #20210107
-		if ($maaned_til > $slutmaaned)
+		if ($maaned_til > $slutmaaned) {
 			$aar_til = $aar_fra;
-		elseif ($maaned_fra < $startmaaned)
+		} elseif ($maaned_fra < $startmaaned) {
 			$aar_fra = $aar_til;
+		}
 	}
 */
 	
@@ -186,36 +182,45 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 		}
 	}
 
-	if (strlen($startmaaned) == 1)
+	if (strlen($startmaaned) == 1) {
 		$startmaaned = "0" . $startmaaned;
-	if (strlen($slutmaaned) == 1)
+	}
+	if (strlen($slutmaaned) == 1) {
 		$slutmaaned = "0" . $slutmaaned;
+	}
 
 	$regnAarStart = $startaar . "-" . $startmaaned . "-" . '01';
 	$lastYearBegin = $startaar - 1 . "-" . $startmaaned . "-" . '01';
-	if ($rapportart == 'lastYear')
+	if ($rapportart == 'lastYear') {
 		$regnAarStart = $startaar - 1 . "-" . $startmaaned . "-" . '01';
+	}
 
 
-	if ($maaned_fra)
+	if ($maaned_fra) {
 		$startmaaned = $maaned_fra;
-	if ($maaned_til)
+	}
+	if ($maaned_til) {
 		$slutmaaned = $maaned_til;
-	if ($dato_fra)
+	}
+	if ($dato_fra) {
 		$startdato = $dato_fra;
-	if ($dato_til)
+	}
+	if ($dato_til) {
 		$slutdato = $dato_til;
+	}
 
 	while (!checkdate($startmaaned, $startdato, $startaar)) {
 		$startdato = $startdato - 1;
-		if ($startdato < 28)
+		if ($startdato < 28) {
 			break 1;
+		}
 	}
 
 	while (!checkdate($slutmaaned, $slutdato, $slutaar)) {
 		$slutdato = $slutdato - 1;
-		if ($slutdato < 28)
+		if ($slutdato < 28) {
 			break 1;
+		}
 	}
 
 	$regnstart = $aar_fra . "-" . $startmaaned . "-" . $startdato;
@@ -262,8 +267,9 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	$q = db_select("select * from valuta order by gruppe,valdate desc", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$y = $x - 1;
-		if (!isset($valkode[$x]))
+		if (!isset($valkode[$x])) {
 			$valkode[$x] = NULL;
+		}
 		if ((!$x) || $r['gruppe'] != $valkode[$x] || $valdate[$x] >= $regnstart) {
 			$valkode[$x] = $r['gruppe'];
 			$valkurs[$x] = $r['kurs'];
@@ -275,16 +281,44 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	$csv = fopen($csvfile, "w");
 
 	// load topline settings menu
-	include("../includes/topline_settings.php");
-	if ($menu == 'S') {
-		$title = findtekst(895, $sprog_id);
+	include(__DIR__ . '/../../includes/topline_settings.php');
+	if ($menu == 'T') {
+		$title = "Rapport • $rapportart";
+
+		include_once(__DIR__ . '/../../includes/top_header.php');
+		include_once(__DIR__ . '/../../includes/top_menu.php');
+		
 		$backUrl = "rapport.php?rapportart=$rapportart&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev";
-		include_once("../includes/stdFunc/pageBar.php");
-		page_bar(array(
-			'title' => findtekst('895|Finansrapport', $sprog_id),
-			'actions' => array(array('CSV', $csvfile, 'bx-download')),
-			'back' => "javascript:confirmClose('$backUrl','')",
-		));
+		$leftbutton = "<a title=\"" . findtekst('30|Tilbage', $sprog_id) . "\" href=\"$backUrl\" accesskey='L' style='text-decoration: none;'><i class='fa fa-close fa-lg'></i> " . findtekst('30|Tilbage', $sprog_id) . "</a>";
+		$rightbutton = "<a href='$csvfile' download title='CSV' style='color:#ffffff; text-decoration: none;'><i class='fa fa-download fa-lg'></i> CSV</a>";
+		
+		print "<div id=\"header\">";
+		print "<div class=\"headerbtnLft headLink\">$leftbutton</div>";
+		print "<div class=\"headerTxt\">" . findtekst(895, $sprog_id) . "</div>";
+		print "<div class=\"headerbtnRght headLink\">$rightbutton</div>";
+		print "</div>";
+		print "<div class='content-noside'>";
+		print "<div style=\"position: sticky; top: 0; z-index: 100;\">";
+		print "<table class='dataTable' border='0' cellspacing='1' width='100%'>";
+	} elseif ($menu == 'S') {
+		$title = findtekst(895, $sprog_id);
+		$tilbage_icon  = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+		
+		print "<table bgcolor='#eeeef0' width='100%' cellpadding='0' cellspacing='0' border='0' id='tableA'><tbody>";
+		print "<tr><td colspan=8 align=center>";
+		print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>";
+		
+		$backUrl = "rapport.php?rapportart=$rapportart&regnaar=$regnaar&dato_fra=$startdato&maaned_fra=$mf&aar_fra=$aar_fra&dato_til=$slutdato&maaned_til=$mt&aar_til=$aar_til&konto_fra=$konto_fra&konto_til=$konto_til&ansat_fra=$ansat_fra&ansat_til=$ansat_til&afd=$afd&projekt_fra=$projekt_fra&projekt_til=$projekt_til&simulering=$simulering&lagerbev=$lagerbev";
+		
+		print "<td width=\"5%\"><a href=\"javascript:confirmClose('$backUrl','')\" accesskey=L style='text-decoration: none;'>";
+		print "<button class='headerbtn' type='button' style='$buttonStyle; width: 100%; display: flex; align-items: center; gap: 5px;' onMouseOver=\"this.style.cursor = 'pointer'\">";
+		print "$tilbage_icon " . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
+		
+		print "<td width='75%' align='center' style='$topStyle'>" . findtekst('895|Finansrapport', $sprog_id) . "</td>";
+		print "<td width='5%' align='center' style='$topStyle'><a href='$csvfile' download style='color:#ffffff; text-decoration: none;'>csv</a></td>";
+		
+		print "</tbody></table>";
+		print "</td></tr></tbody></table>";
 		print "<div style=\"position: sticky; top: 0; z-index: 100;\">";
 		print "<table class='dataTable' border='0' cellspacing='1' width='100%'>";
 	} else {
@@ -317,27 +351,32 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	}
 	print "<td colspan = '5'></td><td align = 'right'>Regnskabs&aring;r: $regnaar. : ";
 #	print "<tr><td colspan = '2'></td>";
-	if ($startdato < 10)
+	if ($startdato < 10) {
 		$startdato = "0" . $startdato * 1;
+	}
 	print "$startdato/$mf $aar_fra - $slutdato/$mt $aar_til</td></tr>";
 	if ($ansat_fra) {
-		if (!$ansat_til || $ansat_fra == $ansat_til)
+		if (!$ansat_til || $ansat_fra == $ansat_til) {
 			print "<tr><td>Medarbejder</td><td>$ansatte</td></tr>";
-		else
+		} else {
 			print "<tr><td>Medarbejdere</td><td>$ansatte</td></tr>";
+		}
 	}
-	if ($afd || $afd == '0')
+	if ($afd || $afd == '0') {
 		print "<tr><td>Afdeling</td><td>$afd_navn</td></tr>";
+	}
 	if ($projekt_fra) {
 		print "<td>Projekt:</td><td>";
 		#		print "<tr><td>Projekt $prj_navn_fra</td>";
 		if (!strstr($projekt_fra, "?")) {
-			if ($projekt_til && $projekt_fra != $projekt_til)
+			if ($projekt_til && $projekt_fra != $projekt_til) {
 				print "Fra: $projekt_fra, $prj_navn_fra<br>Til : $projekt_til, $prj_navn_til";
-			else
+			} else {
 				print "$projekt_fra, $prj_navn_fra";
-		} else
+			}
+		} else {
 			print "$projekt_fra, $prj_navn_fra";
+		}
 		print "</td></tr>";
 	}
 	print "</tbody></table></td></tr>";
@@ -378,10 +417,11 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 		$vis_kto[$x] = 0;
 		$kontovaluta[$x] = $row['valuta'];
 		$kontokurs[$x] = $row['valutakurs'];
-		if (!$dim && $kontotype[$x] == "S")
+		if (!$dim && $kontotype[$x] == "S") {
 			$primo[$x] = afrund($row['primo'], 2);
-		else
+		} else {
 			$primo[$x] = 0;
+		}
 		if ($primo[$x] && $kontovaluta[$x]) {
 			for ($y = 0; $y <= count($valkode); $y++) {
 				if ($valkode[$y] == $kontovaluta[$x] && $valdate[$y] <= $slutdato) {
@@ -389,8 +429,9 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 					break 1;
 				}
 			}
-		} else
+		} else {
 			$primokurs[$x] = 100;
+		}
 
 	}
 	$kto_antal = $kontoantal = $x;
@@ -422,8 +463,9 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 				$vis_kto[$x] = 1;
 			}
 		}
-		if ($kontotype[$x] == 'R')
+		if ($kontotype[$x] == 'R') {
 			$vis_kto[$x] = 1;
+		}
 	}
 
 	if ($rapportart == 'budget') {
@@ -462,8 +504,9 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 		if ($simulering) {
 			$query = db_select("select * from simulering where transdate>='$regnAarStart' and transdate<='$regnslut' and kontonr='$ktonr[$x]' $dim", __FILE__ . " linje " . __LINE__);
 			while ($row = db_fetch_array($query)) {
-				if ($row['transdate'] >= $regnstart)
+				if ($row['transdate'] >= $regnstart) {
 					$kto_periode[$x] = $kto_periode[$x] + afrund($row['debet'], 2) - afrund($row['kredit'], 2);
+				}
 				if ($rapportart != 'budget') {
 					$kto_aar[$x] = $kto_aar[$x] + afrund($row['debet'], 2) - afrund($row['kredit'], 2);
 				}
@@ -567,11 +610,13 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 				}
 			}
 		}
-		if (!isset($periodesum[$x]))
+		if (!isset($periodesum[$x])) {
 			$periodesum[$x] = 0;
+		}
 		for ($y = 1; $y <= $kto_antal; $y++) {
-			if (!isset($kto_periode[$y]))
+			if (!isset($kto_periode[$y])) {
 				$kto_periode[$y] = 0;
+			}
 			if (($kontotype[$x] == 'D') || ($kontotype[$x] == 'S')) {
 				if ($kontonr[$x] == $ktonr[$y]) {
 					$aarsum[$x] = $aarsum[$x] + $kto_aar[$y];
@@ -587,13 +632,16 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	}
 	if ($lastYear) {
 		for ($x = 1; $x <= $kontoantal; $x++) {
-			if (!isset($lastYearPeriodSum[$x]))
+			if (!isset($lastYearPeriodSum[$x])) {
 				$lastYearPeriodSum[$x] = 0;
-			if (!isset($lastYearYearSum[$x]))
+			}
+			if (!isset($lastYearYearSum[$x])) {
 				$lastYearYearSum[$x] = 0;
+			}
 			for ($y = 1; $y <= $kto_antal; $y++) {
-				if (!isset($lastYearPeriod[$y]))
+				if (!isset($lastYearPeriod[$y])) {
 					$lastYearPeriod[$y] = 0;
+				}
 				if (($kontotype[$x] == 'D') || ($kontotype[$x] == 'S')) {
 					if ($kontonr[$x] == $ktonr[$y]) {
 						$lastYearYearSum[$x] += $lastYearYear[$y]; // 20260907 - NTR - Changed variable for the integer lastYear to lastYearYear as it was trying to access an array element.
@@ -610,8 +658,22 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 		}
 	}
 
+	// Without a Sideskift account (kontotype X) finans/rapport.php cannot split the chart by account number, so the result
+	// reports show the result side of the chart and Balance its balance side (regnskab_kontoside()). Only the lines shown
+	// change: every amount, sum and Resultat line is computed above as before.
+	$kontoside = array();
+	$visSide = '';
+	if ($kontoantal && in_array($rapportart, array('balance', 'resultat', 'budget', 'lastYear'), true) && !in_array('X', $kontotype, true)) {
+		$visSide = ($rapportart == 'balance') ? 'S' : 'D';
+		$kontoside = regnskab_kontoside($kontonr, $kontotype, $fra_kto);
+	}
+	// The first line shown can now be an account instead of a heading (a split by type), so the row colour starts set.
+	$linjebg = $bgcolor;
 	for ($x = 1; $x <= $kontoantal; $x++) {
-		if ($kontonr[$x] >= $konto_fra && $kontonr[$x] <= $konto_til && ($aarsum[$x] || $periodesum[$x] || $kontotype[$x] == 'H' || $kontotype[$x] == 'R' || $vis_kto[$x] || $show0 || ($kontotype[$x] == 'Z' && $x == $kontoantal))) { #20190220 // 20260907 - NTR - Added $vis_kto[$x] to show accounts with postings but that's balanced out.
+		if ($visSide && $kontoside[$x] && $kontoside[$x] != $visSide) {
+			continue;
+		}
+		if ($kontonr[$x] >= $konto_fraSql && $kontonr[$x] <= $konto_tilSql && ($aarsum[$x] || $periodesum[$x] || $kontotype[$x] == 'H' || $kontotype[$x] == 'R' || $vis_kto[$x] || $show0 || ($kontotype[$x] == 'Z' && $x == $kontoantal))) { #20190220 // 20260907 - NTR - Added $vis_kto[$x] to show accounts with postings but that's balanced out.
 			if ($kontotype[$x] == 'H') {
 				$linjebg = $bgcolor;
 				print "<tr><td><br></td></tr>";
@@ -650,10 +712,11 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 					$tmp = $aarsum[$x] * 100 / $kontokurs[$x];
 					$title = "DKK " . dkdecimal($aarsum[$x], 2) . " Kurs: " . dkdecimal($kontokurs[$x], 2);
 				} else {
-					if ($lastYear)
+					if ($lastYear) {
 						$tmp = $lastYearYearSum[$x];
-					else
+					} else {
 						$tmp = $aarsum[$x];
+					}
 					$title = NULL;
 				}
 				print "<td align=\"right\" title=\"$title\"><b>" . dkdecimal($tmp, 2) . "</b></td>";
@@ -663,10 +726,11 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 						$tmp = $aarsum[$x] * 100 / $kontokurs[$x];
 						$title = "DKK " . dkdecimal($aarsum[$x], 2) . " Kurs: " . dkdecimal($kontokurs[$x], 2);
 					} else {
-						if ($aarsum[$x])
+						if ($aarsum[$x]) {
 							$tmp = ($periodesum[$x] - $aarsum[$x]) * 100 / $aarsum[$x];
-						else
+						} else {
 							$tmp = "--";
+						}
 						$title = NULL;
 					}
 					print "<td align=\"right\" title=\"$title\"><b>" . dkdecimal($tmp, 2) . "%</b></td>";
@@ -680,12 +744,14 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 				if ($kontovaluta[$x]) {
 					$qtxt = "select box1 from grupper where art = 'VK' and kodenr = '$kontovaluta[$x]'";
 					$valname[$x] = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))[0];
-				} else
+				} else {
 					$valname[$x] = 'DKK';
+				}
 				if (in_array($kontonr[$x], $varekob)) {
 					$title = "Heraf på lager: " . dkdecimal($l_a_sum[$x] - $l_p_primo[$x], 2);
-				} else
+				} else {
 					$title = '';
+				}
 				($linjebg != $bgcolor5) ? $linjebg = $bgcolor5 : $linjebg = $bgcolor;
 				print "<tr bgcolor=\"$linjebg\"><td>$kontonr[$x]</td>";
 				fwrite($csv, "\"$kontonr[$x]\";");
@@ -708,10 +774,11 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 					$tmp = $aarsum[$x];
 					$title = NULL;
 				}
-				if ($lastYear)
+				if ($lastYear) {
 					$tmp = dkdecimal($lastYearYear[$x], 2); #aar til dato
-				else
+				} else {
 					$tmp = dkdecimal($aarsum[$x], 2);
+				}
 				print "<td align=\"right\" title=\"$title\">" . $tmp . "</td>"; #20210317
 				fwrite($csv, "\"" . $tmp . "\";");
 				if ($rapportart == 'budget') {
@@ -721,8 +788,9 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 					} elseif ($aarsum[$x]) {
 						$tmp = ($periodesum[$x] - $aarsum[$x]) * 100 / $aarsum[$x];
 						$title = NULL;
-					} else
+					} else {
 						$tmp = "--";
+					}
 					print "<td align=\"right\">" . dkdecimal($tmp, 2) . "%</td>"; #afvigelse fra budget
 					fwrite($csv, "\"" . dkdecimal($tmp, 2) . "\"");
 				}
@@ -736,8 +804,147 @@ function regnskab($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_
 	print "</tbody></table>";
 	print "</div>"; // close scrollable overflow wrapper
 
-	include_once '../includes/oldDesign/footer.php';
+	if ($menu == 'T') {
+		include_once(__DIR__ . '/../../includes/topmenu/footer.php');
+	} else {
+		include_once(__DIR__ . '/../../includes/oldDesign/footer.php');
+	}
 	print "<!--Function regnskab slut-->\n";
 }
 #################################################################################################
+
+/**
+ * The side of the statement each line of a chart of accounts is on, for Resultat, Resultat/budget, Resultat/sidste år
+ * and Balance on a chart without a Sideskift account (kontotype X). With a Sideskift account finans/rapport.php splits
+ * the chart by account number around it; without one regnskab() splits it by account type:
+ * - a Drift account (D) is on the result side, 'D'; a Status account (S) and a Resultat account (R, the year's result
+ *   in the equity) are on the balance side, 'S';
+ * - a sum account (Z) is on the side of the D, S and R accounts it adds up, those numbered from its fra_kto up to but
+ *   not including its own number, as regnskab() sums them. A sum that adds up accounts of both sides:
+ *   - whose range starts at the first of them, as each sum of the standard chart starts at its group's first account,
+ *     is on the side of that account, so accounts numbered later in the group do not take it along, however many there
+ *     are (e.g. 7450 Leverandører over 7440 and the D accounts 7441 and 7445, or 3820 Andre skatter and 4999 Årets
+ *     resultat with S accounts 3815 and 3816);
+ *   - whose range starts before the first of them, e.g. at its heading as in importfiler/kontoplan2.txt, is on the side
+ *     of most of them, as that first account may be one numbered before the group's own (e.g. 59999 AKTIVER IALT from
+ *     50000 with a D account 50500 before 50800);
+ *   - that adds up at least half of the accounts of each side (e.g. a Balancekontrol over the whole chart), wherever
+ *     its range starts, or that starts before the first of them and adds up as many of each side, goes by its place in
+ *     the chart instead: it is on the side of the first account or settled sum after it, or, when none follows, of the
+ *     last one before it;
+ * - a heading (H) is on the side of the D, S and R accounts between it and the next heading. When they are of both
+ *   sides, it is on the side of the first sum among them that has one, the sum that closes its group, so accounts
+ *   numbered among the other side's accounts do not take it along; without such a sum, on the side of most of them.
+ *   With as many of each, or none, it is on the side of the first line after it that has a side;
+ * - every other line, a sum that adds up no D, S or R account or a line of another type, is on the side of the first
+ *   line after it that has a side, and a line after the last of those is on the side of that last one. In a chart
+ *   without D, S and R accounts no line has a side, ''.
+ *
+ * @param array<int, int|float> $kontonr the chart in account number order, as regnskab() reads it
+ * @param array<int, string|null> $kontotype the account types, with the keys of $kontonr
+ * @param array<int, int|float> $fra_kto the first account each sum account adds up, with the keys of $kontonr
+ * @return array<int, string> 'D', 'S' or '' for each key of $kontonr, in its order
+ */
+function regnskab_kontoside($kontonr, $kontotype, $fra_kto) {
+	$typeSide = array('D' => 'D', 'S' => 'S', 'R' => 'S');
+	$order = array_keys($kontonr);
+	$lines = count($order);
+	// The D, S and R accounts by their type.
+	$account = array();
+	$total = array('D' => 0, 'S' => 0);
+	foreach ($order as $x) {
+		$account[$x] = $typeSide[(string)$kontotype[$x]] ?? '';
+		if ($account[$x]) {
+			$total[$account[$x]]++;
+		}
+	}
+	$own = $account;
+	// A sum goes with the accounts it adds up ('' when it adds up none). Over both sides it goes with the first of them
+	// when its range starts at that account, the one its group starts with, and with most of them when its range starts
+	// before it (at its heading). One that adds up half of each side's accounts or more, or that starts before its first
+	// account and adds up as many of each side, is placed below.
+	$byPlace = array();
+	foreach ($order as $i => $x) {
+		if ($kontotype[$x] != 'Z') {
+			continue;
+		}
+		$found = array('D' => 0, 'S' => 0);
+		$first = '';
+		$firstNr = 0;
+		foreach ($order as $y) {
+			if ($account[$y] && $fra_kto[$x] <= $kontonr[$y] && $kontonr[$y] < $kontonr[$x]) {
+				$found[$account[$y]]++;
+				if (!$first) {
+					$first = $account[$y];
+					$firstNr = $kontonr[$y];
+				}
+			}
+		}
+		if (!$found['D'] || !$found['S']) {
+			$own[$x] = $first;
+		} elseif ($found['D'] * 2 >= $total['D'] && $found['S'] * 2 >= $total['S']) {
+			$byPlace[] = $i;
+		} elseif ($firstNr == $fra_kto[$x]) {
+			$own[$x] = $first;
+		} elseif ($found['D'] != $found['S']) {
+			$own[$x] = ($found['D'] > $found['S']) ? 'D' : 'S';
+		} else {
+			$byPlace[] = $i;
+		}
+	}
+	// Such a sum takes the side of the first line after it that has one so far, or else of the last one before it.
+	$settled = $own;
+	foreach ($byPlace as $i) {
+		$side = '';
+		for ($j = $i + 1; $j < $lines && !$side; $j++) {
+			$side = $settled[$order[$j]];
+		}
+		for ($j = $i - 1; $j >= 0 && !$side; $j--) {
+			$side = $settled[$order[$j]];
+		}
+		$own[$order[$i]] = $side;
+	}
+	// A heading goes with the accounts up to the next heading. Over both sides it goes with the first sum among them that
+	// has a side, the one that closes its group, or without one with most of the accounts; with as many of each, or
+	// none, it is left to the next step.
+	foreach ($order as $i => $x) {
+		if ($kontotype[$x] != 'H') {
+			continue;
+		}
+		$found = array('D' => 0, 'S' => 0);
+		$sum = '';
+		for ($j = $i + 1; $j < $lines && $kontotype[$order[$j]] != 'H'; $j++) {
+			$y = $order[$j];
+			if ($account[$y]) {
+				$found[$account[$y]]++;
+			} elseif (!$sum && $kontotype[$y] == 'Z') {
+				$sum = $own[$y];
+			}
+		}
+		if ($found['D'] && $found['S'] && $sum) {
+			$own[$x] = $sum;
+		} elseif ($found['D'] != $found['S']) {
+			$own[$x] = ($found['D'] > $found['S']) ? 'D' : 'S';
+		}
+	}
+	// A line without a side of its own takes the side of the first line after it that has one.
+	$after = array();
+	$next = '';
+	foreach (array_reverse($order) as $x) {
+		if ($own[$x]) {
+			$next = $own[$x];
+		}
+		$after[$x] = $next;
+	}
+	// A line after the last of those takes the side of that last one.
+	$kontoside = array();
+	$previous = '';
+	foreach ($order as $x) {
+		if ($own[$x]) {
+			$previous = $own[$x];
+		}
+		$kontoside[$x] = $after[$x] ? $after[$x] : $previous;
+	}
+	return $kontoside;
+}
 ?>

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tools/stripe_charge_due.php --- 2026.10.26
+// --- tools/stripe_charge_due.php --- 2026.11.27
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,33 +23,36 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261019 CL/ASR Created (S3, Requirements_invoice_email_payment_page_EN.md par. 8.2/8.3):
-//                 charges every unpaid invoice with Udskriv til = Stripe on its due date
-//                 (G9.6 charge_on = due | invoice_date) on the debtor's card on file,
-//                 off-session, one PaymentIntent per attempt. Retries: day 0, +3, +7 (max 3).
-//                 After a declined charge a backup card (Stripe PM metadata saldi_role=backup)
-//                 is tried once before the customer is mailed. Paid is set by the webhook /
-//                 stripe_payment_sync, never here. Never reads or writes ordrer.nextfakt.
+// 20261019 CL/ASR Created (S3, Requirements_invoice_email_payment_page_EN.md par. 8.2/8.3): charges every unpaid invoice with Udskriv til = Stripe on its due date (G9.6 charge_on = due | invoice_date) on the debtor's card on file, off-session, one PaymentIntent per attempt. Retries: day 0, +3, +7 (max 3).
+//                 After a declined charge a backup card (Stripe PM metadata saldi_role=backup) is tried once before the customer is mailed. Paid is set by the webhook / stripe_payment_sync, never here. Never reads or writes ordrer.nextfakt.
 //
-//   php tools/stripe_charge_due.php [--db=<ledger db> | --all] [--dry-run] [--today=YYYY-MM-DD] [--repair-only]
+//   php tools/stripe_charge_due.php [--db=<ledger db> | --all] [--host=<server name>] [--dry-run] [--today=YYYY-MM-DD] [--repair-only]
 //   cron: 0 6 * * *  cd <docroot> && php tools/stripe_charge_due.php --all >> temp/stripe_charge.log 2>&1
 // 20261022 CDX/LH Exit without collecting when invoice payments or enrolment are disabled.
 // 20261022 CDX/LH Repair captured payments before collecting; --repair-only never creates a PaymentIntent.
 // 20261022 CDX/LH Skip invoices outside the shared tenant/debtor/currency eligibility guard.
 // 20261022 CDX/LH Lock the entire job; share durable decline/authentication handling; report errors with non-zero exit.
 // 20261022 CDX/LH Use the tested tenant job for repair-only, summary counts and exit status.
-// 20261026 CL/NTR --all runs the job for every open ledger with Stripe switched on and set up in that ledger (not a
-//                 restored copy), one child process per ledger so each gets a clean connection, settings cache and job
-//                 lock. Exit 1 if any ledger fails.
+// 20261026 CL/NTR --all runs the job for every open ledger with Stripe switched on and set up in that ledger (not a restored copy), one child process per ledger so each gets a clean connection, settings cache and job lock. Exit 1 if any ledger fails.
+// 20261126 CL/ASR Review round 1 (I15): --all runs a ledger other than the pinned one only when its Stripe settings were saved in it on this server (armed_for, stripe_ledger_set_up_here()).
+//                 An enabled ledger that does not match is skipped with a log line (skipped=not_armed); the exit code is unchanged.
+// 20261126 CL/ASR Review round 1 (I6): the mails get the sender a web request gives them (<ledger>@<server> on a saldi.dk server): the server name comes from --host=<name>, or else from the host of the ledger's Stripe public_base_url (cli_server_name()).
+//                 --all passes --host on to each ledger's run.
+// 20261127 CL/ASR The --host usage example uses a placeholder name.
+// 20261127 ASR With $allowedLedgers in includes/connect.php --all visits only the listed ledgers (includes/ledgerAllowList.php).
+// 20261127 ASR With $allowedLedgers in includes/connect.php the ledger named for one run must be listed, the master database too (saldi_ledger_guard()); the master stays connected for the registry.
 
 if (php_sapi_name() !== 'cli') { header('HTTP/1.1 403 Forbidden'); print 'CLI only'; exit; }
 date_default_timezone_set('Europe/Copenhagen');
 chdir(__DIR__);
 if (!isset($_SERVER['REQUEST_URI'])) $_SERVER['REQUEST_URI'] = '/cli/tools/stripe_charge_due.php';
 if (!isset($_SERVER['REMOTE_ADDR'])) $_SERVER['REMOTE_ADDR'] = 'cli';
-$options = getopt('', array('db::', 'all', 'dry-run', 'today::', 'repair-only'));
+$options = getopt('', array('db::', 'all', 'host::', 'dry-run', 'today::', 'repair-only'));
 $dryRun = isset($options['dry-run']);
 $today = (isset($options['today']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$options['today'])) ? (string)$options['today'] : date('Y-m-d');
+include_once(__DIR__ . '/../includes/stdFunc/serverMailSender.php');
+$host = isset($options['host']) && $options['host'] !== false ? (string)$options['host'] : '';
+if (isset($options['host']) && server_mail_host($host) === '') { fwrite(STDERR, "--host must be a server name, e.g. --host=server.example.com\n"); exit(1); }
 
 include(__DIR__ . '/../includes/db_query.php');
 include(__DIR__ . '/../includes/connect.php');
@@ -62,22 +65,28 @@ if (isset($options['all'])) {
 	$ledgers = array();
 	$q = db_select("select db from regnskab where coalesce(lukket, '') <> 'on' and db is not null and db <> '' order by id", __FILE__ . " linje " . __LINE__, true);
 	while ($r = db_fetch_array($q)) {
-		if (preg_match('/^[a-z0-9_]{1,40}$/', (string)$r['db'])) $ledgers[] = (string)$r['db'];
+		if (preg_match('/^[a-z0-9_]{1,40}$/', (string)$r['db']) && saldi_ledger_allowed((string)$r['db'])) $ledgers[] = (string)$r['db'];
 	}
 	$failed = 0;
 	$pinned = stripeConfigDb();
 	foreach ($ledgers as $ledger) {
-		// Only ledgers that switched Stripe on and set it up themselves (stripe_ledger_armed(): a ledger restored
-		// from a copy keeps the original's keys). Most ledgers have no Stripe tables at all.
+		// Only ledgers that switched Stripe on and set it up themselves on this server (stripe_ledger_armed(): a ledger
+		// restored from a copy keeps the original's keys). Most ledgers have no Stripe tables at all.
 		$connection = db_connect($sqhost, $squser, $sqpass, $ledger);
 		if (!$connection) { fwrite(STDERR, "$ledger: no connection\n"); $failed++; continue; }
 		$db = $ledger;
 		$set = array();
-		$q = db_select("select var_name, var_value from settings where var_grp = 'stripe' and var_name in ('enabled', 'target_db')", __FILE__ . " linje " . __LINE__);
+		$q = db_select("select var_name, var_value from settings where var_grp = 'stripe' and var_name in ('enabled', 'target_db', 'armed_for')", __FILE__ . " linje " . __LINE__);
 		while ($q && $r = db_fetch_array($q)) $set[$r['var_name']] = (string)$r['var_value'];
 		db_close($connection);
-		if (($set['enabled'] ?? '') !== 'on' || (($set['target_db'] ?? '') !== $ledger && $ledger !== $pinned)) continue;
+		if (($set['enabled'] ?? '') !== 'on') continue;
+		if ($ledger !== $pinned && !stripe_ledger_set_up_here($ledger, $set['target_db'] ?? '', $set['armed_for'] ?? '')) {
+			// A copy, or settings saved on another server: it must not collect here until they are saved in it here.
+			print date('c') . " $ledger: stripe_charge skipped=not_armed (save the Stripe settings in this ledger on this server)\n";
+			continue;
+		}
 		$cmd = escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(__FILE__) . ' --db=' . escapeshellarg($ledger)
+			. ($host !== '' ? ' --host=' . escapeshellarg($host) : '')
 			. ($dryRun ? ' --dry-run' : '') . ' --today=' . escapeshellarg($today) . (isset($options['repair-only']) ? ' --repair-only' : '');
 		passthru($cmd, $code);
 		if ($code !== 0) $failed++;
@@ -88,6 +97,7 @@ if (isset($options['all'])) {
 // Without --db: the pinned ledger. Every ledger with its own Stripe setup can run it (--db, or all of them with --all).
 $targetDb = isset($options['db']) && $options['db'] !== false ? (string)$options['db'] : stripeConfigDb();
 if (!$targetDb || !preg_match('/^[a-z0-9_]{1,40}$/', $targetDb)) { fwrite(STDERR, "no ledger (pin .ht_stripe_db or pass --db)\n"); exit(1); }
+saldi_ledger_guard($targetDb); // before the job lock and any write
 include_once(__DIR__ . '/../includes/stripeIncludes/stripeCharge.php');
 try {
 	$jobLock = stripe_charge_job_lock($targetDb);
@@ -105,6 +115,7 @@ $db = $r['db']; $db_id = (int)$r['id'];
 $webservice = true;
 $bruger_id = 0; $brugernavn = 'stripe_charge_due';
 stripe_settings_flush();
+cli_server_name($host); // the sender of the mails, as on the web
 
 include_once(__DIR__ . '/../includes/stripeIncludes/stripeInvoice.php');
 include_once(__DIR__ . '/../includes/stripeIncludes/stripeEnrol.php');

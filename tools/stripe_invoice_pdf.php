@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tools/stripe_invoice_pdf.php --- 2026.10.22
+// --- tools/stripe_invoice_pdf.php --- 2026.11.27
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,13 +23,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261019 CL/ASR Created: renders ONE invoice (or credit note) to PDF without a
-//                 browser session, for the public invoice & payment page
-//                 (Requirements_invoice_email_payment_page_EN.md par. 5.2) and the
-//                 billing-ledger REST API. Runs the real form engine
-//                 (includes/formfunk.php formularprint(), PostScript or HTML ->
-//                 PDF, background via pdftk) in its "inkasso" mode, which builds
-//                 the PDF and returns its path instead of mailing it.
+// 20261019 CL/ASR Created: renders ONE invoice (or credit note) to PDF without a browser session, for the public invoice & payment page (Requirements_invoice_email_payment_page_EN.md par. 5.2) and the billing-ledger REST API. Runs the real form engine (includes/formfunk.php formularprint(), PostScript or HTML -> PDF, background via pdftk) in its "inkasso" mode, which builds the PDF and returns its path instead of mailing it.
 //
 //   php tools/stripe_invoice_pdf.php --db=<ledger db> --id=<ordrer.id> [--out=<file>]
 //
@@ -37,6 +31,10 @@
 // path on success. Exit code 0 = ok, 1 = usage, 2 = render failed.
 // 20261022 CDX/LH Use Europe/Copenhagen consistently for invoice and rendering dates.
 // 20261022 CDX/LH Render under one invoice lock in a private disposable workspace and publish the opaque PDF atomically.
+// 20261117 CDX/ASR Discover the installed pdftk when the ledger has no explicit tool setting, preserving invoice logos.
+// 20261117 CDX/ASR Read installation PDF tool settings before switching from the master database to the ledger.
+// 20261117 CDX/ASR Withdraw the invoice-logo rendering change and restore the previous behavior.
+// 20261127 ASR With $allowedLedgers in includes/connect.php the ledger named for one run must be listed, the master database too (saldi_ledger_guard()); the master stays connected for the registry.
 
 date_default_timezone_set('Europe/Copenhagen');
 
@@ -64,6 +62,7 @@ include(__DIR__ . '/../includes/db_query.php');
 include(__DIR__ . '/../includes/connect.php');          // master connection + $sqhost/$squser/$sqpass
 include(__DIR__ . '/../includes/std_func.php');
 include_once(__DIR__ . '/../includes/stripeIncludes/stripePdf.php');
+saldi_ledger_guard($targetDb);
 
 // Resolve the ledger through the master locator, exactly like stripeConfigDb().
 $r = db_fetch_array(db_select("select id, db from regnskab where db = '" . db_escape_string($targetDb) . "'", __FILE__ . " linje " . __LINE__, true));

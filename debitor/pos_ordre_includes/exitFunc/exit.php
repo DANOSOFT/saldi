@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/exitFunc/exit.php --- ver 5.0.0 --- 2024.3.13---
+// --- debitor/pos_ordre_includes/exitFunc/exit.php --- ver 5.1.1 --- 2026.10.29---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2024 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // LN 20190510 Move function find_bon here
@@ -34,6 +34,8 @@
 // 20261006 CL/LH SST-839: Reach LAN print servers (private/reserved IPs, localhost, .local, single-label names) over HTTP
 //                 again (the mini-PCs do not serve HTTPS); other hosts still default to HTTPS and may not use HTTP.
 // 20261006 CL/LH SST-846: Route the Move3500 terminal type to payments/lane3000.php; payments/move3500.php only existed as a server alias.
+// 20261027 CDX/MJ SST-876 Drain webshop retry updates after POS settlement commits.
+// 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
 
 /**
  * True for a print server on the shop's own network: a private or reserved IP (10/8,
@@ -115,7 +117,7 @@ print "\n<!-- Function afslut (start)-->\n";
     if (!isset($_COOKIE['giftcard']) || $_COOKIE['giftcard'] == true) {
       $sum = betaling($id, $momssats, $betaling, $betaling2, $modtaget, $modtaget2, $kasse);
     } else {
-      saldi_setcookie('giftcard', '', time()-3600);
+      setcookie('giftcard', '', time()-3600);
       print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">\n";
       exit(0);
     }
@@ -222,7 +224,7 @@ print "\n<!-- Function afslut (start)-->\n";
 					if ($fp=fopen($filnavn,'r')) {
 						$terminal_ip=trim(fgets($fp));
 						fclose ($fp);
-						$tmp=saldi_setcookie("salditerm",$terminal_ip,time()+3600,'/');
+						$tmp=setcookie("salditerm",$terminal_ip,time()+3600,'/');
 					}
 				} #else $terminal_ip=$printserver;
 				$tidspkt=date("U");
@@ -235,7 +237,7 @@ print "\n<!-- Function afslut (start)-->\n";
 				// MobilePay
 				if ($payment == "mobilepay") {
 					$tmp="payments/mobilepay.php?amount=$belob&id=$id&indbetaling=$indbetaling";
-					saldi_setcookie("saldi_bet",$tmp,time()+60*60*24*7);
+					setcookie("saldi_bet",$tmp,time()+60*60*24*7);
 					print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 					exit;
 				} else {
@@ -245,29 +247,29 @@ print "\n<!-- Function afslut (start)-->\n";
 
 					if ($r[0] == "Flatpay") {
 						$tmp="payments/flatpay.php?amount=$belob&id=$id&indbetaling=$indbetaling";
-						saldi_setcookie("saldi_bet",$tmp,time()+60*60*24*7);
+						setcookie("saldi_bet",$tmp,time()+60*60*24*7);
 						print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 						exit;
 					} else if ($r[0] == "Lane3000") {
 						$tmp="payments/lane3000.php?amount=$belob&id=$id&indbetaling=$indbetaling";
-						saldi_setcookie("saldi_bet",$tmp,time()+60*60*24*7);
+						setcookie("saldi_bet",$tmp,time()+60*60*24*7);
 						print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 						exit;
 					} else if ($r[0] == "Move3500") {
 						$tmp="payments/lane3000.php?amount=$belob&id=$id&indbetaling=$indbetaling"; // Nets Connect@Cloud terminal, served by lane3000.php (SST-846)
-						saldi_setcookie("saldi_bet",$tmp,time()+60*60*24*7);
+						setcookie("saldi_bet",$tmp,time()+60*60*24*7);
 						print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 						exit;
 					# Compatibilaty search
 					} else if ("Vibrant" == substr($r[0], 0, 7)) {
 						$tmp="payments/vibrant.php?amount=$belob&id=$id&indbetaling=$indbetaling";
-						saldi_setcookie("saldi_bet",$tmp,time()+60*60*24*7);
+						setcookie("saldi_bet",$tmp,time()+60*60*24*7);
 						print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 						exit;
 					}
 				}
 				$tmp="http://$terminal_ip/pointd/kvittering.php?url=$url&server=$server&serverfile=$serverfile&id=$id&db=$db&pos_bet_id=$pos_bet_id&kommando=kortbetaling&belob=$belob&betaling=$betaling&betaling2=$betaling2&modtaget=$modtaget&modtaget2=$modtaget2&indbetaling=$indbetaling&tidspkt=$tidspkt";
-				saldi_setcookie("saldi_bet",$tmp,time()+60*60*24*7);
+				setcookie("saldi_bet",$tmp,time()+60*60*24*7);
 				print "<meta http-equiv=\"refresh\" content=\"0;URL=$tmp\">\n";
 				exit;
 			}
@@ -323,6 +325,7 @@ print "\n<!-- Function afslut (start)-->\n";
 	include("settlePOS.php"); #20190510
 	if ($svar=='OK') { #20150213
 		transaktion("commit");
+		shopSyncDrainQueue();
 		$qtxt = "insert into pos_events (ev_type,ev_time,cash_register_id,employee_id,order_id,file,line) ";
 		$qtxt.= "values ";
 		$qtxt.= "('11001','". date('U') ."','$kasse','$bruger_id','$id','".__file__."','".__line__."')";
@@ -361,7 +364,7 @@ print "\n<!-- Function afslut (start)-->\n";
 			if ($fp=fopen($filnavn,'r')) {
 				$printserver=trim(fgets($fp));
 				fclose ($fp);
-				if ($printserver) saldi_setcookie("saldi_printserver",$printserver,time()+60*60*24*7,'/');
+				if ($printserver) setcookie("saldi_printserver",$printserver,time()+60*60*24*7,'/');
 			}
 		}
 		if ($printserver=='box' || !$printserver) $printserver=$_COOKIE['saldi_printserver'] ?? '';

@@ -4,8 +4,8 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-
-// -----------debitor/bogfor.php--------patch 5.0.0----2026.07.06----------
+//
+// -----------debitor/bogfor.php--------ver 5.1.1----2026.11.10----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -26,24 +26,28 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 //  --------------------------------------------------------------------------
-
+//
 // 2013.05.06 Tilføjet transaktionskontrol.
 // 2015.03.05 Betalinger indsættes nu i POS_betalinger hvis betingelser er opfyldt - søg pos_betalinger
 // 20260706 CX/PHR Rollback transaction before alert/redirect when bogfor() returns an error
+// 20261028 CDX/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
+// 20261110 CDX/ASR Require module write access before this mutation endpoint runs.
 
 @session_start();
 $s_id=session_id();
 
 $id=NULL;
-if (isset($_GET['id'])) $id=($_GET['id']);
+if (isset($_GET['id'])) $id = (int)$_GET['id'];
 
 if ($id && $id>0) {
 	$modulnr=5;
-	include("../includes/connect.php");
-	include("../includes/online.php");
-	include("../includes/std_func.php");
-	include("../includes/ordrefunc.php");
-	include("pbsfakt.php");
+	include(__DIR__ . '/../includes/connect.php');
+	$permission_key = 'debitor.ordre';
+	$permission_level = 'write';
+	include(__DIR__ . '/../includes/online.php');
+	include(__DIR__ . '/../includes/std_func.php');
+	include(__DIR__ . '/../includes/ordrefunc.php');
+	include(__DIR__ . '/pbsfakt.php');
 
 	$genfakt=if_isset($_GET['genfakt']);
 	$pbs=if_isset($_GET['pbs']);
@@ -61,6 +65,10 @@ if ($id && $id>0) {
 		exit;
 	} else {
 		transaktion('commit');
+		if (empty($GLOBALS['db_modify_fejl'])) {
+			shopSyncDrainQueue();
+			shopSyncAlertFailedItems();
+		}
 	}
 	if (!$genfakt) {
 		if ($pbs) {

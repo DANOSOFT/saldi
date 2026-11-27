@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/_docPoolData.php --- ver 5.0.0 --- 2026-10-07 ---
+// --- includes/_docPoolData.php --- ver 5.1.1 --- 2026-11-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -34,13 +34,15 @@
 // 20261001 CL/NTR Merged the two history blocks into one and grouped the includes.
 // 20261003 CL/SZ SD-717 Archived documents are left out of the list and the duplicate marking.
 //                With archived=1 ("Vis arkiverede") only archived documents are returned, newest archive first, with their archive time.
+// 20261004 CL/SZ SD-727 An archived document also carries the date it will be deleted (deletes, Y-m-d).
 // 20261003 CL/SZ SD-719 With limit: one page of the list as {rows, total, offset, limit, matches, extra, currentIndex}.
 //                Search (q), sort (sort, order) and the match against the journal line (sum, dato) are done here over the full set (poolListQuery.php).
 //                extra holds the open document (current) and the ticked ones (include[]) when they are not on the page; filesOnly=1 lists every file name.
 //                toCurrent=1 extends the page down to the open document.
 //                Without limit the whole list comes back as before.
 // 20261007 CL/SZ SD-719 The list is built by poolListData() (docsIncludes/poolListData.php), which docPool.php also calls to send the first page with the page.
-
+// 20261127 ASR With $allowedLedgers in includes/connect.php the session's ledger must be listed, the master database too: 403 before it is opened (includes/ledgerAllowList.php).
+//
 // Start output buffering FIRST to capture any output from includes
 ob_start();
 
@@ -70,6 +72,9 @@ require_once __DIR__ . '/docsIncludes/poolListData.php';
 $qtxt = "select db from online where session_id = '$s_id' order by logtime desc limit 1";
 $r = db_fetch_array(db_select($qtxt, __FILE__ . " line " . __LINE__));
 $db = $r['db'] ?? '';
+if (!saldi_ledger_allowed($db)) {
+    saldi_ledger_refuse_json($db);
+}
 
 // Connect to the correct database
 if ($db) {

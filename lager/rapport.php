@@ -4,7 +4,7 @@
 //               \__ \/ ^ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/rapport.php --- patch 5.0.0 --- 2026-09-25---
+// --- lager/rapport.php --- ver 5.1.1 --- 2026-11-13---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -100,13 +100,21 @@
 //             Verified against all 6 acceptance criteria in the spec. Confirmed working on the
 //             production server (no blank page) after the performance fixes above.
 // 20260901 CL/SZ MB-31: added a standardised per-column search row directly under the sticky
-// 20260927 Sawaneh Udløbsrapport button added to the report list (the dashboard banner was its only link).
 //             column-title row (matching lager/lister/vareliste.php's create_datagrid() search
 //             row), reusing the existing Varenr./Varenavn fields that already fed the query further
 //             down (previously only on the front page) - no change to that query/caching logic
 // 20260925 CL/NTR Escape a Varenr./Varenavn search term's own '%'/'_' via the new
 //             db_escape_like_pattern() before wrapping it in '%...%', so a lone wildcard character
 //             no longer matches (almost) the whole catalogue.
+// 20261027 CL/LH MB-73: 'Bestilt' (Ordered) counts purchase order lines only (ordrer.art = 'KO', as the product card's incoming list).
+//             It found open lines by leveret < antal alone, which NULL never matched, so open sales lines counted as ordered once leveret starts at 0.
+// 20261104 CL/ASR The form's POST only picks filters and opens a report (each report page has its own gate), so it counts as a read: a read-only role can open Lagerstatus, Prisliste, Lageroptælling and Salg pr. postnummer from here.
+// 20261105 CL/LH Group totals with Beregn lagerbeh./værdi put Købspris, Salgspris, DB, DG and Værdi under their own column titles, on screen and in the CSV, also with Kun salg / DB.
+// 20261105 CL/LH An item's line in salgsrapport.csv has its VAT under +moms, as the Moms column on screen; it repeated the Salgspris.
+// 20261105 CL/LH DG on an item's line, a group total and Summeret is DB / Salgspris, and 0,00% when Salgspris is 0, as on a sale line; it showed 100,00% whenever DB or Salgspris was 0.
+// 20261105 CL/LH Kun salg / DB lists the items sold on an order in the period; it took only the last day's sales and added items with only a receipt.
+//                Items with only a stock regulation in the period are left out too.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 ini_set('max_execution_time', '300');
 @session_start();
 $s_id=session_id();
@@ -114,6 +122,7 @@ $css="../css/standard.css";
 
 $title="Varerapport";
 $modulnr=15;
+$permission_post_read = true; // the form only picks filters and redirects to the report pages, which check their own rights
 
 $vk_kost=NULL;
 
@@ -145,8 +154,6 @@ if ($lokMinMax) {
 	print print "<meta http-equiv=\"refresh\" content=\"0;URL=minmaxstock.php?vgrp=$varegruppe&vnr=$varenr&vname=$varenavn&afd=$afd\">";
 }
 // 20260714 SZ - hydrate from $_GET first (this is the only source for plain navigation - pagination,
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
-// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 // back button, direct links - which is always a GET request with no $_POST at all), then let an actual
 // form submit (POST) overlay on top. Same "GET baseline, POST overlay" shape as includes/salgsstat.php's
 // input handling, chosen over the previous if($_POST)/else($_GET) fork specifically because that fork
@@ -202,7 +209,6 @@ if ($submit == 'ok') varegruppe ($date_from, $date_to, $varenr, $varenavn, $vare
 elseif (strtolower($submit) == strtolower(findtekst('992|Lagerstatus', $sprog_id))) print "<meta http-equiv=\"refresh\" content=\"0;URL=lagerstatus.php?varegruppe=$varegruppe\">";
 elseif (strtolower($submit) == strtolower(findtekst('2082|Prisliste', $sprog_id))) print "<meta http-equiv=\"refresh\" content=\"0;URL=pricelist.php?varegruppe=$varegruppe\">";
 elseif (strtolower($submit) == strtolower(findtekst('3360|Salg pr. postnummer', $sprog_id))) print "<meta http-equiv=\"refresh\" content=\"0;URL=salg_rapport.php?varegruppe=$varegruppe&afd=$afd&ref=$ref&lev=$lev&date_from=$date_from&date_to=$date_to&varenr=$varenr&varenavn=$varenavn&detaljer=$detaljer&kun_salg=$kun_salg&lagertal=$lagertal\">";
-elseif (strtolower($submit) == strtolower(findtekst('5014|Udløbsrapport', $sprog_id))) print "<meta http-equiv=\"refresh\" content=\"0;URL=udlobsrapport.php\">";
 elseif ($inventoryCount) print "<meta http-equiv=\"refresh\" content=\"0;URL=optalling.php?varegruppe=$varegruppe\">";
 else 	forside ($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$kun_salg,$lagertal,$vk_kost,$afd,$lev,$ref);
 
@@ -278,7 +284,16 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 
 	include("../includes/topline_settings.php");
 
-	if ($menu=='S') {
+	if ($menu=='T') {
+		include_once '../includes/top_header.php';
+		include_once '../includes/top_menu.php';
+		print "<div id=\"header\">
+				<div class=\"headerbtnLft\"></div>
+				<span class=\"headerTxt\"></span>";
+		print "<div class=\"headerbtnRght\"></div>";
+		print "</div><!-- end of header -->
+			<div class=\"maincontentLargeHolder\">\n";
+	} elseif ($menu=='S') {
 		$title = findtekst('3361|Varerapporter', $sprog_id);
 
 		include("../includes/S_topLine.php"); 
@@ -464,11 +479,6 @@ function forside($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,$ku
 	$txt.= "<input class='button blue medium' style='width:350px;' type='submit' value=\"".findtekst('3360|Salg pr. postnummer', $sprog_id)."\" name='submit'>";
 	$txt.= "</td></tr>\n";
 	print $txt;
-	print "<tr><td><hr></td></tr>\n";
-	$txt = "<tr><td ALIGN=center title='".findtekst('5026|Klik for at se udløbsrapporten', $sprog_id)."'>";
-	$txt.= "<input class='button blue medium' style='width:350px;' type='submit' value=\"".findtekst('5014|Udløbsrapport', $sprog_id)."\" name='submit'>";
-	$txt.= "</td></tr>\n";
-	print $txt;
 	print "</form>";
 	print "</tbody></table></center>\n";
 	print "</td></tr>\n";
@@ -517,15 +527,24 @@ function varegruppe($date_from,$date_to,$varenr,$varenavn,$varegruppe,$detaljer,
 #	if ($returside) $luk= "<a accesskey=L href=\"$returside\">";
 #	else
 
-$lukHref = "rapport.php?varegruppe=$varegruppe&afd=$afd&lev=$lev&ref=$ref&date_from=$date_from&date_to=$date_to&varenr=$varenr&varenavn=$varenavn&detaljer=$detaljer&kun_salg=$kun_salg&lagertal=$lagertal";
-$luk= "<a class='button red small' accesskey=L href=\"$lukHref\">";
-	if ($vrGridMode) {
+$luk= "<a class='button red small' accesskey=L href=\"rapport.php?varegruppe=$varegruppe&afd=$afd&lev=$lev&ref=$ref&date_from=$date_from&date_to=$date_to&varenr=$varenr&varenavn=$varenavn&detaljer=$detaljer&kun_salg=$kun_salg&lagertal=$lagertal\">";
+	if ($menu=='T') {
+		include_once '../includes/top_menu.php';
+		include_once '../includes/top_header.php';
+		print "<div id=\"header\">
+		<div class=\"headerbtnLft\">$luk ".findtekst('30|Tilbage', $sprog_id)."</a></div>
+		<span class=\"headerTxt\">Rapport | Varesalg | ".dkdato($date_from)." - ".dkdato($date_to); "</span>";
+		print "<div class=\"headerbtnRght\"></div>";
+		print "</div><!-- end of header -->
+			<div class=\"maincontentLargeHolder\">\n";
+		print "<table class='dataTable' width = 100% cellpadding=\"1\" cellspacing=\"1\" border=\"0\"><tbody>";
+	} elseif ($vrGridMode) {
 		// Grid Framework header bar - mirrors includes/salgsstat.php's $ssPageFlex header. The full title
 		// (incl. afd/lev/ref suffixes) and the grid table itself aren't printed until further down, once
 		// $vrTitleExtra / $lagergruppe are known - see the matching branches below.
 		print "<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}</style>\n";
 		print "<div id='vrPageFlex' style='display:flex;flex-direction:column;height:100vh;box-sizing:border-box;'>\n";
-		print "<div style='flex:0 0 auto;box-sizing:border-box;'>\n";
+		print "<div style='flex:0 0 auto;padding:8px 8px 0 8px;box-sizing:border-box;background-color:$bgcolor;'>\n";
 	} elseif ($menu=='S') {
 		print "<table width = 100% cellpadding='1' cellspacing='1' border='0'><tbody>";
 
@@ -579,16 +598,20 @@ $luk= "<a class='button red small' accesskey=L href=\"$lukHref\">";
 			if (!$vrGridMode) print " | $ref_navn";
 		}
 	}
-	if ($vrGridMode) {
+	if ($menu=='T') {
+
+	} elseif ($vrGridMode) {
 		// Full header bar now that $vrTitleExtra/$luk are known - back button (with icon, matching
 		// includes/salgsstat.php) / title / CSV export (reuses the existing CSV feature as the header's
 		// 3rd button).
-		include_once("../includes/stdFunc/pageBar.php");
-		page_bar(array(
-			'title' => findtekst('1142|Rapport', $sprog_id) . " | " . findtekst('2746|Varesalg', $sprog_id) . " | " . dkdato($date_from) . " - " . dkdato($date_to) . $vrTitleExtra,
-			'actions' => array(array('CSV', "../temp/$db/salgsrapport.csv", 'bx-download', '_blank')),
-			'back' => $lukHref,
-		));
+		$vrTilbageIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+		print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody><tr>";
+		print "<td width='10%' align='left'>$luk
+			   <button style='$buttonStyle; width:100%; display:flex; align-items:center; gap:5px; justify-content:flex-start; padding-left:3px;' onMouseOver=\"this.style.cursor='pointer'\">$vrTilbageIcon" . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>";
+		print "<td width='80%' align='center' style='$topStyle'>" . findtekst('1142|Rapport', $sprog_id) . " | " . findtekst('2746|Varesalg', $sprog_id) . " | " . dkdato($date_from) . " - " . dkdato($date_to) . $vrTitleExtra . "</td>";
+		print "<td width='10%' align='center'><a href='../temp/$db/salgsrapport.csv' target='_blank'>
+			   <button style='$buttonStyle; width:100%; min-height:20px; display:flex; align-items:center; gap:5px; justify-content:center;' onMouseOver=\"this.style.cursor='pointer'\">CSV</button></a></td>";
+		print "</tr></tbody></table>";
 		print "</div>\n"; // <- close flex:0 wrapper around the header bar
 	} elseif ($menu=='S') {
 	print "</td>";
@@ -686,12 +709,15 @@ $luk= "<a class='button red small' accesskey=L href=\"$lukHref\">";
 	# finder alle konti med bevaegelser i den anfoerte periode eller aabne poster fra foer perioden
 	$qtxt="select batch_salg.vare_id,batch_salg.pris,varer.gruppe,varer.beskrivelse from batch_salg,varer";
 	if ($afd || $ref) $qtxt.=",ordrer";
-	$qtxt.= " where batch_salg.fakturadate<='$date_to' and batch_salg.vare_id = varer.id ";  # 20181003
-	if ($kun_salg) $qtxt.= "and batch_salg.fakturadate >= '$date_to' "; #20220320
-	if ($afd) $qtxt.="and batch_salg.ordre_id = ordrer.id and ordrer.afd='$afd' ";
-	if ($ref) $qtxt.="and batch_salg.ordre_id = ordrer.id and (ordrer.ref='$ref_navn' or ordrer.ref='$ref_brugernavn') ";
+	$qtxt.= " where batch_salg.fakturadate<='".db_escape_string($date_to)."' and batch_salg.vare_id = varer.id ";  # 20181003
+	// 20261105 CL/LH Kun salg / DB lists the items sold in the period: a sale on an order (ordre_id 0 is a
+	// stock regulation, count or move) with a quantity, invoiced from date_from. It compared with date_to,
+	// so only the last day's sales counted (#20220320).
+	if ($kun_salg) $qtxt.= "and batch_salg.fakturadate >= '".db_escape_string($date_from)."' and batch_salg.ordre_id != 0 and batch_salg.antal != 0 ";
+	if ($afd) $qtxt.="and batch_salg.ordre_id = ordrer.id and ordrer.afd='".db_escape_string($afd)."' ";
+	if ($ref) $qtxt.="and batch_salg.ordre_id = ordrer.id and (ordrer.ref='".db_escape_string($ref_navn)."' or ordrer.ref='".db_escape_string($ref_brugernavn)."') ";
 	if ($lagertal) $qtxt.="order by varer.gruppe,varer.beskrivelse ";
-	else $qtxt.="and batch_salg.fakturadate>='$date_from' order by varer.beskrivelse ";
+	else $qtxt.="and batch_salg.fakturadate>='".db_escape_string($date_from)."' order by varer.beskrivelse ";
 	$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 	while ($row = db_fetch_array($query)) {
 		$row_vare_id = trim($row['vare_id']);
@@ -704,27 +730,30 @@ $luk= "<a class='button red small' accesskey=L href=\"$lukHref\">";
 			$ov_qty[$x]=0;
 		}
 	}
-	$qtxt="select batch_kob.fakturadate,batch_kob.vare_id,batch_kob.pris,varer.gruppe,varer.beskrivelse ";
-	$qtxt.="from batch_kob,varer where batch_kob.fakturadate<='$date_to' and batch_kob.vare_id = varer.id "; #20181003
-	if ($lagertal) $qtxt.="order by gruppe,varer.beskrivelse";
-	else $qtxt.=" and batch_kob.fakturadate>='$date_from' order by varer.beskrivelse";
-	$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-	while ($row = db_fetch_array($query)) {
-		$row_vare_id = trim($row['vare_id']);
-		if (isset($vare_id_lookup[$row_vare_id]) && !isset($v_id_lookup[$row_vare_id])) {
-			$x++;
-			$v_id[$x]=$row_vare_id;
-			$v_id_lookup[$row_vare_id]=1;
-			$v_gr[$x]=trim($row['gruppe']);
-			$v_navn[$x]=trim(strip_tags($row['beskrivelse']));
-			$ov_qty[$x]=0;
+	// 20261105 CL/LH Kun salg / DB shows no purchases, so a receipt alone does not put an item in it.
+	if (!$kun_salg) {
+		$qtxt="select batch_kob.fakturadate,batch_kob.vare_id,batch_kob.pris,varer.gruppe,varer.beskrivelse ";
+		$qtxt.="from batch_kob,varer where batch_kob.fakturadate<='".db_escape_string($date_to)."' and batch_kob.vare_id = varer.id "; #20181003
+		if ($lagertal) $qtxt.="order by gruppe,varer.beskrivelse";
+		else $qtxt.=" and batch_kob.fakturadate>='".db_escape_string($date_from)."' order by varer.beskrivelse";
+		$query = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+		while ($row = db_fetch_array($query)) {
+			$row_vare_id = trim($row['vare_id']);
+			if (isset($vare_id_lookup[$row_vare_id]) && !isset($v_id_lookup[$row_vare_id])) {
+				$x++;
+				$v_id[$x]=$row_vare_id;
+				$v_id_lookup[$row_vare_id]=1;
+				$v_gr[$x]=trim($row['gruppe']);
+				$v_navn[$x]=trim(strip_tags($row['beskrivelse']));
+				$ov_qty[$x]=0;
+			}
 		}
 	}
 	# finding items ordered and not put in stock.
 	$g=0;
 	$qtxt = "select ordrelinjer.vare_id,ordrelinjer.varenr,ordrelinjer.beskrivelse,sum(ordrelinjer.antal-ordrelinjer.leveret) as qty,";
 	$qtxt.= "varer.gruppe from ordrer,ordrelinjer,varer where ";
-	$qtxt.= "ordrer.status < '3' and ordrer.status > '0' and ordrelinjer.ordre_id = ordrer.id and ordrelinjer.vare_id = varer.id and ";
+	$qtxt.= "ordrer.art = 'KO' and ordrer.status < '3' and ordrer.status > '0' and ordrelinjer.ordre_id = ordrer.id and ordrelinjer.vare_id = varer.id and "; # 20261027 CL/LH MB-73 purchase orders only; open sales lines now have leveret 0, not NULL
 	if ($lev) $qtxt.= "ordrer.konto_id = '$lev' and "; #20260716 CL/SZ - R3: scope open POs to the actual supplier the order was placed with (ordrer.konto_id), not the vare_lev catalog association used to build $vare_id above - keeps the "per supplier" Ordered figures consistent with the "per item" view instead of silently excluding a new item's open PO just because nobody has added a vare_lev row for it yet
 	for ($g=0;$g<count($lagergruppe);$g++) {
 		($g)?$qtxt .= "or ":$qtxt .= "( ";
@@ -1380,8 +1409,8 @@ $luk= "<a class='button red small' accesskey=L href=\"$lukHref\">";
 		}
 		}
 		$t_s_pris=afrund($t_s_pris,2); #20190830
-		if ($t_s_pris && $t_dkBi) $t_dg=$t_dkBi*100/$t_s_pris;
-		else $t_dg=100;
+		if ($t_s_pris) $t_dg=$t_dkBi*100/$t_s_pris;
+		else $t_dg=0;
 		if ($detaljer) {
 			print "<tr" . ($vrDetailMode ? " class='vr-col-title-row'" : "") . ">";
 			print "<td>".findtekst('982|Salgsdato', $sprog_id)."</td>";
@@ -1508,7 +1537,7 @@ $luk= "<a class='button red small' accesskey=L href=\"$lukHref\">";
 				print "<td align='right'>".dkdecimal($t_s_pris,2)."</td>";
 				fwrite($csvfile, dkdecimal($t_s_pris,2).";");
 				print "<td align='right'>".dkdecimal($t_moms,2)."</td>";
-				fwrite($csvfile, dkdecimal($t_s_pris,2).";");
+				fwrite($csvfile, dkdecimal($t_moms,2).";");
 				print "<td align='right'>".dkdecimal($t_regul,2)."</td>";
 				fwrite($csvfile, dkdecimal($t_regul,2).";");
 				print "<td align='right'>".dkdecimal($t_dkBi,2)."</td>";
@@ -1540,7 +1569,7 @@ $luk= "<a class='button red small' accesskey=L href=\"$lukHref\">";
 			}
 
 			if ($lagertal && (!isset($v_gr[$x+1]) || $v_gr[$x]!=$v_gr[$x+1])) {
-				 $vg=$v_gr[$x];
+				$vg=$v_gr[$x];
 				if (!isset($g_solgt[$vg])) $g_solgt[$vg]=NULL;
 				if (!isset($g_sum[$vg])) $g_sum[$vg]=NULL;
 				if (!isset($g_moms[$vg])) $g_moms[$vg]=NULL;
@@ -1549,42 +1578,44 @@ $luk= "<a class='button red small' accesskey=L href=\"$lukHref\">";
 				$qtxt="select beskrivelse from grupper where art='VG' and fiscal_year = '$regnaar' and kodenr='$vg'";
 				$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 				($linjebg==$bgcolor)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
+				// One cell per header column, on screen and in the CSV, so Købspris, Salgspris, DB, DG and Værdi sit under their own titles.
 				print "<tr bgcolor='$linjebg'><td><b>$r[beskrivelse]</b></td>";
-				fwrite($csvfile, $r['beskrivelse'].";");
-				if (!$kun_salg) {
-					print "<td colspan='4'></td>";
+				fwrite($csvfile, $r['beskrivelse']);
+				if ($kun_salg) {
+					print "<td colspan='6'></td>";
+					fwrite($csvfile, ";;;;;;");
+				} else {
+					print "<td colspan='7'></td>";
 					print "<td align='right'><b>".dkdecimal($g_Ksum[$vg],2)."</b></td>";
-					fwrite($csvfile, ";;;;". dkdecimal($g_Ksum[$vg],2));
-				}	elseif ($lagertal) { #20210109
+					print "<td></td>";
+					fwrite($csvfile, ";;;;;;;;". dkdecimal($g_Ksum[$vg],2).";");
+				}
+				print "<td align='right'><b>".dkdecimal($g_sum[$vg],2)."</b></td>";
+				fwrite($csvfile, ";". dkdecimal($g_sum[$vg],2));
+				if (!$kun_salg) {
 					print "<td colspan='2'></td>";
 					fwrite($csvfile, ";;");
 				}
-				print "<td></td>";
-				fwrite($csvfile, ";");
-				print "<td align='right'><b>".dkdecimal($g_sum[$vg],2)."</b></td>";
-				fwrite($csvfile, ";". dkdecimal($g_sum[$vg],2));
-				if (!$lagertal) { #20210109
-					print "<td align='right'><b>".dkdecimal($g_moms[$vg],2)."</b></td>";
-					fwrite($csvfile, ";". dkdecimal($g_moms[$vg],2));
-					print "<td></td>";
-					fwrite($csvfile, ";");
-				}
 				print "<td align='right'><b>".dkdecimal($g_dkBi[$vg],2)."</b></td>";
 				fwrite($csvfile, ";". dkdecimal($g_dkBi[$vg],2));
-				if ($g_sum[$vg] && $g_dkBi[$vg]) $v_dg=$g_dkBi[$vg]*100/$g_sum[$vg];
-				else $v_dg=100;
+				if ($g_sum[$vg]) $v_dg=$g_dkBi[$vg]*100/$g_sum[$vg];
+				else $v_dg=0;
 				print "<td align='right'><b>".dkdecimal($v_dg,2)."%</b></td>";
 				fwrite($csvfile, ";". dkdecimal($v_dg,2));
-				print "<td></td>";
-				fwrite($csvfile, ";");
-				if ($lagertal && $g_stockvalue[$vg]) print "<td align='right'><b>".dkdecimal($g_stockvalue[$vg],2)."</b></td>";
-				fwrite($csvfile, ";".dkdecimal($g_stockvalue[$vg],2));
+				if ($kun_salg) {
+					print "<td></td>";
+					fwrite($csvfile, ";");
+				} elseif ($lagertal && count($lagergruppe)) {
+					print "<td></td>";
+					print "<td align='right'><b>".($g_stockvalue[$vg] ? dkdecimal($g_stockvalue[$vg],2) : "")."</b></td>";
+					fwrite($csvfile, ";;".dkdecimal($g_stockvalue[$vg],2));
+				}
 				print "</tr>\n\n";
 				fwrite($csvfile, "\r\n");
 				$g_solgt[$vg]=$g_sum[$vg]=0;
 				if (isset($v_gr[$x+1])) {
-				($linjebg==$bgcolor)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
-				print "<tr bgcolor='$linjebg'><td colspan=\"$cols\"><hr></td></tr>\n";
+					($linjebg==$bgcolor)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
+					print "<tr bgcolor='$linjebg'><td colspan=\"$cols\"><hr></td></tr>\n";
 					fwrite($csvfile, "-------------\r\n");
 					$qtxt="select beskrivelse from grupper where art='VG' and fiscal_year = '$regnaar' and kodenr='".$v_gr[$x+1]."'";
 					if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
@@ -1677,8 +1708,8 @@ $luk= "<a class='button red small' accesskey=L href=\"$lukHref\">";
 		}
 	}
 	if (!$detaljer) {
-		if ($tt_s_pris && $tt_dkBi) $tt_dg=$tt_dkBi*100/$tt_s_pris;
-		else $tt_dg=100;
+		if ($tt_s_pris) $tt_dg=$tt_dkBi*100/$tt_s_pris;
+		else $tt_dg=0;
 		($linjebg==$bgcolor)?$linjebg=$bgcolor5:$linjebg=$bgcolor;
 		print "<tr bgcolor='$linjebg'><td colspan=\"$cols\"><hr></td></tr>\n";
 		fwrite($csvfile, "-------------\r\n");

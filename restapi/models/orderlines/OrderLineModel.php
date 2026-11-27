@@ -1,4 +1,6 @@
 <?php
+// 20261105 CL/LH Line and order ids are cast to int, so "5 OR 1=1" in ?order_id= no longer lists the lines of every order, whatever its type.
+//                save() casts the numbers it writes, as the line INSERT in OrderLineService does.
 
 class OrderLineModel
 {
@@ -34,6 +36,7 @@ class OrderLineModel
 
     private function loadFromId($id)
     {
+        $id = (int) $id;
         $qtxt = "SELECT * FROM ordrelinjer WHERE id = $id";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 
@@ -70,13 +73,13 @@ class OrderLineModel
             // Update existing line
             $qtxt = "UPDATE ordrelinjer SET 
                 beskrivelse = '" . db_escape_string($this->beskrivelse) . "',
-                antal = '$this->antal',
-                rabat = '$this->rabat',
-                pris = '$this->pris',
-                vat_price = '$this->vat_price',
-                kostpris = '$this->kostpris',
-                procent = '$this->procent'
-                WHERE id = $this->id";
+                antal = " . (float) $this->antal . ",
+                rabat = " . (float) $this->rabat . ",
+                pris = " . (float) $this->pris . ",
+                vat_price = " . (float) $this->vat_price . ",
+                kostpris = " . (float) $this->kostpris . ",
+                procent = " . (float) $this->procent . "
+                WHERE id = " . (int) $this->id;
 
             $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
@@ -110,6 +113,7 @@ class OrderLineModel
 
     public static function getByOrderId($orderId)
     {
+        $orderId = (int) $orderId;
         $qtxt = "SELECT id FROM ordrelinjer WHERE ordre_id = $orderId ORDER BY posnr";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 

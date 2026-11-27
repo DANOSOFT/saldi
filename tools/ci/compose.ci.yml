@@ -1,0 +1,11 @@
+# CI-only additions to docker-compose.yml, picked up through COMPOSE_FILE in
+# .github/workflows/tests.yml.
+#
+# Logging in calls the production locator at https://ssl3.saldi.dk/locator
+# (includes/locatorClient.php) and registers the tenant there. A CI run must not
+# write to production, so the name points at the container itself and the call
+# fails at once. Login does not depend on the answer.
+services:
+  web:
+    extra_hosts:
+      - "ssl3.saldi.dk:127.0.0.1"

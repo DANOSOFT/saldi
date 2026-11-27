@@ -44,7 +44,7 @@ function koekkenprint($linje_id,$bestil,$beskrivelse,$cat_id,$kategori,$kds_besk
 				$kp[$y]=strtolower($kp[$y]);
 				if (trim($kp[$y])=='box') {
 					$z=$y+1;
-					$filnavn="http://saldi.dk/kasse/K".$z."_".$_SERVER['REMOTE_ADDR'].".ip";
+					$filnavn="https://saldi.dk/kasse/K".$z."_".$_SERVER['REMOTE_ADDR'].".ip";
 					if ($fp=fopen($filnavn,'r')) {
 						$kp[$y]=trim(fgets($fp));
 						fclose ($fp);

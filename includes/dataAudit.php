@@ -1,0 +1,375 @@
+<?php
+//                ___   _   _   ___  _     ___  _ _
+//               / __| / \ | | |   \| |   |   \| / /
+//               \__ \/ _ \| |_| |) | | _ | |) |  <
+//               |___/_/ \_|___|___/|_||_||___/|_\_\
+//
+// ---- includes/dataAudit.php --- ver 5.1.0 --- 2026.11.14 ---
+// LICENSE
+//
+// This program is free software. You can redistribute it and / or
+// modify it under the terms of the GNU General Public License (GPL)
+// which is published by The Free Software Foundation; either in version 2
+// of this license or later version of your choice.
+// However, respect the following:
+//
+// It is forbidden to use this program in competition with Saldi.DK ApS
+// or other proprietor of the program without prior written agreement.
+//
+// The program is published with the hope that it will be beneficial,
+// but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
+// GNU General Public License for more details.
+//
+// Copyright (c) 2026 Danosoft ApS
+// ----------------------------------------------------------------------
+// 20261114 CL/ASR Created: changes to master data go in the activity log (audit_log), whichever page makes them (owner, 14 Nov 2026).
+//                 db_modify() (includes/db_query.php) calls data_audit_before() just before an insert, update or delete runs and data_audit_after() when it has run.
+//                 Watched tables: varer (Vare), adresser (Kunde, Leverandør, Eget firma) and kontoplan (Konto); see data_audit_tables().
+//                 An update is logged with the fields that changed (before → after), read from the rows before and after, so no SQL is parsed for values.
+//                 Stock and cost price are logged only from the pages where a person sets them (varekort, lagerregulering, optælling), not from sales, goods received or recalculations.
+//                 Computed columns (saldo, modtime) are never logged.
+//                 More than DATA_AUDIT_MAX entries in one request (an import, a new fiscal year) end in one summary line instead.
+//                 Never in the way: every step is guarded, and a failure only leaves the change unlogged.
+// 20261114 CL/ASR Invoicing and crediting are logged (owner, 14 Nov 2026: who credited a large order must be traceable; Vor ref on the document is the seller and can be changed).
+//                 Table ordrer, sales and purchases (art DO, DK, KO, KK; not the POS receipts, art PO): an order whose status goes from under 3 to 3 or more is logged as Faktureret or Krediteret, with number, account, amount and the invoice credited.
+//                 A deleted order is logged too; other changes to orders (every save) are not.
+
+if (!defined('DATA_AUDIT_MAX')) define('DATA_AUDIT_MAX', 100);
+
+if (!function_exists('data_audit_tables')):
+
+/**
+ * The watched tables: the object's name, the columns that name it, the columns never logged, the readable field names.
+ *
+ * @return array<string, array<string, mixed>>
+ */
+function data_audit_tables(): array
+{
+	return array(
+		'varer' => array(
+			'type'   => 'Vare',
+			'name'   => array('varenr', 'beskrivelse'),
+			'skip'   => array('modtime'),
+			'manual' => array('beholdning', 'kostpris'),   // only from the pages in data_audit_manual_pages()
+			'labels' => array(
+				'varenr' => 'Varenr.', 'stregkode' => 'Stregkode', 'beskrivelse' => 'Beskrivelse', 'enhed' => 'Enhed', 'enhed2' => 'Enhed 2',
+				'gruppe' => 'Varegruppe', 'salgspris' => 'Salgspris', 'kostpris' => 'Kostpris', 'beholdning' => 'Beholdning',
+				'min_lager' => 'Min. lager', 'max_lager' => 'Maks. lager', 'lukket' => 'Udgået', 'notes' => 'Bemærkning', 'notesinternal' => 'Intern note',
+				'location' => 'Lokation', 'retail_price' => 'Vejl. udsalgspris', 'special_price' => 'Tilbudspris', 'kategori' => 'Kategori',
+				'publiceret' => 'Publiceret', 'serienr' => 'Serienr.', 'samlevare' => 'Samlevare', 'prisgruppe' => 'Prisgruppe', 'rabatgruppe' => 'Rabatgruppe',
+				'trademark' => 'Varemærke', 'colli' => 'Kolli', 'netweight' => 'Nettovægt', 'grossweight' => 'Bruttovægt', 'varenr_alias' => 'Alias-varenr.',
+				'special_from_date' => 'Tilbud fra', 'special_to_date' => 'Tilbud til', 'has_due_date' => 'Udløbsdato', 'default_shelf_life_days' => 'Holdbarhed (dage)', 'vat_price' => 'Pris inkl. moms', 'provision' => 'Provision',
+			),
+		),
+		'adresser' => array(
+			'type'   => 'Konto',   // Kunde, Leverandør or Eget firma from the row's art (data_audit_object())
+			'name'   => array('kontonr', 'firmanavn'),
+			'skip'   => array('modtime', 'saldo', 'invoiced', 'long', 'lat'),
+			'manual' => array(),
+			'labels' => array(
+				'kontonr' => 'Kontonr.', 'firmanavn' => 'Navn', 'fornavn' => 'Fornavn', 'efternavn' => 'Efternavn', 'addr1' => 'Adresse', 'addr2' => 'Adresse 2',
+				'postnr' => 'Postnr.', 'bynavn' => 'By', 'land' => 'Land', 'kontakt' => 'Kontakt', 'tlf' => 'Tlf.', 'mobile' => 'Mobil', 'email' => 'E-mail',
+				'web' => 'Hjemmeside', 'cvrnr' => 'CVR-nr.', 'ean' => 'EAN', 'institution' => 'Institution', 'bank_navn' => 'Bank', 'bank_reg' => 'Reg.nr.',
+				'bank_konto' => 'Bankkonto', 'iban' => 'IBAN', 'swift' => 'SWIFT', 'kreditmax' => 'Kreditmaks', 'betalingsbet' => 'Betalingsbetingelse',
+				'betalingsdage' => 'Betalingsdage', 'gruppe' => 'Gruppe', 'rabat' => 'Rabat', 'rabatgruppe' => 'Rabatgruppe', 'kontoansvarlig' => 'Kontoansvarlig',
+				'lukket' => 'Lukket', 'status' => 'Status', 'notes' => 'Bemærkning', 'mailfakt' => 'Faktura pr. mail', 'udskriv_til' => 'Udskriv til',
+				'momskonto' => 'Momskonto', 'kategori' => 'Kategori', 'kontotype' => 'Kontotype', 'art' => 'Art', 'pbs' => 'Betalingsservice', 'pbs_nr' => 'PBS-nr.',
+			),
+		),
+		'ordrer' => array(
+			'type'   => 'Ordre',   // Faktura, Kreditnota, Købsfaktura or Købskreditnota from art (data_audit_object())
+			'name'   => array('fakturanr', 'firmanavn'),
+			'skip'   => array(),
+			'manual' => array(),
+			'events' => true,      // only invoicing, crediting and deleting (data_audit_order_events()), not every save
+			'arts'   => array('DO', 'DK', 'KO', 'KK'),
+			'labels' => array(),
+		),
+		'kontoplan' => array(
+			'type'   => 'Konto i kontoplanen',
+			'name'   => array('kontonr', 'beskrivelse'),
+			'skip'   => array('modtime', 'saldo'),
+			'manual' => array(),
+			'labels' => array(
+				'kontonr' => 'Kontonr.', 'beskrivelse' => 'Navn', 'kontotype' => 'Kontotype', 'moms' => 'Moms', 'fra_kto' => 'Fra konto', 'til_kto' => 'Til konto',
+				'lukket' => 'Lukket', 'primo' => 'Primo', 'genvej' => 'Genvej', 'modkonto' => 'Modkonto', 'valuta' => 'Valuta', 'overfor_til' => 'Overføres til',
+				'anvendelse' => 'Anvendelse', 'regnskabsaar' => 'Regnskabsår',
+			),
+		),
+	);
+}
+
+/** The pages where a person sets stock and cost price by hand; elsewhere (sales, goods received, recalculations) they are left out. */
+function data_audit_manual_pages(): array
+{
+	return array('lager/varekort.php', 'lager/lagerregulering.php', 'lager/optalling.php');
+}
+
+/** The page that made the change, as lager/varekort.php. */
+function data_audit_page(): string
+{
+	$s = isset($_SERVER['SCRIPT_NAME']) ? (string) $_SERVER['SCRIPT_NAME'] : '';
+	if ($s === '') return PHP_SAPI === 'cli' ? 'cli' : '';
+	$parts = explode('/', trim($s, '/'));
+	return implode('/', array_slice($parts, -2));
+}
+
+/** A read of our own on the request's connection: never the error box or the error mail of db_select(), only rows or null. */
+function data_audit_rows($conn, string $sql): ?array
+{
+	$res = @pg_query($conn, $sql);
+	if (!$res) return null;
+	$rows = pg_fetch_all($res);
+	return is_array($rows) ? $rows : array();
+}
+
+/** Where a clause begins outside quotes and brackets ($word as ' where '; not the where of a sub-select), or -1. */
+function data_audit_find(string $sql, string $word): int
+{
+	$len = strlen($sql); $wl = strlen($word); $inQ = false; $depth = 0;
+	for ($i = 0; $i < $len; $i++) {
+		$c = $sql[$i];
+		if ($c === "'") { $inQ = !$inQ; continue; }   // '' inside a string flips twice: still inside
+		if ($inQ) continue;
+		if ($c === '(') { $depth++; continue; }
+		if ($c === ')') { $depth = max(0, $depth - 1); continue; }
+		if ($depth === 0 && strncasecmp(substr($sql, $i, $wl), $word, $wl) === 0) return $i;
+	}
+	return -1;
+}
+
+/**
+ * Before an insert, update or delete: what the watched rows look like now. Null when the statement is not on a watched table.
+ *
+ * @return array<string, mixed>|null
+ */
+function data_audit_before(string $qtext, bool $global, $conn): ?array
+{
+	global $db_type;
+	static $busy = false;
+	try {
+		if ($busy || $global || ($db_type !== 'postgresql' && $db_type !== 'postgres' && $db_type !== '' && $db_type !== null)) return null;
+		if (!function_exists('audit_log') || !function_exists('audit_ready')) return null;
+		$q = str_replace(' like ', ' ilike ', ltrim($qtext));   // as db_modify() runs it on PostgreSQL
+		if (!preg_match('/^(update|insert\s+into|delete\s+from)\s+([a-z_][a-z0-9_]*)\b/i', $q, $m)) return null;
+		$op = strtolower(substr($m[1], 0, 6));
+		$table = strtolower($m[2]);
+		$tables = data_audit_tables();
+		if (!isset($tables[$table]) || !audit_ready()) return null;
+		$ctx = array('op' => $op, 'table' => $table, 'conn' => $conn, 'rows' => array(), 'bulk' => false);
+		if ($op === 'insert') return $ctx;
+		$w = data_audit_find($q, ' where ');
+		if ($w < 0) { $ctx['bulk'] = true; return $ctx; }   // a whole table: counted, not listed
+		$where = substr($q, $w + 7);
+		$r = data_audit_find($where, ' returning ');
+		if ($r >= 0) $where = substr($where, 0, $r);
+		$where = rtrim($where, " ;\n\r\t");
+		$busy = true;
+		$rows = data_audit_rows($conn, "select * from $table where $where limit " . (DATA_AUDIT_MAX + 1));
+		$busy = false;
+		if ($rows === null) return null;
+		if (count($rows) > DATA_AUDIT_MAX) $ctx['bulk'] = true;
+		$ctx['rows'] = $rows;
+		return $ctx;
+	} catch (\Throwable $e) {
+		$busy = false;
+		return null;
+	}
+}
+
+/** After the statement has run: the audit entries for what changed. */
+function data_audit_after(array $ctx, $result = null): void
+{
+	static $busy = false;
+	if ($busy) return;
+	$busy = true;
+	try {
+		$table = $ctx['table']; $def = data_audit_tables()[$table]; $conn = $ctx['conn'];
+		if ($ctx['bulk'] && !empty($def['events']) && $ctx['op'] !== 'delete') return;   // a mass status change of orders (POS day end, updates): not an invoicing by a person
+		if ($ctx['bulk']) {
+			$n = ($result !== null && $result !== false) ? (int) @pg_affected_rows($result) : count($ctx['rows']);
+			if ($n > 0) data_audit_count($table, 'data.' . ($ctx['op'] === 'insert' ? 'created' : ($ctx['op'] === 'delete' ? 'deleted' : 'updated')), $n);
+			return;
+		}
+		if (!empty($def['events'])) { data_audit_order_events($ctx, $def); return; }
+		if ($ctx['op'] === 'insert') {
+			$rows = data_audit_rows($conn, "select * from $table where id = currval(pg_get_serial_sequence('$table', 'id'))");
+			if ($rows) data_audit_entry($table, 'data.created', $rows[0], data_audit_snapshot($rows[0], $def));
+			return;
+		}
+		if ($ctx['op'] === 'delete') {
+			foreach ($ctx['rows'] as $row) data_audit_entry($table, 'data.deleted', $row, data_audit_snapshot($row, $def));
+			return;
+		}
+		// update: the same rows after, by id, and the fields that differ
+		$ids = array();
+		foreach ($ctx['rows'] as $row) if (isset($row['id']) && is_numeric($row['id'])) $ids[] = (int) $row['id'];
+		if (!$ids) return;
+		$after = array();
+		foreach ((array) data_audit_rows($conn, "select * from $table where id in (" . implode(',', $ids) . ")") as $row) $after[(int) $row['id']] = $row;
+		$manualOk = in_array(data_audit_page(), data_audit_manual_pages(), true);
+		foreach ($ctx['rows'] as $row) {
+			$id = (int) $row['id'];
+			if (!isset($after[$id])) continue;
+			$changes = array();
+			foreach ($after[$id] as $col => $new) {
+				if (in_array($col, $def['skip'], true) || $col === 'id') continue;
+				if (!$manualOk && in_array($col, $def['manual'], true)) continue;
+				// the item card stamps today's date in the offer period on every save; it only matters with an offer price
+				if ($table === 'varer' && strpos($col, 'special_') === 0 && $col !== 'special_price' && (float) ($after[$id]['special_price'] ?? 0) == 0) continue;
+				$old = array_key_exists($col, $row) ? $row[$col] : null;
+				if (data_audit_same($old, $new)) continue;
+				$changes[] = data_audit_label($def, $col) . ': ' . data_audit_value($old) . ' → ' . data_audit_value($new);
+			}
+			if ($changes) data_audit_entry($table, 'data.updated', $after[$id], implode(' · ', $changes));
+		}
+	} catch (\Throwable $e) {
+		// an unlogged change, never a failed page
+	} finally {
+		$busy = false;
+	}
+}
+
+function data_audit_same($a, $b): bool
+{
+	if ($a === $b) return true;
+	$a = trim((string) $a); $b = trim((string) $b);
+	if ($a === $b) return true;
+	return is_numeric($a) && is_numeric($b) && (float) $a == (float) $b;   // 5 and 5.000
+}
+
+function data_audit_value($v): string
+{
+	$s = trim((string) $v);
+	if ($s === '') return '(tom)';
+	if ($s === 't' || $s === 'on') return 'Ja';    // PostgreSQL's booleans and Saldi's ticked boxes
+	if ($s === 'f' || $s === 'off') return 'Nej';
+	if (!mb_check_encoding($s, 'UTF-8')) $s = mb_convert_encoding($s, 'UTF-8', 'ISO-8859-1');
+	if (is_numeric($s) && strpos($s, '.') !== false) $s = str_replace('.', ',', rtrim(rtrim($s, '0'), '.'));   // 5.000 as 5, 17.50 as 17,5
+	return mb_strlen($s) > 60 ? mb_substr($s, 0, 57) . '…' : $s;
+}
+
+function data_audit_label(array $def, string $col): string
+{
+	return isset($def['labels'][$col]) ? $def['labels'][$col] : $col;
+}
+
+/** Invoicing, crediting and deleting of sales and purchase documents; every other change to an order is left out. */
+function data_audit_order_events(array $ctx, array $def): void
+{
+	$conn = $ctx['conn'];
+	$arts = $def['arts'];
+	if ($ctx['op'] === 'insert') return;
+	if ($ctx['op'] === 'delete') {
+		foreach ($ctx['rows'] as $row) {
+			if (!in_array(strtoupper(trim((string) $row['art'])), $arts, true)) continue;
+			data_audit_entry('ordrer', 'data.deleted', $row, data_audit_order_text($row, $conn, false));
+		}
+		return;
+	}
+	$ids = array();
+	foreach ($ctx['rows'] as $row) {
+		if (in_array(strtoupper(trim((string) $row['art'])), $arts, true) && (int) $row['status'] < 3 && isset($row['id'])) $ids[] = (int) $row['id'];
+	}
+	if (!$ids) return;
+	foreach ((array) data_audit_rows($conn, "select * from ordrer where id in (" . implode(',', $ids) . ")") as $row) {
+		if ((int) $row['status'] < 3) continue;
+		$credit = in_array(strtoupper(trim((string) $row['art'])), array('DK', 'KK'), true);
+		data_audit_entry('ordrer', $credit ? 'data.credited' : 'data.invoiced', $row, data_audit_order_text($row, $conn, true));
+	}
+}
+
+/** "Kunde 1000 Testkunde ApS · 1.250,00 DKK inkl. moms · Fakturadato 14-11-2026 · krediterer faktura 5". */
+function data_audit_order_text(array $row, $conn, bool $invoiced): string
+{
+	$art = strtoupper(trim((string) $row['art']));
+	$out = array();
+	$who = trim(trim((string) ($row['kontonr'] ?? '')) . ' ' . trim((string) ($row['firmanavn'] ?? '')));
+	if ($who !== '') $out[] = (in_array($art, array('KO', 'KK'), true) ? 'Leverandør ' : 'Kunde ') . data_audit_value($who);
+	$total = (float) ($row['sum'] ?? 0) + (float) ($row['moms'] ?? 0);
+	$out[] = number_format($total, 2, ',', '.') . ' ' . (trim((string) ($row['valuta'] ?? '')) ?: 'DKK') . ' inkl. moms';
+	if ($invoiced && trim((string) ($row['fakturadate'] ?? '')) !== '') $out[] = 'Fakturadato ' . date('d-m-Y', strtotime((string) $row['fakturadate']));
+	if (!$invoiced) {
+		$st = (int) ($row['status'] ?? 0);
+		$out[] = 'Status: ' . ($st >= 3 ? 'faktureret' : ($st == 2 ? 'leveret' : ($st == 1 ? 'ordre' : 'tilbud')));
+		if (trim((string) ($row['ordrenr'] ?? '')) !== '') $out[] = 'Ordrenr. ' . data_audit_value($row['ordrenr']);
+	}
+	$kred = (int) ($row['kred_ord_id'] ?? 0);
+	if ($kred > 0) {
+		$orig = data_audit_rows($conn, "select fakturanr from ordrer where id = $kred");
+		if ($orig && trim((string) $orig[0]['fakturanr']) !== '') $out[] = 'krediterer faktura ' . data_audit_value($orig[0]['fakturanr']);
+	}
+	return implode(' · ', $out);
+}
+
+/** A created or deleted row's filled, named fields. */
+function data_audit_snapshot(array $row, array $def): string
+{
+	$out = array();
+	foreach ($def['labels'] as $col => $label) {
+		if (!array_key_exists($col, $row) || in_array($col, $def['name'], true)) continue;
+		$v = trim((string) $row[$col]);
+		if ($v === '' || $v === '0' || $v === 'f' || $v === 'off' || (is_numeric($v) && (float) $v == 0)) continue;
+		$out[] = $label . ': ' . data_audit_value($v);
+		if (count($out) >= 8) break;
+	}
+	return implode(' · ', $out);
+}
+
+/** The object as the activity log shows it: its kind and its number and name, as they read at the time. */
+function data_audit_object(string $table, array $row): array
+{
+	$def = data_audit_tables()[$table];
+	$type = $def['type'];
+	if ($table === 'adresser') {
+		$art = strtoupper(trim((string) ($row['art'] ?? '')));
+		$type = ($art === 'D') ? 'Kunde' : (($art === 'K') ? 'Leverandør' : (($art === 'S') ? 'Eget firma' : 'Adresse'));
+	}
+	if ($table === 'ordrer') {
+		$art = strtoupper(trim((string) ($row['art'] ?? '')));
+		$doc = array('DO' => 'Faktura', 'DK' => 'Kreditnota', 'KO' => 'Købsfaktura', 'KK' => 'Købskreditnota');
+		$type = ((int) ($row['status'] ?? 0) >= 3 && isset($doc[$art])) ? $doc[$art] : (($art === 'DK' || $art === 'KK') ? 'Kreditnota' : 'Ordre');
+		$nr = trim((string) ($row['fakturanr'] ?? '')) !== '' ? trim((string) $row['fakturanr']) : trim((string) ($row['ordrenr'] ?? ''));
+		return array($type, $nr);
+	}
+	$parts = array();
+	foreach ($def['name'] as $col) {
+		$v = trim((string) ($row[$col] ?? ''));
+		if ($v !== '') $parts[] = data_audit_value($v);
+	}
+	return array($type, implode(' · ', $parts));
+}
+
+function data_audit_entry(string $table, string $handling, array $row, string $details): void
+{
+	static $n = 0;
+	if (++$n > DATA_AUDIT_MAX) { data_audit_count($table, $handling, 1); return; }
+	list($type, $id) = data_audit_object($table, $row);
+	audit_log($handling, $details, $type, mb_substr($id, 0, 60), mb_substr(data_audit_page(), 0, 30));
+}
+
+/** Many changes in one request (an import, a new fiscal year): counted, and one line at the end. */
+function data_audit_count(string $table, string $handling, int $count): void
+{
+	static $counts = null;
+	if ($counts === null) {
+		$counts = array();
+		register_shutdown_function(function () use (&$counts) {
+			try {
+				foreach ($counts as $key => $c) {
+					list($t, $hnd) = explode('|', $key);
+					$def = data_audit_tables()[$t];
+					$what = ($hnd === 'data.created') ? 'oprettet' : (($hnd === 'data.deleted') ? 'slettet' : (($hnd === 'data.invoiced') ? 'faktureret' : (($hnd === 'data.credited') ? 'krediteret' : 'ændret')));
+					$noun = ($t === 'varer') ? 'varer' : (($t === 'kontoplan') ? 'konti i kontoplanen' : (($t === 'ordrer') ? 'ordrer' : 'kunder/leverandører'));
+					audit_log('data.bulk', $c . ' ' . $noun . ' ' . $what . ' i én handling',
+						$def['type'], '', mb_substr(data_audit_page(), 0, 30));
+				}
+			} catch (\Throwable $e) {
+			}
+		});
+	}
+	$key = $table . '|' . $handling;
+	$counts[$key] = (isset($counts[$key]) ? $counts[$key] : 0) + $count;
+}
+
+endif;

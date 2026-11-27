@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ----------/lager/varekort_includes/hiddevVars.php---------lap 3.9.3---2026-09-23	-----
+// ----------/lager/varekort_includes/hiddevVars.php---------ver 5.1.1---2026-11-05	-----
 // LICENS
 //
 // This program is free software. You can redistribute it and / or
@@ -23,16 +23,18 @@
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260923 CDX/PHR Deduplicate fiscal-year warehouses and preserve actual warehouse numbers.
+// 20261105 CL/LH The hidden lagerantal field posts $numberOfStocks, as the card's own form does, instead of $lagerantal, which varekort.php never sets.
 /**
- * Warehouse names keyed by their actual numbers, supplied by ../varekort.php.
+ * Warehouse names keyed by their actual numbers, and their count, supplied by ../varekort.php.
  * @var array<int, string> $warehouseNames
+ * @var int $numberOfStocks
  */
 
 print "<input type='hidden' name='beskrivelse[0]' value=\"$beskrivelse[0]\">";
 print "<input type='hidden' name='fokus' value='$fokus'>";
 print "<input type='hidden' name='gruppe' value=\"$gruppe\">";
 print "<input type='hidden' name='leverandor' value='$lev'>";
-print "<input type='hidden' name='lagerantal' value='$lagerantal'>";
+print "<input type='hidden' name='lagerantal' value='$numberOfStocks'>";
 print "<input type='hidden' name='id' value='$id'>";
 print "<input type='hidden' name='ordre_id' value='$ordre_id'>";
 print "<input type='hidden' name='publ_pre' value='$publiceret'>";

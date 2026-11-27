@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsDefinitions.php --- Settings registry v2 --- 2026-11-09 ----
+// ----------------systemdata/settingsDefinitions.php --- Settings registry v2 --- 2026-11-26 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -17,88 +17,98 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260929 Sawaneh Registry v2 (Requirements_settings_redesign_EN.md §7.1): the definition of each
-// 20260930 Sawaneh Field links use ?field= so they work through the shell (spec §8.11).
-// 20261002 Sawaneh Phase 4b batch 1: G2.5 cash journal & payments, G3.6 mySale, G5.6 consignment, G5.7 packaging,
-//                  G6.4 print, G7.4 commission; 'module' gates a section, 'on_save' names a follow-up, type 'date'.
-// 20261006 Sawaneh 4c G3.5 part A: price, campaign and item quantity-discount groups (VPG/VTG/VRG) as rows in Salg » Rabatter
-//                  & prisgrupper; saving no longer rewrites item prices - "Anvend på varer" per group does, after a confirmation.
-//                  Part B: customer and item discount groups (DRG/DVRG) and the discount matrix (virtual discount_matrix, by
-//                  group number); rabatgrupper.php redirects.
-// 20261006 Sawaneh 4c B-D06: "Flyt samlekonto" on debtor/creditor groups as a confirmed row action (amount shown first).
-// 20261006 Sawaneh 4c G5.3 Varianter: variant types and their values as rows (values filtered by type), usage from
-//                  variant items, CSV import through importer_varianter.php; diverse.php?sektion=variant_valg redirects.
-// 20261006 Sawaneh §8.13: 'standard' on the VAT, VAT report, debtor/creditor/item group and unit tables ("Opret dansk standardsæt").
-// 20261006 Sawaneh Onboarding step 4 (acceptance 6): payment terms and days on Firmaoplysninger (company row betalingsbet/
-//                  betalingsdage), used by a new customer card while there are no customers yet.
-// 20261005 Sawaneh 4d G6.2 Baggrunde: form backgrounds (VSPR) as a row list - new ones copied from a template background,
-//                  deleted with their form lines only when no customer, supplier or order uses them - and the PDF files.
-// 20261005 Sawaneh 4d G11: Import & eksport (export/import per data type, chart of accounts per fiscal year) and
-//                  Sikkerhedskopi (latest copy, take a copy, restore) framing the existing pages.
-// 20261005 Sawaneh 4d G1.4 Abonnement & konto (Saldi-hosted only): ledger name (master database), activity, and the
-//                  danger zone - reset (keep customers/suppliers, keep items) and delete, both with password.
-// 20261005 Sawaneh 4d G7.1 Ansatte: list of the company's employees with a card each (person, contact, employment, CPR
-//                  and salary behind settings.organisation.sensitive, extra fields, linked user and its form language),
-//                  add, move up/down (posnr) and delete with a usage check.
-// 20261005 Sawaneh 4d G1.2 Regnskabsår (row list, create card shared with onboarding, set active, delete empty or old
-//                  year) and G2.3 Valuta (currencies and rates per currency, rate changes confirmed before posting).
-// 20261005 Sawaneh 4d G1.3 Lokalisering (five settings that had no or scattered UI, translations link) and G1.5 Persondata
-//                  (inactive customers/suppliers clean-up as a danger-zone action with password).
-// 20261005 Sawaneh 4d G1.1 Stamdata as a generated section on the company address row (no notes/kontonr overwrite,
-//                  no double escaping, country always shown but changed only with settings.company.danger); employees
-//                  stay on the old page until G7.1.
-// 20261005 Sawaneh 4c stage 2: VAT codes (SM/KM/YM/EM per year, code 1-9, usage check, inactive) and VAT report accounts,
-//                  debtor and creditor groups (control account locked while in use, discount shown again, EU zone to all
-//                  years), item groups (box12/box14 left out, box10 kept for Sager/payroll); price groups stay on the old page.
-// 20261005 Sawaneh Phase 4c: sections of 'kind' rows (tables with columns, usage checks, 'exclude', 'code_col',
-//                  'on_save') for departments, projects, warehouses and units & materials; the project number split
-//                  as a field on the PRJ kodenr 0 row.
-// 20261004 Sawaneh 4b gaps: discount decimals (G3.3), payment link per till, link to confirm-stock-change from G4.2,
-//                  PDF command (G6.4), NemHandel status (G9.4), DFM settings in their own group (B-D5), pickup
-//                  addresses as a list section ('per' => 'pickup', settings group_id), bank item behind its feature,
-//                  bank status in the cash journal as a personal setting (G2.7).
-// 20261004 Sawaneh G10 batch B: Cards (one drawer per payment card, 'per' => 'card'), Tables & floor plans ('per' => 'table',
-//                  'per' => 'floor_plan' on table_pages rows), currencies per till, Move3500 login per till, KDS colours by
-//                  waiting time, Flatpay receipt print; the old PoS-valg page is retired.
-// 20261004 Sawaneh G10.1 Tills: list section with one drawer per till ('per' => 'till'), lists joined by tab with 'list',
-//                  Cash counting form section; 'decimal_comma', 'seed' for a joined settings row.
-// 20261004 Sawaneh G10 POS batch A: G10.2 receipt, G10.6 kitchen, G10.7 screen (shop-wide); 'fiscal' grupper storage.
-// 20261004 Sawaneh G4.3 Price lists: a list section whose items come from the database ('items_from'), 'per' => 'pricelist'
-//                  fields on storage 'grupper_row', 'value_map', rules 'required' and 'csv_url', a page-level 'add_action'.
-// 20261004 Sawaneh G2.6 Document storage: storage 'virtual', encoding 'urlencode' for a secret, 'ensure_suffix'.
-// 20261003 Sawaneh G3.4 Reminders: storage 'formularer', type 'creditor', 'options_from' users, 'group_label' and 'sub_help'.
-// 20261003 Sawaneh G6.3 E-mail: storage 'adresser', 'per' => 'language' fields expanded per form language (scope 'group'),
-//                  type 'textarea', a section-level 'permission'.
-// 20261002 Sawaneh Phase 4b batch 2: G9 Integrations as a list section ('kind' list, 'items', 'sub_module'); types secret,
-//                  info, link and mini; 'options_from', 'options_literal', 'locked_if' ht_keys:, rule 'setting_set'.
-// 20261002 Sawaneh Merge of master: its new batchExpiryEnabled setting (was on the removed Varerelaterede valg page) is
-//                  items.stock.batch_expiry.
-//                  setting - key, type, scope, group/section, label and help text ids, default,
-//                  storage (the EXISTING location and encoding), permission, dependencies.
-//                  Section pages, save logic, search, change history and the "moved" page are
-//                  generated from this file. Included by settingsRegistry.php.
-// 20261008 Sawaneh Settings decisions 19-20: vat.registered and vat.period at the top of G2.2 (settings var_grp 'vat',
-//                  company scope); the discount matrix keeps only rows marked 'NR' (by group number), older rows are
-//                  listed as inactive in G3.5 with a per-row Overfør.
-// 20261008 Sawaneh Merge of master: hideRevenue (SD-657) in G3.3, the HTML/CSS layout version (forms/htmlLayoutVersion) in
-//                  G6.4, and "Gem kurs uden bogføring" (SST-769) as 'confirm_skip' on the currency rates.
-// 20261008 Sawaneh personal.profile.theme: light, dark or system (prototype_dashboard_tema v5), settings ui/theme per user.
-// 20261009 Sawaneh 4e: personal.documents.auto_extract and personal.ui.sidebar_closed replace the autoExtract/isSidebarOpen cookies.
-// 20261012 Sawaneh personal.ui.sidebar_closed removed again: the sidebar is a per-device cookie (Adam, settings spec §7.4 (5)).
-// 20261009 Sawaneh pos.tills.currency_account_<n>: the per-currency till account as its own per-till key (decision 22), VK box4 stays the flag.
-// 20261009 Sawaneh personal.profile.text_size (Normal / Større, front-page addendum 3 §3.3).
-// 20261010 Sawaneh G5.8: Diverse → Mærkater moved to labels.php.
-// 20261019 Sawaneh Review 2 (PR #803): settings_floor_plans() limits its information_schema check to this database (saldi_schema_filter, with a fallback like db_cast).
+// 20260929 SS Registry v2 (Requirements_settings_redesign_EN.md §7.1): the definition of each
+// 20260930 SS Field links use ?field= so they work through the shell (spec §8.11).
+// 20261002 SS Phase 4b batch 1: G2.5 cash journal & payments, G3.6 mySale, G5.6 consignment, G5.7 packaging, G6.4 print, G7.4 commission; 'module' gates a section, 'on_save' names a follow-up, type 'date'.
+// 20261006 SS 4c G3.5 part A: price, campaign and item quantity-discount groups (VPG/VTG/VRG) as rows in Salg » Rabatter & prisgrupper; saving no longer rewrites item prices - "Anvend på varer" per group does, after a confirmation.
+//             Part B: customer and item discount groups (DRG/DVRG) and the discount matrix (virtual discount_matrix, by group number); rabatgrupper.php redirects.
+// 20261006 SS 4c B-D06: "Flyt samlekonto" on debtor/creditor groups as a confirmed row action (amount shown first).
+// 20261006 SS 4c G5.3 Varianter: variant types and their values as rows (values filtered by type), usage from variant items, CSV import through importer_varianter.php; diverse.php?sektion=variant_valg redirects.
+// 20261006 SS §8.13: 'standard' on the VAT, VAT report, debtor/creditor/item group and unit tables ("Opret dansk standardsæt").
+// 20261005 SS 4d G6.2 Baggrunde: form backgrounds (VSPR) as a row list - new ones copied from a template background, deleted with their form lines only when no customer, supplier or order uses them - and the PDF files.
+// 20261005 SS 4d G11: Import & eksport (export/import per data type, chart of accounts per fiscal year) and Sikkerhedskopi (latest copy, take a copy, restore) framing the existing pages.
+// 20261005 SS 4d G1.4 Abonnement & konto (Saldi-hosted only): ledger name (master database), activity, and the danger zone - reset (keep customers/suppliers, keep items) and delete, both with password.
+// 20261005 SS 4d G7.1 Ansatte: list of the company's employees with a card each (person, contact, employment, CPR and salary behind settings.organisation.sensitive, extra fields, linked user and its form language), add, move up/down (posnr) and delete with a usage check.
+// 20261005 SS 4d G1.2 Regnskabsår (row list, create card shared with onboarding, set active, delete empty or old year) and G2.3 Valuta (currencies and rates per currency, rate changes confirmed before posting).
+// 20261005 SS 4d G1.3 Lokalisering (five settings that had no or scattered UI, translations link) and G1.5 Persondata (inactive customers/suppliers clean-up as a danger-zone action with password).
+// 20261005 SS 4d G1.1 Stamdata as a generated section on the company address row (no notes/kontonr overwrite, no double escaping, country always shown but changed only with settings.company.danger); employees stay on the old page until G7.1.
+// 20261005 SS 4c stage 2: VAT codes (SM/KM/YM/EM per year, code 1-9, usage check, inactive) and VAT report accounts, debtor and creditor groups (control account locked while in use, discount shown again, EU zone to all years), item groups (box12/box14 left out, box10 kept for Sager/payroll); price groups stay on the old page.
+// 20261005 SS Phase 4c: sections of 'kind' rows (tables with columns, usage checks, 'exclude', 'code_col', 'on_save') for departments, projects, warehouses and units & materials; the project number split as a field on the PRJ kodenr 0 row.
+// 20261004 SS 4b gaps: discount decimals (G3.3), payment link per till, link to confirm-stock-change from G4.2, PDF command (G6.4), NemHandel status (G9.4), DFM settings in their own group (B-D5), pickup addresses as a list section ('per' => 'pickup', settings group_id), bank item behind its feature, bank status in the cash journal as a personal setting (G2.7).
+// 20261004 SS G10 batch B: Cards (one drawer per payment card, 'per' => 'card'), Tables & floor plans ('per' => 'table', 'per' => 'floor_plan' on table_pages rows), currencies per till, Move3500 login per till, KDS colours by waiting time, Flatpay receipt print; the old PoS-valg page is retired.
+// 20261004 SS G10.1 Tills: list section with one drawer per till ('per' => 'till'), lists joined by tab with 'list', Cash counting form section; 'decimal_comma', 'seed' for a joined settings row.
+// 20261004 SS G10 POS batch A: G10.2 receipt, G10.6 kitchen, G10.7 screen (shop-wide); 'fiscal' grupper storage.
+// 20261004 SS G4.3 Price lists: a list section whose items come from the database ('items_from'), 'per' => 'pricelist' fields on storage 'grupper_row', 'value_map', rules 'required' and 'csv_url', a page-level 'add_action'.
+// 20261004 SS G2.6 Document storage: storage 'virtual', encoding 'urlencode' for a secret, 'ensure_suffix'.
+// 20261003 SS G3.4 Reminders: storage 'formularer', type 'creditor', 'options_from' users, 'group_label' and 'sub_help'.
+// 20261003 SS G6.3 E-mail: storage 'adresser', 'per' => 'language' fields expanded per form language (scope 'group'), type 'textarea', a section-level 'permission'.
+// 20261002 SS Phase 4b batch 2: G9 Integrations as a list section ('kind' list, 'items', 'sub_module'); types secret, info, link and mini; 'options_from', 'options_literal', 'locked_if' ht_keys:, rule 'setting_set'.
+// 20261002 SS Merge of master: its new batchExpiryEnabled setting (was on the removed Varerelaterede valg page) is items.stock.batch_expiry. setting - key, type, scope, group/section, label and help text ids, default, storage (the EXISTING location and encoding), permission, dependencies.
+//             Section pages, save logic, search, change history and the "moved" page are generated from this file.
+//             Included by settingsRegistry.php.
+// 20261008 SS Settings decisions 19-20: vat.registered and vat.period at the top of G2.2 (settings var_grp 'vat', company scope); the discount matrix keeps only rows marked 'NR' (by group number), older rows are listed as inactive in G3.5 with a per-row Overfør.
+// 20261008 SS Merge of master: hideRevenue (SD-657) in G3.3, the HTML/CSS layout version (forms/htmlLayoutVersion) in G6.4, and "Gem kurs uden bogføring" (SST-769) as 'confirm_skip' on the currency rates.
+// 20261008 SS personal.profile.theme: light, dark or system (prototype_dashboard_tema v5), settings ui/theme per user.
+// 20261009 SS pos.tills.currency_account_<n>: the per-currency till account as its own per-till key (decision 22), VK box4 stays the flag.
+// 20261009 SS personal.profile.text_size (Normal / Større, front-page addendum 3 §3.3).
+// 20261010 SS G5.8: Diverse → Mærkater moved to labels.php.
+// 20261019 SS Review 2 (PR #803): settings_floor_plans() limits its information_schema check to this database (saldi_schema_filter, with a fallback like db_cast).
 // 20261023 ASR Merge of master (#815 removed lager/vareliste.php): the warehouses gear link names lager/lister/vareliste.php, the list that is left.
+// 20261031 CL/ASR G3.3 has master's order options from after 23 Oct, since Ordrerelaterede valg now opens this section: "Send 'Bemærkning til ordre' med på e-fakturaer" (SST-885), "Fakturér webshopordrer med ordredato" (SST-911) and "Vis besked når kostprisen er anslået" (SD-786).
+//                 They keep master's storage (settings sendOrderNote/easyUBL, webshopInvoiceOrderDate/ordre, showCostEstimateNotice/ordre, 'on'/'off') and default off.
+// 20261101 CL/ASR Settings hub "C - Fold ud": four sections carry the name of their hub row (Sprog & lokalisering, Persondata (GDPR), Logo & baggrunde, Rykkere & inkasso).
+//                 Their old name is kept as 'renamed_from' and as keywords, so search still finds it.
+//                 Diverse valg's last field, 'Tilføj ekstra felter på ansatte' (DIV/2 box3, unchanged storage), is organisation.employees.extra_fields in Ansatte (G7.1), under Ekstra felter.
+//                 The moved map sends Diverse valg to Ansatte and Sprog to Sprog & lokalisering.
+// 20261102 CL/ASR Ansatte is part of Brugere & ansatte (owner, 2 Nov 2026: one item, one list of everyone, one card with Stamdata and Login og rolle): the section is named so ('renamed_from' 1262 keeps "Ansatte" for search); usersRoles.php shows the one list, and this section is the card's Stamdata tab, Ekstra felter, and the list of a user without usersRoles.php (systemdata/settingsSection.php).
+//                 Its rows open from anywhere on the row ('row_click').
+//                 The card's "Bruger" line is left out of the embedded card ('embed_hide': the Login og rolle tab shows the login). settings_employee_rows() also says whether the employee has left ('left').
+// 20261102 CL/ASR Review: the add action is called Tilføj person (7765), the name of the one button, so search offers it under that name (the old name stays a keyword).
+//                 The department select shows the departments' names as they are ('options_literal'): they went through findtekst() and an empty choice read "Tekst nr: 109".
+// 20261103 CL/ASR The employee section is called Brugere (5549), the hub row it stands in for when usersRoles.php cannot be opened (owner, 3 Nov 2026: the heading is Brugere & roller with the rows Brugere, Roller, Audit-log and Ekstra felter).
+// 20261103 CL/ASR QA: the group tables have master's posting accounts again: the item groups' sales accounts for EU and non-EU customers (VG box12/box14, read when an order is invoiced) and the debtor/creditor groups' Modkonto (DG/KG box5, the offset account the cash journal uses for open posts).
+//                 "Opdater kostpriser" runs in a new tab ('blank'), as on master: the worker ends with window.close().
+//                 The gear context of Kasseoptælling and Kommission is debitor/cashCountHistory.php (debitor/kasseoptaelling.php does not exist).
+// 20261104 CL/ASR Final QA: Landekonfiguration (company.data.country) shows its default Danmark while adresser.land is empty ('empty_is_default'), as its help text says.
+// 20261105 CL/LH Regnskabsår has master's Momsperioder button again (company.fiscal_years.vat_periods, a link to finans/moms_periode.php): master moved it there from the Finans sidebar, and the old page became a redirect without it.
+//                It shows for whoever may open that page (finans.kassekladde, read is enough) and is left out for everyone else.
+// 20261105 CL/LH Lagre: the Afd. select's blank choice is '' ('options_none'), what a warehouse without a department stores (box1 '' or NULL), not the till's '0'.
+//                Opening the page no longer shows "1 ugemt ændring" and asks before you leave, Gem no longer writes '0' into box1, and a department 0 stays selectable and kept.
+// 20261105 CL/LH Lagerstyring & kostpris has master's "Udfyld batchoplysninger for varer, der allerede er på lager" link again (items.stock.batch_fill, to lager/batch_udfyld.php) while batch/expiry handling is on, with the number of batches that lack details.
+//                It shows for whoever may change batches there (lager.varer write; disabled for readers) and is left out for everyone else.
+// 20261105 CL/LH Kreditorgrupper has master's Sprog column again (KG box4, the form language of the group's suppliers, help 2461), as Debitorgrupper has it.
+//                A new group, the Danish standard set and a copy from an earlier year store it again (it was left NULL); Baggrunde counts a group's suppliers by it.
+// 20261105 CL/LH Stamdata's By and the employee card's By name their Postnr. field ('fill_from_zip'), so a save fills an empty By from the code again (st_fill_city_from_zip()), as stamkort.php and ansatte_save.php did.
+// 20261105 CL/LH Stamdata has stamkort.php's CVR lookup again: the section names the fields javascript/cvrapiopslag.js fills ('cvr_lookup'), and CVR-nr. and Telefon carry its hints (2488, 2489).
+// 20261105 CL/LH Stamdata's Ansatte link says where the employees are: "Ansattes rækkefølge og kontaktoplysninger ligger under Brugere & roller » Brugere." (settings.employees_location) and "Åbn" (6157).
+//                It said they were still on the old Stamdata page and offered "Åbn den gamle side" (6516, 6504), but it opens the Brugere list.
+//                Varegrupper's Prisgrupper link to Salg » Rabatter & prisgrupper says "Åbn" instead of "Åbn den gamle side" too.
+// 20261105 CL/LH Valuta's currency select shows the ISO codes as they are ('options_literal'), as every other computed select does.
+//                Each code went through findtekst() as a text id, once per currency row and once for the new row, and an upper-case code is never cached, so every load ran 3 queries and read tekster.csv for each of 161 codes: 11-14 s a load on test_34.
+//                The blank choice read "Lande".
+// 20261113 CDX/NTR Normalize the file header for guardrail checks.
+// 20261114 CL/ASR Varegrupper no longer shows Lagertilgang and Lagertræk (VG box1/box2): nothing posts to them since the 2015 fiscal years ($aut_lager), so the columns promised something Saldi does not do.
+//                 Stored values stay ('keep': not touched on save, copied with the year).
+// 20261114 CL/ASR Nulstil regnskab (company.account.reset) is no longer offered in the ledger's own settings. Saldi's staff reset a ledger from the admin panel (admin/admin_panel.php).
+// 20261114 CL/ASR Merge of the testlab: the Ansatte link's help names the hub row by its current name, Brugere & roller » Brugere & ansatte (roles.people.title).
+// 20261116 CL/ASR Integration: Momsperioder's old menu path is a flat list of text ids, as for every field; the nested form made every settings search log Array to string conversion (testlab R1).
+// 20261119 CL/ASR Omgående bogføring of sales and of purchase orders (DIV/3 box5) can be switched on but no longer off (owner, 19 Nov 2026): 'locked_if' 'stays_on' with a lock text, and a Læs mere that says so and asks for the invoices waiting for Hent first.
+// 20261119 CL/ASR Omgående bogføring of sales or of purchase orders is not switched on while invoices of that kind wait at status 3 for Hent ordrer ('validate' 'hent_first'), with a message to fetch them into a cash journal first. The rule names the other setting, so the last one that is off is not switched on while invoices of the other kind wait either.
+// 20261126 CL/ASR Stripe port (#821): E-mail (G6.3) gets the sub-group Fakturaformat (7100) with invoice_format (classic PDF or link to the invoice & payment page) and the link mail's text (email_settings).
+// 20261126 CL/ASR Stripe port (#873): invoice_format is the default for new e-mail orders (label 7126, help 7127); each order chooses E-mail or E-mail med link under Udskriv til.
 // 20261109 CL/ASR G3.4 Rykker med betalingslink (link reminders): sub-section 'link' with six settings in var_grp 'stripe' (reminder_format, reminder_link_email, reminder_fee_next, reminder_fee_waive, reminder_close_warning, reminder_close_text), read by stripe_reminder_settings(); a missing row is the default.
 //                 Renteloven § 9 b warnings: a 2nd/3rd reminder with a fee less than 10 days after the previous one, or a fee item above 100 kr., shows a warning as the field's help text (settings_reminder_legal_warnings()).
 //                 Saving is not refused.
+// 20261126 CL/ASR Stripe port (#1098): the link reminder sub-section and its six settings from the source lines above, in Rykkere & inkasso (sales.reminders, hub Salg » Debitorer); the § 9 b warnings replace the help of days_2/days_3/fee_item_1-3.
+// 20261117 CDX/ASR Link the optional automatic reminder queue from sales reminder settings.
+// 20261126 CL/ASR Stripe port (#1147): the link sales.reminders.automation (8200-8202) opens systemdata/reminderAutomation.php from the sub-group Ansvarlig in Rykkere & inkasso.
+// 20261126 ASR Review I14: the help of the Frister card is text 8212, which says reminders go out automatically only when Automatiske rykkere is switched on; 6202 said they never do.
 //
 // Storage encodings mirror the current writer (risk review R23):
 //   onEmpty  'on' / ''        onOff  'on' / 'off'        oneZero  '1' / '0'        raw  as typed
 // 'join' + 'index' address one part of a composite box (R7).
 // 'legacy' is the old menu path as text ids; it feeds the "Tidligere: ..." search tag (§8.10).
-
+//
 // The registry is also read without a database connection (tools/check_settings_registry.php): the same cast
 // as includes/db_query.php's db_cast(), so the definitions load either way.
 if (!function_exists('db_cast')) {
@@ -169,12 +179,15 @@ if (!function_exists('getSettingsSections')) {
 			'company.data' => array(
 				'group' => 'company', 'section' => 'data', 'number' => 'G1.1', 'label' => 779, 'icon' => 'bx-buildings',
 				'subsections' => array('company' => 6520, 'contact' => 6522, 'bank' => 6521, 'gdpr' => 6523),
+				// The CVR lookup (javascript/cvrapiopslag.js) fills these fields under its own names, adresser's columns, as on stamkort.php.
+				'cvr_lookup' => array('cvrnr' => 'company.data.cvr', 'firmanavn' => 'company.data.name', 'addr1' => 'company.data.address1',
+					'addr2' => 'company.data.address2', 'postnr' => 'company.data.zip', 'bynavn' => 'company.data.city', 'tlf' => 'company.data.phone'),
 				'legacy' => array(array(779)), 'old' => array('stamkort' => array(779)),
 				'context' => array('debitor/ordre.php'),
 				'keywords' => array('stamdata', 'firmanavn', 'company name', 'adresse', 'cvr', 'bank', 'iban', 'swift', 'betalingsservice', 'bs', 'fi', 'gdpr', 'databehandleraftale', 'landekonfiguration'),
 			),
 			'company.localisation' => array(
-				'group' => 'company', 'section' => 'localisation', 'number' => 'G1.3', 'label' => 6524, 'icon' => 'bx-globe',
+				'group' => 'company', 'section' => 'localisation', 'number' => 'G1.3', 'label' => 7736, 'renamed_from' => 6524, 'icon' => 'bx-globe',
 				'subsections' => array('locale' => 6524, 'texts' => 6534), 'sub_help' => array('locale' => 6525),
 				'legacy' => array(array(782, 801)), 'old' => array('sprog' => array(782, 801)),
 				'keywords' => array('lokalisering', 'localisation', 'basisvaluta', 'base currency', 'tidszone', 'timezone', 'talformat', 'number format', 'systemsprog', 'sprog', 'language', 'oversættelser', 'translations', 'tekster'),
@@ -194,17 +207,17 @@ if (!function_exists('getSettingsSections')) {
 				'group' => 'company', 'section' => 'account', 'number' => 'G1.4', 'label' => 6630, 'icon' => 'bx-key', 'module' => 'hosted',
 				'lead' => 6631, 'subsections' => array('account' => 6632, 'danger' => 6633), 'sub_help' => array('danger' => 6634),
 				'legacy' => array(array(782, 783)), 'old' => array('kontoindstillinger' => array(782, 783)),
-				'keywords' => array('abonnement', 'konto', 'regnskabets navn', 'skift navn', 'omdøb', 'nulstil regnskab', 'reset', 'slet regnskab', 'delete ledger', 'farezone', 'danger zone'),
+				'keywords' => array('abonnement', 'konto', 'regnskabets navn', 'skift navn', 'omdøb', 'slet regnskab', 'delete ledger', 'farezone', 'danger zone'),
 			),
 			'company.gdpr' => array(
-				'group' => 'company', 'section' => 'gdpr', 'number' => 'G1.5', 'label' => 6523, 'icon' => 'bx-shield-quarter',
+				'group' => 'company', 'section' => 'gdpr', 'number' => 'G1.5', 'label' => 7737, 'renamed_from' => 6523, 'icon' => 'bx-shield-quarter',
 				'subsections' => array('cleanup' => 6537), 'sub_help' => array('cleanup' => 6538),
 				'legacy' => array(array(779)),
 				'keywords' => array('gdpr', 'persondata', 'personal data', 'inaktive kunder', 'slet kunder', 'oprydning', 'cleanup'),
 			),
 			'company.fiscal_years' => array(
 				'group' => 'company', 'section' => 'fiscal_years', 'number' => 'G1.2', 'label' => 894, 'icon' => 'bx-calendar', 'kind' => 'rows',
-				'lead' => 6547, 'subsections' => array('years' => 894),
+				'lead' => 6547, 'subsections' => array('years' => 894, 'vat_periods' => 3366),
 				'tables' => array(
 					'years' => array('sub' => 'years', 'label' => 894, 'add' => 508, 'empty' => 6565, 'storage' => array('grupper', 'RA'), 'no_add' => true,
 						'usage' => 'fiscal_year', 'on_delete' => 'fiscal_year_empty', 'row_locked' => 'fiscal_year_deleted', 'create' => 'fiscal_year',
@@ -233,7 +246,7 @@ if (!function_exists('getSettingsSections')) {
 					'currencies' => array('sub' => 'currencies', 'label' => 776, 'add' => 6585, 'empty' => 6586, 'storage' => array('grupper', 'VK'), 'code_col' => 'box1',
 						'auto_code' => true, 'usage' => 'currency', 'order' => 'box1',
 						'columns' => array(
-							'box1' => array('label' => 6581, 'type' => 'select', 'options_from' => 'iso_currencies', 'required' => true, 'locked_if_used' => true, 'forbid' => array('base_currency', 6593)),
+							'box1' => array('label' => 6581, 'type' => 'select', 'options_from' => 'iso_currencies', 'options_literal' => true, 'required' => true, 'locked_if_used' => true, 'forbid' => array('base_currency', 6593)),
 							'beskrivelse' => array('label' => 914, 'type' => 'text', 'required' => true),
 							'box3' => array('label' => 6582, 'type' => 'account', 'kontotype' => 'D', 'required' => true, 'help' => 1705),
 							'box4' => array('label' => 6583, 'type' => 'bool', 'true_value' => '1', 'false_value' => '0'),
@@ -271,11 +284,11 @@ if (!function_exists('getSettingsSections')) {
 				'keywords' => array('afdelinger', 'departments', 'afdeling', 'department'),
 			),
 			'organisation.employees' => array(
-				'group' => 'organisation', 'section' => 'employees', 'number' => 'G7.1', 'label' => 1262, 'icon' => 'bx-id-card', 'kind' => 'list',
+				'group' => 'organisation', 'section' => 'employees', 'number' => 'G7.1', 'label' => 5549, 'renamed_from' => 1262, 'icon' => 'bx-id-card', 'kind' => 'list',
 				'lead' => 6606, 'items_from' => 'employees', 'add_action' => 'organisation.employees.add', 'empty_text' => 6607,
-				'subsections' => array('employees' => 1262),
-				'legacy' => array(array(779)), 'old' => array('ansatte' => array(779), 'stamkort' => array(779)),
-				'keywords' => array('ansatte', 'medarbejdere', 'employees', 'personale', 'personalekort', 'medarbejdernummer', 'initialer', 'løn', 'cpr', 'fratrådt', 'tiltrådt', 'ekstra felter'),
+				'subsections' => array('employees' => 1262, 'general' => 6611), 'row_click' => true,
+				'legacy' => array(array(779), array(782, 794)), 'old' => array('ansatte' => array(779), 'stamkort' => array(779), 'div_valg' => array(782, 794)),
+				'keywords' => array('ansatte', 'medarbejdere', 'employees', 'personale', 'personalekort', 'medarbejdernummer', 'initialer', 'løn', 'cpr', 'fratrådt', 'tiltrådt', 'ekstra felter', 'extra fields', 'diverse valg', 'personer', 'people', 'brugere', 'users', 'login', 'rolle', 'role'),
 			),
 			'organisation.projects' => array(
 				'group' => 'organisation', 'section' => 'projects', 'number' => 'G7.3', 'label' => 773, 'icon' => 'bx-briefcase', 'kind' => 'rows',
@@ -301,7 +314,9 @@ if (!function_exists('getSettingsSections')) {
 						'columns' => array(
 							'kodenr' => array('label' => 2248, 'type' => 'code'),
 							'beskrivelse' => array('label' => 914, 'type' => 'text', 'required' => true),
-							'box1' => array('label' => 2464, 'type' => 'select', 'options_from' => 'departments', 'options_literal' => true),
+							// A warehouse without a department stores '' (as the old lagre page did, and as warehouses_to_departments reads it);
+							// '0' is department 0.
+							'box1' => array('label' => 2464, 'type' => 'select', 'options_from' => 'departments', 'options_literal' => true, 'options_none' => ''),
 						)),
 				),
 				'legacy' => array(array(608)), 'old' => array('lagre' => array(608)),
@@ -417,6 +432,7 @@ if (!function_exists('getSettingsSections')) {
 							'box2' => array('label' => 2448, 'type' => 'account', 'required' => true, 'help' => 2449, 'locked_if_used' => 6887),
 							'box3' => array('label' => 776, 'type' => 'select', 'options_from' => 'currencies', 'options_literal' => true, 'empty_value' => 'DKK'),
 							'box4' => array('label' => 801, 'type' => 'select', 'options_from' => 'form_language_names', 'options_literal' => true, 'help' => 1010),
+							'box5' => array('label' => 1013, 'type' => 'account', 'help' => 2550),
 							'box6' => array('label' => 6481, 'type' => 'decimal', 'help' => 6482),
 							'box8' => array('label' => 6483, 'type' => 'bool', 'help' => 2454),
 							'box9' => array('label' => 2457, 'type' => 'bool', 'help' => 2456),
@@ -439,6 +455,8 @@ if (!function_exists('getSettingsSections')) {
 							'box1' => array('label' => 1011, 'type' => 'select', 'options_from' => 'vat_codes_purchase', 'options_literal' => true, 'help' => 2459),
 							'box2' => array('label' => 2448, 'type' => 'account', 'required' => true, 'help' => 2460, 'locked_if_used' => 6887),
 							'box3' => array('label' => 776, 'type' => 'select', 'options_from' => 'currencies', 'options_literal' => true, 'empty_value' => 'DKK'),
+							'box4' => array('label' => 801, 'type' => 'select', 'options_from' => 'form_language_names', 'options_literal' => true, 'help' => 2461),
+							'box5' => array('label' => 1013, 'type' => 'account', 'help' => 2550),
 							'box6' => array('label' => 2463, 'type' => 'select', 'options_from' => 'vat_codes_sales', 'options_literal' => true, 'help' => 2462),
 							'box9' => array('label' => 2457, 'type' => 'bool', 'help' => 2465, 'requires' => array('box6', 6500)),
 							'box10' => array('label' => 6484, 'type' => 'select', 'options' => array('' => '–', 'B2B-EU' => 'B2B EU', 'B2B-UDL' => 'B2B uden for EU'), 'options_literal' => true),
@@ -453,12 +471,10 @@ if (!function_exists('getSettingsSections')) {
 				'lead' => 6507, 'subsections' => array('groups' => 774, 'prices' => 6508),
 				'tables' => array(
 					'groups' => array('sub' => 'groups', 'label' => 774, 'add' => 6477, 'empty' => 6480, 'storage' => array('grupper', 'VG'), 'standard' => 'grupper',
-						'fiscal' => true, 'usage' => 'item_group', 'propagate' => array('box5'),
+						'fiscal' => true, 'usage' => 'item_group', 'propagate' => array('box5'), 'keep' => array('box1', 'box2'),
 						'columns' => array(
 							'kodenr' => array('label' => 2248, 'type' => 'code'),
 							'beskrivelse' => array('label' => 914, 'type' => 'text', 'required' => true),
-							'box1' => array('label' => 6485, 'type' => 'account', 'requires' => array('box2', 6499)),
-							'box2' => array('label' => 6486, 'type' => 'account', 'requires' => array('box1', 6499)),
 							'box3' => array('label' => 6487, 'type' => 'account', 'required' => true),
 							'box4' => array('label' => 6488, 'type' => 'account', 'required' => true),
 							'box5' => array('label' => 6489, 'type' => 'select', 'options' => array('' => '–', 'varer' => 110, 'ydelser' => 6501), 'options_mixed' => true),
@@ -468,7 +484,9 @@ if (!function_exists('getSettingsSections')) {
 							'box9' => array('label' => 6492, 'type' => 'bool', 'requires' => array('box8', 6498)),
 							'box10' => array('label' => 6493, 'type' => 'bool'),
 							'box11' => array('label' => 6494, 'type' => 'account', 'help' => 6496),
+							'box12' => array('label' => 7800, 'type' => 'account', 'help' => 7802),
 							'box13' => array('label' => 6495, 'type' => 'account', 'help' => 6497),
+							'box14' => array('label' => 7801, 'type' => 'account', 'help' => 7803),
 						)),
 				),
 				'legacy' => array(array(774)), 'old' => array('varer' => array(774)),
@@ -496,7 +514,7 @@ if (!function_exists('getSettingsSections')) {
 				'group' => 'pos', 'section' => 'cash', 'number' => 'G10.1', 'label' => 6303, 'icon' => 'bx-calculator', 'module' => 'pos',
 				'subsections' => array('cash' => 6303, 'discount' => 287),
 				'legacy' => array(array(782, 271)), 'old' => array('posOptions' => array(782, 271)),
-				'context' => array('debitor/kasseoptaelling.php'),
+				'context' => array('debitor/cashCountHistory.php'),
 				'keywords' => array('kasseoptælling', 'cash count', 'kassebeholdning', 'byttepenge', 'float', 'rabatvare', 'discount item'),
 			),
 			'pos.cards' => array(
@@ -627,7 +645,7 @@ if (!function_exists('getSettingsSections')) {
 				'subsections' => array('consignment' => 5975, 'accounts' => 117, 'settlement' => 2051),
 				'legacy' => array(array(782, 787)),
 				'old' => array('productOptions' => array(782, 787)),
-				'context' => array('lager/varekort.php', 'debitor/kasseoptaelling.php'),
+				'context' => array('lager/varekort.php', 'debitor/cashCountHistory.php'),
 				'keywords' => array('kommission', 'kommissionsvarer', 'consignment', 'commission', 'brugte varer', 'used items', 'afregning', 'settlement'),
 			),
 			'items.packaging' => array(
@@ -639,7 +657,7 @@ if (!function_exists('getSettingsSections')) {
 				'keywords' => array('emballage', 'packaging', 'producentansvar', 'producer responsibility', 'emballageafgift'),
 			),
 			'documents.backgrounds' => array(
-				'group' => 'documents', 'section' => 'backgrounds', 'number' => 'G6.2', 'label' => 6671, 'icon' => 'bx-layer', 'kind' => 'rows',
+				'group' => 'documents', 'section' => 'backgrounds', 'number' => 'G6.2', 'label' => 7738, 'renamed_from' => 6671, 'icon' => 'bx-layer', 'kind' => 'rows',
 				'lead' => 6672, 'subsections' => array('backgrounds' => 6671, 'files' => 6673),
 				'tables' => array(
 					'backgrounds' => array('sub' => 'backgrounds', 'label' => 6671, 'help' => 6674, 'add' => 6675, 'empty' => 6676, 'storage' => array('grupper', 'VSPR'),
@@ -651,7 +669,7 @@ if (!function_exists('getSettingsSections')) {
 						)),
 				),
 				'legacy' => array(array(780)), 'old' => array('formularsprog' => array(780), 'logoslet' => array(780)),
-				'keywords' => array('baggrund', 'baggrunde', 'formularsprog', 'sprog', 'background', 'form language', 'logo', 'brevpapir', 'bilag', 'pdf'),
+				'keywords' => array('baggrund', 'baggrunde', 'formularsprog', 'sprog', 'background', 'backgrounds', 'form language', 'logo', 'brevpapir', 'bilag', 'pdf'),
 			),
 			'documents.print' => array(
 				'group' => 'documents', 'section' => 'print', 'number' => 'G6.4', 'label' => 5993, 'icon' => 'bx-printer',
@@ -670,13 +688,13 @@ if (!function_exists('getSettingsSections')) {
 				'keywords' => array('provision', 'commission', 'provisionsrapport', 'commission report', 'kundeansvarlig', 'referenceperson', 'skæringsdato', 'cut-off'),
 			),
 			'sales.reminders' => array(
-				'group' => 'sales', 'section' => 'reminders', 'number' => 'G3.4', 'label' => 6190, 'icon' => 'bx-bell',
+				'group' => 'sales', 'section' => 'reminders', 'number' => 'G3.4', 'label' => 7739, 'renamed_from' => 6190, 'icon' => 'bx-bell',
 				'subsections' => array('responsible' => 6186, 'deadlines' => 6187, 'collection' => 6188, 'fees' => 6189, 'link' => 8160),
-				'sub_help' => array('deadlines' => 6202, 'link' => 8175),
+				'sub_help' => array('deadlines' => 8212, 'link' => 8175),
 				'legacy' => array(array(782, 793), array(780)),
 				'old' => array('rykker_valg' => array(782, 793)),
 				'context' => array('debitor/rykker.php', 'debitor/ny_rykker.php'),
-				'keywords' => array('rykker', 'rykkere', 'reminder', 'reminders', 'påmindelse', 'inkasso', 'collection', 'rykkergebyr', 'rente', 'interest', 'betalingsbetingelser', 'payment terms',
+				'keywords' => array('rykker', 'rykkere', 'reminder', 'reminders', 'påmindelse', 'inkasso', 'collection', 'rykkergebyr', 'rente', 'interest', 'betalingsbetingelser', 'payment terms', 'betalingsbetingelser & rykkere',
 					'betalingslink', 'payment link', 'linkrykker', 'link reminder', 'renteloven'),
 			),
 			'documents.email' => array(
@@ -770,12 +788,20 @@ if (!function_exists('getSettingsSections')) {
 			'sales.orders.hide_revenue' => array('sub' => 'invoicing', 'type' => 'bool', 'label' => 5246, 'help' => 5247, 'default' => false,
 				'storage' => array('settings', 'finans', 'hideRevenue', 'onOff'), 'legacy' => $ordre,
 				'keywords' => array('omsætning', 'skjul omsætning', 'turnover', 'hide revenue', 'kasseoptælling')),
+			'sales.orders.send_order_note' => array('sub' => 'invoicing', 'type' => 'bool', 'label' => 8400, 'help' => 8401, 'default' => false,
+				'storage' => array('settings', 'easyUBL', 'sendOrderNote', 'onOff'), 'legacy' => $ordre,
+				'keywords' => array('bemærkning til ordre', 'order note', 'e-faktura', 'e-invoice', 'e-kreditnota', 'e-ordre', 'easyubl', 'nemhandel')),
+			'sales.orders.webshop_invoice_order_date' => array('sub' => 'invoicing', 'type' => 'bool', 'label' => 7694, 'help' => 7695, 'default' => false,
+				'storage' => array('settings', 'ordre', 'webshopInvoiceOrderDate', 'onOff'), 'legacy' => $ordre,
+				'keywords' => array('webshop', 'webshopordre', 'fakturadato', 'invoice date', 'ordredato', 'order date')),
 			'sales.orders.quick_invoice' => array('sub' => 'invoicing', 'type' => 'bool', 'label' => 165, 'help' => 190, 'default' => false,
 				'storage' => array('grupper', 'DIV', 3, 'box4', 'onEmpty', 'row_name' => 'Div_valg (Ordrer)'), 'legacy' => $ordre,
 				'locked_if' => 'batch_control', 'locked_text' => 7290,
 				'keywords' => array('hurtigfakturering', 'quick invoicing', 'fast invoicing')),
 			'sales.orders.post_sales_immediately' => array('sub' => 'invoicing', 'type' => 'bool', 'label' => 166, 'help' => 191, 'default' => false,
 				'storage' => array('grupper', 'DIV', 3, 'box5', 'onEmpty', 'join' => ';', 'index' => 0, 'row_name' => 'Div_valg (Ordrer)'), 'legacy' => $ordre,
+				'locked_if' => 'stays_on', 'locked_text' => 'settings.orders.post_immediately_locked', 'more' => 'settings.orders.post_immediately_more',
+				'validate' => array('hent_first', 'sales', 'settings.orders.post_immediately_waiting_sales', 'purchase.orders.post_immediately'),
 				'keywords' => array('straksbogføring', 'immediate posting', 'bogføring')),
 			'sales.orders.lock_invoice_until_paid' => array('sub' => 'invoicing', 'type' => 'bool', 'label' => 3357, 'help' => 3356, 'default' => false,
 				'storage' => array('settings', 'debitor', 'lockedInvoiceButton', 'onEmpty'), 'legacy' => $ordre,
@@ -836,6 +862,9 @@ if (!function_exists('getSettingsSections')) {
 			'sales.orders.out_of_stock_warning' => array('sub' => 'window', 'type' => 'bool', 'label' => 5036, 'help' => 5037, 'default' => false,
 				'storage' => array('settings', 'ordre', 'stockWarningEnabled', 'onEmpty'), 'legacy' => $ordre,
 				'keywords' => array('udsolgt', 'out of stock')),
+			'sales.orders.show_cost_estimate_notice' => array('sub' => 'window', 'type' => 'bool', 'label' => 8406, 'help' => 8402, 'default' => false,
+				'storage' => array('settings', 'ordre', 'showCostEstimateNotice', 'onOff'), 'legacy' => $ordre,
+				'keywords' => array('kostpris', 'anslået kostpris', 'cost price', 'estimated cost price', 'levering', 'delivery')),
 
 			'sales.orders.packing_comments' => array('sub' => 'packing', 'type' => 'bool', 'label' => 164, 'help' => 188, 'default' => false,
 				'storage' => array('grupper', 'DIV', 3, 'box3', 'onEmpty', 'row_name' => 'Div_valg (Ordrer)'), 'legacy' => $ordre,
@@ -849,6 +878,8 @@ if (!function_exists('getSettingsSections')) {
 			// ---------------------------------------------------------------- G4.2 Purchase orders
 			'purchase.orders.post_immediately' => array('sub' => 'posting', 'type' => 'bool', 'label' => 213, 'help' => 214, 'default' => false,
 				'storage' => array('grupper', 'DIV', 3, 'box5', 'onEmpty', 'join' => ';', 'index' => 1, 'row_name' => 'Div_valg (Ordrer)'), 'legacy' => $ordre,
+				'locked_if' => 'stays_on', 'locked_text' => 'settings.orders.post_immediately_locked', 'more' => 'settings.orders.post_immediately_more',
+				'validate' => array('hent_first', 'purchases', 'settings.orders.post_immediately_waiting_purchases', 'sales.orders.post_sales_immediately'),
 				'keywords' => array('straksbogføring', 'immediate posting', 'købsordrer')),
 			'purchase.orders.confirm_stock_change' => array('sub' => 'posting', 'type' => 'link', 'label' => 1277, 'help' => 6370, 'href' => 'settingsSection.php?s=items.stock#items.stock.confirm_stock_change', 'button' => 6371, 'audit' => false,
 				'keywords' => array('bekræft lagerændring', 'confirm stock change', 'varemodtagelse', 'goods receipt')),
@@ -874,7 +905,7 @@ if (!function_exists('getSettingsSections')) {
 				'storage' => array('grupper', 'DIV', 5, 'box6', 'raw', 'row_name' => 'Div_valg'), 'legacy' => $ordre,
 				'keywords' => array('kostpris', 'gennemsnitspris', 'genanskaffelsespris', 'cost price', 'average cost')),
 			'items.stock.update_cost_prices' => array('sub' => 'cost', 'type' => 'action', 'label' => 739, 'help' => 738,
-				'confirm_title' => 5737, 'confirm' => 5738, 'run' => 'update_cost_prices', 'impact' => 'cost_price_items', 'legacy' => $ordre,
+				'confirm_title' => 5737, 'confirm' => 5738, 'run' => 'update_cost_prices', 'impact' => 'cost_price_items', 'legacy' => $ordre, 'blank' => true,
 				'visible_if' => array('setting_in', 'items.stock.cost_method', array('1', '2'))),
 
 			'items.stock.status_mail' => array('sub' => 'mail', 'type' => 'email', 'label' => 2553, 'help' => 2554, 'default' => '',
@@ -895,6 +926,12 @@ if (!function_exists('getSettingsSections')) {
 			'items.stock.batch_expiry' => array('sub' => 'card', 'type' => 'bool', 'label' => 6051, 'help' => 6052, 'default' => false,
 				'storage' => array('settings', 'items', 'batchExpiryEnabled', 'onOff'), 'legacy' => $vare,
 				'keywords' => array('batch', 'batch management', 'batch control', 'expiry date', 'due date', 'shelf life', 'fefo', 'batchstyring', 'udløbsdato', 'holdbarhed', 'batchkontrol')),
+			// Master's link under that checkbox (20261011): stock received before the setting was on has no batch number or expiry date.
+			// Gated like the page it opens (lager/batch_udfyld.php: write on Varer); the count is the batches that page has to fill in.
+			'items.stock.batch_fill' => array('sub' => 'card', 'type' => 'link', 'label' => 'batch.fill_stock|Udfyld batchoplysninger for varer, der allerede er på lager',
+				'href' => '../lager/batch_udfyld.php', 'button' => 6157, 'audit' => false, 'impact' => 'batch_missing_info', 'legacy' => $vare,
+				'permission' => 'lager.varer', 'hide_without' => true, 'visible_if' => array('setting', 'items.stock.batch_expiry', true),
+				'keywords' => array('batchoplysninger', 'batchnummer', 'udfyld', 'batch details', 'batch number', 'batchopplysninger')),
 
 			// ---------------------------------------------------------------- G2.2 VAT registration
 			'vat.registered' => array('group' => 'finance', 'section' => 'vat', 'sub' => 'registration', 'type' => 'bool', 'label' => 6895, 'help' => 6896, 'default' => true,
@@ -1077,13 +1114,16 @@ if (!function_exists('getSettingsSections')) {
 			'import_export.backup.restore' => array('sub' => 'restore', 'type' => 'link', 'label' => 1247, 'help' => 6664, 'href' => '../admin/restore.php', 'button' => 1247, 'audit' => false,
 				'permission' => 'system.backup.restore'),
 
+			// ---------------------------------------------------------------- G1.2 Fiscal years: master's Momsperioder button (SD-646 open/close VAT periods)
+			// Gated like the page it opens (finans/moms_periode.php: $modulnr 2, Kassekladde): readers may look, others don't see it.
+			'company.fiscal_years.vat_periods' => array('sub' => 'vat_periods', 'type' => 'link', 'label' => 3366, 'href' => '../finans/moms_periode.php', 'button' => 6157, 'audit' => false,
+				'permission' => 'finans.kassekladde', 'needs' => 'read', 'hide_without' => true, 'legacy' => array(778, 3366),
+				'keywords' => array('momsperiode', 'luk momsperiode', 'åbn momsperiode', 'periodelåsning', 'vat period', 'close vat period')),
+
 			// ---------------------------------------------------------------- G1.4 Subscription & account (Saldi-hosted only)
 			'company.account.name' => array('sub' => 'account', 'type' => 'text', 'label' => 6635, 'help' => 6636, 'maxlength' => 80, 'validate' => array('ledger_name'),
 				'storage' => array('virtual', 'ledger_name')),
 			'company.account.activity' => array('sub' => 'account', 'type' => 'info', 'label' => 6644, 'info' => 'ledger_activity', 'audit' => false),
-			'company.account.reset' => array('sub' => 'danger', 'type' => 'action', 'label' => 756, 'help' => 6642, 'confirm_title' => 756, 'confirm' => 6638,
-				'run' => 'ledger_reset', 'impact' => 'ledger_reset', 'danger' => true, 'danger_zone' => true, 'permission' => 'settings.company.danger',
-				'inputs' => array('keep_accounts' => 758, 'keep_items' => 760)),
 			'company.account.delete' => array('sub' => 'danger', 'type' => 'action', 'label' => 852, 'help' => 6643, 'confirm_title' => 852, 'confirm' => 851,
 				'run' => 'ledger_delete', 'danger' => true, 'danger_zone' => true, 'permission' => 'settings.company.danger'),
 
@@ -1107,7 +1147,11 @@ if (!function_exists('getSettingsSections')) {
 				'run' => 'gdpr_delete_inactive', 'impact' => 'gdpr_inactive', 'danger' => true, 'danger_zone' => true, 'permission' => 'settings.company.danger'),
 
 			// ---------------------------------------------------------------- G7.1 Employees (ansatte rows of the company's own address row)
-			'organisation.employees.add' => array('sub' => 'employees', 'type' => 'action', 'label' => 6613, 'help' => 6606, 'confirm_title' => 6613, 'confirm' => 6606, 'run' => 'employee_add'),
+			'organisation.employees.extra_fields' => array('sub' => 'general', 'item' => 'general', 'type' => 'bool', 'label' => 616, 'help' => 615, 'default' => false,
+				'storage' => array('grupper', 'DIV', 2, 'box3', 'onEmpty', 'row_name' => 'Div_valg'), 'legacy' => $divvalg,
+				'keywords' => array('ekstra felter', 'extra fields', 'ekstra felt', 'stamkort', 'diverse valg')),
+			'organisation.employees.add' => array('sub' => 'employees', 'type' => 'action', 'label' => 7765, 'help' => 6606, 'confirm_title' => 7765, 'confirm' => 6606, 'run' => 'employee_add',
+				'keywords' => array('tilføj medarbejder', 'ny medarbejder', 'opret medarbejder', 'add employee', 'new employee', 'legg til medarbeider')),
 			'organisation.employees.nummer' => array('sub' => 'employees', 'type' => 'int', 'label' => 645, 'per' => 'employee', 'group_label' => array(6608, ''), 'validate' => array('employee_number'),
 				'storage' => array('dbrow', 'ansatte', 'nummer', 'raw', 'where' => $empWhere)),
 			'organisation.employees.navn' => array('sub' => 'employees', 'type' => 'text', 'label' => 646, 'per' => 'employee', 'group_label' => array(6608, ''), 'validate' => array('required'),
@@ -1120,7 +1164,7 @@ if (!function_exists('getSettingsSections')) {
 				'storage' => array('dbrow', 'ansatte', 'addr2', 'raw', 'where' => $empWhere)),
 			'organisation.employees.postnr' => array('sub' => 'employees', 'type' => 'text', 'label' => 650, 'per' => 'employee', 'group_label' => array(6608, ''),
 				'storage' => array('dbrow', 'ansatte', 'postnr', 'raw', 'where' => $empWhere)),
-			'organisation.employees.bynavn' => array('sub' => 'employees', 'type' => 'text', 'label' => 651, 'per' => 'employee', 'group_label' => array(6608, ''),
+			'organisation.employees.bynavn' => array('sub' => 'employees', 'type' => 'text', 'label' => 651, 'per' => 'employee', 'group_label' => array(6608, ''), 'fill_from_zip' => 'organisation.employees.postnr',
 				'storage' => array('dbrow', 'ansatte', 'bynavn', 'raw', 'where' => $empWhere)),
 			'organisation.employees.email' => array('sub' => 'employees', 'type' => 'email', 'label' => 652, 'per' => 'employee', 'group_label' => array(6522, ''),
 				'storage' => array('dbrow', 'ansatte', 'email', 'raw', 'where' => $empWhere)),
@@ -1132,7 +1176,7 @@ if (!function_exists('getSettingsSections')) {
 				'storage' => array('dbrow', 'ansatte', 'mobile', 'raw', 'where' => $empWhere)),
 			'organisation.employees.privattlf' => array('sub' => 'employees', 'type' => 'text', 'label' => 656, 'per' => 'employee', 'group_label' => array(6522, ''),
 				'storage' => array('dbrow', 'ansatte', 'privattlf', 'raw', 'where' => $empWhere)),
-			'organisation.employees.afd' => array('sub' => 'employees', 'type' => 'select', 'label' => 658, 'per' => 'employee', 'group_label' => array(6609, ''), 'options_from' => 'departments',
+			'organisation.employees.afd' => array('sub' => 'employees', 'type' => 'select', 'label' => 658, 'per' => 'employee', 'group_label' => array(6609, ''), 'options_from' => 'departments', 'options_literal' => true,
 				'storage' => array('dbrow', 'ansatte', 'afd', 'raw', 'where' => $empWhere), 'on_save' => 'employee_department'),
 			'organisation.employees.startdate' => array('sub' => 'employees', 'type' => 'date', 'label' => 663, 'per' => 'employee', 'group_label' => array(6609, ''), 'value_map' => array('' => '1900-01-01'),
 				'storage' => array('dbrow', 'ansatte', 'startdate', 'raw', 'where' => $empWhere)),
@@ -1150,7 +1194,7 @@ if (!function_exists('getSettingsSections')) {
 				'decimals' => 2, 'value_map' => array('' => '0'), 'storage' => array('dbrow', 'ansatte', 'loen', 'raw', 'where' => $empWhere)),
 			'organisation.employees.extraloen' => array('hide_without' => true, 'sub' => 'employees', 'type' => 'decimal', 'label' => 665, 'per' => 'employee', 'group_label' => array(6610, ''), 'permission' => 'settings.organisation.sensitive',
 				'decimals' => 2, 'value_map' => array('' => '0'), 'storage' => array('dbrow', 'ansatte', 'extraloen', 'raw', 'where' => $empWhere)),
-			'organisation.employees.user' => array('sub' => 'employees', 'type' => 'info', 'label' => 6612, 'info' => 'employee_user', 'per' => 'employee', 'group_label' => array(6612, ''), 'audit' => false),
+			'organisation.employees.user' => array('sub' => 'employees', 'type' => 'info', 'label' => 6612, 'info' => 'employee_user', 'per' => 'employee', 'group_label' => array(6612, ''), 'audit' => false, 'embed_hide' => true),
 			'organisation.employees.background' => array('sub' => 'employees', 'type' => 'select', 'label' => 571, 'help' => 6628, 'per' => 'employee_user', 'group_label' => array(6612, ''),
 				'options_from' => 'form_backgrounds', 'options_literal' => true, 'scope' => 'user', 'storage' => array('settings', 'brugerSprog', 'sprog', 'raw'), 'default' => 'Dansk'),
 			'organisation.employees.up' => array('sub' => 'employees', 'type' => 'action', 'label' => 6619, 'help' => 6629, 'per' => 'employee', 'run' => 'employee_up', 'confirm_title' => 6619, 'confirm' => 6629),
@@ -1163,11 +1207,11 @@ if (!function_exists('getSettingsSections')) {
 			'company.data.address1' => array('sub' => 'company', 'type' => 'text', 'label' => 648, 'storage' => array('adresser', 'addr1'), 'maxlength' => 60, 'legacy' => array(779)),
 			'company.data.address2' => array('sub' => 'company', 'type' => 'text', 'label' => 649, 'storage' => array('adresser', 'addr2'), 'maxlength' => 60, 'legacy' => array(779)),
 			'company.data.zip' => array('sub' => 'company', 'type' => 'text', 'label' => 36, 'storage' => array('adresser', 'postnr'), 'maxlength' => 10, 'legacy' => array(779)),
-			'company.data.city' => array('sub' => 'company', 'type' => 'text', 'label' => 46, 'storage' => array('adresser', 'bynavn'), 'maxlength' => 60, 'legacy' => array(779)),
-			'company.data.cvr' => array('sub' => 'company', 'type' => 'text', 'label' => 376, 'storage' => array('adresser', 'cvrnr'), 'maxlength' => 15, 'legacy' => array(779)),
-			'company.data.country' => array('sub' => 'company', 'type' => 'select', 'label' => 6513, 'help' => 6514, 'default' => 'Denmark', 'permission' => 'settings.company.danger',
+			'company.data.city' => array('sub' => 'company', 'type' => 'text', 'label' => 46, 'storage' => array('adresser', 'bynavn'), 'maxlength' => 60, 'fill_from_zip' => 'company.data.zip', 'legacy' => array(779)),
+			'company.data.cvr' => array('sub' => 'company', 'type' => 'text', 'label' => 376, 'help' => 2488, 'storage' => array('adresser', 'cvrnr'), 'maxlength' => 15, 'legacy' => array(779)),
+			'company.data.country' => array('sub' => 'company', 'type' => 'select', 'label' => 6513, 'help' => 6514, 'default' => 'Denmark', 'empty_is_default' => true, 'permission' => 'settings.company.danger',
 				'options' => array('Denmark' => 'Danmark', 'Norway' => 'Norge', 'Switzerland' => 'Schweiz'), 'options_literal' => true, 'storage' => array('adresser', 'land'), 'legacy' => array(779)),
-			'company.data.phone' => array('sub' => 'contact', 'type' => 'text', 'label' => 37, 'storage' => array('adresser', 'tlf'), 'maxlength' => 60, 'legacy' => array(779)),
+			'company.data.phone' => array('sub' => 'contact', 'type' => 'text', 'label' => 37, 'help' => 2489, 'storage' => array('adresser', 'tlf'), 'maxlength' => 60, 'legacy' => array(779)),
 			'company.data.mobile' => array('sub' => 'contact', 'type' => 'text', 'label' => 378, 'storage' => array('adresser', 'mobile'), 'maxlength' => 15, 'legacy' => array(779)),
 			'company.data.email' => array('sub' => 'contact', 'type' => 'email', 'label' => 52, 'storage' => array('adresser', 'email'), 'maxlength' => 60, 'on_save' => 'company_email', 'legacy' => array(779)),
 			'company.data.copy_to_ref' => array('sub' => 'contact', 'type' => 'bool', 'label' => 6512, 'help' => 1880, 'default' => false, 'storage' => array('adresser', 'mailfakt', 'onEmpty'), 'legacy' => array(779)),
@@ -1176,11 +1220,6 @@ if (!function_exists('getSettingsSections')) {
 			'company.data.bank_account' => array('sub' => 'bank', 'type' => 'text', 'label' => 592, 'storage' => array('adresser', 'bank_konto'), 'maxlength' => 15, 'legacy' => array(779)),
 			'company.data.iban' => array('sub' => 'bank', 'type' => 'text', 'label' => 'IBAN', 'help' => 3367, 'storage' => array('adresser', 'iban'), 'maxlength' => 40, 'legacy' => array(779)),
 			'company.data.swift' => array('sub' => 'bank', 'type' => 'text', 'label' => 2228, 'help' => 3367, 'storage' => array('adresser', 'swift'), 'maxlength' => 15, 'legacy' => array(779)),
-			'company.data.payment_terms' => array('sub' => 'bank', 'type' => 'select', 'label' => 368, 'help' => 6779, 'default' => 'Netto',
-				'options' => array('Netto' => 372, 'Lb. md.' => 373, 'Kontant' => 370, 'Forud' => 369, 'Efterkrav' => 371), 'storage' => array('adresser', 'betalingsbet'), 'legacy' => array(779),
-				'keywords' => array('betalingsbetingelser', 'payment terms', 'netto', 'løbende måned')),
-			'company.data.payment_days' => array('sub' => 'bank', 'type' => 'int', 'label' => 6778, 'help' => 6779, 'default' => '8', 'unit' => 5025, 'storage' => array('adresser', 'betalingsdage'), 'legacy' => array(779),
-				'visible_if' => array('setting_in', 'company.data.payment_terms', array('Netto', 'Lb. md.')), 'keywords' => array('betalingsfrist', 'betalingsdage', 'payment days')),
 			'company.data.bs_number' => array('sub' => 'bank', 'type' => 'text', 'label' => 385, 'storage' => array('adresser', 'pbs_nr'), 'maxlength' => 15, 'legacy' => array(779), 'keywords' => array('betalingsservice', 'pbs', 'kreditornummer')),
 			'company.data.bs_type' => array('sub' => 'bank', 'type' => 'select', 'label' => 6517, 'default' => '', 'options' => array('' => 2486, 'B' => 2485, 'L' => 2487),
 				'storage' => array('adresser', 'pbs'), 'legacy' => array(779), 'visible_if' => array('setting_set', 'company.data.bs_number')),
@@ -1189,10 +1228,14 @@ if (!function_exists('getSettingsSections')) {
 			'company.data.fi_number' => array('sub' => 'bank', 'type' => 'text', 'label' => 'FI', 'storage' => array('adresser', 'bank_fi'), 'maxlength' => 15, 'legacy' => array(779), 'keywords' => array('fi kreditornummer', 'fi-kort')),
 			'company.data.gdpr_contact' => array('sub' => 'gdpr', 'type' => 'email', 'label' => 6519, 'storage' => array('adresser', 'kontakt'), 'maxlength' => 60, 'legacy' => array(779)),
 			'company.data.dpa' => array('sub' => 'gdpr', 'type' => 'link', 'label' => 2484, 'href' => 'https://saldi.dk/dok/saldi_gdpr_20180525.pdf', 'button' => 6515, 'blank' => true, 'audit' => false),
-			'company.data.employees' => array('sub' => 'gdpr', 'type' => 'link', 'label' => 1262, 'help' => 6516, 'href' => 'settingsSection.php?s=organisation.employees', 'button' => 6504, 'audit' => false),
+			// The employees' order and contact details were on stamkort.php; the link opens their list, the hub's Brugere & roller » Brugere & ansatte (usersRoles.php).
+			// The help names that heading and row (StamdataEmployeesLinkTest), so a rename of the hub row fails the test instead of leaving the help stale.
+			'company.data.employees' => array('sub' => 'gdpr', 'type' => 'link', 'label' => 1262,
+				'help' => 'settings.employees_location|Ansattes rækkefølge og kontaktoplysninger ligger under Brugere & roller » Brugere & ansatte.',
+				'href' => 'settingsSection.php?s=organisation.employees', 'button' => 6157, 'audit' => false),
 
-			// ---------------------------------------------------------------- 4c: links for what stays on the old pages for now
-			'items.item_groups.price_groups' => array('sub' => 'prices', 'type' => 'link', 'label' => 6508, 'help' => 6874, 'href' => 'settingsSection.php?s=sales.discounts', 'button' => 6504, 'audit' => false,
+			// ---------------------------------------------------------------- 4c: links to where a moved setting lives now
+			'items.item_groups.price_groups' => array('sub' => 'prices', 'type' => 'link', 'label' => 6508, 'help' => 6874, 'href' => 'settingsSection.php?s=sales.discounts', 'button' => 6157, 'audit' => false,
 				'keywords' => array('prisgrupper', 'price groups', 'tilbudsgrupper', 'rabatgrupper')),
 
 			// ---------------------------------------------------------------- G7.3 Projects: the number split that was the kodenr 0 row of projekter.php
@@ -1397,6 +1440,7 @@ if (!function_exists('getSettingsSections')) {
 				'keywords' => array('google docs', 'viewer', 'visning')),
 
 			// ---------------------------------------------------------------- G3.4 Payment terms & reminders
+			'sales.reminders.automation' => array('sub' => 'responsible', 'type' => 'link', 'label' => 8200, 'help' => 8201, 'href' => 'reminderAutomation.php', 'button' => 8202, 'audit' => false, 'legacy' => $rykker),
 			'sales.reminders.responsible_user' => array('sub' => 'responsible', 'type' => 'select', 'label' => 225, 'help' => 6191, 'default' => '',
 				'options_from' => 'users', 'options_mixed' => true,
 				'storage' => array('grupper', 'DIV', 4, 'box1', 'raw', 'row_name' => 'Div_valg (Rykker)'), 'legacy' => $rykker,
@@ -1651,15 +1695,6 @@ if (!function_exists('getSettingsSections')) {
 				'options' => array('light' => 6917, 'dark' => 6918, 'system' => 2377),
 				'storage' => array('settings', 'ui', 'theme', 'raw'),
 				'keywords' => array('tema', 'theme', 'mørk tilstand', 'dark mode', 'lys', 'mørk', 'udseende')),
-			'personal.print.local_print' => array('group' => 'personal', 'section' => 'print', 'sub' => 'print', 'scope' => 'user',
-				'type' => 'bool', 'label' => 6007, 'help' => 6008, 'default' => false, 'permission' => 'any',
-				'storage' => array('settings', 'print', 'localPrint', 'onEmpty'), 'legacy' => $divvalg,
-				'keywords' => array('lokal printer', 'local printer')),
-			// 4e: the autoExtract cookie becomes a user setting (settings redesign §7.4 item 5); the sidebar stays a cookie per device.
-			'personal.documents.auto_extract' => array('group' => 'personal', 'section' => 'print', 'sub' => 'print', 'scope' => 'user',
-				'type' => 'bool', 'label' => 3271, 'help' => 7018, 'default' => true, 'permission' => 'any',
-				'storage' => array('settings', 'documents', 'auto_extract', 'oneZero'),
-				'keywords' => array('auto-udtræk', 'fakturadata', 'ai scan', 'auto extract', 'dokumentpulje')),
 		);
 
 		$sprog = isset($GLOBALS['sprog_id']) ? (int) $GLOBALS['sprog_id'] : 1;
@@ -1910,14 +1945,14 @@ if (!function_exists('getSettingsSections')) {
 			array('old' => array($d, 791), 'to' => array(array('items', null, 'labels.php'))),
 			array('old' => array($d, 792), 'to' => array(array('purchase', 'purchase.pricelists', null))),
 			array('old' => array($d, 793), 'to' => array(array('sales', 'sales.reminders', null))),
-			array('old' => array($d, 794), 'to' => array(array('sales', 'sales.debtor_card', null), array('finance', 'finance.cash_journal', null), array('sales', 'sales.mysale', null), array('documents', 'documents.print', null), array('company', null, 'diverse.php?sektion=div_valg'), array('integrations', 'integrations.connections', null))),
+			array('old' => array($d, 794), 'to' => array(array('sales', 'sales.debtor_card', null), array('finance', 'finance.cash_journal', null), array('sales', 'sales.mysale', null), array('documents', 'documents.print', null), array('organisation', 'organisation.employees', null), array('integrations', 'integrations.connections', null))),
 			array('old' => array($d, 796), 'to' => array(array('organisation', null, '../sager/tjeklister.php'))),
 			array('old' => array($d, 797), 'to' => array(array('finance', 'finance.document_storage', null))),
 			array('old' => array($d, 170), 'to' => array(array('finance', 'finance.cash_journal', null))),
 			array('old' => array(2732), 'to' => array(array('finance', 'finance.cash_journal', null))),
 			array('old' => array($d, 200), 'to' => array(array('sales', 'sales.orders', null))),
 			array('old' => array($d, 271), 'to' => array(array('pos', 'pos.tills', null), array('pos', 'pos.cards', null), array('pos', 'pos.tables', null))),
-			array('old' => array($d, 801), 'to' => array(array('personal', null, 'personalSettings.php'), array('company', null, 'diverse.php?sektion=sprog'))),
+			array('old' => array($d, 801), 'to' => array(array('personal', null, 'personalSettings.php'), array('company', 'company.localisation', null))),
 			array('old' => array($d, 802), 'to' => array(array('import_export', 'import_export.data', null))),
 		);
 	}
@@ -2109,9 +2144,9 @@ if (!function_exists('getSettingsSections')) {
 	}
 
 	/**
-	 * The company's employees in their list order (posnr, then number): id => array(name, number, user = linked brugere id).
+	 * The company's employees in their list order (posnr, then number): id => array(name, number, user = linked brugere id, left = has left).
 	 *
-	 * @return array<int, array{name: string, number: string, user: int}>
+	 * @return array<int, array{name: string, number: string, user: int, left: bool}>
 	 */
 	function settings_employee_rows(bool $fresh = false): array
 	{
@@ -2119,9 +2154,9 @@ if (!function_exists('getSettingsSections')) {
 		if ($rows === null || $fresh) {
 			$rows = array();
 			$sid = settings_company_account_id();
-			$q = db_select("select a.id, a.navn, a.nummer, (select min(b.id) from brugere b where b.ansat_id = a.id) as uid from ansatte a where a.konto_id = $sid order by coalesce(a.posnr, 999999), a.nummer, a.id", __FILE__ . " linje " . __LINE__);
+			$q = db_select("select a.id, a.navn, a.nummer, a.lukket, (select min(b.id) from brugere b where b.ansat_id = a.id) as uid from ansatte a where a.konto_id = $sid order by coalesce(a.posnr, 999999), a.nummer, a.id", __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
-				$rows[(int) $r['id']] = array('name' => trim((string) $r['navn']), 'number' => trim((string) $r['nummer']), 'user' => (int) $r['uid']);
+				$rows[(int) $r['id']] = array('name' => trim((string) $r['navn']), 'number' => trim((string) $r['nummer']), 'user' => (int) $r['uid'], 'left' => trim((string) $r['lukket']) !== '');
 			}
 		}
 		return $rows;

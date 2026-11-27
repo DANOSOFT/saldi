@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/index.php -----patch 5.0.0 ----2026-03-05--------------
+// --- index/index.php --- ver 5.1.1 --- 2026-11-14 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20140321	Tilføjet link til glemt kode
 // 20161104	Div ændringer relateret til bedre sikkerhed
@@ -40,6 +40,15 @@
 // 20250426 LOE Set cookie path to '/' for languageId to make it accessible across all pages on the site; as used in restore file
 // 20260302 LOE Added eye icon to toggle password visibility and added the necessary JavaScript for that functionality.
 // 20260305 PHR Language Id counted one too many
+// 20261104 CL/ASR After a restore (admin/restore.php, ?restored=) the form says the ledger was restored from the backup and from when (texts 7821-7822).
+// 20261105 CL/LH In an iframe the page reloads the window above it with its own query string, so a restore's ?restored= notice and the filled-in ledger name reach the top window instead of being lost on the way out of main.php's iframe.
+// 20261106 CL/MMR SD-812 The account label uses text 2682 (English 'Account' instead of 'Financial Accounting').
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261114 CL/ASR After a wrong user name or password the form shows Glemt adgangskode as a button right under the message, with the ledger and the user filled in.
+// 20261114 CL/ASR Values from the address (regnskab, navn, tlf) are escaped before they go into the form, and the password field has the cursor when ledger and user are filled in.
+// 20261114 CL/ASR The logo is the dark-gradient logo for light backgrounds from the final logo pack of October 2026 (img/saldi-moerk-logo-lys-baggrund.svg).
+// 20261114 CL/ASR css/login.css ?cssver=3: the button has the dark gradient of the logo.
+// 20261114 CL/ASR css/login.css ?cssver=4: a light sheen slides across the button from left to right when it is pressed.
 @session_start();
 
 if (!isset($_SESSION['nonce'])) {
@@ -51,7 +60,7 @@ $nonce = $_SESSION['nonce'];
 header("Content-Security-Policy: script-src 'self' 'nonce-$nonce';");
 
 $regnskab=''; $brugernavn=''; $kode=''; $languageId=''; 
-$css="../css/login.css?cssver=1";
+$css="../css/login.css?cssver=4";
 if(file_exists("../includes/connect.php")){
 	if (filesize("../includes/connect.php") < 10) unlink ("../includes/connect.php"); 
 }
@@ -87,8 +96,8 @@ $hm=$rs=$bn=null; #20211007
 $huskmig = null;
 print  "<script nonce='{$nonce}'>
 if(window.self !== window.top) {
-	// Run this code if in an iframe
-	parent.location.href = '../index/index.php';
+	// Run this code if in an iframe; the query goes along (admin/restore.php's ?restored=)
+	parent.location.href = '../index/index.php' + window.location.search;
 }
 </script>";
 
@@ -108,7 +117,7 @@ if(isset($_POST['languageId'])){
 	$languageId = $_COOKIE['languageId'];
 }
 if ($languageId) {
-    saldi_setcookie('languageId', $languageId, time() + (10 * 365 * 24 * 60 * 60), '/');
+    setcookie('languageId', $languageId, time() + (10 * 365 * 24 * 60 * 60), '/');
 }
 
  if(isset($_COOKIE['saldi_huskmig'])) list($hm,$rs,$bn)=explode(chr(9),$_COOKIE['saldi_huskmig']); #20211007
@@ -145,9 +154,11 @@ elseif ($rs == $regnskab && $bn == $brugernavn) {
 }
 
 
-if (isset ($_GET['navn'])) $brugernavn = html_entity_decode(stripslashes($_GET['navn']),ENT_COMPAT,$charset);
-if (isset ($_GET['regnskab'])) $regnskab = html_entity_decode(stripslashes($_GET['regnskab']),ENT_COMPAT,$charset);
-if (isset ($_GET['tlf'])) $kode = stripslashes($_GET['tlf']);
+// Values from the address are printed into the form below, so they are escaped here like the posted ones
+// (check_and_sanitize_input()). Glemt adgangskode links back with the ledger and the user filled in.
+if (isset ($_GET['navn'])) $brugernavn = htmlspecialchars(mb_substr((string) $_GET['navn'], 0, 80), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+if (isset ($_GET['regnskab'])) $regnskab = htmlspecialchars(mb_substr((string) $_GET['regnskab'], 0, 60), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+if (isset ($_GET['tlf'])) $kode = htmlspecialchars(mb_substr((string) $_GET['tlf'], 0, 80), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 // $fejltxt = if_isset($_POST['fejltxt']);
 // $vent = if_isset($_POST['vent']);
 $fejltxt = check_and_sanitize_input('fejltxt', 'Input for fejltxt is too long.', $nonce);
@@ -206,7 +217,7 @@ print "	<div id=\"main\">\n";
 print "		<div class=\"loginHolder\">\n";
 print "			<div class=\"loginBox\">\n";
 print "				<div class=\"loginForm\">\n";    
-print "				<a href='https://saldi.dk'><img class=\"logoimg\" src='../img/Saldi_Main_Logo.png' width='100px'></a>\n";    
+print "				<a href='https://saldi.dk'><img class=\"logoimg\" src='../img/saldi-moerk-logo-lys-baggrund.svg' width='100px'></a>\n";
 print "				<form method=\"POST\" action=\"index.php\">\n";
 print "				<div class='loginAction'>\n";    
 print "					<h2>Login</h2>\n";    
@@ -238,8 +249,25 @@ print "</form>\n";
 print "						<form id=\"login1form\" name=\"login1\" METHOD=\"POST\" ACTION=\"index.php\">\n";
 print "						<input type=\"hidden\" name=\"vent\" value=\"$vent\">\n";
 if (!$fejltxt && file_exists('alert.txt')) $fejltxt=file_get_contents('alert.txt'); 
+if (!$fejltxt && isset($_GET['restored'])) {
+	// Only digits of the backup's time reach the page; anything else gives the sentence without a date.
+	$restoredWhen = '';
+	if (preg_match('/^(\d{4})(\d{2})(\d{2})-?(\d{2})(\d{2})$/', (string) $_GET['restored'], $m)) {
+		$restoredWhen = "$m[3]-$m[2]-$m[1] " . findtekst('7813|kl.', $languageId) . " $m[4]:$m[5]";
+	}
+	$restoredTxt = ($restoredWhen !== '')
+		? str_replace('%s', $restoredWhen, findtekst('7821|Regnskabet er gendannet fra sikkerhedskopien fra %s. Log ind igen.', $languageId))
+		: findtekst('7822|Regnskabet er gendannet fra sikkerhedskopien. Log ind igen.', $languageId);
+	print "<label role=\"status\" class=\"restore-done\" style=\"text-align:center;color:#15803d;\">$restoredTxt</label>\n";
+	print "<label><br></label>\n";
+}
 if ($fejltxt) {
 	print "<label style=\"text-align:center;color:red;\">$fejltxt</label>\n";
+	if (!empty($_POST['loginhelp'])) {
+		// After a wrong user name or password: the way to a new password, right under the message.
+		$helpUrl = 'glemt_kode.php?regnskab=' . rawurlencode(html_entity_decode((string) $regnskab, ENT_QUOTES, 'UTF-8')) . '&navn=' . rawurlencode(html_entity_decode((string) $brugernavn, ENT_QUOTES, 'UTF-8'));
+		print "<label style=\"text-align:center;margin-top:8px;\"><a class=\"button blue\" style=\"display:inline-block;text-decoration:none;\" href=\"" . htmlspecialchars($helpUrl, ENT_QUOTES, 'UTF-8') . "\">" . findtekst('2007|Glemt adgangskode?', $languageId) . "</a></label>\n";
+	}
 	print "<label><br></label>\n";
 	print "<label><hr></label>\n";
 	print "<label><br></label>\n";
@@ -249,7 +277,7 @@ $eyeOpenSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width
 $eyeClosedSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/><line x1="2" y1="2" x2="22" y2="22"/></svg>';
 ###########
 print " <input type=\"hidden\" value=\"$languageId\" name=\"languageId\" >";
-print "						<label for=\"Regnskab\">". findtekst('115|Regnskab', $languageId) ."</label>\n";
+print "						<label for=\"Regnskab\">". findtekst('2682|Regnskab', $languageId) ."</label>\n";
 print "						<input class=\"textinput\" type=\"text\" id=\"regnskab\" name=\"regnskab\" value=\"$regnskab\" tabindex=\"1\">\n";
 print "						<label for=\"login\">". findtekst('225|Brugernavn', $languageId) ."</label>\n";
 print "						<input class=\"textinput\" type=\"text\" id=\"login\" name=\"brugernavn\" value=\"$brugernavn\" tabindex=\"2\">\n";
@@ -280,7 +308,12 @@ print	"		</div><!-- end of loginHolder -->\n";
 print "	</div><!-- end of main -->\n";
 include ("../includes/version.php");
 
-if (!isset($_COOKIE['saldi_std'])) {
+if ($regnskab && $brugernavn) {
+	// Ledger and user are filled in already (Husk mig, or back from Glemt adgangskode): the password is next.
+	print "<script language=\"javascript\" type=\"text/javascript\" nonce=\"$nonce\">\n";
+	print "document.getElementById('password').focus();\n";
+	print "</script>\n";
+} elseif (!isset($_COOKIE['saldi_std'])) {
 	print "<script language=\"javascript\" type=\"text/javascript\" nonce=\"$nonce\">\n";
 	print "document.login1.regnskab.focus();\n";
 	print "</script>\n";

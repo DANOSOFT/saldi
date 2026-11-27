@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stripeIncludes/stripeBootstrap.php --- 2026.10.26
+// --- includes/stripeIncludes/stripeBootstrap.php --- 2026.11.27
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,10 +32,12 @@
 //                Same idiom as api/bet_func.php logon(): locator lookup is in
 //                stripeConfigDb(), then db_connect() to the tenant.
 // 20260818 CL/LH Added false-return handling for Stripe database writes.
-// 20261026 CL/NTR Multi-ledger: the ledger comes from stripe_request_db() (r= on links and webhook URLs, else
-//                 the pinned ledger); CLI tools may set $stripe_cli_db (their --db) before including this file.
+// 20261026 CL/NTR Multi-ledger: the ledger comes from stripe_request_db() (r= on links and webhook URLs, else the pinned ledger); CLI tools may set $stripe_cli_db (their --db) before including this file.
+// 20261126 CL/ASR Stripe port (#889): without r= (master's subscription links and webhook URL) the pinned ledger is used as before.
+// 20261127 ASR With $allowedLedgers in includes/connect.php the resolved ledger must be listed, the master database too (saldi_ledger_guard()), before it becomes $db.
 
 include_once(__DIR__ . '/stripeSettings.php');
+include_once(__DIR__ . '/../ledgerAllowList.php');
 
 $webservice = true; // db_modify() returns control on failure instead of exiting
 
@@ -51,6 +53,8 @@ $stripe_boot_ok    = false;
 $stripe_target_db  = (PHP_SAPI === 'cli' && isset($stripe_cli_db)) ? stripe_ledger_db($stripe_cli_db) : stripe_request_db(); // '' = unresolved -> fail closed
 
 if ($stripe_target_db) {
+	// A ledger this installation does not open is refused here (403; on the command line exit 1), the master database too.
+	saldi_ledger_guard($stripe_target_db);
 	$connection = db_connect($sqhost, $squser, $sqpass, $stripe_target_db);
 	if ($connection) {
 		$db = $stripe_target_db;

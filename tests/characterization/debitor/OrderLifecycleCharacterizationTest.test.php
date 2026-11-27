@@ -14,11 +14,32 @@
 //
 // History:
 // 20260725 CL/LH Created for the end-to-end coverage push.
+// 20261117 CL/ASR Del ordre on a half-delivered order (debitor/ordre.php): the remainder line keeps a discount in kr per unit and reverse charge (audit finding sales-F3).
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
+require_once __DIR__ . '/../support/PageForm.php';
 
 final class OrderLifecycleCharacterizationTest extends CharacterizationTestCase
 {
+    /** grupper DIV 3 box4 (hurtigfakturering) before a test turned it off, or null */
+    private ?array $quickInvoicing = null;
+
+    protected function tearDown(): void
+    {
+        if ($this->quickInvoicing !== null) {
+            self::rows("UPDATE grupper SET box4 = $1 WHERE art = 'DIV' AND kodenr = 3", [$this->quickInvoicing['box4']]);
+            $this->quickInvoicing = null;
+        }
+    }
+
+    /** Hurtigfakturering off (grupper DIV 3 box4) until tearDown(): debitor/ordre.php offers Del ordre only without it. */
+    private function quickInvoicingOff(): void
+    {
+        $this->quickInvoicing = self::one("SELECT box4 FROM grupper WHERE art = 'DIV' AND kodenr = 3");
+        $this->assertNotNull($this->quickInvoicing, 'the tenant has the order settings row');
+        self::rows("UPDATE grupper SET box4 = '' WHERE art = 'DIV' AND kodenr = 3");
+    }
+
     /** @return array{order:array, item:array, debtor:array} */
     private function openOrder(float $qty = 10.0, float $price = 125.00, float $stock = 100.0, float $rabat = 0.0): array
     {
@@ -213,5 +234,121 @@ final class OrderLifecycleCharacterizationTest extends CharacterizationTestCase
             0.001,
             'only the six delivered units come back, not ten'
         );
+    }
+
+    /**
+     * An open order of 2 x 125,01 with a discount of 20 kr per unit (rabatart 'amount', as the discount matrix
+     * writes it), of which 1 is delivered: the state in which debitor/ordre.php offers Del ordre.
+     *
+     * @param array<string, string> $line other ordrelinjer columns, e.g. omvbet
+     * @return array{order:array, item:array, debtor:array}
+     */
+    private function halfDeliveredOrderWithAmountDiscount(array $line = []): array
+    {
+        $this->quickInvoicingOff();
+        $opened = $this->openOrder(qty: 2.0, price: 125.01, rabat: 20.0);
+        $orderId = $opened['order']['id'];
+        self::rows("UPDATE ordrelinjer SET rabatart = 'amount' WHERE ordre_id = $1 AND vare_id > 0", [$orderId]);
+        foreach ($line as $column => $value) {
+            self::rows("UPDATE ordrelinjer SET $column = $1 WHERE ordre_id = $2 AND vare_id > 0", [$value, $orderId]);
+        }
+        self::rows('UPDATE ordrer SET sum = 210.02, moms = 52.51 WHERE id = $1', [$orderId]);
+        $out = $this->drive('deliver', [$orderId, 1]);
+        $this->assertSame('OK', $out['levering'], 'precondition: one unit delivered');
+        return $opened;
+    }
+
+    /**
+     * Presses Del ordre on debitor/ordre.php, through the order form as the page draws it.
+     *
+     * @return int the id of the remainder order the page creates
+     */
+    private function pressDelOrdre(int $orderId): int
+    {
+        $html = $this->orderPage($orderId);
+        $this->assertStringContainsString('value="Del ordre"', $html, 'precondition: the page offers Del ordre');
+        $form = PageForm::fields($html, 'ordre');
+        $form['b_submit'] = 'Del ordre';
+        $this->orderPage($orderId, $form);
+        $rest = self::one(
+            'SELECT r.id FROM ordrer r, ordrer o WHERE o.id = $1 AND r.ordrenr = o.ordrenr AND r.art = o.art AND r.id > o.id',
+            [$orderId]
+        );
+        $this->assertNotNull($rest, 'Del ordre creates the remainder order');
+        return (int)$rest['id'];
+    }
+
+    /**
+     * Opens debitor/ordre.php?id= (a GET), or posts its form, as support/run_debitor_order_page.php does it.
+     *
+     * @param array<string, string> $post the form's fields, or [] for a GET
+     */
+    private function orderPage(int $orderId, array $post = []): string
+    {
+        $res = $this->runChildJson(
+            'run_debitor_order_page.php',
+            ["id=$orderId", CharacterizationEnv::sessionId(), $post === [] ? '' : http_build_query($post)]
+        );
+        $this->assertStringNotContainsString('Fatal error', $res['html'], "debitor/ordre.php?id=$orderId crashed");
+        return $res['html'];
+    }
+
+    /**
+     * Audit finding sales-F3: Del ordre wrote the remainder line without rabatart, so its 20 kr per unit became 20 %:
+     * the remainder invoice was 125,01 less 20 % = 100,01 + 25,00 VAT instead of 105,01 + 26,25. The two orders'
+     * totals also left the discount out (125,01 + 31,25 each).
+     */
+    public function test_del_ordre_keeps_a_discount_in_kr_per_unit_on_the_remainder(): void
+    {
+        ['order' => $order] = $this->halfDeliveredOrderWithAmountDiscount();
+
+        $restId = $this->pressDelOrdre($order['id']);
+
+        $line = self::one('SELECT antal, pris, rabat, rabatart, procent FROM ordrelinjer WHERE ordre_id = $1 AND vare_id > 0', [$restId]);
+        $this->assertEqualsWithDelta(1.0, (float)$line['antal'], 0.001, 'the undelivered unit moves to the remainder');
+        $this->assertEqualsWithDelta(20.0, (float)$line['rabat'], 0.001);
+        $this->assertSame('amount', $line['rabatart'], 'the discount stays 20 kr per unit');
+        $this->assertEqualsWithDelta(100.0, (float)$line['procent'], 0.001, 'the line is invoiced at 100 %');
+        $rest = self::one('SELECT sum, moms FROM ordrer WHERE id = $1', [$restId]);
+        $this->assertEqualsWithDelta(105.01, (float)$rest['sum'], 0.005, 'the remainder total is 125,01 less 20 kr (it was 125,01)');
+        $this->assertEqualsWithDelta(26.25, (float)$rest['moms'], 0.005, 'and its VAT 25 % of that (it was 31,25)');
+        $kept = self::one('SELECT o.sum, o.moms, l.antal FROM ordrer o, ordrelinjer l WHERE o.id = $1 AND l.ordre_id = o.id AND l.vare_id > 0', [$order['id']]);
+        $this->assertEqualsWithDelta(1.0, (float)$kept['antal'], 0.001, 'the delivered unit stays on the order');
+        $this->assertEqualsWithDelta(105.01, (float)$kept['sum'], 0.005, 'the order total is the delivered unit less 20 kr');
+        $this->assertEqualsWithDelta(26.25, (float)$kept['moms'], 0.005);
+
+        $out = $this->runChildJson('run_order_invoice.php', ['invoice', $restId, CharacterizationEnv::testDb()]);
+        $this->assertSame('OK', $out['bogfor'], 'the remainder is invoiced');
+        $this->assertEqualsWithDelta(105.01, (float)$out['sum'], 0.005, 'the remainder invoice is 105,01 (it was 100,01)');
+        $this->assertEqualsWithDelta(26.25, (float)$out['moms'], 0.005, 'with 26,25 VAT (it was 25,00)');
+        $posted = self::rows('SELECT l.bogf_konto, l.vat_account FROM ordrelinjer l WHERE l.ordre_id = $1 AND l.vare_id > 0', [$restId])[0];
+        $revenue = self::one('SELECT coalesce(sum(kredit), 0) - coalesce(sum(debet), 0) AS amount FROM transaktioner WHERE ordre_id = $1 AND kontonr = $2', [$restId, (int)$posted['bogf_konto']]);
+        $vat = self::one('SELECT coalesce(sum(kredit), 0) - coalesce(sum(debet), 0) AS amount FROM transaktioner WHERE ordre_id = $1 AND kontonr = $2', [$restId, (int)$posted['vat_account']]);
+        $total = self::one('SELECT sum(debet) AS debet, sum(kredit) AS kredit FROM transaktioner WHERE ordre_id = $1', [$restId]);
+        $this->assertEqualsWithDelta(105.01, (float)$revenue['amount'], 0.005, 'revenue credited 105,01 (it was 100,01)');
+        $this->assertEqualsWithDelta(26.25, (float)$vat['amount'], 0.005, 'output VAT credited 26,25 (it was 25,00)');
+        $this->assertEqualsWithDelta(131.26, (float)$total['debet'], 0.005, 'the receivable is 131,26 (it was 125,01)');
+        $this->assertEqualsWithDelta(131.26, (float)$total['kredit'], 0.005, 'the voucher balances');
+        $openpost = self::one('SELECT amount FROM openpost WHERE refnr = $1', [$restId]);
+        $this->assertEqualsWithDelta(131.26, (float)$openpost['amount'], 0.005, 'the open item is 131,26');
+    }
+
+    /**
+     * Del ordre wrote the remainder line without omvbet, so a reverse-charge line was charged VAT on the remainder.
+     */
+    public function test_del_ordre_keeps_reverse_charge_on_the_remainder(): void
+    {
+        ['order' => $order] = $this->halfDeliveredOrderWithAmountDiscount(['omvbet' => 'on']);
+        self::rows("UPDATE ordrer SET omvbet = 'on', moms = 0 WHERE id = $1", [$order['id']]);
+
+        $restId = $this->pressDelOrdre($order['id']);
+
+        $line = self::one('SELECT antal, omvbet, rabatart FROM ordrelinjer WHERE ordre_id = $1 AND vare_id > 0', [$restId]);
+        $this->assertEqualsWithDelta(1.0, (float)$line['antal'], 0.001);
+        $this->assertSame('on', $line['omvbet'], 'the remainder line is still reverse charge');
+        $rest = self::one('SELECT sum, moms, omvbet FROM ordrer WHERE id = $1', [$restId]);
+        $this->assertSame('on', $rest['omvbet']);
+        $this->assertEqualsWithDelta(105.01, (float)$rest['sum'], 0.005);
+        $this->assertEqualsWithDelta(0.0, (float)$rest['moms'], 0.005, 'no VAT on a reverse-charge line (it was 31,25)');
     }
 }

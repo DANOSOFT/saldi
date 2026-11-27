@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stripeIncludes/stripeLink.php --- 2026.10.26
+// --- includes/stripeIncludes/stripeLink.php --- 2026.11.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,7 +31,10 @@
 //                content. The mailer and CLI tools consume these functions
 //                verbatim - nobody reimplements them.
 // 20261022 CDX/LH Separate invoice, signup and removal signatures; reject unscoped links and foreign payment Origins.
+// 20261126 CL/ASR Stripe port (#850): links are signed per purpose (v2: subscribe, invoice, remove-card), plus stripe_signup_allowed() and stripe_invoice_origin_allowed().
 // 20261026 CL/NTR Multi-ledger: v3 signatures bind the ledger and links carry it as r=; v2 links still verify in the pinned ledger.
+// 20261126 CL/ASR Stripe port (#889): stripe_link_ledger_param() added; v2 links minted after the #850 port still verify in the pinned ledger.
+// 20261126 CL/ASR Review round 1 (I18): stripe_debtor_card_enrolled(), shared by subscribe.php and the invoice mail's subscription link: a customer whose invoices are charged to a saved card gets no subscription on top.
 
 include_once(__DIR__ . '/stripeSettings.php');
 
@@ -98,6 +101,24 @@ if (!function_exists('stripe_signup_allowed')) {
 	/** @return bool New subscription signup requires both independently enabled switches. */
 	function stripe_signup_allowed() {
 		return stripe_setting('enabled', 'off') === 'on' && stripe_feature_on('signup_enabled');
+	}
+}
+
+if (!function_exists('stripe_debtor_card_enrolled')) {
+	/**
+	 * Whether the debtor pays its invoices automatically by card (invoice payments: adresser.stripe on with a saved card).
+	 * Such a customer has a stripe_customers row without a subscription, and is never offered a subscription as well.
+	 *
+	 * @param int $kontoId adresser.id
+	 * @return bool
+	 */
+	function stripe_debtor_card_enrolled($kontoId) {
+		if ((int)$kontoId <= 0) return false;
+		$c = db_fetch_array(db_select("select count(*) as n from information_schema.columns where table_name = 'adresser' and column_name in ('stripe', 'stripe_pm_id')"
+			. saldi_schema_filter(), __FILE__ . " linje " . __LINE__));
+		if (!$c || (int)$c['n'] < 2) return false;
+		$a = db_fetch_array(db_select("select stripe, stripe_pm_id from adresser where id = " . (int)$kontoId, __FILE__ . " linje " . __LINE__));
+		return $a && trim((string)$a['stripe']) === 'on' && trim((string)$a['stripe_pm_id']) !== '';
 	}
 }
 

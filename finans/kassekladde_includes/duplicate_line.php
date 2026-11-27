@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/duplicate_line.php --- patch 5.0.0 --- 2026-07-016 ---
+// --- finans/kassekladde_includes/duplicate_line.php --- ver 5.1.1 --- 2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,10 +21,12 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Danosoft.ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20260716 PHR Missing ) at: (int$row['afd'];
+// 20261117 CL/ASR The duplicate keeps the line's VAT codes (debetvat/kreditvat), as "Kopier til ny" does.
+//                 Its employee id is copied as a number, as the journal's save writes it; an empty string made bogfor.php throw a TypeError on PHP 8 when the journal was posted without a save in between.
 
 ob_start(); // Start output buffering
 
@@ -61,12 +63,15 @@ if (isset($_POST['kladde_id'], $_POST['source_id'])) {
     $amount       = (float)$row['amount'];
     $momsfri      = db_escape_string($row['momsfri']);
     $afd          = (int)$row['afd'];
-    $ansat_id     = db_escape_string($row['ansat']);
+    $ansat_id     = (int)$row['ansat'];
     $projekt      = db_escape_string($row['projekt']);
     $valutakode   = (int)$row['valuta'];
     $forfaldsdate = $row['forfaldsdate'];
     $betal_id     = db_escape_string($row['betal_id']);
     $dokument     = db_escape_string($row['dokument'] ?? ''); // Use null coalescing
+    // The line's own VAT code per side (NULL: the account's code applies)
+    $debetvat     = isset($row['debetvat']) ? "'" . db_escape_string($row['debetvat']) . "'" : "NULL";
+    $kreditvat    = isset($row['kreditvat']) ? "'" . db_escape_string($row['kreditvat']) . "'" : "NULL";
 
     // Get next position
     $pos_q = "
@@ -83,13 +88,13 @@ if (isset($_POST['kladde_id'], $_POST['source_id'])) {
     $qtxt = "
         INSERT INTO kassekladde (
             bilag, kladde_id, transdate, beskrivelse,
-            d_type, debet, k_type, kredit,
+            d_type, debet, k_type, kredit, debetvat, kreditvat,
             faktura, amount, momsfri, afd,
             ansat, projekt, valuta, forfaldsdate,
             betal_id, pos, dokument
         ) VALUES (
             '$bilag', '$kladde_id', '$transdate', '$beskrivelse',
-            '$d_type', '$debet', '$k_type', '$kredit',
+            '$d_type', '$debet', '$k_type', '$kredit', $debetvat, $kreditvat,
             '$faktura', '$amount', '$momsfri', '$afd',
             '$ansat_id', '$projekt', '$valutakode',
             " . ($forfaldsdate ? "'$forfaldsdate'" : "NULL") . ",

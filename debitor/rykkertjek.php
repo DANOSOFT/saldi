@@ -1,5 +1,5 @@
 <?php
-// --- debitor/rykkertjek.php --- ver 5.0.0 --- 2026-10-22 ---
+// --- debitor/rykkertjek.php --- ver 5.1.1 --- 2026-11-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,6 +21,7 @@
 // 20230524 PHR php8
 // 20260707 MJ Fix fatal re-declaration of std_func when included from login; fix missing globals in reminderCheck; fix BODY onLoad popup
 // 20261022 CDX/LH Exclude captured and in-flight Stripe payments from reminder notifications.
+// 20261126 CL/ASR Stripe port (#850): the reminder notice leaves out open posts of invoices Stripe has collected or is collecting (stripe_dunning_openpost_sql()).
 
 @session_start();
 $s_id=session_id();

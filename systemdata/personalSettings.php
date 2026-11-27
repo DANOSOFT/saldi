@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/personalSettings.php --- lap 5.0.0 --- 2026.09.16 ---
+// ---- systemdata/personalSettings.php --- ver 5.1.1 --- 2026.11.14 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,29 +20,42 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260916 Sawaneh Consolidated personal settings page (language, colours, popup/expiry
-//                  choices, contact details, 2FA, password). Replaces the "Personlige valg"
-//                  section in diverse.php and the self-service page brugerdata.php.
-//                  Controller (POST -> save -> redirect) above, view below.
-// 20260927 Sawaneh Topbar spec 2026-09-17 step 1b: three tabs (Profil / Sikkerhed / Min adgang),
-//                  cluster placement, active sessions with "log out other devices", current
-//                  password required for email/phone/2FA/password changes (spec 4.5), audit log.
-// 20260928 Sawaneh Back button top-left in the theme colour, as elsewhere in the system (was Close top-right).
-// 20260928 Sawaneh Popup windows, background colour and highlight removed (settings redesign spec, Personal settings).
-// 20260929 Sawaneh Order autocomplete moved here from Ordrerelaterede valg, saved through SettingsService.
-// 20260930 Sawaneh Notifications tab: daily e-mail summary on/off (Adam: summary only).
-// 20261004 Sawaneh Bank status in the cash journal is a personal setting here when the bank integration is live (G2.7).
-// 20261005 Sawaneh Bar placement option removed: the cluster is always in the top bar (topbar addendum 2026-10-05 §2).
-// 20261002 Sawaneh Print card: print to local printer is a personal setting (settings redesign G6.4), not a cookie.
-// 20261008 Sawaneh Tema (light / dark / system) under Udseende, stored as personal.profile.theme (settings ui/theme).
-// 20261009 Sawaneh 4e: auto-extract of invoice data (was the autoExtract cookie) saved here as a personal setting.
-// 20261009 Sawaneh The theme field waits for round 2 (settings decision 23): shown and saved only with SALDI_THEME_CHOICE.
-// 20261009 Sawaneh Tekststørrelse Normal / Større (personal.profile.text_size, front-page addendum 3 §3.3); the shell reloads on change.
-// 20261013 Sawaneh The back link carries accesskey L, so the shell hides it like on every migrated page (breadcrumb instead).
-// 20261014 Sawaneh Review: CSRF token on every form and checked before any POST is handled.
-
+// 20260916 SS Consolidated personal settings page (language, colours, popup/expiry choices, contact details, 2FA, password).
+//             Replaces the "Personlige valg" section in diverse.php and the self-service page brugerdata.php.
+//             Controller (POST -> save -> redirect) above, view below.
+// 20260927 SS Topbar spec 2026-09-17 step 1b: three tabs (Profil / Sikkerhed / Min adgang), cluster placement, active sessions with "log out other devices", current password required for email/phone/2FA/password changes (spec 4.5), audit log.
+// 20260928 SS Back button top-left in the theme colour, as elsewhere in the system (was Close top-right).
+// 20260928 SS Popup windows, background colour and highlight removed (settings redesign spec, Personal settings).
+// 20260929 SS Order autocomplete moved here from Ordrerelaterede valg, saved through SettingsService.
+// 20260930 SS Notifications tab: daily e-mail summary on/off (Adam: summary only).
+// 20261004 SS Bank status in the cash journal is a personal setting here when the bank integration is live (G2.7).
+// 20261005 SS Bar placement option removed: the cluster is always in the top bar (topbar addendum 2026-10-05 §2).
+// 20261008 SS Tema (light / dark / system) under Udseende, stored as personal.profile.theme (settings ui/theme).
+// 20261009 SS The theme field waits for round 2 (settings decision 23): shown and saved only with SALDI_THEME_CHOICE.
+// 20261009 SS Tekststørrelse Normal / Større (personal.profile.text_size, front-page addendum 3 §3.3); the shell reloads on change.
+// 20261013 SS The back link carries accesskey L, so the shell hides it like on every migrated page (breadcrumb instead).
+// 20261014 SS Review: CSRF token on every form and checked before any POST is handled.
+// 20261031 CL/ASR The confirm-password flash's findtekst fallback is id 5625's full Danish text, as the tekster guardrail requires.
+// 20261031 CL/ASR Fallback texts 7031 and 5639 match importfiler/tekster.csv.
+// 20261101 CL/ASR The personal colour choice (Knapfarve / Tekstfarve på knapper under Udseende) and its save path are removed.
+//                 Everyone gets the standard colours (includes/online.php); stored colour rows are left as they are.
+// 20261101 CL/ASR Tilbage is the shared settings button (settings_back_button(): small kit button, arrow, above the title) instead of the filled one in the user's colour.
+//                 It goes where the user came from, or Oversigt, also inside the shell (it went to Oversigt there).
+//                 Alt+L kept.
+// 20261102 CL/ASR Tilbage comes from settings_back_link() alone: the newest page outside the settings system, skipping old addresses that redirect here, else Oversigt. settings_back_button() adds Alt+L itself; the kit is linked as ?v=20261102.
+// 20261103 CL/ASR QA: two-factor login needs an e-mail or phone stored on the login itself (login.php reads brugere): switching it on with only the employee's e-mail stores that e-mail on the login, and the last channel cannot be cleared while two-factor is on.
+//                 An expired form (err=csrf) now says so.
+// 20261103 CL/ASR QA round 2: when the current password is missing for a contact change, the page no longer also says Dine indstillinger er gemt; it says Øvrige indstillinger er gemt only when another preference changed (text 7807).
+// 20261104 CL/ASR Advar om udløb (dage før) is shown only to users who get the expiry warning, those with Varerapport (batch_reports_allowed(), includes/stdFunc/fefo.php).
+// 20261108 CL/ASR css/personalSettings.css and css/saldi-kit.css linked as ?v=20261108: the page ground is Saldi's classic page colour #eeeef0, the panels and fields stay white (owner, 8 Nov 2026).
+// 20261113 CL/ASR css/saldi-kit.css ?v=20261113 (side margin 16 px, the same as the top).
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261114 ASR css/saldi-theme.css linked before the kit, so css/personalSettings.css's dark values have the theme's tokens to read; light unchanged.
+// 20261114 CL/ASR Profil has a card Skjulte spørgsmål: the questions this user answered with Vis ikke igen in Saldi's message box (settings var_grp 'dialogs'), each with Vis igen, saved with Gem (owner, 14 Nov 2026).
+// 20261114 CL/ASR Sikkerhed: two-factor login is one choice of Slået fra, Kode på SMS and Kode på e-mail (it was a tick box, and SMS won whenever there was a phone number). The choice is kept by includes/twoFactor.php.
+// 20261127 ASR A new password clears brugere.tmp_kode: a pending temporary password stops working with it.
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
  * @var string $brugernavn
@@ -60,7 +73,7 @@ $s_id = session_id();
 ob_start();
 
 $title = "Personlige indstillinger";
-$css = "../css/personalSettings.css";
+$css = "../css/personalSettings.css?v=20261114";
 $permission_key = 'any';
 
 include(__DIR__ . "/../includes/connect.php");
@@ -68,8 +81,10 @@ include(__DIR__ . "/../includes/connect.php");
 $sessionRows = personal_settings_sessions($s_id);
 include(__DIR__ . "/../includes/online.php");
 include(__DIR__ . "/../includes/std_func.php");
+include_once(__DIR__ . "/../includes/twoFactor.php");
 include_once(__DIR__ . "/../includes/notifications.php");
 include_once(__DIR__ . "/../includes/settings/SettingsService.php");
+include_once(__DIR__ . "/../includes/settings/components.php"); // settings_back_button(), the Tilbage of every settings page
 
 $contextQuery = personal_settings_context_query($_GET, $_POST);
 $selfUrl = 'personalSettings.php' . ($contextQuery !== '' ? '?' . $contextQuery : '');
@@ -152,15 +167,6 @@ function personal_settings_context_query(array $get, array $post): string
 }
 
 /**
- * Six hex digits without '#', or the default when the input is not a colour.
- */
-function personal_settings_hex($value, string $default): string
-{
-	$value = strtolower(ltrim(trim((string) $value), '#'));
-	return (strlen($value) === 6 && ctype_xdigit($value)) ? $value : $default;
-}
-
-/**
  * True when $password is the user's current password (md5 legacy or saldikrypt).
  */
 function personal_settings_password_ok(int $brugerId, string $password): bool
@@ -175,7 +181,7 @@ function personal_settings_password_ok(int $brugerId, string $password): bool
 
 /**
  * Persist everything the form posted. Writes go to the same places the old pages
- * wrote (grupper USET, settings colors/lager/globals, brugere), so nothing else changes.
+ * wrote (grupper USET, settings lager/globals, brugere), so nothing else changes.
  *
  * @return array<string, mixed> Query parameters for the redirect.
  */
@@ -185,6 +191,7 @@ function personal_settings_save(array $post, int $brugerId, string $brugernavn, 
 	$out = array('tab' => $tab, 'saved' => 1);
 	$reloadShell = false;
 	$current = personal_settings_load($brugerId, $isRevisor, $brugernavn, '', array(), '', 1);
+	$otherChanged = false; // a preference other than the password-protected contact details changed (for the flash below)
 
 	if ($tab === 'profile') {
 		$lang = isset($post['language_id']) ? (int) $post['language_id'] : 0;
@@ -197,20 +204,6 @@ function personal_settings_save(array $post, int $brugerId, string $brugernavn, 
 			$reloadShell = true;
 		}
 
-		$colors = array(
-			'buttonColor'    => personal_settings_hex(isset($post['buttonColor']) ? $post['buttonColor'] : '', '114691'),
-			'buttonTxtColor' => personal_settings_hex(isset($post['buttonTxtColor']) ? $post['buttonTxtColor'] : '', 'ffffff'),
-		);
-		if ($colors !== $current['colors']) {
-			$reloadShell = true;
-		}
-		$descriptions = array(
-			'buttonColor'    => 'Background color for user settings',
-			'buttonTxtColor' => 'Button color for user settings',
-		);
-		foreach ($colors as $name => $value) {
-			update_settings_value($name, 'colors', $value, $descriptions[$name], $brugerId);
-		}
 		// Popup windows are removed (settings redesign spec, Personal settings): saving switches
 		// them off, as the old Personlige valg page did. Background colour/highlight are no
 		// longer edited here; their stored values are left as they are.
@@ -231,23 +224,37 @@ function personal_settings_save(array $post, int $brugerId, string $brugernavn, 
 			$reloadShell = true;
 		}
 		SettingsService::save('personal.orders.autocomplete', !empty($post['order_autocomplete']), $brugerId);
-		SettingsService::save('personal.print.local_print', !empty($post['local_print']), $brugerId);
-		SettingsService::save('personal.documents.auto_extract', !empty($post['auto_extract']), $brugerId);
 		if (SettingsService::hasModule('bank')) {
 			// Moved here from the old bank page (settings redesign G2.7): the status icon in the cash journal is per user.
 			SettingsService::save('personal.profile.bank_status', !empty($post['bank_status']), $brugerId);
 		}
 
+		// Skjulte spørgsmål: a ticked Vis igen asks the question again (javascript/saldi-dialog.js, index/dialogPref.php)
+		if (isset($post['dialog_show']) && is_array($post['dialog_show'])) {
+			foreach ($post['dialog_show'] as $dialogKey) {
+				$dialogKey = (string) $dialogKey;
+				if (!preg_match('/^[a-z0-9_.-]{1,40}$/', $dialogKey) || !in_array($dialogKey, $current['dialogsHidden'], true)) continue;
+				db_modify("delete from settings where var_grp = 'dialogs' and var_name = '" . db_escape_string($dialogKey) . "' and user_id = $brugerId", __FILE__ . " linje " . __LINE__);
+				$otherChanged = true;
+			}
+		}
+
 		if (isset($post['due_date_warning_days']) && $post['due_date_warning_days'] !== '') {
 			update_settings_value('due_date_warning_days', 'lager', max(1, intval($post['due_date_warning_days'])), 'Days before expiry to warn', $brugerId);
+			$otherChanged = $otherChanged || max(1, intval($post['due_date_warning_days'])) !== (int) $current['warnDays'];
 		}
+		$otherChanged = $otherChanged || $reloadShell || !empty($post['order_autocomplete']) !== (bool) $current['autocomplete']
+			|| (SettingsService::hasModule('bank') && !empty($post['bank_status']) !== (bool) $current['bankStatus']);
 
 		// Contact details are the 2FA / password-reset channel: current password required (spec 4.5).
 		if (!$isRevisor) {
 			$email = trim(isset($post['email']) ? (string) $post['email'] : '');
 			$tlf = trim(isset($post['tlf']) ? (string) $post['tlf'] : '');
 			if ($email !== $current['email'] || $tlf !== $current['tlf']) {
-				if (personal_settings_password_ok($brugerId, isset($post['confirm_kode']) ? (string) $post['confirm_kode'] : '')) {
+				if ($current['twofactor'] && $email === '' && $tlf === '') {
+					// login.php sends the second factor to brugere.email/tlf: without both it would skip it.
+					$out['tfa'] = 'missing';
+				} elseif (personal_settings_password_ok($brugerId, isset($post['confirm_kode']) ? (string) $post['confirm_kode'] : '')) {
 					db_modify("update brugere set email = '" . db_escape_string($email) . "', tlf = '" . db_escape_string(mb_substr($tlf, 0, 16)) . "' where id = $brugerId", __FILE__ . " linje " . __LINE__);
 					audit_log('user.contact', $brugernavn . ': e-mail/telefon ændret');
 				} else {
@@ -274,6 +281,14 @@ function personal_settings_save(array $post, int $brugerId, string $brugernavn, 
 		// index/main.php polls this cookie and reloads itself, so sidebar colours and texts follow.
 		saldi_setcookie('refresh_opener', 'true', time() + 30, '/');
 	}
+	// The contact details (or tofaktor) were not saved: no "Dine indstillinger er gemt" next to that error, only a note that
+	// the other preferences were saved when one of them changed.
+	if (isset($out['confirm']) || isset($out['tfa'])) {
+		unset($out['saved']);
+		if ($otherChanged) {
+			$out['saved_other'] = 1;
+		}
+	}
 	return $out;
 }
 
@@ -285,23 +300,45 @@ function personal_settings_save(array $post, int $brugerId, string $brugernavn, 
  */
 function personal_settings_save_security(array $post, int $brugerId, string $brugernavn, string $db, array $current, array &$out): void
 {
-	$twofactor = !empty($post['twofactor']);
+	// The form sends '' (off), 'sms' or 'email'. Anything else that is not empty is the old checkbox: on, without a
+	// choice of its own, so the code goes by SMS when there is a number and else by e-mail.
+	$chosen = isset($post['twofactor']) ? (string) $post['twofactor'] : '';
+	if ($chosen !== '' && !in_array($chosen, array('sms', 'email'), true)) {
+		$chosen = 'auto';
+	}
+	$twofactor = ($chosen !== '');
+	$methodChanged = ($twofactor && $chosen !== 'auto' && $chosen !== $current['tfaMethod']);
 	$new1 = isset($post['nykode1']) ? trim((string) $post['nykode1']) : '';
 	$new2 = isset($post['nykode2']) ? trim((string) $post['nykode2']) : '';
 	$wantsPassword = ($new1 !== '' || $new2 !== '');
-	if ($twofactor === $current['twofactor'] && !$wantsPassword) {
+	if ($twofactor === $current['twofactor'] && !$methodChanged && !$wantsPassword) {
 		return;
 	}
 	if (!personal_settings_password_ok($brugerId, isset($post['glkode']) ? (string) $post['glkode'] : '')) {
 		$out['confirm'] = 'missing';
 		return;
 	}
-	if ($twofactor !== $current['twofactor']) {
-		if ($twofactor && $current['email'] === '' && $current['tlf'] === '') {
-			$out['tfa'] = 'missing';
+	if ($twofactor !== $current['twofactor'] || $methodChanged) {
+		$methods = $current['tfaMethods'];
+		if ($twofactor && ($chosen === 'auto' ? !$methods : !isset($methods[$chosen]))) {
+			// Nowhere to send the code that way: nothing is changed.
+			$out['tfa'] = ($chosen === 'sms') ? 'nosms' : (($chosen === 'email') ? 'noemail' : 'missing');
 		} else {
-			db_modify("update brugere set twofactor = '" . ($twofactor ? 't' : 'f') . "' where id = $brugerId", __FILE__ . " linje " . __LINE__);
-			audit_log('user.twofactor', $brugernavn . ': ' . ($twofactor ? 'slået til' : 'slået fra'));
+			if ($twofactor && $current['storedEmail'] === '' && isset($methods['email']) && ($chosen === 'email' || !isset($methods['sms']))) {
+				// The e-mail shown is the employee's: it is stored on the login as well, so the code keeps going there.
+				db_modify("update brugere set email = '" . db_escape_string($current['email']) . "' where id = $brugerId", __FILE__ . " linje " . __LINE__);
+				audit_log('user.contact', $brugernavn . ': e-mail sat til tofaktor');
+			}
+			if ($twofactor !== $current['twofactor']) {
+				db_modify("update brugere set twofactor = '" . ($twofactor ? 't' : 'f') . "' where id = $brugerId", __FILE__ . " linje " . __LINE__);
+				audit_log('user.twofactor', $brugernavn . ': ' . ($twofactor ? 'slået til' : 'slået fra'));
+			}
+			if ($twofactor && $chosen !== 'auto') {
+				twofactor_set_preferred($brugerId, $chosen);
+				if ($methodChanged) {
+					audit_log('user.twofactor', $brugernavn . ': ' . ($chosen === 'sms' ? 'kode på SMS' : 'kode på e-mail'));
+				}
+			}
 		}
 	}
 	if ($wantsPassword) {
@@ -311,7 +348,8 @@ function personal_settings_save_security(array $post, int $brugerId, string $bru
 			$out['pw'] = 'mismatch';
 		} else {
 			$hash = db_escape_string(saldikrypt($brugerId, $new1));
-			db_modify("update brugere set kode = '$hash' where id = $brugerId", __FILE__ . " linje " . __LINE__);
+			// A temporary password that is still pending stops working with the new password.
+			db_modify("update brugere set kode = '$hash', tmp_kode = null where id = $brugerId", __FILE__ . " linje " . __LINE__);
 			audit_log('user.password', $brugernavn . ': adgangskode ændret');
 			$out['pw'] = 'changed';
 		}
@@ -324,6 +362,20 @@ function personal_settings_save_security(array $post, int $brugerId, string $bru
  * @param array<int, array{session_id: string, logtime: int}> $sessionRows
  * @return array<string, mixed>
  */
+/**
+ * The questions this user chose not to see again in Saldi's message box (Vis ikke igen): settings var_grp 'dialogs'.
+ *
+ * @return array<int, string> the questions' keys (data-confirm-key)
+ */
+function personal_settings_hidden_dialogs(int $brugerId): array
+{
+	$keys = array();
+	if ($brugerId <= 0) return $keys;
+	$q = db_select("select var_name from settings where var_grp = 'dialogs' and user_id = $brugerId order by var_name", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) $keys[] = (string) $r['var_name'];
+	return $keys;
+}
+
 function personal_settings_load(int $brugerId, bool $isRevisor, string $brugernavn, string $rettigheder, array $sessionRows, string $sessionId, int $sprogId): array
 {
 	global $sprog_id;
@@ -346,12 +398,12 @@ function personal_settings_load(int $brugerId, bool $isRevisor, string $brugerna
 		}
 	}
 	$twofactor = in_array($u['twofactor'], array('t', true, '1', 1), true);
+	// Where a two-factor code can go, and which way is used now: the user's own choice, else SMS when there is a
+	// number (includes/twoFactor.php, the rule index/login.php follows).
+	$tfaMethods = twofactor_methods($u['tlf'], $email);
+	$tfaMethod = $twofactor ? twofactor_pick($tfaMethods, $isRevisor ? '' : twofactor_preferred($brugerId)) : '';
 
 	$uset = db_fetch_array(db_select("select box2 from grupper where art = 'USET' and kodenr = '$brugerId'", __FILE__ . " linje " . __LINE__));
-	$colors = array(
-		'buttonColor'    => personal_settings_hex(get_settings_value('buttonColor', 'colors', '', $brugerId), '114691'),
-		'buttonTxtColor' => personal_settings_hex(get_settings_value('buttonTxtColor', 'colors', '', $brugerId), 'ffffff'),
-	);
 
 	$languages = array();
 	$fp = @fopen(__DIR__ . "/../importfiler/tekster.csv", "r");
@@ -396,19 +448,19 @@ function personal_settings_load(int $brugerId, bool $isRevisor, string $brugerna
 		'name'      => $name,
 		'username'  => trim((string) $u['brugernavn']),
 		'email'     => $email,
+		'storedEmail' => trim((string) $u['email']),
 		'tlf'       => trim((string) $u['tlf']),
 		'twofactor' => $twofactor,
+		'tfaMethods' => $tfaMethods,
+		'tfaMethod' => $tfaMethod,
 		'language'  => max(1, (int) $sprog_id ?: (int) $u['language_id']),
 		'languages' => $languages,
 		'revisor'   => $isRevisor,
-		'colors'    => $colors,
 		'popup'     => ($uset && trim((string) $uset['box2']) !== ''),
 		'theme'     => in_array(SettingsService::get('personal.profile.theme', $brugerId), array('light', 'dark', 'system'), true) ? SettingsService::get('personal.profile.theme', $brugerId) : 'light',
 		'textSize'  => SettingsService::get('personal.profile.text_size', $brugerId) === 'large' ? 'large' : 'normal',
 		'warnDays'  => get_due_date_warning_days($brugerId),
 		'autocomplete' => (bool) SettingsService::get('personal.orders.autocomplete', $brugerId),
-		'localPrint' => (bool) SettingsService::get('personal.print.local_print', $brugerId),
-		'autoExtract' => (bool) SettingsService::get('personal.documents.auto_extract', $brugerId),
 		'bankFeature' => SettingsService::hasModule('bank'),
 		'bankStatus' => (bool) SettingsService::get('personal.profile.bank_status', $brugerId),
 		'sessions'  => $sessionRows,
@@ -418,6 +470,7 @@ function personal_settings_load(int $brugerId, bool $isRevisor, string $brugerna
 		'admins'    => $admins,
 		'notifOff'  => function_exists('notif_disabled_types') ? notif_disabled_types($brugerId) : array(),
 		'digest'    => ((string) get_settings_value('digest', 'notifications', '0', $brugerId) === '1'),
+		'dialogsHidden' => personal_settings_hidden_dialogs($brugerId),
 	);
 }
 
@@ -438,16 +491,25 @@ function personal_settings_flash(array $get, int $sprogId): array
 		$flash[] = array('type' => 'warn', 'text' => findtekst('5528|Adgangskoden kan ikke ændres i demoversionen', $sprogId));
 	}
 	if (isset($get['confirm']) && $get['confirm'] === 'missing') {
-		$flash[] = array('type' => 'err', 'text' => findtekst('5625|Den nuværende adgangskode mangler eller er forkert', $sprogId));
+		$flash[] = array('type' => 'err', 'text' => findtekst('5625|Den nuværende adgangskode mangler eller er forkert – ændringer af e-mail, telefon, tofaktor og adgangskode blev ikke gemt', $sprogId));
 	}
 	if (isset($get['tfa']) && $get['tfa'] === 'missing') {
 		$flash[] = array('type' => 'warn', 'text' => findtekst('5516|Tofaktor-login kræver et telefonnummer eller en e-mail', $sprogId));
+	} elseif (isset($get['tfa']) && $get['tfa'] === 'nosms') {
+		$flash[] = array('type' => 'warn', 'text' => findtekst('personal.tfa.need_phone|Kode på SMS kræver et telefonnummer. Tilføj det under Profil først.', $sprogId));
+	} elseif (isset($get['tfa']) && $get['tfa'] === 'noemail') {
+		$flash[] = array('type' => 'warn', 'text' => findtekst('personal.tfa.need_email|Kode på e-mail kræver en e-mail. Tilføj den under Profil først.', $sprogId));
+	}
+	if (isset($get['err']) && $get['err'] === 'csrf') {
+		$flash[] = array('type' => 'err', 'text' => findtekst('7804|Siden var udløbet, så intet blev gemt. Prøv igen.', $sprogId));
 	}
 	if (isset($get['sessions']) && $get['sessions'] === 'out') {
 		$flash[] = array('type' => 'ok', 'text' => findtekst('5623|Andre enheder er logget ud', $sprogId));
 	}
 	if (!empty($get['saved'])) {
 		$flash[] = array('type' => 'ok', 'text' => findtekst('5517|Dine indstillinger er gemt', $sprogId));
+	} elseif (!empty($get['saved_other'])) {
+		$flash[] = array('type' => 'ok', 'text' => findtekst('7807|Øvrige indstillinger er gemt.', $sprogId));
 	}
 	return $flash;
 }
@@ -466,19 +528,13 @@ function personal_settings_view(?array $d, array $flash, string $selfUrl, string
 	$tabUrl = function (string $name) use ($selfUrl, $h): string {
 		return $h($selfUrl . (strpos($selfUrl, '?') === false ? '?' : '&') . 'tab=' . $name);
 	};
-	if (strpos($selfUrl, 'inframe=1') !== false) {
-		$backUrl = '../index/dashboard.php';
-	} else {
-		$backUrl = function_exists('nav_back_url') ? nav_back_url() : '../index/dashboard.php';
-	}
-	global $buttonColor, $buttonTxtColor;
-	$backStyle = 'background:' . (!empty($buttonColor) ? $buttonColor : '#114691') . ';color:' . (!empty($buttonTxtColor) ? $buttonTxtColor : '#ffffff');
 	$flashIcons = array('ok' => 'bx-check-circle', 'warn' => 'bx-error', 'err' => 'bx-x-circle');
 	?>
 <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+<link rel='stylesheet' href='../css/saldi-theme.css?v=11'><link rel='stylesheet' href='../css/saldi-kit.css?v=20261114'>
 <script>document.title = <?= json_encode(mb_convert_encoding(findtekst('5500|Personlige indstillinger', $sprogId), 'UTF-8', $charset)) ?>;</script>
 <div class="ps-page">
-  <a class="ps-back" accesskey="l" style="<?= $h($backStyle) ?>" href="<?= $h($backUrl) ?>"><i class='bx bx-arrow-back'></i><?= $t('5647|Tilbage') ?></a>
+  <div class="sk ps-backbar"><?= settings_back_button() /* opened from anywhere in Saldi, like the hub: the last page outside the settings, or Oversigt */ ?></div>
   <header class="ps-head">
     <div>
       <h1><i class='bx bx-cog'></i><?= $t('5500|Personlige indstillinger') ?></h1>
@@ -520,20 +576,6 @@ function personal_settings_view(?array $d, array $flash, string $selfUrl, string
 	if (!form) { return; }
 	var dirty = document.getElementById('ps-dirty');
 
-	function hex(id) {
-		var el = document.getElementById(id);
-		var v = el ? (el.value || '').replace('#', '').toLowerCase() : '';
-		return /^[0-9a-f]{6}$/.test(v) ? '#' + v : null;
-	}
-	function preview() {
-		var btn = document.getElementById('ps-preview-btn');
-		var menu = document.getElementById('ps-preview-menu');
-		if (!btn || !menu) { return; }
-		var bc = hex('ps-buttonColor-text') || '#114691';
-		var tc = hex('ps-buttonTxtColor-text') || '#ffffff';
-		btn.style.background = bc; btn.style.color = tc;
-		menu.style.background = bc; menu.style.color = tc;
-	}
 	var initial = snapshot();
 	function snapshot() {
 		return Array.prototype.map.call(form.elements, function (el) {
@@ -547,20 +589,6 @@ function personal_settings_view(?array $d, array $flash, string $selfUrl, string
 		if (dirty) { dirty.classList.toggle('on', changed); }
 	}
 
-	Array.prototype.forEach.call(document.querySelectorAll('input[type="color"][data-target]'), function (picker) {
-		picker.addEventListener('input', function () {
-			document.getElementById(picker.dataset.target).value = picker.value.substring(1);
-			markDirty(); preview();
-		});
-	});
-	Array.prototype.forEach.call(document.querySelectorAll('input[data-color]'), function (text) {
-		text.addEventListener('input', function () {
-			var v = text.value.replace('#', '');
-			if (/^[0-9a-fA-F]{6}$/.test(v)) { document.getElementById(text.dataset.color).value = '#' + v.toLowerCase(); }
-			preview();
-		});
-		text.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); } });
-	});
 	form.addEventListener('input', markDirty);
 	form.addEventListener('change', markDirty);
 	form.addEventListener('submit', function () {
@@ -568,7 +596,6 @@ function personal_settings_view(?array $d, array $flash, string $selfUrl, string
 		var b = document.getElementById('ps-submit');
 		if (b) { b.disabled = true; }
 	});
-	preview();
 })();
 </script>
 	<?php
@@ -631,7 +658,7 @@ function personal_settings_view_profile(array $d, callable $h, callable $t, stri
             <option value="normal"<?= $d['textSize'] === 'normal' ? ' selected' : '' ?>><?= $t('7029|Normal') ?></option>
             <option value="large"<?= $d['textSize'] === 'large' ? ' selected' : '' ?>><?= $t('7030|Større (+11 %)') ?></option>
           </select>
-          <small class="ps-help"><?= $t('7031|Gør al tekst ca. 11 % større. Browserens egen zoom virker oveni.') ?></small>
+          <small class="ps-help"><?= $t('7031|Gør teksten i topbaren, på Oversigt og i Indstillinger ca. 11 % større. Browserens egen zoom virker oveni.') ?></small>
         </div>
         <div class="ps-field">
           <label for="ps-language"><?= $t('801|Sprog') ?></label>
@@ -640,38 +667,6 @@ function personal_settings_view_profile(array $d, callable $h, callable $t, stri
             <option value="<?= (int) $id ?>"<?= ($id === $d['language']) ? ' selected' : '' ?>><?= $h($label) ?></option>
             <?php } ?>
           </select>
-        </div>
-      </div>
-    </section>
-
-    <section class="ps-card">
-      <h2><i class='bx bx-palette'></i><?= $t('5508|Udseende') ?></h2>
-      <p class="ps-card-help"><?= $t('5526|Farverne bruges i menuen og på knapper') ?></p>
-      <div class="ps-grid">
-        <?php
-        $colorFields = array(
-        	array('name' => 'buttonColor',    'label' => '5509|Knapfarve',            'help' => ''),
-        	array('name' => 'buttonTxtColor', 'label' => '5510|Tekstfarve på knapper', 'help' => ''),
-        );
-        foreach ($colorFields as $cf) {
-        	$val = $d['colors'][$cf['name']];
-        ?>
-        <div class="ps-field">
-          <label for="ps-<?= $cf['name'] ?>-text"><?= $t($cf['label']) ?></label>
-          <div class="ps-color">
-            <input type="color" id="ps-<?= $cf['name'] ?>-color" value="#<?= $h($val) ?>" data-target="ps-<?= $cf['name'] ?>-text">
-            <span class="ps-hash">#</span>
-            <input class="ps-input" type="text" id="ps-<?= $cf['name'] ?>-text" name="<?= $cf['name'] ?>" value="<?= $h($val) ?>" maxlength="7" pattern="#?[0-9a-fA-F]{6}" data-color="ps-<?= $cf['name'] ?>-color">
-          </div>
-          <?php if ($cf['help'] !== '') { ?><span class="ps-help"><?= $t($cf['help']) ?></span><?php } ?>
-        </div>
-        <?php } ?>
-        <div class="ps-field ps-field-full">
-          <div class="ps-preview">
-            <span class="ps-preview-label"><?= $t('5527|Eksempel') ?></span>
-            <span class="ps-preview-menu" id="ps-preview-menu"><i class='bx bx-coin-stack'></i><?= $t('600|Finans') ?></span>
-            <button type="button" class="ps-preview-btn" id="ps-preview-btn"><?= $t('3|Gem') ?></button>
-          </div>
         </div>
       </div>
     </section>
@@ -693,29 +688,37 @@ function personal_settings_view_profile(array $d, callable $h, callable $t, stri
           </label>
         </div>
 			<?php } ?>
+			<?php if (function_exists('batch_reports_allowed') && batch_reports_allowed()) { // the expiry warning goes with Varerapport ?>
         <div class="ps-field">
           <label for="ps-warn"><?= $t('5006|Advar om udløb (dage før)') ?></label>
           <input class="ps-input ps-input-short" type="number" min="1" id="ps-warn" name="due_date_warning_days" value="<?= (int) $d['warnDays'] ?>">
         </div>
+			<?php } ?>
       </div>
     </section>
 
-    <section class="ps-card">
-      <h2><i class='bx bx-printer'></i><?= $t('5993|Udskrift') ?></h2>
-      <div class="ps-grid">
-        <div class="ps-field ps-field-full" id="personal.documents.auto_extract">
-          <label class="ps-check">
-            <input type="checkbox" name="auto_extract" value="on"<?= $d['autoExtract'] ? ' checked' : '' ?>>
-            <span class="ps-check-txt"><b><?= $t('3271|Auto-udtræk fakturadata ved upload') ?></b><span><?= $t('7018|Nye bilag i dokumentpuljen læses automatisk for fakturadata. Gælder kun for dig.') ?></span></span>
-          </label>
-        </div>
-        <div class="ps-field ps-field-full" id="personal.print.local_print">
-          <label class="ps-check">
-            <input type="checkbox" name="local_print" value="on"<?= $d['localPrint'] ? ' checked' : '' ?>>
-            <span class="ps-check-txt"><b><?= $t('6007|Udskriv til lokal printer') ?></b><span><?= $t('6008|Udskrifter sendes til den printer, der er sat op under Dokumenter → Udskrift. Gælder kun for dig.') ?></span></span>
-          </label>
-        </div>
+    <section class="ps-card" id="personal.profile.hidden_questions">
+      <h2><i class='bx bx-hide'></i><?= $t('dialog.hidden_title|Skjulte spørgsmål') ?></h2>
+      <p class="ps-card-help"><?= $t('dialog.hidden_help|Spørgsmål, du har valgt ikke at se igen (Vis ikke igen). Sæt flueben ved Vis igen og gem, så bliver du spurgt igen.') ?></p>
+			<?php if (!$d['dialogsHidden']) { ?>
+      <p class="ps-card-help" style="margin:0;"><?= $t('dialog.hidden_none|Du har ikke skjult nogen spørgsmål.') ?></p>
+			<?php } else { ?>
+      <div class="ps-checks">
+				<?php foreach ($d['dialogsHidden'] as $dialogKey) {
+					// a known question by its name and what it asks; one this list does not know yet by its key
+					$known = array(
+						'invoice_date' => array('dialog.key.invoice_date|Fakturadato ved fakturering', 'dialog.key.invoice_date_help|Spørgsmålet om fakturadatoen, når du trykker Fakturér'),
+					);
+					$name = isset($known[$dialogKey]) ? $t($known[$dialogKey][0]) : $h($dialogKey);
+					$help = isset($known[$dialogKey]) ? $t($known[$dialogKey][1]) : '';
+				?>
+        <label class="ps-check">
+          <input type="checkbox" name="dialog_show[]" value="<?= $h($dialogKey) ?>">
+          <span class="ps-check-txt"><b><?= $t('dialog.show_again|Vis igen') ?>: <?= $name ?></b><?php if ($help !== '') { ?><span><?= $help ?></span><?php } ?></span>
+        </label>
+				<?php } ?>
       </div>
+			<?php } ?>
     </section>
 
     <footer class="ps-save">
@@ -738,10 +741,31 @@ function personal_settings_view_security(array $d, callable $h, callable $t, str
       <p class="ps-card-help"><?= $t('5618|Indtast din nuværende adgangskode for at ændre e-mail, telefon, tofaktor eller adgangskode') ?></p>
       <div class="ps-grid">
         <div class="ps-field ps-field-full">
-          <label class="ps-check">
-            <input type="checkbox" name="twofactor" value="on" id="ps-twofactor"<?= $d['twofactor'] ? ' checked' : '' ?>>
-            <span class="ps-check-txt"><b><?= $t('5515|Tofaktor-login (kode via SMS eller e-mail)') ?></b><span><?= $t('5516|Tofaktor-login kræver et telefonnummer eller en e-mail') ?> · <?= $t('5624|Tofaktor-metode: SMS når et telefonnummer er angivet, ellers e-mail') ?></span></span>
-          </label>
+          <label for="ps-twofactor-off"><?= $t('personal.tfa.title|Tofaktor-login') ?></label>
+          <span class="ps-help"><?= $t('personal.tfa.intro|Når du logger ind, skal du også skrive en kode, som vi sender til dig.') ?></span>
+          <?php
+          // One choice says both whether two-factor is on and how the code comes. A way without a number or an
+          // address to send to cannot be chosen, and says what is missing.
+          $tfaSms = isset($d['tfaMethods']['sms']) ? $d['tfaMethods']['sms'] : '';
+          $tfaEmail = isset($d['tfaMethods']['email']) ? $d['tfaMethods']['email'] : '';
+          ?>
+          <?php if ($d['twofactor'] && $d['tfaMethod'] === '') { // on, but nowhere to send a code: saving the tab must not switch it off unasked ?>
+          <input type="hidden" name="twofactor" value="on">
+          <?php } ?>
+          <div class="ps-checks" id="ps-twofactor" role="radiogroup" aria-label="<?= $t('personal.tfa.title|Tofaktor-login') ?>">
+            <label class="ps-check">
+              <input type="radio" name="twofactor" value="" id="ps-twofactor-off"<?= $d['twofactor'] ? '' : ' checked' ?>>
+              <span class="ps-check-txt"><b><?= $t('personal.tfa.off|Slået fra') ?></b><span><?= $t('personal.tfa.off_help|Du logger ind med adgangskoden alene.') ?></span></span>
+            </label>
+            <label class="ps-check">
+              <input type="radio" name="twofactor" value="sms" id="ps-twofactor-sms"<?= ($d['twofactor'] && $d['tfaMethod'] === 'sms') ? ' checked' : '' ?><?= $tfaSms === '' ? ' disabled' : '' ?>>
+              <span class="ps-check-txt"><b><?= $t('personal.tfa.sms|Kode på SMS') ?></b><span><?= $tfaSms !== '' ? sprintf($t('personal.tfa.sent_to|Sendes til %s'), $h($tfaSms)) : $t('personal.tfa.add_phone|Tilføj først et telefonnummer under Profil') ?></span></span>
+            </label>
+            <label class="ps-check">
+              <input type="radio" name="twofactor" value="email" id="ps-twofactor-email"<?= ($d['twofactor'] && $d['tfaMethod'] === 'email') ? ' checked' : '' ?><?= $tfaEmail === '' ? ' disabled' : '' ?>>
+              <span class="ps-check-txt"><b><?= $t('personal.tfa.email|Kode på e-mail') ?></b><span><?= $tfaEmail !== '' ? sprintf($t('personal.tfa.sent_to|Sendes til %s'), $h($tfaEmail)) : $t('personal.tfa.add_email|Tilføj først en e-mail under Profil') ?></span></span>
+            </label>
+          </div>
         </div>
         <div class="ps-field">
           <label for="ps-glkode"><?= $t('5512|Nuværende adgangskode') ?></label>
@@ -835,7 +859,7 @@ function personal_settings_view_notifications(array $d, callable $h, callable $t
     <input type="hidden" name="action" value="save">
     <input type="hidden" name="tab" value="notifications">
     <section class="ps-card">
-      <h2><i class='bx bx-bell'></i><?= $t('5639|Notifikationstyper') ?></h2>
+      <h2><i class='bx bx-bell'></i><?= $t('5639|Notifikationer') ?></h2>
       <p class="ps-card-help"><?= $t('5644|Vælg hvilke notifikationer du vil se i klokken') ?></p>
       <div class="ps-checks">
         <?php foreach ($types as $type => $label) { ?>

@@ -1,5 +1,5 @@
 <?php
-// --------includes/openpost.php ----- ver 5.0.0 ---- 2026.11.09 ---------------------------
+// --------includes/openpost.php ----- ver 5.1.1 ---- 2026.11.26 ---------------------------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -27,6 +27,20 @@
 //                 bogfor_nu() no longer ends a query with ';', which injecttjek() took for SQL injection, so "Ryk alle" could not post a reminder.
 //                 bogfor_rykker() selects pris and bogfor_nu() initialises $afd (PHP warnings).
 // 20261109 CL/ASR Review fixes: bogfor_rykker() refreshes a carried fee from the reminder's lines before it moves it to "Bogførte rykkere", and posts nothing for a reminder dated outside the active fiscal year (as includes/rapportfunc.php).
+// 20261126 CL/ASR Stripe port (#1098): bogfor_rykker() and bogfor_nu() changes from the source lines above.
+// 20261116 CDX/ASR Include the rendered ledger in report forms to prevent cross-company reminder creation.
+// 20261126 CL/ASR Stripe port (#1134): the rykker and open-items forms post thisDb, the ledger they were rendered in.
+// 20261117 CDX/ASR Allow the scheduler to own the posting transaction and roll back an unbalanced reminder.
+// 20261126 CL/ASR Stripe port (#1147): bogfor_rykker($id, $manageTransaction) and bogfor_nu($id, $throwOnError) for the automatic reminder run; the values bogfor_nu() writes are escaped.
+// 20261126 ASR Review I1: in the caller's transaction ($manageTransaction false) bogfor_rykker() throws for a stock-tracked fee item instead of printing an alert, so "Ryk alle" can skip the chain with a notice.
+// 20261126 ASR Review I2: bogfor_rykker() re-reads the reminder FOR UPDATE in one transaction with the posting and posts nothing when it is already booked (status 3 or 4).
+// 20261126 ASR Review I3: bogfor_rykker() does not book an automatic reminder that was not sent (reminder_automation_unsent()); it throws in the caller's transaction and shows a notice otherwise.
+// 20261126 ASR Review GPT-R-1: bogfor_rykker() and bogfor_nu() read the fee item's and the debtor's group of the year the reminder is posted in (reminder_posting_year()), as invoice posting does.
+// 20261126 ASR Review GPT-F-1: bogfor_rykker() rolls its own transaction back when a stock-tracked line stops the booking, so nothing of it is kept.
+//              A reminder left at status 3 without a fee open item or a posting (reminder_booking_posted()) is booked again; one with either is not.
+// 20261126 ASR Review GPT-G-4: bogfor_rykker() and bogfor_nu() post only with the item and debtor groups of the posting year (reminder_posting_groups()).
+//              When one of them has no row in that year, nothing is written: "Ryk alle" and the automatic run get the reason as an exception, otherwise it is shown.
+// 20261126 ASR Review AR2-2: the refusal for an automatic reminder that was not sent is worded by its job's state (reminder_automation_unsent_text($id)); a paused, failed or uncertain one is not offered to be deleted.
 function openpost($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $art) {
 	?>
 	<script LANGUAGE="JavaScript">
@@ -205,6 +219,7 @@ function saldiToggleRykker(sectionId, frameId, url) {
 			if ($taeller==3) $betalt="and betalt = 'on'";
 			else $betalt="and betalt != 'on'";
 			print "<form name=$formnavn action=rapport.php method=post>";
+			print "<input type='hidden' name='thisDb' value='" . htmlspecialchars((string)($GLOBALS['db'] ?? ''), ENT_QUOTES, 'UTF-8') . "'>";
 
 			if (is_numeric($konto_fra) && is_numeric($konto_til)) {
 				$tekst = "select * from ordrer where ".nr_cast('kontonr').">='$konto_fra' and ".nr_cast('kontonr')."<='$konto_til' and art LIKE 'R%' $betalt and status $status order by ".nr_cast('kontonr')."";
@@ -400,6 +415,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$art) {
 
 	#$regnslut = "2005-05-04";
 	print "<form name=aabenpost action=rapport.php method=post>";
+	print "<input type='hidden' name='thisDb' value='" . htmlspecialchars((string)($GLOBALS['db'] ?? ''), ENT_QUOTES, 'UTF-8') . "'>";
 	print "<tr><td colspan=10><hr></td></tr>\n";
 
 	$x=0;
@@ -753,9 +769,28 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$art) {
 	print "</tbody></table>";
 } #endfunc vis_aabne_poster
 ####################################################################################### 
- function bogfor_rykker($id) {
-// Bemaerk at der ikke traekkes moms ved bogfoering af rykkergebyr - heller ikke selvom gebyret tilhorer en momsbelagt varegruppe.
+/** @return void|false Post fees; the scheduler may own the enclosing transaction. */
+function bogfor_rykker($id, bool $manageTransaction = true) {
+	$id = (int)$id;
+	// Bemaerk at der ikke traekkes moms ved bogfoering af rykkergebyr - heller ikke selvom gebyret tilhorer en momsbelagt varegruppe.
 	global $fakturadate; 
+	// 20261126 ASR Review I2: one transaction from the locked re-read to the posting; a reminder another run or user has booked meanwhile is not posted again
+	if (is_file(__DIR__ . '/reminderLegal.php')) include_once(__DIR__ . '/reminderLegal.php');
+	if ($manageTransaction) transaktion('begin');
+	$locked = db_fetch_array(db_select("select status, fakturanr from ordrer where id = '$id' and art like 'R%' for update",__FILE__ . " linje " . __LINE__));
+	// 20261126 ASR Review GPT-F-1: status 3 is booked only when something was posted; earlier code left status 3 without posting when a line was refused
+	if (!$locked || (int)$locked['status'] >= 4 || ((int)$locked['status'] == 3 && (!function_exists('reminder_booking_posted') || reminder_booking_posted($id)))) {
+		if ($manageTransaction) transaktion('commit');
+		return;
+	}
+	// 20261126 ASR Review I3: an automatic reminder that was not sent is not booked, as its fee is not owed
+	if (function_exists('reminder_automation_unsent') && reminder_automation_unsent($id)) {
+		if ($manageTransaction) transaktion('commit');
+		$unsent = reminder_txt(8108, 'Rykker {rykker}: {tekst}', array('rykker' => trim((string)$locked['fakturanr']), 'tekst' => reminder_automation_unsent_text($id))); // 20261126 ASR Review AR2-2: worded by its job's state
+		if (!$manageTransaction) throw new RuntimeException($unsent);
+		print "<script>alert(" . (function_exists('jsString') ? jsString(array($unsent)) : json_encode($unsent, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT)) . ");</script>\n";
+		return false;
+	}
 	// 20261109 CL/ASR a link reminder whose fee and interest go on the customer's next invoice posts nothing here:
 	// no open item, no transactions. It only moves to "Bogførte rykkere" (status 4), so it can be escalated.
 	if (is_file(__DIR__ . '/stripeIncludes/stripeReminder.php')) {
@@ -763,6 +798,7 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$art) {
 		if (stripe_reminder_carried((int)$id)) {
 			stripe_reminder_refresh_amounts((int)$id);   // a fee or interest line deleted before booking is not carried
 			db_modify("update ordrer set status = 4 where id = " . (int)$id, __FILE__ . " linje " . __LINE__);
+			if ($manageTransaction) transaktion('commit');
 			return;
 		}
 	}
@@ -770,7 +806,19 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$art) {
 	// ("Ryk alle" in debitor/ny_rykker.php skips such a reminder first and says so)
 	if (is_file(__DIR__ . '/reminderLegal.php')) {
 		include_once(__DIR__ . '/reminderLegal.php');
-		if (!reminder_in_active_year((int)$id)) return false;
+		if (!reminder_in_active_year((int)$id)) {
+			if ($manageTransaction) transaktion('commit');
+			return false;
+		}
+	}
+	// 20261126 ASR Review GPT-G-4: every item group and the debtor group of the posting year, checked before anything is written; another year's accounts are never used
+	$postingGroups = reminder_posting_groups($id);
+	if ($postingGroups['refusal'] !== '') {
+		if ($manageTransaction) transaktion('rollback');
+		if (!$manageTransaction) throw new RuntimeException($postingGroups['refusal']);
+		$refused = reminder_txt(8108, 'Rykker {rykker}: {tekst}', array('rykker' => trim((string)$locked['fakturanr']), 'tekst' => $postingGroups['refusal']));
+		print "<script>alert(" . (function_exists('jsString') ? jsString(array($refused)) : json_encode($refused, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT)) . ");</script>\n";
+		return false;
 	}
 	$fejl=0;
 	$sum=0;
@@ -784,29 +832,29 @@ function vis_aabne_poster($dato_fra,$dato_til,$konto_fra,$konto_til,$art) {
 		$ordre_linje_id[$x]=$r['id'];
 		$pris[$x] = $r['pris'];
 		if ($vare_id[$x]=$r['vare_id']) {
-			$q2 = db_select("select gruppe from varer where id = $vare_id[$x]",__FILE__ . " linje " . __LINE__);
-			$r2 = db_fetch_array($q2);
-			$gruppe[$x]=$r2['gruppe'];
-			$q2 = db_select("select * from grupper where art='VG' and kodenr='$gruppe[$x]'",__FILE__ . " linje " . __LINE__);
-			$r2 = db_fetch_array($q2);
+			// 20261126 ASR Review GPT-G-4: the line item's group row of the posting year, checked above (grupper has a row per fiscal year)
+			$r2 = $postingGroups['items'][(int)$ordre_linje_id[$x]];
 			$box1[$x]=trim($r2['box1']); $box2[$x]=trim($r2['box2']); $box3[$x]=trim($r2['box3']); $box4[$x]=trim($r2['box4']); $box8[$x]=trim($r2['box8']); $box9[$x]=trim($r2['box9']);
 			if ($box8[$x]!='on') {
 				db_modify("update ordrelinjer set bogf_konto=$box4[$x] where id=$ordre_linje_id[$x]",__FILE__ . " linje " . __LINE__);
 				db_modify("update ordrer set status=3 where id=$id",__FILE__ . " linje " . __LINE__);
 			} else {
 				$fejl=1;
+				// 20261126 ASR Review I1: the caller owns the transaction and says why ("Ryk alle" skips the chain, its savepoint undoes the lines above)
+				if (!$manageTransaction) throw new RuntimeException(function_exists('reminder_txt') ? reminder_txt(8244, 'der er brugt en lagerført vare som rykkergebyr, så rykkeren kan ikke bogføres.') : 'Der er anvendt en lagerført vare som gebyr - rykker kan ikke bogføres');
 				print "<BODY onLoad=\"javascript:alert('Der er anvendt en lagerf&oslash;rt vare som gebyr - rykker kan ikke bogf&oslash;res')\">";
 			}
 		}
 	} 
-	if (!$fejl) {
-		transaktion('begin');
-		bogfor_nu($id);
-		transaktion('commit');
-	}
+	if (!$fejl && bogfor_nu($id, !$manageTransaction) === false) $fejl = 1; // 20261126 ASR Review GPT-G-4: bogfor_nu() refused before it wrote anything
+	// 20261126 ASR Review GPT-F-1: a refused line keeps nothing: the status and accounts the other lines set are rolled back with the transaction
+	if ($manageTransaction) transaktion($fejl ? 'rollback' : 'commit');
+	if ($fejl) return false;
 }
-function bogfor_nu($id)
+/** @return void Write balanced reminder postings, or throw for an atomic scheduler rollback. */
+function bogfor_nu($id, bool $throwOnError = false)
 {
+	$id = (int)$id;
 	$d_kontrol=0; 
 	$k_kontrol=0;
 	$logdate=date("Y-m-d");
@@ -834,21 +882,21 @@ function bogfor_nu($id)
 #		$ym=$year.$month;
 		$art=$r['art'];
 		$konto_id=$r['konto_id'];
-		$kontonr=str_replace(" ","",$r['kontonr']);
+		$kontonr=db_escape_string(str_replace(" ","",$r['kontonr']));
 		$firmanavn=trim($r['firmanavn']);
 		$modtagelse=$r['modtagelse'];
 		$transdate=($r['fakturadate']);
-		$fakturanr=$r['fakturanr'];
+		$fakturanr=db_escape_string($r['fakturanr']);
 		$ordrenr=$r['ordrenr'];
 		$valutakurs=$r['valutakurs'];
-		$projekt=$r['projekt']*1;
-		$refnr;
+		$projekt=(int)($r['projekt'] ?? 0);
+		$refnr = 0;
 		if ($r['moms']) {$moms=$r['moms'];}
 		else {$moms=round($r['sum']*$r['momssats']/100,2);}
 		$sum=$r['sum']+$moms;
 		$ordreantal=$x;
 		$afd = 0;
-		if ($r= db_fetch_array(db_select("select afd from ansatte where navn = '$r[ref]'",__FILE__ . " linje " . __LINE__))) $afd=$r['afd'];
+		if ($r= db_fetch_array(db_select("select afd from ansatte where navn = '" . db_escape_string((string)($r['ref'] ?? '')) . "'",__FILE__ . " linje " . __LINE__))) $afd=$r['afd'];
 		$afd=$afd*1; #sikkerhed for at 'afd' har en vaerdi 
 		 
 		$bilag=0;
@@ -861,11 +909,17 @@ function bogfor_nu($id)
 		$beskrivelse="Gebyr mm. fra tidligere rykker";	
 		if ($valutakurs) $sum=$sum*$valutakurs/100; # Omregning til DKR.
 
+		// 20261126 ASR Review GPT-G-4: the debtor group's row of the posting year only, read before anything is written
+		$postingGroups = reminder_posting_groups($id);
+		if ($postingGroups['refusal'] !== '') {
+			if ($throwOnError) throw new RuntimeException($postingGroups['refusal']);
+			$refused = reminder_txt(8108, 'Rykker {rykker}: {tekst}', array('rykker' => trim((string)$fakturanr), 'tekst' => $postingGroups['refusal']));
+			print "<script>alert(" . (function_exists('jsString') ? jsString(array($refused)) : json_encode($refused, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT)) . ");</script>\n";
+			return false;
+		}
 		# 20261109 CL/ASR projekt '' (not NULL) so a payment of the fee settles it in finans/bogfor.php openpost()
 		if ($sum) db_modify("insert into openpost (konto_id, konto_nr, faktnr, refnr, amount, beskrivelse, udlignet, transdate, kladde_id, projekt) values ('$konto_id', '$kontonr', '$fakturanr', '$id','$sum', '$beskrivelse', '0', '$transdate', '0', '')",__FILE__ . " linje " . __LINE__);
-		$r = db_fetch_array(db_select("select gruppe from adresser where id='$konto_id'",__FILE__ . " linje " . __LINE__));
-		$r = db_fetch_array(db_select("select box2 from grupper where art = 'DG' and kodenr='$r[gruppe]'",__FILE__ . " linje " . __LINE__));
-		$kontonr=$r['box2']; # Kontonr ændres fra at være leverandørkontonr til finanskontonr
+		$kontonr=$postingGroups['debtor']['box2']; # Kontonr ændres fra at være leverandørkontonr til finanskontonr
 
 		if ($sum>0) {$debet=$sum; $kredit='0';}
 		else {$debet='0'; $kredit=$sum*-1;}
@@ -877,8 +931,8 @@ function bogfor_nu($id)
 		$q = db_select("select * from ordrelinjer where ordre_id=" . (int)$id, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			if (!in_array($r['bogf_konto'], $bogf_konto)) {
-			$y++;
-			$bogf_konto[$y]=$r['bogf_konto'];
+				$y++;
+				$bogf_konto[$y]=$r['bogf_konto'];
 				$pris[$y]=$r['pris']*$r['antal']-round(($r['pris']*$r['antal']*$r['rabat']/100),2);
 			}
 			else {
@@ -920,6 +974,7 @@ function bogfor_nu($id)
 	$d_kontrol=round($d_kontrol,2);
 	$k_kontrol=round($k_kontrol,2);
 	if ($d_kontrol!=$k_kontrol) {
+		if ($throwOnError) throw new RuntimeException('Rykkerens posteringer stemmer ikke.');
 		print "<BODY onLoad=\"javascript:alert('Der er konstateret en uoverensstemmelse i posteringssummen, kontakt administrator')\">";
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=rapport.php?id=$id\">";
 		exit;

@@ -23,13 +23,10 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261019 CL/ASR Created: "Download PDF" on the invoice & payment page. Serves the cached
-//                 invoice PDF (written when the link mail went out) or renders it with
-//                 tools/stripe_invoice_pdf.php. Signed link required like the page itself.
+// 20261019 CL/ASR Created: "Download PDF" on the invoice & payment page. Serves the cached invoice PDF (written when the link mail went out) or renders it with tools/stripe_invoice_pdf.php. Signed link required like the page itself.
 // 20261022 CDX/LH Stream one opened private PDF with its matching size after signed invoice verification.
 // 20261022 CL/LH S5 Danish PDF error texts from stripe_txt(); the page footer uses the invoicing company (faktura_common).
-// 20261025 CL/ASR vis=1 shows the PDF in the browser (link in the payment confirmation mail), so it does not
-//                 land silently in the download folder.
+// 20261025 CL/ASR vis=1 shows the PDF in the browser (link in the payment confirmation mail), so it does not land silently in the download folder.
 
 include(__DIR__ . '/faktura_common.php');
 

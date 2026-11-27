@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kontospec.php --- ver 5.0.0 --- 2026.09.29 ---
+// --- finans/kontospec.php --- ver 5.1.1 --- 2026.11.14 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,18 +29,16 @@
 // 20251203 LOE Updated the file to use grid framework
 // 20260821 CL/SZ Faktura column now links to ordre.php/pos_ordre.php via ordre_id
 // 20260826 LOE Linked to debitor/ordre.php instead of finans/ordre.php
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20261005 Sawaneh WP-4.6: order and journal drill-downs return to the same account and month (raw month).
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
-// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20260929 CL/SZ SD-698: Optional returside; when set, Tilbage goes back there instead of regnskab.php (used by the kassekladde account lookup).
-// 20261019 Sawaneh Review 2 (PR #803): page_bar back link honours the optional returside again.
-
+// 20261104 CL/MMR SST-914: Debet/Kredit filters use <> 0, so postings with a negative debet or kredit amount are shown.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261114 CL/ASR The specification shows only what is posted.
+//                 The removed lagerbev() added stock movements computed from the stock, never posted, to the purchase account and the item groups' Lagertilgang and Lagertræk accounts (VG box1/box2), so the lines did not add up to the amount clicked under Regnskab.
 
 $fakturanr = array();
 $ordrenr   = array();
 $transdate = array();
-$varekob = $varelager_i = $varelager_u = array();
 
 $linjebg = NULL;
 
@@ -69,9 +67,6 @@ $returside = nav_sanitize_returside(ifset($_GET, 'returside', ''));
 $backHref = htmlspecialchars($returside ? $returside : 'regnskab.php', ENT_QUOTES);
 $month = if_isset($_GET,NULL,'month');
 $bilag = if_isset($_GET,NULL,'bilag');
-// WP-4.6: the drill-downs return to this account and month; the raw month is taken before it is shifted to a
-// calendar month below, or a non-January fiscal year would come back one shift further on every return.
-$kontospecBack = '../finans/kontospec.php?kontonr=' . urlencode((string) $kontonr) . '&month=' . urlencode((string) $month) . ($bilag ? '&bilag=' . urlencode((string) $bilag) : '');
 
 $query = db_select("select * from grupper where art='RA' and kodenr='$regnaar'", __FILE__ . " linje " . __LINE__);
 if ($row = db_fetch_array($query)) {
@@ -103,38 +98,42 @@ if ($row = db_fetch_array($query)) {
     $slut = trim($slut);
 }
 
-($startaar >= '2015') ? $aut_lager = 'on' : $aut_lager = NULL;
-if ($aut_lager) {
-    $x = 0;
-    $varekob = array();
-    $qtxt = "select box1,box2,box3 from grupper where art = 'VG' and box8 = 'on' and fiscal_year = '$regnaar'";
-    $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-    while ($r = db_fetch_array($q)) {
-        if ($r['box1'] && $r['box2'] && !in_array($r['box3'], $varekob)) {
-            $varelager_i[$x] = $r['box1'];
-            $varelager_u[$x] = $r['box2'];
-            $varekob[$x] = $r['box3'];
-            $x++;
-        }
-    }
-}
-
 $txt2131 = findtekst('2131|konto', $sprog_id);
 $txt2132 = findtekst('2132|bilag', $sprog_id);
 
 // Top navigation
-if ($menu == 'S') {
+if ($menu == 'T') {
+    include_once '../includes/top_header.php';
+    include_once '../includes/top_menu.php';
+    print "<div id=\"header\">"; 
+    print "<div class=\"headerbtnLft headLink\"><a href='$backHref' accesskey=L title='Klik for at komme tilbage til regnskab'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a></div>";
+    print "<div class=\"headerTxt\">" . findtekst(1196, $sprog_id) . " ";
+    if ($kontonr) print "$txt2131: $kontonr";
+    if ($bilag) print "$txt2132: $bilag";
+    print "</div>";     
+    print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
+    print "</div>";
+    print "<div class='content-noside'>";
+} elseif ($menu == 'S') {
     ############################
+     $icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+
     ##########################
 	$center = "";
 	$width = "width=10%";
-	$ksTitle = findtekst(1196, $sprog_id) . " ";
-	if ($kontonr) $ksTitle .= "$txt2131: $kontonr";
-	if ($bilag) $ksTitle .= "$txt2132: $bilag";
-	include_once("../includes/stdFunc/pageBar.php");
-	page_bar(array('title' => $ksTitle, 'back' => ($returside !== '' ? $returside : 'regnskab.php')));
 	print "<table width='100%' border='0' cellspacing='0' cellpadding='0'><tbody>\n"; #tabel1 start
 	print "<tr><td align='center' valign='top' height='1%'>\n";
+	print "<table width='100%' align='center' border='0' cellspacing='4' cellpadding='0'><tbody>\n"; #tabel2a start
+
+    print "<td width='10%'><a href='$backHref' accesskey=L title='Klik for at komme tilbage til regnskab'>
+           <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">" .$icon_back  . findtekst(30, $sprog_id) . "</button></a></td>";
+
+    print "<td width='80%' align='center' style='$topStyle'>" . findtekst(1196, $sprog_id) . " ";
+    if ($kontonr) print "$txt2131: $kontonr";
+    if ($bilag) print "$txt2132: $bilag";
+
+    print " </td><td width='10%' align='center' style='$topStyle'><br></td>";
+    print "</tbody></table>";
     print "</td></tr>";
     print "<tr><td valign=\"top\">";
 	####
@@ -167,34 +166,11 @@ if ($menu == 'S') {
 }
 
 
-// Process transactions and inventory movements
+// Process the posted transactions
 $allTransactions = array();
 
 if ($kontonr) {
-    // Get inventory transactions
-    list($transdate, $faktura, $ordrenr, $bilag_arr, $beskrivelse, $debet, $kredit, $ordre_id_res) = lagerbev($kontonr, $varekob, $varelager_i, $varelager_u, $start, $slut);
     $valg = "and kontonr = '$kontonr'";
-
-    // Add inventory transactions to array
-    if (is_array($transdate) && count($transdate) > 0) {
-        for ($i = 0; $i < count($transdate); $i++) {
-            $allTransactions[] = array(
-                'transdate' => isset($transdate[$i]) ? $transdate[$i] : '',
-                'bilag' => isset($bilag_arr[$i]) ? $bilag_arr[$i] : '',
-                'beskrivelse' => isset($beskrivelse[$i]) ? $beskrivelse[$i] : '',
-                'kontonr' => $kontonr,
-                'debet' => isset($debet[$i]) ? $debet[$i] : 0,
-                'kredit' => isset($kredit[$i]) ? $kredit[$i] : 0,
-                'faktura' => isset($faktura[$i]) ? $faktura[$i] : '',
-                'ordrenr' => isset($ordrenr[$i]) ? $ordrenr[$i] : 0,
-                'ordre_id' => isset($ordre_id_res[$i]) ? $ordre_id_res[$i] : 0,
-                'pos' => 0,
-                'kladde_id' => '',
-                'afd' => '',
-                'projekt' => ''
-            );
-        }
-    }
 } elseif ($bilag) {
     $valg = "and bilag = '$bilag'";
 }
@@ -449,12 +425,12 @@ $columns = [
         'sortable' => true,
         'searchable' => true,
         'align' => 'right',
-        'render' => function($value, $row, $column) use ($kontospecBack) {
+        'render' => function($value, $row, $column) {
             $title = isset($row['ordrenr']) && $row['ordrenr'] ? "title='Ordrenr: {$row['ordrenr']}'" : '';
             $ordre_id = isset($row['ordre_id']) ? intval($row['ordre_id']) : 0;
             if ($value !== '' && $value !== null && $ordre_id > 0) {
                 $target = (isset($row['pos']) && $row['pos']) ? '../debitor/pos_ordre.php' : '../debitor/ordre.php';
-                return "<td align='right' $title><a href='{$target}?id={$ordre_id}&returside=" . urlencode($kontospecBack) . "' style='text-decoration: underline;'>$value</a></td>";
+                return "<td align='right' $title><a href='{$target}?id={$ordre_id}&returside=../finans/kontospec.php' style='text-decoration: underline;'>$value</a></td>";
             }
             return "<td align='right' $title>$value</td>";
         }
@@ -467,9 +443,9 @@ $columns = [
         'sortable' => true,
         'searchable' => true,
         'align' => 'right',
-        'render' => function($value, $row, $column) use ($kontospecBack) {
+        'render' => function($value, $row, $column) {
 			if ($value) {
-				return "<td align='right'><a href='kassekladde.php?kladde_id=" . urlencode($value) . "&returside=" . urlencode($kontospecBack) . "' style='text-decoration: underline;'>$value</a></td>";
+				return "<td align='right'><a href='kassekladde.php?kladde_id=" . urlencode($value) . "&returside=../finans/kontospec.php' style='text-decoration: underline;'>$value</a></td>";
 			}
 			return "<td align='right'></td>";
        }
@@ -512,8 +488,8 @@ $grid_data = [
             'filterName' => 'Transaktionstype',
             'joinOperator' => 'OR',
             'options' => [
-                ['name' => 'Debet', 'sqlOn' => "debet > 0", 'sqlOff' => '', 'checked' => 'checked'],
-                ['name' => 'Kredit', 'sqlOn' => "kredit > 0", 'sqlOff' => '', 'checked' => 'checked'],
+                ['name' => 'Debet', 'sqlOn' => "debet <> 0", 'sqlOff' => '', 'checked' => 'checked'],
+                ['name' => 'Kredit', 'sqlOn' => "kredit <> 0", 'sqlOff' => '', 'checked' => 'checked'],
                 ['name' => 'Lagertransaktioner', 'sqlOn' => "beskrivelse LIKE '%lagertransaktion%'", 'sqlOff' => '', 'checked' => 'checked']
             ]
         ]
@@ -626,225 +602,14 @@ document.addEventListener('DOMContentLoaded', function() {
 // Clean up temp table
 db_modify("DROP TABLE IF EXISTS $tempTableName", __FILE__ . " linje " . __LINE__);
 
-function lagerbev($kontonr, $varekob, $varelager_i, $varelager_u, $regnstart, $regnslut) {
-    global $regnaar;
-
-    $beskrivelse = $bilag = $debet = $fakturanr = $kredit = $ordrenr = $transdate = $ordre_id = array();
-    
-    $r = db_fetch_array(db_select("select kontotype from kontoplan where kontonr='$kontonr' order by regnskabsaar desc limit 1", __FILE__ . " linje " . __LINE__));
-    $kontotype = $r ? $r['kontotype'] : '';
-    
-    if (in_array($kontonr, $varekob) || in_array($kontonr, $varelager_i) || in_array($kontonr, $varelager_u)) {
-        $z = 0;
-        $lager = array();
-        $gruppe = array();
-        $qtxt = "select kodenr,box1,box2 from grupper where art = 'VG' and box8 = 'on' and ";
-        $qtxt .= "(box1 = '$kontonr' or box2 = '$kontonr' or box3 = '$kontonr') and fiscal_year = $regnaar";
-        $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-        while ($r = db_fetch_array($q)) {
-            if ($r['box1']) {
-                $gruppe[$z] = $r['kodenr'];
-                $z++;
-            }
-        }
-        
-        $y = 0;
-        $vare_id = array();
-        for ($z = 0; $z < count($gruppe); $z++) {
-            $q = db_select("select id,kostpris from varer where gruppe = '$gruppe[$z]' order by id", __FILE__ . " linje " . __LINE__);
-            while ($r = db_fetch_array($q)) {
-                $vare_id[$y] = $r['id'];
-                $kostpris[$y] = $r['kostpris'];
-                $y++;
-            }
-        }
-        
-        $z = 0;
-        $kobsdate = array();
-        $kobsdebet = array();
-        $kobskredit = array();
-        $k_fakturanr = array();
-        $k_ordrenr = array();
-        $k_ordre_id = array();
-        
-        $q = db_select("select vare_id,ordre_id,antal,kobsdate,fakturanr,ordrenr from batch_kob,ordrer where kobsdate >= '$regnstart' and kobsdate <= '$regnslut' and ordrer.id=batch_kob.ordre_id order by kobsdate,vare_id", __FILE__ . " linje " . __LINE__);
-        while ($r = db_fetch_array($q)) {
-            if ($z && isset($kobsdate[$z]) && $r['kobsdate'] == $kobsdate[$z]) {
-                for ($y = 0; $y < count($vare_id); $y++) {
-                    if ($r['vare_id'] == $vare_id[$y]) {
-                        if ($kontotype == 'D') {
-                            if ($r['antal'] > 0) $kobskredit[$z] += $r['antal'] * $kostpris[$y];
-                            else $kobsdebet[$z] -= $r['antal'] * $kostpris[$y];
-                        } elseif (in_array($kontonr, $varelager_i)) {
-                            if ($r['antal'] > 0) $kobsdebet[$z] += $r['antal'] * $kostpris[$y];
-                            else $kobskredit[$z] -= $r['antal'] * $kostpris[$y];
-                        }
-                    }
-                }
-            } else {
-                for ($y = 0; $y < count($vare_id); $y++) {
-                    if ($r['vare_id'] == $vare_id[$y]) {
-                        if ($kontotype == 'D') {
-                            $k_fakturanr[$z] = $r['fakturanr'];
-                            $k_ordrenr[$z] = $r['ordrenr'];
-                            $k_ordre_id[$z] = $r['ordre_id'];
-                            $kobsdate[$z] = $r['kobsdate'];
-                            if ($r['antal'] > 0) {
-                                $kobskredit[$z] = $r['antal'] * $kostpris[$y];
-                                $kobsdebet[$z] = 0;
-                            } else {
-                                $kobsdebet[$z] = $r['antal'] * $kostpris[$y] * -1;
-                                $kobskredit[$z] = 0;
-                            }
-                            $z++;
-                        } elseif (in_array($kontonr, $varelager_i)) {
-                            $k_fakturanr[$z] = $r['fakturanr'];
-                            $k_ordrenr[$z] = $r['ordrenr'];
-                            $k_ordre_id[$z] = $r['ordre_id'];
-                            $kobsdate[$z] = $r['kobsdate'];
-                            if ($r['antal'] > 0) {
-                                $kobsdebet[$z] = $r['antal'] * $kostpris[$y];
-                                $kobskredit[$z] = 0;
-                            } else {
-                                $kobskredit[$z] = $r['antal'] * $kostpris[$y] * -1;
-                                $kobsdebet[$z] = 0;
-                            }
-                            $z++;
-                        }
-                    }
-                }
-            }
-        }
-        
-        $z = 0;
-        $salgsdate = array();
-        $salgsdebet = array();
-        $salgskredit = array();
-        $s_fakturanr = array();
-        $s_ordrenr = array();
-        $s_ordre_id = array();
-        
-        $q = db_select("select ordre_id,vare_id,antal,salgsdate,fakturanr,ordrenr from batch_salg,ordrer where salgsdate >= '$regnstart' and salgsdate <= '$regnslut' and ordrer.id=batch_salg.ordre_id order by salgsdate,ordre_id", __FILE__ . " linje " . __LINE__);
-        while ($r = db_fetch_array($q)) {
-            if ($z && isset($salgsdate[$z]) && $r['salgsdate'] == $salgsdate[$z]) {
-                for ($y = 0; $y < count($vare_id); $y++) {
-                    if ($r['vare_id'] == $vare_id[$y]) {
-                        if ($kontotype == 'D') {
-                            if ($r['antal'] > 0) $salgsdebet[$z] += $r['antal'] * $kostpris[$y];
-                            else $salgskredit[$z] -= $r['antal'] * $kostpris[$y];
-                        } elseif (in_array($kontonr, $varelager_u)) {
-                            if ($r['antal'] > 0) $salgskredit[$z] += $r['antal'] * $kostpris[$y];
-                            else $salgsdebet[$z] -= $r['antal'] * $kostpris[$y];
-                        }
-                    }
-                }
-            } else {
-                for ($y = 0; $y < count($vare_id); $y++) {
-                    if ($r['vare_id'] == $vare_id[$y]) {
-                        if ($kontotype == 'D') {
-                            $s_fakturanr[$z] = $r['fakturanr'];
-                            $s_ordrenr[$z] = $r['ordrenr'];
-                            $s_ordre_id[$z] = $r['ordre_id'];
-                            $salgsdate[$z] = $r['salgsdate'];
-                            if ($r['antal'] > 0) {
-                                $salgsdebet[$z] = $r['antal'] * $kostpris[$y];
-                                $salgskredit[$z] = 0;
-                            } else {
-                                $salgskredit[$z] = $r['antal'] * $kostpris[$y] * -1;
-                                $salgsdebet[$z] = 0;
-                            }
-                            $z++;
-                        } elseif (in_array($kontonr, $varelager_u)) {
-                            $s_fakturanr[$z] = $r['fakturanr'];
-                            $s_ordrenr[$z] = $r['ordrenr'];
-                            $s_ordre_id[$z] = $r['ordre_id'];
-                            $salgsdate[$z] = $r['salgsdate'];
-                            if ($r['antal'] > 0) {
-                                $salgskredit[$z] = $r['antal'] * $kostpris[$y];
-                                $salgsdebet[$z] = 0;
-                            } else {
-                                $salgsdebet[$z] = $r['antal'] * $kostpris[$y] * -1;
-                                $salgskredit[$z] = 0;
-                            }
-                            $z++;
-                        }
-                    }
-                }
-            }
-        }
-        
-        $dato = $regnstart;
-        $y = 0;
-        $kd = 0;
-        $sd = 0;
-        $trd = array();
-        $bil = array();
-        $fakt = array();
-        $ordre = array();
-        $ordreid = array();
-        $besk = array();
-        $deb = array();
-        $kre = array();
-        
-        while ($dato <= $regnslut) {
-            while (isset($kobsdate[$kd]) && $kobsdate[$kd] == $dato) {
-                $trd[$y] = $dato;
-                $bil[$y] = 0;
-                $fakt[$y] = isset($k_fakturanr[$kd]) ? $k_fakturanr[$kd] : '';
-                $ordre[$y] = isset($k_ordrenr[$kd]) ? $k_ordrenr[$kd] : 0;
-                $ordreid[$y] = isset($k_ordre_id[$kd]) ? $k_ordre_id[$kd] : 0;
-                $besk[$y] = "lagertransaktion - Køb";
-                $deb[$y] = isset($kobsdebet[$kd]) ? $kobsdebet[$kd] : 0;
-                $kre[$y] = isset($kobskredit[$kd]) ? $kobskredit[$kd] : 0;
-                $kd++;
-                $y++;
-            }
-            while (isset($salgsdate[$sd]) && $salgsdate[$sd] == $dato) {
-                $trd[$y] = $dato;
-                $bil[$y] = 0;
-                $fakt[$y] = isset($s_fakturanr[$sd]) ? $s_fakturanr[$sd] : '';
-                $ordre[$y] = isset($s_ordrenr[$sd]) ? $s_ordrenr[$sd] : 0;
-                $ordreid[$y] = isset($s_ordre_id[$sd]) ? $s_ordre_id[$sd] : 0;
-                $besk[$y] = "lagertransaktion - Salg";
-                $deb[$y] = isset($salgsdebet[$sd]) ? $salgsdebet[$sd] : 0;
-                $kre[$y] = isset($salgskredit[$sd]) ? $salgskredit[$sd] : 0;
-                $sd++;
-                $y++;
-            }
-            list($yy, $mm, $dd) = explode("-", $dato);
-            $dd++;
-            if (!checkdate($mm, $dd, $yy)) {
-                $dd = 1;
-                $mm++;
-                if ($mm > 12) {
-                    $mm = 1;
-                    $yy++;
-                }
-            }
-            $dd *= 1;
-            $mm *= 1;
-            if (strlen($dd) < 2) $dd = '0' . $dd;
-            if (strlen($mm) < 2) $mm = '0' . $mm;
-            $dato = $yy . "-" . $mm . "-" . $dd;
-        }
-        for ($y = 0; $y < count($trd); $y++) {
-            $transdate[$y] = $trd[$y];
-            $fakturanr[$y] = isset($fakt[$y]) ? $fakt[$y] : '';
-            $ordrenr[$y] = isset($ordre[$y]) ? $ordre[$y] : 0;
-            $ordre_id[$y] = isset($ordreid[$y]) ? $ordreid[$y] : 0;
-            $bilag[$y] = isset($bil[$y]) ? $bil[$y] : '';
-            $beskrivelse[$y] = isset($besk[$y]) ? $besk[$y] : '';
-            $debet[$y] = isset($deb[$y]) ? $deb[$y] : 0;
-            $kredit[$y] = isset($kre[$y]) ? $kre[$y] : 0;
-        }
-    }
-    return array($transdate, $fakturanr, $ordrenr, $bilag, $beskrivelse, $debet, $kredit, $ordre_id);
-}
-
 print "</td></tr></tbody></table>";
 
 
-include_once '../includes/oldDesign/footer.php';
+if ($menu == 'T') {
+    include_once '../includes/topmenu/footer.php';
+} else {
+    include_once '../includes/oldDesign/footer.php';
+}
 ?>
 <style>
 

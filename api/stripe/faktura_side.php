@@ -23,9 +23,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261025 CL/ASR Created: one page of the invoice as an image for the invoice & payment page,
-//                 so the left side shows the invoice exactly as its PDF. Images are rendered by
-//                 faktura.php (stripe_invoice_page_images); this endpoint only serves them.
+// 20261025 CL/ASR Created: one page of the invoice as an image for the invoice & payment page, so the left side shows the invoice exactly as its PDF. Images are rendered by faktura.php (stripe_invoice_page_images); this endpoint only serves them.
 //                 Signed link required like the page itself.
 //
 //   faktura_side.php?o=<ordre_id>&s=<signature>&p=<page, 1-based>

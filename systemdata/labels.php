@@ -1,5 +1,5 @@
 <?php
-// ---- systemdata/labels.php --- lap 5.0.0 --- 2026.10.10 ---
+// ---- systemdata/labels.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,20 +15,31 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261010 Sawaneh Settings G5.8 Mærkater (Varer & lager): item label templates with the visual editor and raw HTML,
-//                  new label from a shipped template, delete with a dialog, Standard kept. CSRF + PRG + audit log.
-//                  Address labels (LABEL box2) have no reader and are not offered (spec G5.8); their data is kept.
-//                  The old diverse.php?sektion=labels redirects here.
-// 20261016 Sawaneh The left menu is the group's sections like every settings page; the label list is a column in the content.
-
+// 20261010 SS Settings G5.8 Mærkater (Varer & lager): item label templates with the visual editor and raw HTML, new label from a shipped template, delete with a dialog, Standard kept.
+//             CSRF + PRG + audit log.
+//             Address labels (LABEL box2) have no reader and are not offered (spec G5.8); their data is kept.
+//             The old diverse.php?sektion=labels redirects here.
+// 20261016 SS The left menu is the group's sections like every settings page; the label list is a column in the content.
+// 20261101 CL/ASR Tilbage above the title, the shared settings button (settings_back_button(), styled by css/unified-components.css), as on every settings page.
+//                 Alt+L.
+//                 The left menu is the one of every settings page (settings_menu_html(): the hub group's sub-groups, Mærkater marked, no zebra).
+// 20261101 CL/ASR Review: css/unified-components.css linked as ?v=20261101e, the version the section pages and the old pages' frame link.
+// 20261102 CL/ASR Tilbage goes to the hub, a fixed target, so it never loops; settings_back_button() adds Alt+L itself.
+// 20261102 CL/ASR css/unified-components.css linked as ?v=20261102b, the version the other settings pages link.
+// 20261108 CL/ASR css/unified-components.css linked as ?v=20261108: the page ground is Saldi's classic page colour #eeeef0, the panels and fields stay white (owner, 8 Nov 2026).
+//                 The list of labels (.lb-names) is a white panel on that ground, as the left menu beside it.
+// 20261109 CL/ASR The list of labels has the settings modules' frame and soft shadow (--st-edge, --st-lift; owner, 9 Nov 2026).
+//                 Ny mærkat keeps its 12 px under the list again (.st-page .st-btn's margin 0 had won), so the shadow has room.
+// 20261112 CL/ASR The list of labels has the settings modules' 6 px corner (--st-r-mod; owner, 12 Nov 2026).
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 ob_start();
 
 $title = "Mærkater";
-$css = "../css/unified-components.css?v=20261016b";
+$css = "../css/unified-components.css?v=20261108";
 $permission_key = 'settings.items';
 $permission_level = 'read';
 
@@ -37,6 +48,7 @@ include(__DIR__ . "/../includes/online.php");
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/settingsRegistry.php");
 include_once(__DIR__ . "/../includes/settings/components.php");
+include_once(__DIR__ . "/../includes/settings/listView.php"); // settings_menu_html(), the left menu of every settings page
 include_once(__DIR__ . "/../includes/labelTemplates.php");
 
 require_permission('settings.items', 'read');
@@ -156,10 +168,10 @@ $typeSelect = '<select class="st-input st-select" name="labelType"' . $dis . '><
 .lb-raw textarea { width: 100%; min-height: 420px; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
 .lb-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--st-grid); }
 .lb-foot > div { display: flex; gap: 8px; align-items: center; }
-.lb-new { margin: 12px 0 0; }
+.st-page .lb-new { margin: 12px 0 0; }
 .lb-sect { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 24px; align-items: start; }
 .lb-list h2, .lb-editor h2 { margin: 0 0 8px; font-size: 13px; font-weight: 600; }
-.lb-names { margin: 0; padding: 0; border-left: 0; }
+.lb-names { margin: 0; padding: 4px; border: 1px solid var(--st-edge); border-radius: var(--st-r-mod); background: var(--st-surface); box-shadow: var(--st-lift); }
 .lb-names a { display: flex; justify-content: space-between; gap: 8px; min-height: 36px; padding: 6px 10px; border-radius: 8px; color: var(--st-text); text-decoration: none; }
 .lb-names a:hover { background: var(--st-surface-2); }
 .lb-names a.on { background: var(--st-surface); box-shadow: 0 0 0 1px var(--st-border); font-weight: 500; }
@@ -173,6 +185,7 @@ $typeSelect = '<select class="st-input st-select" name="labelType"' . $dis . '><
 <div class="st-page" style="<?= st_h(st_accent_style((string) $buttonColor, (string) $buttonTxtColor)) ?>">
   <section class="st-phead">
     <div>
+      <?= settings_back_button() ?>
       <h1><?= st_t(791) ?></h1>
       <p class="st-lead"><?= st_t(7075) ?></p>
     </div>
@@ -190,13 +203,7 @@ $typeSelect = '<select class="st-input st-select" name="labelType"' . $dis . '><
 <?php } ?>
 
   <div class="st-layout st-layout-list">
-    <nav class="st-tabs" aria-label="<?= st_t(5650) ?>">
-      <ul>
-	<?php foreach (settings_section_tabs('items', (int) $sprog_id) as $tab) { $on = $tab['id'] === 'labels'; ?>
-        <li><a href="<?= st_h($tab['url']) ?>"<?= $on ? ' class="on" aria-current="page"' : '' ?>><span><?= st_h($tab['label']) ?></span><?= $on ? '<i class="bx bx-chevron-right" aria-hidden="true"></i>' : '' ?></a></li>
-	<?php } ?>
-      </ul>
-    </nav>
+    <?= settings_menu_html(settings_hub_menu((int) $sprog_id, 'labels'), (int) $sprog_id, array('label' => st_txt(791))) ?>
 
     <div class="st-sect lb-sect">
       <div class="lb-list">

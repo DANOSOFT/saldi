@@ -1,6 +1,6 @@
 <?php
-// 20261005 Sawaneh WP-4.7: Fortryd returns to the open journal instead of the journal list.
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261117 CL/ASR The copy keeps each line's VAT codes (debetvat/kreditvat), swapped with debit and credit when the sign is reversed.
+//                 Without them a line whose VAT code differed from its account's code was posted with the account's code.
 function copy2new($kladde_id,$bilagsnr,$ny_dato,$vend_fortegn) {
 	global $regnaar;
 	global $connection;
@@ -8,7 +8,7 @@ function copy2new($kladde_id,$bilagsnr,$ny_dato,$vend_fortegn) {
 	global $sprog_id; #20210720
 	global $menu;
 
-	include_once("../includes/stdFunc/fiscalYear.php");
+	include_once(__DIR__ . '/../../includes/stdFunc/fiscalYear.php');
 	list ($regnstart,$regnslut) = explode(":",fiscalYear($regnaar));
 
 	$title ='Kopiér til ny';
@@ -36,7 +36,10 @@ function copy2new($kladde_id,$bilagsnr,$ny_dato,$vend_fortegn) {
 			$qtxt.=" values ";
 			$qtxt.="('$ny_kladde_id', '$kladdenote', '$kladdedate', '-', '$brugernavn')";
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			$query = db_select("select * from kassekladde where kladde_id=$kladde_id order by bilag",__FILE__ . " linje " . __LINE__);
+			// SST-988: the copy keeps each line's position (the user's own line order). The lines are still read by
+			// bilag first, because the new voucher numbers are handed out in that order; pos and id only make the
+			// order inside one voucher fixed.
+			$query = db_select("select * from kassekladde where kladde_id=$kladde_id order by bilag, pos, id",__FILE__ . " linje " . __LINE__);
 			while ($row = db_fetch_array($query)) {
 				$beskrivelse=db_escape_string($row['beskrivelse']);
 				$faktura=db_escape_string($row['faktura']);
@@ -46,11 +49,15 @@ function copy2new($kladde_id,$bilagsnr,$ny_dato,$vend_fortegn) {
 					$gl_bilag = $row['bilag'];
 					$next_bilag = $bilag;
 				} elseif ($bilagsnr=='=') $bilag=$row['bilag']*1;
+				// The line's own VAT code per side (NULL: the account's code applies) follows its account.
+				$debetvat=isset($row['debetvat']) ? "'".db_escape_string($row['debetvat'])."'" : "NULL";
+				$kreditvat=isset($row['kreditvat']) ? "'".db_escape_string($row['kreditvat'])."'" : "NULL";
 				if ($vend_fortegn) {
 					$debet=$row['kredit']*1;
 					$kredit=$row['debet']*1;
 					$d_type=$row['k_type'];
 					$k_type=$row['d_type'];
+					list($debetvat,$kreditvat)=array($kreditvat,$debetvat);
 				} else {
 					$debet=$row['debet']*1;
 					$kredit=$row['kredit']*1;
@@ -62,14 +69,15 @@ function copy2new($kladde_id,$bilagsnr,$ny_dato,$vend_fortegn) {
 				$ansat=$row['ansat']*1;
 				$projekt=$row['projekt'];
 				$valuta=$row['valuta']*1;
+				$pos=(int)$row['pos'];
 
 				if ($ny_dato && $ny_dato!="=") $date=usdate($ny_dato);
 				else $date=$row['transdate'];
-				$qtxt="insert into kassekladde (bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, faktura, amount, ";
-				$qtxt.="momsfri, afd, ansat, projekt, valuta, kladde_id)";
+				$qtxt="insert into kassekladde (bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, debetvat, kreditvat, faktura, amount, ";
+				$qtxt.="momsfri, afd, ansat, projekt, valuta, kladde_id, pos)";
 				$qtxt.=" values ";
-				$qtxt.="('$bilag','$date','$beskrivelse','$d_type','$debet','$k_type','$kredit',";
-				$qtxt.="'$faktura','$row[amount]','$row[momsfri]','$afd','$ansat','$projekt','$valuta','$ny_kladde_id')";
+				$qtxt.="('$bilag','$date','$beskrivelse','$d_type','$debet','$k_type','$kredit',$debetvat,$kreditvat,";
+				$qtxt.="'$faktura','$row[amount]','$row[momsfri]','$afd','$ansat','$projekt','$valuta','$ny_kladde_id','$pos')";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			}
 			transaktion('commit');
@@ -83,7 +91,18 @@ function copy2new($kladde_id,$bilagsnr,$ny_dato,$vend_fortegn) {
 		$dato=date("d-m-y");
 		global $menu;
 
-		print  "<center><table border='0' cellspacing='1' width='60%' align='center'><tbody>";
+		if ($menu=='T') {
+			include_once __DIR__ . '/../../includes/top_header.php';
+			include_once __DIR__ . '/../../includes/top_menu.php';
+			print "<div id='header'>";
+			print "<div class='headerbtnLft headLink'>&nbsp;&nbsp;&nbsp;</div>";
+			print "<div class='headerTxt'>Kopier til ny</div>";
+			print "<div class='headerbtnRght headLink'>&nbsp;&nbsp;&nbsp;</div>";
+			print "</div>";
+			print "<div class='content-noside'>";
+		} else {
+			print  "<center><table border='0' cellspacing='1' width='60%' align='center'><tbody>";
+		}
 		print "<form name='Form1' action=kassekladde.php?sort=bilag,transdate method=post>";
 		print "<tr><td style='text-align:center'><span class='textinputBefore' title='".findtekst(1552, $sprog_id)."'>".findtekst(1553, $sprog_id).": <input class='textinput' type='text' style='text-align:right;width:100px;' name=bilagsnr value=$bilagsnr><br><br><br></span></td></tr>";
 		print "<tr><td style='text-align:center;'><span class='textinputBefore' style=center title='".findtekst(1554, $sprog_id)."'>".findtekst(1555, $sprog_id)."<input class='textinput' style='text-align:left;width:60px;' type='text' size='8' name='ny_dato' value='$dato'><br><br><br></span></td></tr>";
@@ -94,13 +113,17 @@ function copy2new($kladde_id,$bilagsnr,$ny_dato,$vend_fortegn) {
 		print "<input style = 'height:50px;width:150px;' class='button green medium' type='submit' accesskey='k' 
 		value='".findtekst(1598, $sprog_id)."' name='copy2new' onclick='javascript:docChange = false'>";
 		print "&nbsp;";
-		print "<input style = 'height:50px;width:150px;' class='button rosy medium' type='button' value='Fortryd' onClick=\"location.href='../finans/kassekladde.php?kladde_id=" . (int) $kladde_id . "'\">
+		print "<input style = 'height:50px;width:150px;' class='button rosy medium' type='button' value='Fortryd' onClick=\"location.href='../finans/kladdeliste.php'\">
 		</span></td></tr>\n";
 		print "</form>";
 
 		print "</tbody></table>";
 
-		include_once '../includes/oldDesign/footer.php';
+		if ($menu=='T') {
+			include_once __DIR__ . '/../../includes/topmenu/footer.php';
+		} else {
+			include_once __DIR__ . '/../../includes/oldDesign/footer.php';
+		}
 
 		exit;
 	}

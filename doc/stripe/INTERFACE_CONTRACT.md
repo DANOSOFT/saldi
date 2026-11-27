@@ -1,6 +1,19 @@
 <!-- // 20261022 CDX/LH Align the master port contract for switches, recurrence reads, payment states, repair and private PDFs. -->
 <!-- // 20261022 CDX/LH Finalize notices, consent/readiness, webhook retry limits, job summaries and launch verification. -->
 <!-- // 20261026 CL/NTR Multi-ledger: every ledger can run Stripe; links and webhook URLs carry the ledger (r=), v3 signatures bind it. -->
+<!-- // 20261126 CL/ASR Review round 1 (Q1): signup_enabled is set on once where a ledger sells subscriptions (includes/betweenUpdates.php). -->
+<!-- // 20261126 CL/ASR Review round 1 (S2, review): what an unarmed ledger stops doing, and the one-off deploy step tools/stripe_arm_ledgers.php. -->
+<!-- // 20261126 CL/ASR Review round 1 (S3, review): a claimed webhook row still 'retrying' 15 minutes after the claim is reclaimed by the next redelivery. -->
+<!-- // 20261126 ASR Payment review (GPT-P-1, P-2, P-3, P-6): one open item that the total settles on posting; overpaid captures; "save the card" applied once per payment (card_state). -->
+<!-- // 20261126 ASR Payment review (GPT-P-5): the claimer keeps its token on the row and only it finishes or releases the row; a row another delivery holds is answered 409 in_progress. -->
+<!-- // 20261126 ASR Payment review (GPT-P-7): the invoice and subscription pages show the company in the footer only for a verified link. -->
+<!-- // 20261126 ASR Payment review (GPT-P-4): a refund or dispute alert that is not sent is kept (stripe_adjustment_alerts) and retried by the redelivery and the repair pass. -->
+<!-- // 20261126 ASR Payment review (GPT-G-1): captures from before card_state stay NULL until classified, which every schema call and a receipt retry complete; new payments are written with ''. -->
+<!-- // 20261126 ASR Payment review (GPT-G-2): the one open item must be settled by posting: within half an øre only with the order's project, otherwise at the exact amount. -->
+<!-- // 20261126 ASR Payment review (GPT-G-3): an overpaid capture's journal line carries the reference Stripe-overbetaling-<payment id> instead of an empty invoice number. -->
+<!-- // 20261126 ASR Payment review (GPT-G-6): the refund/dispute status and its alert row are one checked transaction under the payment's lock; a dispute outranks a refund. -->
+<!-- // 20261126 ASR Review PAY-R2-1: page states paidbank and invoice_credited come from the invoice's open items and win over a payment in progress. -->
+<!-- // 20261126 ASR Review PAY-R2-5: the link mail needs public_base_url; the settings page refuses to clear it or warns while invoice links need it. -->
 
 # Stripe integration — canonical interface contract
 
@@ -21,9 +34,10 @@ Full grounded plan (external): `Saldi payment/stripe-native-grounded-implementat
 | `secret_key` | stripe_valg page | stripeHttp, subscribe, webhook | one key; prefix must match mode; NO mode-suffixed key names |
 | `webhook_secret` | stripe_valg page | webhook | `whsec_...` |
 | `link_secret` | auto-generated on first save; explicit regen only | subscribe (verify), mailer (sign via stripeLink) | `bin2hex(random_bytes(32))` |
-| `target_db` | stripe_valg save: the session ledger, never from POST | nobody (informative) | the ledger these settings belong to |
+| `target_db` | stripe_valg save: the session ledger, never from POST | `stripe_ledger_armed()` | the ledger these settings belong to |
+| `armed_for` | stripe_valg save: `stripe_arming_key()` of the session ledger; `tools/stripe_arm_ledgers.php --stamp` (one-off deploy step) | `stripe_ledger_armed()`, `stripe_charge_due.php --all` | sha256 of host, master DB host, master DB name and ledger (not the installation folder); outside the pinned ledger, links and collection need it to match this server |
 | `vat_rate_id` | stripe_valg page | subscribe | `txr_...`, the 25% DK tax rate; unset => subscribe parks |
-| `public_base_url` | stripe_valg page | subscribe (link mint), mailer | e.g. `https://<pilot-host>`; unset => mailer token renders `''` |
+| `public_base_url` | stripe_valg page | subscribe (link mint), mailer, invoice links (`stripe_invoice_url()`) | e.g. `https://<pilot-host>`; unset => mailer token renders `''`, and the link mail, E-mail med link and link reminders are unavailable (`stripe_invoice_link_available()`). With invoice payments or enrolment on, the page refuses to clear a saved one and warns while it is empty. |
 | `bookkeeper_email` | stripe_valg page | subscribe + webhook alerts | fallback: `adresser.email where art='S'` |
 
 All reads go through **`stripe_setting($name, $default)`** in
@@ -49,17 +63,41 @@ in `includes/stripeIncludes/stripeBootstrap.php`:
 - CLI tools take `--db=<ledger>` (`stripe_print_link.php` sets `$stripe_cli_db` for the
   bootstrap; `stripe_setup.php`, `stripe_charge_due.php` and `stripe_invoice_pdf.php`
   resolve it themselves). `stripe_charge_due.php --all` runs every open ledger whose
-  `enabled` is `on`, one child process per ledger, so one cron line covers a server.
+  `enabled` is `on` and that is the pinned ledger or armed on this server (`target_db` and
+  `armed_for`, see below), one child process per ledger, so one cron line covers a server.
+  An enabled ledger that is not armed here is skipped with a `skipped=not_armed` log line.
+  Mail from `stripe_charge_due.php` and `reminder_due.php` gets the sender a web request
+  gives it (`<ledger>@<server>` on a saldi.dk server, `server_mail_from()`): the jobs take
+  the server name from `--host=<name>`, or else from the host of `public_base_url`.
 
 No committed default anywhere (`includes/connect.php` is untouched — it deploys to every
 install including customer installs on the same host). `?db=`/POST `db` on any stripe
 endpoint -> hard 400, never silently ignored.
 
 **Shared Stripe account.** A ledger restored from a copy keeps the original's keys and
-`link_secret`. Signatures bind the ledger (§4), idempotency keys, rate limits and alert
+`link_secret`. Outside the pinned ledger it mints links and collects only once its Stripe
+settings are saved in it on this server: saving stores `target_db` (the ledger) and
+`armed_for` (`stripe_arming_key()`: host, master database host and name, ledger), and
+`stripe_ledger_armed()` requires both. A ledger restored under the same name on another
+server, or against another master database, stays unarmed until saved there. So does a
+ledger whose settings were saved in it before `armed_for` existed (`target_db` = the ledger,
+no `armed_for`): until it is armed again, its payment page offers no card payment (the pay
+POST answers 409 `not_collectable`), new invoices go out as the classic PDF, the charge job
+skips it (`skipped=not_armed`) and the dunning hold (`stripe_dunning_card_hold_sql()`) no
+longer keeps its card customers' Stripe invoices out of classic reminders. Right after the
+deploy, on the server whose ledgers really collect and only there,
+`php tools/stripe_arm_ledgers.php` lists the enabled ledgers' arming state and `--stamp`
+stores `armed_for` for exactly those ledgers; it never stamps settings copied from another
+ledger or saved on another server. Signatures bind the ledger (§4), idempotency keys, rate limits and alert
 throttles include it, and Stripe objects carry `metadata[saldi_db]`; the webhook acknowledges
 (200 `other_ledger`, no `stripe_events` row) an event whose object is tagged with another
 ledger. Each ledger registers its own endpoint `…/api/stripe/webhook.php?r=<db>`.
+Untagged subscription events (`checkout.session.completed`, `invoice.paid`,
+`invoice.payment_failed`, `customer.subscription.deleted`) belong to subscriptions created
+before `saldi_db`, which only the pinned ledger could create: every other ledger acknowledges
+them the same way. The pilot `charge.refunded` alert goes out only in the pinned ledger, for an
+object tagged with the ledger, or for a customer in the ledger's `stripe_customers`. Invoice
+intents, refunds and disputes are matched by their own ids, untagged or not.
 
 ## 3. DDL
 
@@ -130,6 +168,11 @@ continues to require its authenticated POST and session CSRF token.
 `stripe_link_url($order_id)` creates a subscription URL only when both signup switches
 are enabled. No caller reimplements signing.
 
+An unknown or closed ledger and an invalid, unsigned or wrong-purpose link get the same
+page. The invoice pages' footer (the ledger's company name and e-mail) and a non-pinned
+ledger's company on the subscription page are read only after the signature verifies;
+before that the footer is empty (invoice pages) or the default one (subscription page).
+
 Old unscoped `v1:<order_id>` signatures are rejected. Reissue outstanding invoice/signup
 links after deployment; do not add an unscoped compatibility fallback. Links have no
 expiry; rotating `link_secret` revokes all issued links and changes opaque PDF cache names.
@@ -185,7 +228,10 @@ invoice flow excludes customers with active/trialing/past_due subscription ids a
 changes their default card or collects their Saldi invoices.
 
 **Switches and settings.** `invoice_payments`, `enrolment`, and `signup_enabled` are
-independent `stripe` rows, all default **off** on a missing/empty setting. `enabled` remains
+independent `stripe` rows, all default **off** on a missing/empty setting. Once per ledger,
+`includes/betweenUpdates.php` sets `signup_enabled=on` where `enabled=on`, `stripe_catalog` has rows
+and no `signup_enabled` row was saved, so a ledger that sold subscriptions before keeps doing so
+(settings flag `system/stripe_signup_default_migrated`). `enabled` remains
 the shared master switch. `signup_enabled=off` refuses GET/POST to `subscribe.php`, including
 outstanding links, and removes `$abonnementslink` from classic mail through
 `subscriptionLinkUrl()` returning empty. Existing subscription webhook processing is not
@@ -204,9 +250,15 @@ work in any ledger with these switches on (§2).
 
 **Eligibility and amounts.** The shared guard excludes subscriptions, PBS mandates/BS
 orders, non-DKK invoices, cash/card payment terms, opt-outs, and a missing tenant.
-Collection requires authoritative openpost rows for invoice number + debtor whose open
-balance equals the booked total within one øre. Partial/ambiguous balances go to a manual
-panel without card controls. The amount charged remains booked `ordrer.sum + moms`;
+Collection requires exactly one unsettled openpost row for invoice number + debtor that a
+payment of the booked total settles when the Stripe journal is posted
+(`stripe_invoice_open_item()`, `stripe_open_item_settles_sql()`): either its amount is at least
+the total less half an øre and below the total plus half an øre and it has the order's project,
+which the journal line carries (`finans/bogfor.php` `openpost()`), or its amount is exactly the
+total, whatever its project (`equalizeMatchingRecords()` right after the posting). An open item
+one øre off the total, one within half an øre on another project, an invoice split in several
+open items, and partial/ambiguous balances go to a manual panel without card controls; the
+card-on-file dunning hold uses the same condition. The amount charged remains booked `ordrer.sum + moms`;
 display line totals apply `rabatart='amount'` as a per-unit reduction, otherwise percentage
 `rabat`, then the form engine's rounding and optional `procent` multiplier (including 0).
 
@@ -222,8 +274,16 @@ and charge date before API calls. `stripe_charge_errors` tracks technical failur
 `adresser` (`stripe`, `stripe_customer_id`, `stripe_pm_id`, `stripe_date`).
 
 **States and collection identities.** Page states are `open`, `open_recurring`, `enrolled`,
-`overdue`, `failed`, `requires_action`, `pending`, `paid`, `paidbank`, `nocard`, `credited`,
-and `manual`. Payment rows distinguish `pending`, `processing`, `requires_action`,
+`overdue`, `failed`, `requires_action`, `pending`, `paid`, `paidbank`, `invoice_credited`,
+`nocard`, `below_minimum`, `credited` (a credit note's own page), and `manual`. `paidbank` and
+`invoice_credited` come from the invoice's open items, because BASE's journal posting does not
+set `ordrer.betalt`: an invoice with open items of which none is unsettled is paid by bank,
+unless invoiced credit notes (`art='DK'`, `kred_ord_id`, status 3 or more) cover its total, which
+makes it `invoice_credited`. While the customer has an unsettled debit without an invoice number
+(the rest of a split settlement, `includes/udlign_openpost.php`), neither is derived. `betalt='on'`
+still counts as paid by bank. Both are checked after
+`paid` and before a payment in progress, so a waiting 3-D Secure intent on a settled invoice shows
+the settled state; `faktura_pay.php` and the resume answer 409 `already_paid` or `credited`. Payment rows distinguish `pending`, `processing`, `requires_action`,
 `succeeded`, `failed`, `technical_error`, `canceled`, `duplicate_paid`, `refunded`,
 `disputed`, and `unmapped`. Authentication is not a bank decline. Captured adjustments
 and identity mismatches require manual reconciliation, never an automatic second charge.
@@ -260,24 +320,61 @@ must match the integration's pinned `2026-06-24.dahlia` API version.
 
 The #795 schema fields (`claim_token`, `claimed_at`, `attempts`, `event_created`) stay
 intact. The inherited runtime instead uses an error-column token, processes a newly
-inserted `received` row, and reclaims only a `received` row older than 15 minutes into
-`retrying`. Other existing statuses are acknowledged as duplicate. Caught invoice
-DB/delivery failures return 500 and reset a claimed `retrying` row to `received`;
-original `received` rows remain received. Failed invoice work is not deliberately
-finished as a terminal event. A hard process death in `retrying`, and the inherited
-subscription `failed` case, still require operator reconciliation. This port does
-not implement a general lease/replay rewrite. Do not treat a duplicate HTTP response
-as proof that the payment's accounting is complete.
+inserted `received` row, and reclaims into `retrying` a `received` row older than 15
+minutes (a process that died), a `retrying` row claimed more than 15 minutes ago (a claim
+whose process died or could not release the row; the claim stores its time in
+`processed_at`, a row claimed before that counts from `received_at`), or a `failed` row
+whose error is a retryable reason.
+The delivery that inserted or claimed a row keeps its token in `error` until it finishes or
+releases the row, and those writes apply only while the row still carries that token: a
+delivery whose claim was taken over after 15 minutes leaves the row to the one that took it.
+A redelivery that finds the row held by a delivery that has not finished (`received` or
+`retrying` inside the 15 minutes) is answered 409 `in_progress`, not acknowledged, so Stripe
+sends the event again and a later redelivery takes the row over if that delivery died.
+Caught invoice DB/delivery failures return 500 and leave the row `failed` with
+`database_error`/`delivery_error`, whether this delivery inserted or claimed it; an
+unmatched subscription invoice is `failed` with `unmapped_customer`. Stripe's next
+delivery claims such a row at once instead of being answered duplicate. Other existing
+statuses, including `failed` for `import_not_wired`, are acknowledged as duplicate.
+A `failed` row once Stripe stops retrying, and any row whose redeliveries have all been
+answered, still require operator reconciliation. This port does not implement a general
+lease/replay rewrite. Do not treat a duplicate HTTP response as proof that the
+payment's accounting is complete.
 
 A verified capture atomically records success, `ordrer.betalt='on'`,
 one journal line in “Stripe-betalinger” and its journal reference. The line carries the
-invoice/project dimensions and actual fiscal year. A missing DIV/3 box10 clearing account
+invoice number, the order's project/department and actual fiscal year. Posting the journal
+settles the invoice's open item (`openpost()`, or `equalizeMatchingRecords()` right after it
+when the open item has the order lines' project). A missing DIV/3 box10 clearing account
 blocks collection. Receipts and enrolment follow accounting commit. A second captured
 intent is retained as `duplicate_paid` with an alert naming both intents; refund is manual.
+A capture the invoice no longer owes (it was settled, credited or split, or the customer got
+a credit, while the payment was under way; or its total is not the captured amount) is still
+booked, but with the reference `Stripe-overbetaling-<payment id>` instead of the invoice number
+and with the text “overbetaling”, so posting it leaves an open credit on the customer and settles
+nothing: `openpost()` and `equalizeMatchingRecords()` match by invoice number, and no open item
+carries that reference (an empty invoice number would match the customer's other open items
+without one; `stripe_payment_overpaid_reference()`). The row stays `succeeded` with
+`last_error='overpaid'`; no receipt is sent and no card is saved, and the bookkeeper alert is
+retried by repair until sent (`confirmation_sent_at` acknowledges it, as for `duplicate_paid`).
+A refund or dispute of a captured invoice payment sets `refunded`/`disputed` (for a
+`duplicate_paid` row: `last_error='duplicate_paid_<status>'`) once per event, together with a
+row in `stripe_adjustment_alerts` (installed by `includes/betweenUpdates.php`), in one checked
+transaction under the payment's lock and row lock; the event's row is looked for first, so a
+redelivery or a worker whose claim was taken over changes nothing, and a failed write leaves
+neither. A dispute outranks a refund: a refund applied after the dispute leaves `disputed`. The
+journal and `betalt` are kept, and the bookkeeper alert is sent after COMMIT, under the same lock,
+and marked `sent_at`. An
+alert that is not sent (no mail transport or no bookkeeper address) answers 500 and leaves the
+event `failed` with `delivery_error`: Stripe's redelivery sends the alert without applying the
+event again, and repair sends it too, also after Stripe has stopped, and then finishes that event
+row as `processed`. On a ledger not logged in since the update the table is missing; the event
+then stays retryable through Stripe's redelivery only, which applies it again.
 
 `tools/stripe_charge_due.php --repair-only` never creates or confirms a PaymentIntent. It repairs
 captured rows missing bookkeeping or receipt/enrolment completion, retries duplicate-capture
-alerts and queued Afmeld deliveries, even when collection switches are off. `--dry-run`
+alerts, unsent refund/dispute alerts and queued Afmeld deliveries, even when collection switches
+are off. `--dry-run`
 reports without those mutations/API creates. Failed work stays discoverable; summary errors
 produce exit 1; a successful job exits 0. A whole-job lock prevents overlapping
 repair/charge runs; an internal overlap prints `skipped=overlap` and exits 0. The CLI
@@ -289,6 +386,13 @@ Errors add repair and mail failures; a captured success and a bank decline are d
 outcomes. Schema provisioning is still possible under `--dry-run`, so it is not a
 read-only preflight. Repair can update Stripe customer/card defaults for captured
 consent and deliver mail; disabled switches suppress enrolment, not accounting/receipts.
+"Save the card" is decided once per payment (`stripe_payments.card_state`: applied, skipped
+or superseded) before its receipt; a receipt retry only sends the receipt. A new payment is
+written with `''` (still to be applied, `stripe_payment_record()`); the captures from before the
+column are NULL until classified. Every `stripe_charge_schema_ensure()` (login update and payment
+path) and a receipt retry classify the rows still NULL first, so an update that stopped between
+adding the column and classifying is completed, and a later payment is never classified as an
+earlier one.
 
 **Enrolment and nextfakt.** Saving a recurring invoice's card, or replacing an enrolled
 card, uses the verified intent's customer and checks that Stripe accepts the default payment
@@ -298,6 +402,9 @@ Only the current source row of the same debtor/ordrenr series with `nextfakt >= 
 `nextfakt` itself is read/filtered, never written. Automatic collection excludes invoices
 issued before the enrolment date. Afmeld clears enrolment, returns unpaid Stripe deliveries
 to email and queues their invoice mail for retry; it does not cancel Saldi recurrence.
+Enrolment writes the debtor and the payment's `card_state` in one transaction under the
+debtor's row lock: a card saved with a payment made before Afmeld, or before a later
+payment's card was applied, is superseded and never applied by a retry.
 
 **Charge job.** With both invoice/enrolment switches on, the job collects eligible issued
 `Stripe` invoices dated on or after the debtor's enrolment date. Primary declines retry after three then
@@ -381,8 +488,9 @@ matrix and its HTTP/browser/SMTP/server boundaries are in
 fixture queries and production payment/delivery/panel/dispatch logic with fake
 Stripe/mail transports; it cannot certify real Stripe.js or production server policy.
 
-Account for three manual outcomes explicitly: second captures (`duplicate_paid`),
-refunds/disputes, and ambiguous creates older than the safe 23-hour retry window.
+Account for four manual outcomes explicitly: second captures (`duplicate_paid`),
+overpaid captures (`last_error='overpaid'`), refunds/disputes, and ambiguous creates older
+than the safe 23-hour retry window.
 None triggers an automatic refund or automatic reposting. SMTP acceptance and its DB
 marker cannot be atomic; a process death in between can resend a receipt/notice on
 repair. Keep identifiers and reconcile manually instead of dropping accounting history.

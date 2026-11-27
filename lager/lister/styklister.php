@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- lager/lister/styklister.php --- lap 5.0.0 --- 2026.02.20 ---
+// ---- lager/lister/styklister.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,13 +20,13 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260220 LOE  - Created: Vareliste view filtered to samlevare (stykliste) items.
 // 20260917 CL/LH Sanitise the request-supplied returside through nav_sanitize_returside()
 //                before it reaches the topLineVarer.php nav links.
-// 20261008 Sawaneh The list sits under the new page head (topLineVarer.php, page_bar): grid height adjusted.
-
+// 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 
@@ -372,7 +372,7 @@ ORDER BY {{SORT}}
     "filters" => $filters,
 );
 
-print "<div style='width: 100%; height: calc(100vh - 112px);'>";
+print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
 create_datagrid("styklister", $data);
 print "</div>";
 ?>

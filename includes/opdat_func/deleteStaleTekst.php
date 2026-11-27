@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/opdat_func/deleteStaleTekst.php --- patch 5.0.0 --- 2026-09-30 ---
+// --- includes/opdat_func/deleteStaleTekst.php --- ver 5.1.0 --- 2026-10-29 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,9 +20,10 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 Danosoft.ApS
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260930 CL/NTR Created from the repeated tekster clean-ups in betweenUpdates.php.
+// 20261029 CDX/NTR Accept tekst_key values so reworded keyed TSV rows can purge stale cached translations.
 
 if (!function_exists('deleteStaleTekst')) {
 	/**
@@ -34,7 +35,7 @@ if (!function_exists('deleteStaleTekst')) {
 	 * old value are deleted; texts a customer has edited are left alone. That guard matters because
 	 * betweenUpdates.php runs at every login.
 	 *
-	 * @param int|array{0: int, 1: int} $tekstId    One tekst_id, or [from, to] for an inclusive range of ids.
+	 * @param int|string|array{0: int, 1: int} $tekstId One tekst_id, one tekst_key, or [from, to] for an inclusive id range.
 	 * @param string|string[]           $oldTexts   One old text or a list of them. Matched exactly, or as a
 	 *                                              start-of-text match when $prefix is true.
 	 * @param int|null                  $sprogId    Language (1 = da, 2 = en, 3 = no). Null matches every language.
@@ -50,8 +51,10 @@ if (!function_exists('deleteStaleTekst')) {
 		}
 		if (is_array($tekstId)) {
 			$where = "tekst_id between '" . intval($tekstId[0]) . "' and '" . intval($tekstId[1]) . "'";
-		} else {
+		} elseif (ctype_digit((string)$tekstId)) {
 			$where = "tekst_id = '" . intval($tekstId) . "'";
+		} else {
+			$where = "tekst_key = '" . db_escape_string((string)$tekstId) . "'";
 		}
 		if ($sprogId !== null) {
 			$where .= " and sprog_id = '" . intval($sprogId) . "'";

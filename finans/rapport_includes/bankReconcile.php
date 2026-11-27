@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| | | |
 //                        |___/_/ \_|___|__/|_|
 //
-// --- finans/bankReconcile.php --- patch 4.1.0 --- 2024.02.13 ---
+// --- finans/bankReconcile.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,9 +20,9 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2022 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20121110 Indsat mulighed for valutavalg ved import - søg: valuta
 // 20130911 Fejl i 1. kald til "vis_data" "$vend" mangler.
 // 20131119	Genkendelse af posteringer fra Quickpay. Søg 20131109
@@ -59,11 +59,10 @@
 // 20220617 PHR Better recognition of date formats
 // 20220531	PHR Added 'Modtager konto'
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261006 CL/LH SST-838: Decode each bank file line byte by byte (valid UTF-8 kept, other bytes read as Windows-1252)
 //                instead of guessing one charset for the whole file, which turned æøå into '?'.
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 ini_set("auto_detect_line_endings", true);
 
 @session_start();
@@ -107,7 +106,11 @@ if(($_GET)||($_POST)) {
 
 	}
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-	if ($menu=='S') {
+	if ($menu=='T') {
+		$leftbutton="<a href=kassekladde.php?kladde_id=$kladde_id accesskey=L>".findtekst(30, $sprog_id)."</a>"; #20210714
+		$rightbutton="";
+		include("../includes/topmenu.php");
+	} elseif ($menu=='S') {
 		include("../includes/sidemenu.php");
 	} else {
 		print "<tr><td height = \"25\" align=\"center\" valign=\"top\">";

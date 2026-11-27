@@ -1,5 +1,5 @@
 <?php
-// #----------------- soapserver/logon.php -----ver 3.2.3---- 2011.10.11 ----------
+// #----------------- soapserver/logon.php -----ver 5.1.1---- 2026.11.27 ----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,8 +18,11 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2011 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261127 ASR The session's rights string is the one a page request works with (perm_session_rights()), the role's own where the installation shares its ledgers ($sharedWithLive).
+// 20261127 ASR With $allowedLedgers in includes/connect.php the ledger must be listed, the master database too, before a session row is written (saldi_ledger_allowed()).
 ini_set("soap.wsdl_cache_enabled", "1");
 
 function logon($string) {
@@ -33,6 +36,7 @@ function logon($string) {
 	db_modify("delete from online where  session_id = '$s_id'",__FILE__ . " linje " . __LINE__);
 	if ($r = db_fetch_array(db_select("select * from regnskab where regnskab = '$regnskab'",__FILE__ . " linje " . __LINE__))) {
 		if ($db = trim($r['db'])) {
+			if (!saldi_ledger_allowed($db)) return "1".chr(9).saldi_ledger_refusal_text(); // $allowedLedgers in includes/connect.php
 			$connection = db_connect ($sqhost,$squser,$sqpass,$sqdb);
 			if ($connection) {
 				db_modify("insert into online (session_id, brugernavn, db, dbuser) values ('$s_id', '$brugernavn', '$db', '$squser')",__FILE__ . " linje " . __LINE__);
@@ -40,6 +44,11 @@ function logon($string) {
 				include ("../includes/online.php");
 				if ($r = db_fetch_array(db_select("select * from brugere where brugernavn = '$brugernavn' and kode='$password'",__FILE__ . " linje " . __LINE__))) {
 					$rettigheder=trim($r['rettigheder']);
+					if (!empty(saldi_install_setting('sharedWithLive'))) {
+						// The stored string holds read as '0' in an installation that shares its ledgers; the role gives the levels here.
+						include_once(__DIR__ . '/../includes/permissions.php');
+						$rettigheder = perm_session_rights($r);
+					}
 					$regnskabsaar=$r['regnskabsaar']*1;
 					include ("../includes/connect.php");
 			$fp=fopen("../temp/.ht_$db.log","a");

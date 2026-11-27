@@ -1,5 +1,5 @@
 <?php
-// ------------- api/hent_varer.php ---------- lap 3.5.6----2015.09.08-------
+// ------------- api/hent_varer.php ---------- ver 5.1.1----2026.11.13-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,17 +18,18 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2004-2015 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20150908 Default varenr er nu varenr i stedet for vare_id.
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+//
 #sleep (1);
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
+$permission_key = 'any';
 
 print "<html>";
 print "<head><title>Hent ocs_ordrer</title><meta http-equiv=\"content-type\" content=\"text/html; charset=UTF-8;\">";
@@ -38,7 +39,6 @@ print "</head><body>";
 print "<center>";
 
 include("../includes/connect.php");
-$permission_key = 'any';
 include("../includes/online.php");
 include("../includes/std_func.php");
 include("../includes/ordrefunc.php");
@@ -100,7 +100,7 @@ fclose ($fp);
 #print __line__." <a href=$url&id=0&next_id=$next_id>next</a>";
 	exit;
 } elseif ($saldi_grp && $shop_id) {
-	saldi_setcookie("saldi_grp",$saldi_grp,time()+60);
+	setcookie("saldi_grp",$saldi_grp,time()+60);
 	$x=0;
 	$q=db_select("select varenr,id from varer",__FILE__ . " linje " . __LINE__);
 	while ($r=db_fetch_array($q)){
@@ -151,11 +151,11 @@ fclose ($fp);
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		$linje=__line__;
 		if (isset($_COOKIE['saldi_shop_id']) && $_COOKIE['saldi_shop_id'] > $shop_id) {
-			saldi_setcookie("saldi_shop_id","0",time()+60);
+			setcookie("saldi_shop_id","0",time()+60);
 			print "<a href=$url&next_id=0&linje=$linje>next</a>";
 			exit;
 		} else {
-			saldi_setcookie("saldi_shop_id",$shop_id,time()+60);
+			setcookie("saldi_shop_id",$shop_id,time()+60);
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=$url&next_id=$shop_id&linje=$linje\">";
 			exit;
 		}

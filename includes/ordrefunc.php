@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.0.0 ----2026-11-09 ---
+//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,8 +23,8 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------
-
-
+//
+//
 // 20200109 PHR - function opret_ordrelinje. Added $folger as 'tilfravalg' was added to former item if same item ID, even if
 //									tilfravalg was not chosen on former item - 20200109
 // 20200312 PHR - function 'opret_saet'.  Added 'order by posnr' in 'stykliste' query
@@ -146,17 +146,42 @@
 //             returned error now names the offending account and order instead of a bare generic string.
 // 20260716 CL/LH Added caller-owned transactions for atomic imports.
 // 20260916 CDX/LH Preserve the import transaction while posting; retain master invoice savepoints.
-// 20261006 Sawaneh WP-2.11-2.13: no stray ?id= on fokus; sag retursides stored plain and urlencoded in the Ny link; the menu-T
-//                  Tilbage uses the given returside (an ordre.php target gets the order's id) instead of always the order list.
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
-// 20261008 Sawaneh sidehoved(): the order heading is also the page's last breadcrumb level (page_title, addendum §5).
-// 20261008 Sawaneh The group discount is read from the discount matrix's 'NR' rows only (settings decision 20).
 // 20261006 CL/LH SST-851: sidehoved() Tilbage/Luk (menu T and classic layout) ignores clicks in the first 600 ms after it exists, like the menu S header.
-// 20261016 Sawaneh Review (PR #803): a discount row from the old page (DG/VG) still applies when the pair has no matrix row (NR), so no customer loses a discount at deploy.
+// 20261008 SS The group discount is read from the discount matrix's 'NR' rows only (settings decision 20).
+// 20261016 SS Review (PR #803): a discount row from the old page (DG/VG) still applies when the pair has no matrix row (NR), so no customer loses a discount at deploy.
+// 20261016 CL/MJ SST-876 linjeopdat(): a webshop that refuses the stock update is written to the php error log. Nothing read sync_shop_vare()'s answer before, so a shop could stop taking stock figures for days without a trace.
+// 20261019 CL/LH MB-73: linjeopdat() adds the delivered quantity to coalesce(leveret,0), as NULL+n stayed NULL and fast invoicing and credit notes never recorded it.
+//                opret_ordrelinje() inserts leveret = 0.
+//                krediter_pos() starts the return line at leveret 0, as the sold line's leveret is now recorded and copying it cancelled the return.
+//                Braces added to the brace-less ifs in the edited blocks.
+// 20261022 CL/MJ SST-876 linjeopdat() marks the line instead of syncing it, and levering() tells the webshops once when every line is posted. An item on two lines was two sends, and a set the lines share was sent once per line: item 13054 is a component in 33 sets, so one order line was 198 webshop calls and the 30 second budget skipped everything after it.
+// 20261027 CL/LH MB-73 (review): linjeopdat() starts a line whose leveret is still NULL from its earlier batch_salg delivery records instead of 0, so a delivery before the login backfill reaches the line keeps those earlier units.
+// 20261027 CDX/MJ SST-876 Flush only document items during delivery and drain older webshop updates after posting commits.
+// 20261027 CDX/MJ SST-876 Document that transactional delivery defers webshop sends until the transaction owner commits.
+// 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
+// 20261029 CL/MJ SD-784 opret_ordrelinje() writes the momslog.log debug line only when the file opened.
+//                An unwritable temp/<db>/momslog.log no longer stops the order line with a TypeError on PHP 8.
+// 20261101 CL/MJ SST-910 linjeopdat(): a return on an item without batch control goes back into the purchase batches.
+//                With a reference it raises rest on the batches the original line sold from.
+//                The rest of that return, and a return without a reference, gets a batch of its own at the line's cost.
+// 20261106 CDX/NTR Use the shared file writer for momslog.log to apply shared runtime permissions.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261117 CL/ASR bogfor() converts a foreign-currency invoice at the exchange rate of the invoice date.
+//                 It looked that rate up and then replaced it with the rate of the order date, and refused the invoice when the order date had no rate.
+// 20261117 CL/ASR bogfor_nu(): a POS sale paid partly on Konto keeps its customer whichever tender was paid last.
+//                 Only the Konto part becomes the open post and the debtor account debit, or the DIV box10 account debit for Kreditkort terms.
+//                 The cash part goes to the till.
+// 20261119 CL/ASR A reverse-charge (omvbet) line of an invoice is posted without output VAT on every route (order page, Genfakturer, Del ordre, bulk invoicing).
+//                 batch_salg() writes rate 0 on the line instead of the sales account's rate, and momsupdat() calculates the header VAT on the other lines.
+//                 forkontrolPosteringsbalance() and bogfor_nu() leave the line's VAT out, so such an invoice is no longer refused as out of balance.
+//                 POS sales and lines without reverse charge post as before.
+//                 The history block above is in date order.
 // 20261025 CL/ASR bogfor(): fee for manual payment of earlier invoices on DO orders (stripeManualFee.php; Stripe ledger only).
+// 20261126 CL/ASR Stripe port (#873): bogfor() adds the fee for manual payment of the customer's earlier invoices to a DO invoice after the procenttillæg line (stripe_manual_fee_bogfor() in stripeIncludes/stripeManualFee.php), in the same transaction; an error rolls back unless the caller owns the transaction.
 // 20261109 CL/ASR bogfor(): the reminder fee and interest of sent, booked link reminders go on the customer's next DO order as VAT-free lines, or are waived (stripe_reminder_fee_bogfor() in stripeReminder.php), in the same transaction.
-
+// 20261126 CL/ASR Stripe port (#1098): the reminder fee hook in bogfor() from the source line above, right after the manual payment fee hook.
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
+require_once __DIR__ . '/sharedFile.php';
 
 /**
  * Check whether a delivery date invalidly precedes its order date.
@@ -495,6 +520,13 @@ function levering($id,$hurtigfakt,$genfakt,$webservice=false) {
 	#fclose ($fp);
 /* echo "<!--function levering slut-->"; */
 	#xit;
+	# SST-876: every line is marked. With an open transaction, the flush defers these
+	# figures until the owner drains after commit; otherwise it sends the document now.
+	# Failed item numbers belong to the screen caller, never a popup in this shared function.
+	$shopSync = shopSyncFlush(0); # Document only; the transaction owner drains after commit.
+	if (shopSyncFailed($shopSync)) {
+		error_log("saldi: shop stock sync failed on order $id for: " . implode(', ', shopSyncFailedItems()));
+	}
 	return ("OK");
 } #endfunc levering
 
@@ -518,8 +550,20 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 
 	$antal *= 1;
 
-	if (!$levdate)
+	if (!$levdate) {
 		$levdate = date("Y-m-d");
+	}
+
+	// 20261027 CL/LH MB-73 (review): a line whose leveret is still NULL was created before the column got DEFAULT 0,
+	// and the one-time backfill (includes/opdat_func/backfillOrderLineDelivered.php) has not reached it yet; it runs
+	// at login, a window at a time, and API, SOAP and remoteBooking deliveries never log in. Such a line starts from
+	// its earlier delivery records, summed as the backfill and debitor/ordre.php sum them, so the result is the one
+	// the backfill followed by this delivery would give. Read before this delivery writes to batch_salg.
+	$qtxt = "select sum(batch_salg.antal) as antal from ordrelinjer, batch_salg where ordrelinjer.id = '" . (int)$linje_id . "'";
+	$qtxt .= " and ordrelinjer.leveret is null and batch_salg.linje_id = ordrelinjer.id";
+	$qtxt .= " and batch_salg.ordre_id = ordrelinjer.ordre_id and batch_salg.vare_id = ordrelinjer.vare_id";
+	$deliveredRecords = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	$deliveredBefore = (float)($deliveredRecords['antal'] ?? 0);
 
 	$query = db_select("select * from grupper where art='VG' and kodenr='$gruppe' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__); #VG = Varegruppe
 	if ($row = db_fetch_array($query)) {
@@ -624,28 +668,54 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 			if ($art == 'DK' || $antal < 0) {
 				$tmp = $antal * -1;
 				$bk_id = 0;
-				if ($kred_linje_id)
-					$qtxt = "select * from batch_salg where linje_id = '$kred_linje_id' order by id desc"; #20170507
-				else
+				if ($kred_linje_id) { # One row per batch: what the original line took from it in all its deliveries
+					$qtxt = "select batch_kob_id, sum(antal) as antal, max(id) as id from batch_salg";
+					$qtxt .= " where linje_id = '$kred_linje_id' and vare_id = '$vare_id' group by batch_kob_id order by max(id) desc"; #20170507
+				} else {
 					$qtxt = "select * from batch_salg where linje_id = '$linje_id' and batch_kob_id != 0  order by id desc";
+				}
+				
 				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 				while ($r = db_fetch_array($q)) {
 					$bs_antal = $r['antal'];
 					$bs_id = $r['id'];
 					$bk_id = $r['batch_kob_id']; # 20170507
-					$qtxt = "select antal,rest from batch_kob where id = '$bk_id'"; #20170507
+					$qtxt = "select antal,rest,lager from batch_kob where id = '$bk_id'"; #20170507
 					$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+					if (!$r2) {
+						continue; # No batch behind the row (batch_kob_id 0): nothing to give back to
+					}
 					$tmp2 = $r2['antal'] - $r2['rest']; #$tmp2 er det antal det kan lægges tilbage på linjen.
-					
+					if ($kred_linje_id) {
+						// 20261101 CL/MJ SST-910 Only a batch in the warehouse the return goes to takes
+						//             it back, because a sale only draws from its own warehouse. And only
+						//             what the original line took from it, less what earlier credits of
+						//             that line already returned to it (their rows are negative).
+						if ((int)$r2['lager'] != (int)$lager) {
+							continue;
+						}
+						$qtxt = "select coalesce(sum(bs.antal), 0) as antal from batch_salg bs, ordrelinjer ol where ol.id = bs.linje_id";
+						$qtxt .= " and ol.kred_linje_id = '$kred_linje_id' and bs.batch_kob_id = '$bk_id' and bs.vare_id = '$vare_id'";
+						$r3 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+						$bs_antal += (float)$r3['antal'];
+					}
+
 					$max_retur = min($tmp, $tmp2, $bs_antal);
 					
 					if ($max_retur > 0) {
 						$ny_rest = $r2['rest'] + $max_retur;
-						
-						if (!$kred_linje_id) {
-							$qtxt = "update batch_kob set rest='$ny_rest' where id = '$bk_id'";
+						// 20261101 CL/MJ SST-910 A credit note with a reference puts the quantity back
+						//             on the batches the original line sold from as well, so a later sale
+						//             takes its cost from them. It keeps a negative batch_salg row per
+						//             batch instead of shrinking the original line's rows.
+						$qtxt = "update batch_kob set rest='$ny_rest' where id = '$bk_id'";
+						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						if ($kred_linje_id) {
+							$qtxt = "insert into batch_salg(batch_kob_id,vare_id,linje_id,salgsdate,ordre_id,antal,pris,lev_nr,lager,variant_id)";
+							$qtxt .= " values ";
+							$qtxt .= "('$bk_id', '$vare_id', '$linje_id', '$levdate', '$id', '" . ($max_retur * -1) . "', '$pris', '$lev_nr','$lager','$variant_id')";
 							db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-							
+						} else {
 							$qtxt = "update batch_salg set antal=antal-$max_retur where id = '$bs_id'";
 							db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 							db_modify("delete from batch_salg where id='$bs_id' and antal <= 0", __FILE__ . " linje " . __LINE__);
@@ -653,31 +723,42 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 						$tmp -= $max_retur;
 					}
 				}
-				if ($kred_linje_id) {
-					$bk_id *= 1;
-					$tmp2 = $tmp * -1;
-					$qtxt = "insert into batch_salg(batch_kob_id,vare_id,linje_id,salgsdate,ordre_id,antal,pris,lev_nr,lager,variant_id)";
-					$qtxt .= " values ";
-					$qtxt .= "('$bk_id', '$vare_id', '$linje_id', '$levdate', '$id', '$antal', '$pris', '$lev_nr','$lager','$variant_id')"; #20170529.
-					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-					$tmp = 0;
-				}
 
+				$tmp = round($tmp, 3); # No batch for a float remainder of the subtraction above
 				if ($tmp) { # F.eks negativt salg uden købsreference
-					// 20260923 MJ SST-796 Same stale-cost-price exposure as the normal-sale branch
-					//             below: this quantity has no batch_kob behind it, so its cost was
-					//             taken from the static varer.kostpris. $kred_linje_id zeroes $tmp
-					//             above, so a return booked against a specific original sale line
-					//             never reaches here - there is no historical cost to inherit, and an
-					//             open purchase line is the better estimate. Shared resolver so the
-					//             two branches cannot drift apart again.
-					include_once(__DIR__ . "/stdFunc/findOpenPurchaseCost.php");
-					$kostpris = deficit_cost_price($vare_id, $linje_id, $variant_id, $fp, $sprog_id, 'negativt salg/kreditnota', $webservice);
+					// 20261101 CL/MJ SST-910 The returned quantity no batch takes back gets a batch of
+					//             its own, so stock and batches stay equal and a later sale takes its
+					//             cost from it. antal stays 0, like a deficit batch, because the
+					//             negative batch_salg row already counts the return in
+					//             sum(batch_kob.antal) - sum(batch_salg.antal). With a reference
+					//             (the original sale came from a deficit or untracked batch) its price
+					//             is the original line's cost; without one, or when that is 0, it is
+					//             deficit_cost_price().
+					$kostpris = 0;
+					if ($kred_linje_id && $tmp > 0) {
+						$r = db_fetch_array(db_select("select kostpris from ordrelinjer where id = '" . (int)$kred_linje_id . "'", __FILE__ . " linje " . __LINE__));
+						$kostpris = (float)($r['kostpris'] ?? 0);
+					}
+					if (!$kred_linje_id || ($tmp > 0 && $kostpris <= 0)) {
+						// 20260923 MJ SST-796 Same stale-cost-price exposure as the normal-sale branch
+						//             below: this quantity has no batch_kob behind it, so its cost was
+						//             taken from the static varer.kostpris. An open purchase line is the
+						//             better estimate. Shared resolver so the two branches cannot drift
+						//             apart again.
+						include_once(__DIR__ . "/stdFunc/findOpenPurchaseCost.php");
+						$kostpris = deficit_cost_price($vare_id, $linje_id, $variant_id, $fp, $sprog_id, 'negativt salg/kreditnota', $webservice);
+						db_modify("update ordrelinjer set kostpris='$kostpris' where id ='$linje_id'", __FILE__ . " linje " . __LINE__);
+					}
 					$tmp2 = $tmp * -1;
-					db_modify("update ordrelinjer set kostpris='$kostpris' where id ='$linje_id'", __FILE__ . " linje " . __LINE__);
-					#db_modify("insert into batch_kob(vare_id, linje_id, ordre_id, antal,rest,pris,lager,variant_id) values ('$vare_id', '0', '0','0','$tmp','$kostpris','$lager','$variant_id')",__FILE__ . " linje " . __LINE__);
-					$r = db_fetch_array(db_select("select max(id) as id from batch_kob where vare_id='$vare_id' and linje_id='0'", __FILE__ . " linje " . __LINE__));
-					db_modify("insert into batch_salg(batch_kob_id, vare_id, linje_id, salgsdate, ordre_id, antal, pris, lev_nr,lager,variant_id) values ('0', '$vare_id', '$linje_id', '$levdate', '$id', '$tmp2', '$pris', '$lev_nr','$lager','$variant_id')", __FILE__ . " linje " . __LINE__);
+					$bk_id = 0;
+					if ($tmp > 0) { # A positive line on a credit note is a sale and keeps an unlinked row
+						$qtxt = "insert into batch_kob(vare_id, linje_id, ordre_id, kobsdate, fakturadate, antal, rest, pris, lager, variant_id) ";
+						$qtxt .= "values ('$vare_id', '0', '0', '$levdate', '$levdate', '0', '$tmp', '$kostpris', '$lager', '$variant_id')";
+						db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+						$r = db_fetch_array(db_select("select max(id) as id from batch_kob where vare_id='$vare_id' and linje_id='0'", __FILE__ . " linje " . __LINE__));
+						$bk_id = (int)$r['id'];
+					}
+					db_modify("insert into batch_salg(batch_kob_id, vare_id, linje_id, salgsdate, ordre_id, antal, pris, lev_nr,lager,variant_id) values ('$bk_id', '$vare_id', '$linje_id', '$levdate', '$id', '$tmp2', '$pris', '$lev_nr','$lager','$variant_id')", __FILE__ . " linje " . __LINE__);
 				}
 			} else {
 				$tmp = $antal;
@@ -735,8 +816,15 @@ function linjeopdat($id, $gruppe, $linje_id, $beholdning, $vare_id, $antal, $pri
 			}
 		}
 	}
-	sync_shop_vare($vare_id, $variant_id, $lager); # std_func.
-	$qtxt = "update ordrelinjer set leveret = leveret+$antal,leveres=0 where id='$linje_id'";
+	# SST-876: the line is marked and nothing is sent yet. levering() sends once when every
+	# line has been posted, so an item on two lines is one send with the figure the document
+	# ended with, and a set shared by several lines is sent once rather than once per line.
+	# Item 13054 is a component in 33 sets: its line alone used to be 198 webshop calls.
+	shopSyncMark($vare_id, $variant_id, $lager, 'stock'); # std_func.
+	// 20261019 CL/LH MB-73 leveret has no default and opret_ordrelinje() never set it, so NULL+$antal stayed
+	// NULL and fast invoicing (which never opens debitor/ordre.php's re-sync) left the delivered quantity unrecorded.
+	// 20261027 CL/LH MB-73 (review): a NULL line starts from $deliveredBefore (read above), not from 0.
+	$qtxt = "update ordrelinjer set leveret = coalesce(leveret,$deliveredBefore)+$antal,leveres=0 where id='$linje_id'";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 } # endfunc linjeopdat
 
@@ -1084,16 +1172,16 @@ function krediter_pos($id)
 	$projekt = array();
 	while ($r = db_fetch_array($q)) {
 		$y = $x - 1;
-		if ($x && $r['varenr'] == $varenr[$y] && $r['beskrivelse'] == 'rabat')
+		if ($x && $r['varenr'] == $varenr[$y] && $r['beskrivelse'] == 'rabat') {
 			$dontInsert = 1;
-		else {
+		} else {
 			$posnr[$x] = $r['posnr'] * 1;
 			$pris[$x] = $r['pris'] * 1;
 			$rabat[$x] = $r['rabat'] * 1;
 			$vare_id[$x] = $r['vare_id'] * 1;
 			$antal[$x] = $r['antal'] * -1;
 			$leveres[$x] = $r['leveres'] * 1;
-			$leveret[$x] = $r['leveret'] * 1;
+			$leveret[$x] = 0; # 20261019 CL/LH MB-73 nothing is returned yet; the sold line's leveret, now recorded, would cancel the return
 			$bogf_konto[$x] = $r['bogf_konto'] * 1;
 			$kred_linje_id[$x] = $r['kred_linje_id'] * 1;
 			$momsfri[$x] = db_escape_string($r['momsfri']);
@@ -1580,15 +1668,7 @@ function bogfor($id, $webservice=false, $genfakt=false, $callerOwnsTransaction=f
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=ordre.php?id=$id\">";
 		exit;
 	}
-	if ($valuta && $baseCurrency && $valuta != $baseCurrency) {
-		if ($r = db_fetch_array(db_select("select valuta.kurs from valuta, grupper where grupper.art='VK' and grupper.box1='$valuta' and valuta.gruppe=" . nr_cast("grupper.kodenr") . " and valuta.valdate <= '$ordredate' order by valuta.valdate desc", __FILE__ . " linje " . __LINE__))) {
-			$valutakurs = $r['kurs'];
-		} else {
-			if (!$callerOwnsTransaction) transaktion('rollback');
-			$tmp = dkdato($ordredate);
-			return ("Der er ikke nogen valutakurs for $valuta den $ordredate (ordredatoen)");
-		}
-	}
+	# 20261117 $valutakurs stays the rate of the invoice date, looked up above: the rate of the order date no longer replaces it.
 	$qtxt = "select * from ordrelinjer where pris != '0' and m_rabat != '0' and rabat = '0' and ordre_id='$id'";
 	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		$rabatkontonr = $r['bogf_konto'];
@@ -1764,6 +1844,9 @@ function bogfor($id, $webservice=false, $genfakt=false, $callerOwnsTransaction=f
 		$svar = $fejl;
 	}
 	if ($db_modify_fejl && $svar == "OK") $svar = "Database write failed while posting order $id"; #20260729 SZ (SD-595) - unconditional, covers the committed success path too
+	if (!$callerOwnsTransaction && $svar === 'OK' && !$db_modify_fejl) {
+		shopSyncDrainQueue();
+	}
 	/* echo "<!--function bogfor slut-->"; */
 	return ($svar);
 } #endfunc bogfor
@@ -1778,6 +1861,7 @@ function momsupdat($id)
 	$sum = 0;
 	$moms = 0;
 	$antal_diff_moms = 0; #indfort 20110323 grundet momsafvigelse paa 3 ore i faktura 30283 regnskab 329
+	$omvbetsum = 0; # 20261119 the net of the reverse-charge (omvbet) lines, which carry no VAT
 
 	$r = db_fetch_array(db_select("select art,momssats,sum,moms from ordrer where id = $id", __FILE__ . " linje " . __LINE__));
 	$art = $r['art'];
@@ -1800,6 +1884,11 @@ function momsupdat($id)
 		# so the corrected moms from the order display is preserved.
 		if ($r['samlevare'] == 'on' && $r['saet']) {
 			$antal_diff_moms++;
+			continue;
+		}
+		if (($r['vare_id'] || $r['bogf_konto'] > 0) && $r['omvbet']) {
+			# 20261119 Reverse charge: the line carries no VAT, and the rest of the order can still be calculated at the order's rate.
+			$omvbetsum += afrund($linjesum, 3);
 			continue;
 		}
 		if (($r['vare_id'] || $r['bogf_konto'] > 0) && $r['momsfri'] != 'on' && !$r['omvbet']) {
@@ -1825,7 +1914,7 @@ function momsupdat($id)
 			$antal_diff_moms++;
 	}
 	if (!$antal_diff_moms && $art != 'PO') {
-		$moms = afrund($sum / 100 * $momssats, 2);
+		$moms = afrund(($sum - $omvbetsum) / 100 * $momssats, 2);
 		$sum = afrund($sum, 2); # 20171003
 		$sum *= 1;
 		$moms *= 1;
@@ -1889,11 +1978,12 @@ function batch_salg($id)
 	$mrabatvare = NULL; #20160824
 	for ($x = 0; $x < count($batch_id); $x++) {
 		$kostpris = 0;
-		$qtxt = "select bogf_konto,kostpris,fast_db,id,m_rabat,procent,projekt,pris,rabat,saet,samlevare ";
+		$qtxt = "select bogf_konto,kostpris,fast_db,id,m_rabat,omvbet,procent,projekt,pris,rabat,saet,samlevare ";
 		$qtxt .= "from ordrelinjer where id = '$batch_linje_id[$x]'";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		$row = db_fetch_array($q);
 		$ordre_linje_id = $row['id'];
+		$omvbet = ($row['omvbet'] && $art != 'PO'); # 20261119 a reverse-charge line on an invoice carries no VAT
 		$pris = $row['pris'] - ($row['pris'] * $row['rabat'] / 100);
 		if ($row['procent'] || $row['procent'] == '0')
 			$pris *= $row['procent'] / 100; #20150817
@@ -1970,6 +2060,9 @@ function batch_salg($id)
 				$r2 = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				$vatAccount = $r2['box1'] * 1;
 				($r2['box2'] < $momssats) ? $varemomssats = $r2['box2'] * 1 : $varemomssats = $momssats * 1;
+				# 20261119 Reverse charge: rate 0 instead of the account's rate. The VAT account stays, so bogfor_nu() still adds
+				# the line to the other lines on its account and VAT account.
+				if ($omvbet) $varemomssats = 0;
 				if ($varemomssats && !$vatAccount) {
 					$txt = "Manglende kontonummer for momstype $vatAccName -> $varemomssats -> $momssats";
 					alert($txt);
@@ -2413,7 +2506,8 @@ function forkontrolPosteringsbalance($id, $headerTotal, $valuta, $valutakurs)
 						($r['procent'] || $r['procent'] != '') ? $net[$y] = $linjesum * $r['procent'] / 100 : $net[$y] = $linjesum;
 						$net[$y] = afrund($net[$y], 3);
 					}
-					($r['momssats'] && !$r['momsfri']) ? $vat[$y] = afrund($linjesum / 100 * $r['momssats'], 3) : $vat[$y] = 0;
+					# 20261119 A reverse-charge (omvbet) line carries no VAT, as bogfor_nu() posts it.
+					($r['momssats'] && !$r['momsfri'] && !$r['omvbet']) ? $vat[$y] = afrund($linjesum / 100 * $r['momssats'], 3) : $vat[$y] = 0;
 				} else {
 					for ($a = 1; $a <= $y; $a++) {
 						if ($konto[$a] == $r['bogf_konto'] && $vatkonto[$a] == $r['vat_account']) {
@@ -2423,7 +2517,7 @@ function forkontrolPosteringsbalance($id, $headerTotal, $valuta, $valutakurs)
 								$linjesum = $r['pris'] * $r['antal'] - ($r['pris'] * $r['antal'] * $r['rabat'] / 100);
 							($r['procent'] || $r['procent'] != '') ? $net[$a] += $linjesum * $r['procent'] / 100 : $net[$a] += $linjesum;
 							$net[$a] = afrund($net[$a], 3);
-							if ($r['momssats'] && !$r['momsfri'])
+							if ($r['momssats'] && !$r['momsfri'] && !$r['omvbet'])
 								$vat[$a] += afrund($linjesum / 100 * $r['momssats'], 3);
 						}
 					}
@@ -2600,12 +2694,13 @@ function bogfor_nu($id, $kilde) {
 			}
 		}
 		if ($art == 'PO') { #20150505
-			// 20260305 To make sure that cash sale is not acconted on account sale account.
-			if ($felt_1 != 'Konto' && $felt_3 != 'Konto') $konto_id	= 0;
-			// -----
+			$orderAccountPart = 0;
 			$qtxt = "select * from pos_betalinger where ordre_id='$ordre_id' order by betalingstype";
 			$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 			while ($r2 = db_fetch_array($q2)) {
+				if (strtolower((string)$r2['betalingstype']) == 'konto') {
+					$orderAccountPart += (float)$r2['amount'];
+				}
 				if (in_array($r2['betalingstype'], $betaling)) {
 					for ($c = 0; $c < count($betaling); $c++) {
 						if ($betaling[$c] == $r2['betalingstype']) {
@@ -2618,6 +2713,10 @@ function bogfor_nu($id, $kilde) {
 					$modtaget[$bnr] = $r2['amount'];
 				}
 			}
+			// 20260305 To make sure that cash sale is not acconted on account sale account.
+			// 20261117 A Konto part keeps the customer also when another tender was paid last (felt_1).
+			if ($felt_1 != 'Konto' && $felt_3 != 'Konto' && !afrund($orderAccountPart, 2)) $konto_id	= 0;
+			// -----
 			$kasse = (int)$r['felt_5'];
 			if ($betalingsbet == 'Kontant') {
 				$konto_id = 0;
@@ -2641,10 +2740,10 @@ function bogfor_nu($id, $kilde) {
 		else
 			$bilag = trim($fakturanr);
 		$udlign = 0;
-		$qtxt = "select pris,vat_price,antal,rabat,momssats,momsfri,vat_account from ordrelinjer where ordre_id='$ordre_id' order by vat_account";
+		$qtxt = "select pris,vat_price,antal,rabat,momssats,momsfri,omvbet,vat_account from ordrelinjer where ordre_id='$ordre_id' order by vat_account";
 		$q2 = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r2 = db_fetch_array($q2)) {
-			if ($r2['momssats'] && !$r2['momsfri']) {
+			if ($r2['momssats'] && !$r2['momsfri'] && !($r2['omvbet'] && $art != 'PO')) { # 20261119 no VAT on a reverse-charge line of an invoice
 				if (!$r2['vat_account'])
 					$r2['vat_account'] = $vatAccount[0]; # kan fjernes fra ver 3.7.6 
 				$lineTotal = afrund($r2['pris'] * $r2['antal'] - $r2['pris'] * $r2['antal'] * $r2['rabat'] / 100, 2);
@@ -2746,8 +2845,26 @@ function bogfor_nu($id, $kilde) {
 	if (is_numeric($id))
 		$id *= 1;
 	fwrite($hmlog, __LINE__ . " $kontonr && $konto_id && $openpost && " . is_integer($id) . "\n");
+	# 20261117 A POS sale paid partly on Konto and partly with another tender: only the Konto part is the
+	# customer's receivable (open post and debtor account, or the DIV box10 account for Kreditkort terms).
+	# The cards and the till get the rest further down.
+	$accountPart = NULL;
+	if ($art == 'PO' && $kontonr && $konto_id && is_integer($id)) {
+		$accountAmount = 0;
+		$otherTender = false;
+		for ($b = 0; $b < count($betaling); $b++) {
+			if (strtolower((string)$betaling[$b]) == 'konto') {
+				$accountAmount += (float)$modtaget[$b];
+			} elseif ($betaling[$b] != '!' && afrund($modtaget[$b], 2)) {
+				$otherTender = true;
+			}
+		}
+		if ($otherTender && afrund($accountAmount, 2)) {
+			$accountPart = afrund($accountAmount, 2);
+		}
+	}
 	if ($kontonr && $konto_id && $openpost && is_integer($id)) { #20161211
-		$tmp = $sum;
+		$tmp = ($accountPart !== NULL) ? $accountPart : $sum;
 		$qtxt = "select id from openpost where konto_id='$konto_id' and konto_nr='$kontonr' and faktnr='$fakturanr' and amount='$tmp' ";
 		$qtxt .= "and beskrivelse='$beskrivelse' and udlignet='$udlign' and transdate='$transdate' and kladde_id='$udlign' and refnr='$id' ";
 		$qtxt .= "and valuta='$valuta' and valutakurs='$valutakurs' and forfaldsdate='$forfaldsdate'";
@@ -2830,6 +2947,10 @@ function bogfor_nu($id, $kilde) {
 			$tmparray = explode(chr(9), $r['box2']);
 			$kassekto = $tmparray[$kasse - 1];
 			$kontonr = $kassekto;
+		} elseif ($accountPart !== NULL) { # 20261117 the till takes the cash of a sale paid partly on Konto
+			$tmparray = explode(chr(9), $r['box2']);
+			$kassekto = $tmparray[$kasse - 1];
+			$debtorAccount = $kontonr; # the card loop below overwrites $kontonr
 		} #else
 		$tmparray = explode(chr(9), $r['box3']);
 		#		if (!$afd) $afd=$tmparray[$kasse-1]*1; # udkommenteret 20181128
@@ -2932,6 +3053,40 @@ function bogfor_nu($id, $kilde) {
 		}
 		if (!$konto_id) {
 			$kontonr = $kassekto; #20150518 (Ellers fortsætter den med at bogføre på samme kontonr) #20150521 
+		} elseif ($accountPart !== NULL) {
+			# 20261117 Sale paid partly on Konto: what is left after the cards and the Konto part is till cash
+			# (net of change), as findBoxSale() expects it in the count. The debtor account below gets the Konto part only.
+			$cashPart = afrund($sum - $accountPart, 3);
+			$sum = $accountPart;
+			$kontonr = $debtorAccount;
+			if ($cashPart) {
+				if (!$kassekto) {
+					return ("Kassekonto mangler for kasse $kasse");
+				}
+				if ($cashPart > 0) {
+					$debet = $cashPart;
+					$kredit = 0;
+				} else {
+					$debet = 0;
+					$kredit = $cashPart * -1;
+				}
+				if ($valutakurs) {
+					$kredit = afrund($kredit * $valutakurs / 100, 3);
+					$debet = afrund($debet * $valutakurs / 100, 3);
+				}
+				$d_kontrol = $d_kontrol + $debet;
+				$k_kontrol = $k_kontrol + $kredit;
+				$debet = afrund($debet, 2);
+				$kredit = afrund($kredit, 2);
+				$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,kladde_id,afd,logdate,logtime,";
+				$qtxt .= "projekt,ansat,ordre_id,kasse_nr) values ";
+				$qtxt .= "('0','$transdate','$beskrivelse','$kassekto','$fakturanr','$debet','$kredit','0','$afd','$logdate','$logtime',";
+				$qtxt .= "'$projekt[0]','$ansat','$id','$kasse')";
+				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+				$tmp = $debet - $kredit;
+				$qtxt = "update kontoplan set saldo=saldo+'$tmp' where kontonr='$kassekto' and regnskabsaar='$regnaar'";
+				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+			}
 		}
 	}
 	$sum = afrund($sum, 3);
@@ -3032,7 +3187,8 @@ function bogfor_nu($id, $kilde) {
 						else
 							$pris[$y] = afrund($pris[$y], 3); #Afrunding tilfoejet 20090126 grundet diff i ordre 98 i saldi_104 -- 20110207 ændret til 2 decimaler ordre_id 1325 saldi_329
 					}
-					($r['momssats'] && !$r['momsfri']) ? $linjemoms[$y] = afrund($linjesum / 100 * $r['momssats'], 3) : $linjemoms[$y] = 0; #20191127
+					# 20261119 A reverse-charge (omvbet) line of an invoice is posted without VAT; a POS sale posts as before.
+					($r['momssats'] && !$r['momsfri'] && !($r['omvbet'] && $art != 'PO')) ? $linjemoms[$y] = afrund($linjesum / 100 * $r['momssats'], 3) : $linjemoms[$y] = 0; #20191127
 
 				} else {
 					for ($a = 1; $a <= $y; $a++) {
@@ -3047,7 +3203,7 @@ function bogfor_nu($id, $kilde) {
 								$pris[$a] = afrund($pris[$a], 3);
 							else
 								$pris[$a] = afrund($pris[$a], 3); #Afrunding tilfoejet 20090126 grundet diff i ordre 98 i saldi_104 -- 20110207 ændret til 2 decimaler ordre_id 1325 saldi_329
-							if ($r['momssats'] && !$r['momsfri'])
+							if ($r['momssats'] && !$r['momsfri'] && !($r['omvbet'] && $art != 'PO'))
 								$linjemoms[$a] += afrund($linjesum / 100 * $r['momssats'], 3);
 						}
 					}
@@ -3834,7 +3990,11 @@ function ansatopslag($sort, $fokus, $id)
 	$txt646 = findtekst(646, $sprog_id); // Navn
 
 
-	
+	if ($menu == 'T') {
+		include_once '../includes/top_menu.php';
+	} else {
+
+	}
 
 	if (!$id)
 		$id = '0';
@@ -3880,7 +4040,11 @@ function ansatopslag($sort, $fokus, $id)
 	}
 	print "</tbody></table></td></tr></tbody></table>";
 
-	include_once '../includes/oldDesign/footer.php';
+	if ($menu == 'T') {
+		include_once '../includes/topmenu/footer.php';
+	} else {
+		include_once '../includes/oldDesign/footer.php';
+	}
 	exit;
 }
 ######################################################################################################################################
@@ -4345,9 +4509,7 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 		# exit;
 		($webservice) ? $leveres = $antal : $leveres = 0;
 		if ($id && is_numeric($posnr)) {
-			$momslog = fopen("../temp/$db/momslog.log", "a");
-			fwrite($momslog, "varenr $varenr - Varemoms $varemomssats Momskto $vatAccount\n");
-			fclose($momslog);
+			sharedFilePutContents("../temp/$db/momslog.log", "varenr $varenr - Varemoms $varemomssats Momskto $vatAccount\n", true);
 			if ($varemomssats && !$vatAccount) {
 				$alerttxt = __LINE__ . " Manglende konto for salgsmoms (Varenr: $varenr indsat uden moms)";
 				alert($alerttxt);
@@ -4355,8 +4517,9 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 				#				return ('0');
 				#				exit;
 			}
-			if (($samlevare && !$antal) || $antal == '')
+			if (($samlevare && !$antal) || $antal == '') {
 				$antal = 1;
+			}
 			($omkunde && $omvare) ? $omvbet = 'on' : $omvbet = '';
 			$antal *= 1;
 			$leveres *= 1;
@@ -4373,21 +4536,23 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 			// 		// If no stock has it, keep the department stock as-is
 			// 	}
 			// }
-			if ($lager < 1)
+			if ($lager < 1) {
 				$lager = 1;
+			}
 			$posnr = abs($posnr); #20200813
 			#			if ($barcodeNew && !$serienr) $serienr = $barcodeNew;
-			if ($art != 'PO' && $art != 'DK' && !$webservice && $variantText)
+			if ($art != 'PO' && $art != 'DK' && !$webservice && $variantText) {
 				$beskrivelse .= " $variantText"; #20211129
+			}
 			$qtxt = "insert into ordrelinjer ";
 			$qtxt .= "(ordre_id,vare_id,varenr,enhed,beskrivelse,antal,rabat,rabatart,procent,m_rabat,";
 			$qtxt .= "pris,vat_price,kostpris,momsfri,momssats,posnr,projekt,folgevare,rabatgruppe,";
-			$qtxt .= "bogf_konto,vat_account,kred_linje_id,kdo,serienr,variant_id,leveres,samlevare,";
+			$qtxt .= "bogf_konto,vat_account,kred_linje_id,kdo,serienr,variant_id,leveres,leveret,samlevare,";
 			$qtxt .= "omvbet,saet,fast_db,lev_varenr,tilfravalg,lager,barcode) ";
 			$qtxt .= "values ";
 			$qtxt .= "('$id','$vare_id','$varenr','$enhed','$beskrivelse','$antal','$rabat','$rabatart','$procent','$m_rabat',";
 			$qtxt .= "'$pris','$VatPrice','$kostpris','$momsfri','$varemomssats','$posnr','','$folgevare','$rabatgruppe',";
-			$qtxt .= "'$bogfkto','$vatAccount','$kred_linje_id','$kdo','$serienr','$variant_id','$leveres','$samlevare',";
+			$qtxt .= "'$bogfkto','$vatAccount','$kred_linje_id','$kdo','$serienr','$variant_id','$leveres','0','$samlevare',"; # 20261019 CL/LH MB-73 nothing is delivered yet
 			$qtxt .= "'$omvbet','$saet','$fast_db','$lev_varenr','$tilfravalgNy','$lager','$barcodeNew')";
 			#			fwrite($log, __line__." $qtxt\n");
 			if (abs($antal) < 100000000000) {
@@ -4395,8 +4560,9 @@ function opret_ordrelinje($id, $vare_id, $varenr, $antal, $beskrivelse, $pris, $
 				if ($kundedisplay) {
 					kundedisplay($beskrivelse, $VatPrice * $antal, 0); #20201206
 				}
-			} else
+			} else {
 				print "<BODY onLoad=\"javascript:alert('Antal (" . dkdecimal($antal) . ") er for stort, reducer antal')\">";
+			}
 			if ($samlevare && !$beholdning) {
 				$r = db_fetch_array(db_select("select max(id) as id from ordrelinjer where vare_id='$vare_id' and ordre_id='$id'", __FILE__ . " linje " . __LINE__));
 				#				samlevare($id,$art,$r['id'],$vare_id,$antal); udkommenteret 20131129
@@ -4828,7 +4994,11 @@ function tekstopslag($sort, $id)
 	print "</body>\n";
 	print "</html>\n";
 
-	include_once '../includes/oldDesign/footer.php';
+	if ($menu == 'T') {
+		include_once '../includes/topmenu/footer.php';
+	} else {
+		include_once '../includes/oldDesign/footer.php';
+	}
 
 	exit;
 }
@@ -4850,7 +5020,6 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst)
 	global $popup;
 
 	$title = $tekst;
-	if (function_exists('page_title')) print page_title($tekst);
 
 	$sag_id = if_isset($_GET,NULL,'sag_id');
 	$konto_id = if_isset($_GET,NULL,'konto_id');
@@ -4874,7 +5043,16 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst)
 	$alerttekst = findtekst(154, $sprog_id);
 
 	include("../includes/topline_settings.php");
-	if ($sag_id) {
+	if ($menu == 'T' && !$sag_id) {
+		include_once '../includes/top_header.php';
+		include_once '../includes/top_menu.php';
+		print "<div id=\"header\">";
+		print "<div class=\"headerbtnLft headLink\"><a href=../debitor/ordreliste.php accesskey=L title='Klik her for at komme tilbage til ordreliste' onclick=\"return performance.now() - Number(this.dataset.ready || 0) > 600;\"><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst(30, $sprog_id) . "</a><script>(function(s){var a=s.previousElementSibling;if(a){a.dataset.ready=performance.now();}})(document.currentScript)</script></div>";
+		print "<div class=\"headerTxt\">$tekst</div>";
+		print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
+		print "</div>";
+		print "<div class='content-noside'>";
+	} elseif ($sag_id) {
 		$bg = "nix";
 		$header = 'nix';
 
@@ -4961,7 +5139,7 @@ function sidehoved($id, $returside, $kort, $fokus, $tekst)
 		else
 			print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$returside?id=$id','$alerttekst')\" accesskey=L onclick=\"return performance.now() - Number(this.dataset.ready || 0) > 600;\">" . findtekst(30, $sprog_id) . "</a><script>(function(s){var a=s.previousElementSibling;if(a){a.dataset.ready=performance.now();}})(document.currentScript)</script></td>";
 		print "<td width=\"80%\" $top_bund> $color$tekst</td>";
-		print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$kort?returside=" . urlencode($returside) . "&ordre_id=$ny_id&fokus=$fokus','$alerttekst')\" accesskey=N>" . findtekst(39, $sprog_id) . "</a></td>";
+		print "<td width=\"10%\" $top_bund> $color<a href=\"javascript:confirmClose('$kort?returside=$returside&ordre_id=$ny_id&fokus=$fokus','$alerttekst')\" accesskey=N>" . findtekst(39, $sprog_id) . "</a></td>";
 		print "</tbody></table>";
 		print "</td></tr>\n";
 	}
@@ -5031,7 +5209,7 @@ function opret_ordre($sag_id, $konto_id)
 	$sag_id = if_isset($_GET['sag_id']);
 	$konto_id = if_isset($_GET['konto_id']);
 	$tilbud_id = if_isset($_GET['tilbud_id']);
-	$returside = "../sager/sager.php?funktion=vis_sag&sag_id=$sag_id&konto_id=$konto_id";
+	$returside = urlencode("../sager/sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id");
 	//if (!strstr($fokus,'lev_') && isset($_GET['konto_id']) && is_numeric($_GET['konto_id'])) { # <- 20080511
 	//$konto_id=$_GET['konto_id'];
 
@@ -5108,7 +5286,7 @@ function opret_ordre($sag_id, $konto_id)
 		$momssats = $r['box2'] * 1;
 	} elseif ($konto_id) {
 		print "<BODY onLoad=\"javascript:alert('Debitoren er ikke tilknyttet en debitorgruppe')\">\n";
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=$konto_id&returside=../debitor/ordre.php&ordre_id=$id&fokus=$fokus\">\n";
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=$konto_id&returside=../debitor/ordre.php&ordre_id=$id&fokus=$fokus?id=$id\">\n";
 		exit;
 	}
 	// Her oprettes tilbudsnr
@@ -5227,7 +5405,7 @@ function opret_ordre_kopi($sag_id, $konto_id)
 	$konto_id = $_GET['konto_id'];
 	$sag_id = $_GET['sag_id'];
 	$ordre_id = $_GET['ordre_id'];
-	$returside = "../sager/sager.php?funktion=vis_sag&sag_id=$sag_id&konto_id=$konto_id";
+	$returside = urlencode("../sager/sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id");
 
 	$query = db_select("select * from adresser where id = '$konto_id'", __FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) {
@@ -5301,7 +5479,7 @@ function opret_ordre_kopi($sag_id, $konto_id)
 		$momssats = $r['box2'] * 1;
 	} elseif ($konto_id) {
 		print "<BODY onLoad=\"javascript:alert('Debitoren er ikke tilknyttet en debitorgruppe')\">\n";
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=$konto_id&returside=../debitor/ordre.php&ordre_id=$id&fokus=$fokus\">\n";
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=$konto_id&returside=../debitor/ordre.php&ordre_id=$id&fokus=$fokus?id=$id\">\n";
 		exit;
 	}
 	// Her oprettes tilbudsnr

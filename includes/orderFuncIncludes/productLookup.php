@@ -1,5 +1,4 @@
 <?php
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 function vareopslag($art, $sort, $fokus, $id, $vis_kost, $ref, $find)
 {
 	global $afd, $afd_lager;
@@ -11,7 +10,11 @@ function vareopslag($art, $sort, $fokus, $id, $vis_kost, $ref, $find)
 	global $sprog_id;
 	$kundeordre = findtekst(1092, $sprog_id);  #20240416
 
-	
+	if ($menu == 'T') {
+		include_once '../includes/top_menu.php';
+	} else {
+
+	}
 
 	file_put_contents("../temp/$db/vareopslag.log", "vareopslag($art,$sort,$fokus,$id,$vis_kost,$ref,$find)\n", FILE_APPEND);
 

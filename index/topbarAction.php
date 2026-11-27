@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/topbarAction.php --- lap 5.0.0 --- 2026.09.16 ---
+// ---- index/topbarAction.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,18 +20,15 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260916 Sawaneh Controller for topbar actions (fiscal-year switch from the user chip).
-//                  POST only, redirects back to the shell (Post/Redirect/Get).
-// 20260922 Sawaneh Language switch action; auditor sessions keep their year in the master revisor table.
-// 20260927 Sawaneh Placement action (cluster_placement setting, spec 2.3).
-// 20261005 Sawaneh Placement action removed: the cluster is always in the top bar (topbar addendum 2026-10-05 §2).
-// 20261008 Sawaneh action=theme stores the user's light/dark/system choice (settings ui/theme).
-// 20261009 Sawaneh action=theme also sets the saldi_theme cookie so auditor/master-admin sessions keep the choice.
-// 20261009 Sawaneh action=auto_extract / action=sidebar store the personal settings that replace two cookies (4e).
-// 20261019 Sawaneh Review 2 (PR #803): action=theme saves through SettingsService (personal.profile.theme), so the change is audited.
-
+// 20260916 SS Controller for topbar actions (fiscal-year switch from the user chip).
+//             POST only, redirects back to the shell (Post/Redirect/Get).
+// 20260922 SS Language switch action; auditor sessions keep their year in the master revisor table.
+// 20260927 SS Placement action (cluster_placement setting, spec 2.3).
+// 20261005 SS Placement action removed: the cluster is always in the top bar (topbar addendum 2026-10-05 §2).
+// 20261031 CL/ASR MB-94: a fiscal year can only be switched to when active_fiscal_years() offers it (a year with box10 set is deleted).
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
  * @var string $brugernavn
@@ -69,6 +66,7 @@ $returnHash = isset($request['return_hash']) ? (string) $request['return_hash'] 
 // Auditor / master-admin sessions (bruger_id -1) have no brugere row but still
 // switch year for their session, as they always could via brugerdata.php.
 if ($action === 'fiscal_year') {
+	include_once(__DIR__ . "/../includes/std_func.php");
 	$year = topbar_open_fiscal_year(isset($request['year']) ? (string) $request['year'] : '');
 	if ($year !== '') {
 		if (!$revisor && (int) $bruger_id > 0) {
@@ -85,40 +83,6 @@ if ($action === 'fiscal_year') {
 
 // Language (spec 2.1): persisted on the user, on the session row and in the cookie the
 // login page reads, so the choice follows the user across devices.
-if ($action === 'theme') {
-	// Lys / Mørk / System in the user chip (prototype_dashboard_tema v5): a personal setting, answered as JSON when asked by fetch.
-	include_once(__DIR__ . "/../includes/std_func.php");
-	include_once(__DIR__ . "/../includes/settings/SettingsService.php");
-	$theme = isset($request['theme']) ? (string) $request['theme'] : '';
-	if (in_array($theme, array('light', 'dark', 'system'), true)) {
-		if ((int) $bruger_id > 0) {
-			SettingsService::save('personal.profile.theme', $theme, (int) $bruger_id);
-		}
-		// Auditor/master-admin sessions have no user row: the cookie carries the choice (online.php reads it as the fallback).
-		saldi_setcookie('saldi_theme', $theme, time() + 31536000, '/', '', null, false);
-	}
-	if (!empty($request['ajax'])) {
-		ob_end_clean();
-		header('Content-Type: application/json; charset=utf-8');
-		print json_encode(array('ok' => true, 'theme' => $theme));
-		exit;
-	}
-}
-// 4e (settings redesign §7.4 item 5): the autoExtract cookie became a user setting; the page toggle posts here.
-// 20261012 Sawaneh The sidebar action is gone: its state is the isSidebarOpen cookie again (Adam, per device).
-if ($action === 'auto_extract') {
-	include_once(__DIR__ . "/../includes/settings/SettingsService.php");
-	$on = !empty($request['value']) && $request['value'] !== '0' && $request['value'] !== 'false';
-	if ((int) $bruger_id > 0) {
-		SettingsService::save('personal.documents.auto_extract', $on, (int) $bruger_id);
-	}
-	if (!empty($request['ajax'])) {
-		ob_end_clean();
-		header('Content-Type: application/json; charset=utf-8');
-		print json_encode(array('ok' => true, 'value' => $on));
-		exit;
-	}
-}
 if ($action === 'language') {
 	$languageId = (int) (isset($request['language_id']) ? $request['language_id'] : 0);
 	if ($languageId >= 1 && $languageId <= 3) {
@@ -136,7 +100,8 @@ header('Location: main.php' . topbar_return_hash($returnHash));
 exit;
 
 /**
- * The requested year, if it is one of the company's open fiscal years; else ''.
+ * The requested year, if it is one of the company's open, non-deleted fiscal years
+ * (active_fiscal_years(), the list the switch offers); else ''.
  */
 function topbar_open_fiscal_year(string $year): string
 {
@@ -144,11 +109,12 @@ function topbar_open_fiscal_year(string $year): string
 	if ($year === '' || !preg_match('/^[0-9]+$/', $year)) {
 		return '';
 	}
-	$qtxt = "select kodenr from grupper where art = 'RA' and kodenr = '$year' and box5 = 'on'";
-	if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-		return '';
+	foreach (active_fiscal_years() as $r) {
+		if ((string) $r['kodenr'] === $year) {
+			return $year;
+		}
 	}
-	return $year;
+	return '';
 }
 
 /**

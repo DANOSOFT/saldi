@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- tools/stripe_print_link.php --- 2026.10.26
+// --- tools/stripe_print_link.php --- 2026.11.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,6 +32,7 @@
 // Usage: php tools/stripe_print_link.php [--db=<ledger db>] <ordre-id> [<ordre-id> ...]
 // 20260818 CL/LH Anchored branch-added include paths to __DIR__.
 // 20261026 CL/NTR Multi-ledger: --db selects the ledger (default: the pinned one).
+// 20261126 CL/ASR Stripe port (#889): --db is passed to stripeBootstrap.php as $stripe_cli_db.
 
 if (php_sapi_name() !== 'cli') { header('HTTP/1.1 403 Forbidden'); print 'CLI only'; exit; }
 chdir(__DIR__);

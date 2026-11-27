@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/betalinger.php --- Patch 4.0.8 --- 2023.06.18 ---
+// --- debitor/betalinger.php --- ver 5.1.1 --- 2026.11.15 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2023 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------------------------------
 //
 // 2015.11.04 Kopieret fra kreditor og tilrettet til debitorer (phr)
@@ -42,8 +42,12 @@
 // 20230618 PHR BUG correction: When fetch from 'kontokort' the CURRENT list is now updated, if account exists in list.  
 // 20220901 MSC - Implementing new design
 // 20231213 MSC - Implementing new design
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
-// 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20261030 CL/MMR SST-920: Removed the «Udlign konti» format from the bank format list.
+//                 It called udlignKonti(), which does not exist, so «Udskriv og luk» ended on a blank page after the list was already locked as sent.
+// 20261105 CL/LH Fra liste knows an Afr open post without a kassekladde is on a list by the open post's id in the payment's openpost_id, and writes it there with ordre_id 0.
+//                It matched the open post's refnr against ordre_id: Afregn kommission gives every seller of a report that refnr, so one seller's payment kept the others off the list, and the list and its XML export read the report number as an order.
+// 20261115 CL/ASR Integration: the Fra liste comment names an Afr open post's refnr as one of the seller's settled bons (T1, master's SST-919 settlement), not the report number.
+// 20261115 CL/ASR Integration: Fra liste also leaves out an Afr open post whose refnr an older Afr payment without openpost_id carries in ordre_id, so the migration adds no second payment for it.
 
 $dan_liste = $gem = $listenote = $slet_ugyldige = $udskriv = NULL;
 
@@ -142,16 +146,42 @@ $txt2 = findtekst('2738|Betalinger til bank', $sprog_id);
 $txt3 = findtekst('2739|Fra liste', $sprog_id);
 $txt4 = findtekst('2740|Fra kontokort', $sprog_id);
 
-if ($menu=='S') {
-	$r = db_fetch_array(db_select("select bogfort from betalingsliste where id='$liste_id'", __FILE__ . " linje " . __LINE__));
-	$findSelect = '';
-	if ($r['bogfort'] == '-') {
-		$findSelect = "<form name='paylist' action='betalinger.php?liste_id=" . (int) $liste_id . "' method='post' style='display:inline'>"
-			. "<select name='find' onchange='this.form.submit()'><option value=''></option><option value='fromList'>$txt3</option><option value='saldo'>$txt4</option></select></form>";
-	}
-	include_once("../includes/stdFunc/pageBar.php");
-	page_bar(array('title' => $txt2, 'extra' => $findSelect, 'back' => 'betalingsliste.php'));
+if ($menu=='T') {
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	print "<div id=\"header\">";
+	print "<div class=\"headerbtnLft headLink\">&nbsp;&nbsp;&nbsp;</div>";
+	print "<div class=\"headerTxt\">$title</div>";
+	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";
+	print "</div>";
+	print "<div class='content-noside'>";
+	print "<div class='dataTablediv'><table cellpadding='1' cellspacing='0' border='0' width='100%' valign = 'top' class='dataTable'><thead>";
+} elseif ($menu=='S') {
 	print "<table width='100%' height='100%' border='0' cellspacing='0' cellpadding='0'><tbody>";
+	print "<tr><td height = '25' align='center' valign='top'>";
+	print "<table width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody>";
+	print "<form name='paylist' action='betalinger.php?liste_id=$liste_id' method = 'post'>";
+
+	print "<td width='10%'><a href='betalingsliste.php' style='$buttonStyle width:100%; display: block; text-decoration: none; text-align: center;' accesskey=L>";
+	print "$txt1</a></td>";
+
+	print "<td width='80%' style='$topStyle' align='center'>$txt2</td>";
+	print "<td width='10%'>";
+
+	$r = db_fetch_array(db_select("select bogfort from betalingsliste where id='$liste_id'", __FILE__ . " linje " . __LINE__));
+	if ($r['bogfort'] == '-') {
+
+		print "<select name='find' style='$buttonStyle; width:100%;' onchange='this.form.submit()'>";
+		print "<option value=''></option>";
+		print "<option value='fromList'>$txt3</option>";
+		print "<option value='saldo'>$txt4</option>";
+		print "</select>";
+	} # else print "<a href = 'betalinger.php?liste_id=$liste_id&reopen=$liste_id'>Lås op</a>";
+	
+	print "</td></tr>";
+	print "</form>";
+	print "</tbody></table>";
+	print "</td></tr>";
 	print "<tr><td valign='top'>";
 	print "<table border='0' cellpadding='1' cellspacing='0' border='0' width='100%' valign = 'top'><tbody>";
 } else {
@@ -209,7 +239,8 @@ if (strtolower($myCtry) == 'norway') $myCtry = 'NO';
 ($myCtry == 'NO') ? $currency = 'NOK' : $currency = 'DKK';
 if ($find) {
 	$bilag_id_list = array();
-	$ordre_id_list = array();
+	$openpost_id_list = array();
+	$legacy_refnr_list = array();
 	$x = 0;
 	$y = 0;
 
@@ -256,15 +287,19 @@ if ($find) {
 			}
 		}
 	} elseif ($find) {
-		$q = db_select("select ordre_id, bilag_id from betalinger", __FILE__ . " linje " . __LINE__);
+		$q = db_select("select bilag_id, openpost_id, ordre_id, egen_ref from betalinger", __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
 			if ($r['bilag_id']) {
 				$x++;
 				$bilag_id_list[$x] = $r['bilag_id'] * 1;
 			}
-			if ($r['ordre_id']) {
+			if ($r['openpost_id']) {
 				$y++;
-				$ordre_id_list[$y] = $r['ordre_id'] * 1;
+				$openpost_id_list[$y] = $r['openpost_id'] * 1;
+			} elseif ($r['ordre_id'] && substr((string) $r['egen_ref'], 0, 3) == 'Afr') {
+				// An Afr payment from before betalinger.openpost_id (the migration leaves it NULL) names its open post the
+				// old way, by the post's refnr in ordre_id. It still keeps that post off the list, so an upgrade adds no second payment.
+				$legacy_refnr_list[] = $r['ordre_id'] * 1;
 			}
 		}
 		$qtxt = "select openpost.id as id,openpost.beskrivelse as egen_ref,openpost.amount as amount,openpost.valuta as valuta,";
@@ -276,7 +311,7 @@ if ($find) {
 		$qtxt.= " and openpost.konto_id = adresser.id and adresser.art = 'D'";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
-			$ordre_id = 0;
+			$openpost_id = 0;
 			$medtag = 1;
 			$egen_ref = $r['egen_ref'];
 			if (substr($egen_ref, 0, 9) == 'Afregning' && $r['kontonr'] && $r['kladde_id']) {
@@ -285,10 +320,12 @@ if ($find) {
 			}
 			$kladde_id = $r['kladde_id'] * 1;
 			$bilag_id = $r['bilag_id'] * 1;
-			$refnr = $r['refnr'] * 1;
+			// An open post without a kassekladde (Afregn kommission's) is on a list when a payment carries its id. Its refnr is one
+			// of the seller's settled bons, which the sellers of one bon can share, so it does not tell which seller's post a payment pays.
 			if ($kladde_id && in_array($bilag_id, $bilag_id_list)) $medtag = 0;
-			if (!$kladde_id && in_array($refnr, $ordre_id_list)) $medtag = 0;
-			elseif (!$kladde_id) $ordre_id = $refnr;
+			if (!$kladde_id && in_array($r['id'] * 1, $openpost_id_list)) $medtag = 0;
+			elseif (!$kladde_id && $r['refnr'] * 1 && in_array($r['refnr'] * 1, $legacy_refnr_list)) $medtag = 0;
+			elseif (!$kladde_id) $openpost_id = $r['id'] * 1;
 			if ($medtag) {
 				$tmp = $r['modt_konto'];
 				if ($tmp) {
@@ -334,10 +371,10 @@ if ($find) {
 				/* $paymentDays = get_settings_value("paymentDays", "payment_list", 0);
 				$defaultPayDate = date('dmY', strtotime("+$paymentDays days")); */
 				$qtxt = "insert into betalinger";
-				$qtxt.= "(bet_type,fra_kto, egen_ref, til_kto, modt_navn, kort_ref, belob, betalingsdato, valuta, bilag_id, ordre_id, liste_id) ";
+				$qtxt.= "(bet_type,fra_kto, egen_ref, til_kto, modt_navn, kort_ref, belob, betalingsdato, valuta, bilag_id, ordre_id, openpost_id, liste_id) ";
 				$qtxt.= "values ";
 				$qtxt.= "('$erh','$myBank','$egen_ref','$modt_konto','" . db_escape_string($r['modt_navn']) . "','$kort_ref','$belob','$forfaldsdag',";
-				$qtxt.= "'$valuta', '$bilag_id', '$ordre_id','$liste_id')";
+				$qtxt.= "'$valuta', '$bilag_id', '0', '$openpost_id','$liste_id')";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 			}
 		}
@@ -364,7 +401,6 @@ if ($udskriv) {
 	elseif ($format == 'nordea') udskriv_nordea($db_id, $bruger_id, $liste_id);
 	elseif ($format == 'sdc') udskriv_sdc($db_id, $bruger_id, $liste_id);
 	elseif ($format == 'xml' || $format == 'norskeBank') udskriv_xml($db_id, $bruger_id, $liste_id);
-	elseif ($format == 'udlign') udlignKonti($db_id, $bruger_id, $liste_id);
 } else {
 	print "<form name=\"betalinger\" action=\"betalinger.php?liste_id=$liste_id\" method=\"post\">";
 	$r = db_fetch_array(db_select("select listenote, bogfort from betalingsliste where id='$liste_id'", __FILE__ . " linje " . __LINE__));
@@ -373,13 +409,28 @@ if ($udskriv) {
 	print "<tr>";
 	if ($bogfort != '-') {
 		print "<td colspan=11 align='center'><b>$listenote</b></td></tr>";
-		print "<tr><td colspan=11><hr></td></tr>\n";
+		if ($menu == 'T') {
+			print "<tr><td colspan=11 class='border-hr-bottom'></td></tr>\n";
+		} else {
+			print "<tr><td colspan=11><hr></td></tr>\n";
+		}
 	} else {
 		$txt1 = findtekst('391|Bemærkning', $sprog_id);
 		$txt2 = findtekst('1559|Her kan du skrive en bemærkning til kladden', $sprog_id);
 		print "<td><b> <span title= '$txt2'>$txt1:</b></td>";
 		print "<td colspan=10><input type='text' style='width:100%;' name=listenote value='$listenote'></td></tr>";
-		print "";
+		if ($menu == 'T') {
+			$r = db_fetch_array(db_select("select bogfort from betalingsliste where id='$liste_id'", __FILE__ . " linje " . __LINE__));
+			if ($r['bogfort'] == '-') {
+				print "<center><select name = 'find' style = 'width:50%;' onchange='this.form.submit()'>";
+				print "<option value=''></option>";
+				print "<option value='fromList'>Fra liste</option>";
+				print "<option value='saldo'>Fra kontokort</option>";
+				print "</select></center>";
+			}
+		} else {
+			print "";
+		}
 	}
 	#print"<tr><td colspan=11><hr></td></tr>";
 	$paytitle = findtekst('2741|Sæt en  i slutningen af datoen i det øverste datofelt for at sætte alle datoer til denne dato. F.eks.: 01042021', $sprog_id);
@@ -410,7 +461,11 @@ if ($udskriv) {
 		<th align='center' class='text-center'><span title='$txt11'><b>$txt10</b></span></td>";
 	if ($bogfort != 'V') print "<th align='center'><span title='$txt13'><b>$txt12</b></span></th>";
 	print "</tr>";
-	print "";
+	if ($menu == 'T') {
+		print "</thead><tbody>";
+	} else {
+		print "";
+	}
 
 
 	#print"<tr><td colspan=11><hr></td></tr>";
@@ -527,7 +582,11 @@ if ($udskriv) {
 		}
 	}
 
-	print "";
+	if ($menu == 'T') {
+		print "</tbody><tfoot>";
+	} else {
+		print "";
+	}
 
 	$modtagerantal = $x;
 	#($kn_kontrol)?$modtagerantal=0:$modtagerantal=$x;
@@ -550,7 +609,6 @@ if ($udskriv) {
 				print "<option value=\"sdc\">SDC</option>";
 				print "<option value=\"xml\">XML</option>";
 				print "<option value=\"norskeBank\">Norske Bank XML</option>";
-				print "<option value=\"udlign\">Udlign konti</option>";
 				print "</select>";
 				print "&nbsp;•&nbsp;<input type=submit accesskey=\"u\" value=\"Udskriv og luk\" name=\"udskriv\">";
 			} else {
@@ -579,8 +637,13 @@ if ($udskriv) {
 
 print "</td></tr>";
 
-print "</tbody></table>";
-include_once '../includes/oldDesign/footer.php';
+if ($menu == 'T') {
+	print "</tfoot></table></div>";
+	include_once '../includes/topmenu/footer.php';
+} else {
+	print "</tbody></table>";
+	include_once '../includes/oldDesign/footer.php';
+}
 
 // Add JavaScript for "Update Dates" popup functionality
 print "<script>

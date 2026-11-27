@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/poolFolderSync.php --- ver 5.0.0 --- 2026-10-21 ---
+// --- includes/poolFolderSync.php --- ver 5.1.1 --- 2026-11-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,7 @@
 // 20261003 CL/SZ SD-722 After the answer is sent, e-mails the "Rapportér fejl i aflæsning" reports that are due (a failed send is retried here).
 // 20261021 CL/SZ SD-722 (CodeRabbit) ignore_user_abort() before the answer is sent, so a closed connection can't stop the delivery,
 //                and set_time_limit(300) for the sends.
+// 20261127 ASR With $allowedLedgers in includes/connect.php the session's ledger must be listed, the master database too: 403 before it is opened (includes/ledgerAllowList.php).
 
 ob_start(); // nothing from the includes may end up in the JSON answer
 
@@ -53,6 +54,9 @@ if (!$db) {
 	header('Content-Type: application/json');
 	print json_encode(array('error' => 'not authenticated'));
 	exit;
+}
+if (!saldi_ledger_allowed($db)) {
+	saldi_ledger_refuse_json($db);
 }
 $connection = db_connect($sqhost, $squser, $sqpass, $db, __FILE__ . " line " . __LINE__);
 

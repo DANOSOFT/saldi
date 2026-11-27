@@ -1,11 +1,15 @@
 <?php
 // 20261022 CDX/LH Mixed batch ownership, classic/link delivery, fallback errors and recipient/archive regressions.
+// 20261116 CDX/ASR Expect the supplied dark Saldi logo in the shared invoice and receipt mail layout.
 // 20261022 CDX/LH Use valid PDF fixtures for protected cache validation and mixed-batch ownership checks.
 // 20261022 CL/LH S5 Pre-charge notice, PDF fallback, Danish decline sentences, greeting and consent texts.
 // 20261022 CDX/LH Verify configured consent/notice dates and PDF fallback when automatic collection is no longer eligible.
 // 20261022 CDX/LH Ensure receipts and paid/credited pages never refer to the unavailable billing menu.
+// 20261118 CDX/ASR Verify that customer mails greet the recipient company rather than a contact person.
+// 20261126 CL/ASR Review round 1 (I9): a Stripe invoice dated before the enrolment is sent as the link mail and its page does not promise a charge.
+// 20261126 ASR Review PAY-R2-5: without a Base-URL a Link order is sent as the classic mail without a failed link mail; a link that cannot be signed still falls back with an error.
 
-require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/support/bootstrap.php';
 require_once __DIR__ . '/../../includes/formFuncIncludes/invoiceMailDelivery.php';
 
 final class StripeDeliveryTest extends StripeDatabaseTestCase
@@ -110,13 +114,18 @@ final class StripeDeliveryTest extends StripeDatabaseTestCase
     {
         $id = StripeFixtures::invoice();
         $pdf = $this->pdf($id);
-        foreach (['public_base_url', 'link_secret'] as $setting) {
-            $old = stripe_setting($setting);
-            StripeTestEnvironment::setting('stripe', $setting, null);
-            $result = $this->deliver([1 => $id], 1, $pdf);
-            $this->assertNotSame('', $result['error']);
-            StripeTestEnvironment::setting('stripe', $setting, $old);
-        }
+        // 20261126 ASR Review PAY-R2-5: without a Base-URL the link mail is not available, so a Link order goes straight to the
+        // classic mail, with no failed link mail to report; a link that cannot be signed still fails and falls back.
+        $old = stripe_setting('public_base_url');
+        StripeTestEnvironment::setting('stripe', 'public_base_url', null);
+        $this->assertSame('pdf', stripe_invoice_delivery($id));
+        $this->assertSame('', $this->deliver([1 => $id], 1, $pdf)['error']);
+        StripeTestEnvironment::setting('stripe', 'public_base_url', $old);
+        $old = stripe_setting('link_secret');
+        StripeTestEnvironment::setting('stripe', 'link_secret', null);
+        $this->assertSame('link', stripe_invoice_delivery($id));
+        $this->assertNotSame('', $this->deliver([1 => $id], 1, $pdf)['error']);
+        StripeTestEnvironment::setting('stripe', 'link_secret', $old);
         StripeTestTransport::$beforeMail = static function (): void {
             throw new RuntimeException('Simulated SMTP failure');
         };
@@ -182,7 +191,7 @@ final class StripeDeliveryTest extends StripeDatabaseTestCase
         $this->assertSame(stripe_txt('mail_subj_notice', ['nr' => $inv['nr'], 'brand' => $inv['brand'], 'date' => '16. januar 2026']), $mail['subject']);
         $this->assertSame('debtor@stripe-tests.invalid', $mail['to']);
         $this->assertSame([], $mail['attachments']);
-        foreach (['Hej Anne,', '340,00 kr.', '16. januar 2026', stripe_txt('mail_card_saved'), stripe_invoice_url($id)] as $expected) {
+        foreach (['Hej Stripe test debtor,', '340,00 kr.', '16. januar 2026', stripe_txt('mail_card_saved'), stripe_invoice_url($id)] as $expected) {
             $this->assertStringContainsString($expected, $mail['text']);
         }
         $this->assertStringNotContainsString('kunde', $mail['text']);
@@ -243,18 +252,37 @@ final class StripeDeliveryTest extends StripeDatabaseTestCase
 
     public function testUncollectableAutomaticInvoiceDoesNotPromiseAChargeAndFallsBackToPdf(): void
     {
-        foreach (['partial', 'predates_enrolment'] as $reason) {
-            $debtor = StripeFixtures::debtor(['stripe' => 'on', 'stripe_pm_id' => 'pm_fixture', 'stripe_date' => $reason === 'partial' ? StripeFixtures::INVOICE_DATE : '2026-01-09']);
-            $id = StripeFixtures::invoice($debtor, ['udskriv_til' => 'Stripe']);
-            if ($reason === 'partial') {
-                StripeTestEnvironment::query('UPDATE openpost SET amount=240 WHERE konto_id=$1', [$debtor]);
-            }
-            $this->assertFalse(stripe_mail_invoice_notice(stripe_invoice_load($id)));
-            $result = $this->deliver([1 => $id], 1, $this->pdf($id));
-            $this->assertNotSame('', $result['error']);
-        }
-        $this->assertCount(2, $this->classic);
+        $debtor = StripeFixtures::debtor(['stripe' => 'on', 'stripe_pm_id' => 'pm_fixture', 'stripe_date' => StripeFixtures::INVOICE_DATE]);
+        $id = StripeFixtures::invoice($debtor, ['udskriv_til' => 'Stripe']);
+        StripeTestEnvironment::query('UPDATE openpost SET amount=240 WHERE konto_id=$1', [$debtor]);
+        $this->assertFalse(stripe_mail_invoice_notice(stripe_invoice_load($id)));
+        $result = $this->deliver([1 => $id], 1, $this->pdf($id));
+        $this->assertNotSame('', $result['error']);
+        $this->assertCount(1, $this->classic);
         $this->assertSame([], StripeTestTransport::$mails);
+        $this->assertSame([], StripeTestTransport::$requests);
+    }
+
+    public function testStripeInvoiceDatedBeforeTheEnrolmentGetsTheLinkMailAndNoChargeDate(): void
+    {
+        // Enrolled on 9 January; genfakturer's preset date made a Stripe invoice dated 8 January, which is never charged.
+        $debtor = StripeFixtures::debtor(['stripe' => 'on', 'stripe_pm_id' => 'pm_fixture', 'stripe_customer_id' => 'cus_fixture', 'stripe_date' => '2026-01-09']);
+        $id = StripeFixtures::invoice($debtor, ['udskriv_til' => 'Stripe']);
+        $inv = stripe_invoice_load($id, StripeFixtures::TODAY);
+        $this->assertFalse(stripe_auto_charge_allowed($inv));
+        $this->assertSame('open', $inv['state']);
+        $this->assertFalse(stripe_mail_invoice_notice($inv));
+        $this->assertSame(['result' => 'OK', 'error' => ''], $this->deliver([1 => $id], 1, $this->pdf($id)));
+        $this->assertSame([], $this->classic);
+        $this->assertCount(1, StripeTestTransport::$mails);
+        $this->assertSame(stripe_txt('mail_subj_new', ['nr' => $inv['nr'], 'brand' => $inv['brand']]), StripeTestTransport::$mails[0]['subject']);
+        $this->assertStringContainsString(stripe_invoice_url($id), StripeTestTransport::$mails[0]['text']);
+        $this->assertStringNotContainsString('16. januar 2026', StripeTestTransport::$mails[0]['subject']);
+        // Dated on the enrolment day: charged, so the page promises the charge and the notice goes out.
+        StripeTestEnvironment::query("UPDATE ordrer SET fakturadate='2026-01-09' WHERE id=$1", [$id]);
+        $inv = stripe_invoice_load($id, StripeFixtures::TODAY);
+        $this->assertTrue(stripe_auto_charge_allowed($inv));
+        $this->assertSame('enrolled', $inv['state']);
         $this->assertSame([], StripeTestTransport::$requests);
     }
 
@@ -282,23 +310,57 @@ final class StripeDeliveryTest extends StripeDatabaseTestCase
         }
     }
 
-    public function testGreetingUsesContactFirstNameOrPlainHejNeverKunde(): void
+    public function testGreetingUsesCurrentDebtorCompanyEvenWhenInvoiceAndContactAreOutdated(): void
     {
-        $named = stripe_invoice_load(StripeFixtures::invoice());
-        $this->assertSame('Hej Anne,', stripe_mail_greeting($named));
-        $anonymous = stripe_invoice_load(StripeFixtures::invoice(StripeFixtures::debtor(['kontakt' => ''])));
+        $company = "Hansen & Søn <ApS>";
+        $debtor = StripeFixtures::debtor(['firmanavn' => 'Former company ApS', 'kontakt' => 'Former Owner']);
+        $id = StripeFixtures::invoice($debtor, ['kontakt' => 'Former Employee']);
+        StripeTestEnvironment::query('UPDATE adresser SET firmanavn=$1 WHERE id=$2', [$company, $debtor]);
+        $invoice = stripe_invoice_load($id);
+        $this->assertSame('Hej ' . $company . ',', stripe_mail_greeting($invoice));
+        $this->assertTrue(stripe_mail_invoice_link($invoice));
+        $mail = StripeTestTransport::$mails[0];
+        $this->assertStringContainsString("Hej $company,\n\n", $mail['text']);
+        $this->assertStringContainsString('Hej Hansen &amp; Søn &lt;ApS&gt;,', $mail['html']);
+        foreach (['Former Owner', 'Former Employee', 'Hej Former', 'Hej Hansen,'] as $wrong) {
+            $this->assertStringNotContainsString($wrong, $mail['text']);
+            $this->assertStringNotContainsString($wrong, $mail['html']);
+        }
+        $this->assertFalse($invoice['recurring']);
+        $this->assertStringContainsString(trim(stripe_txt('mail_body_new_rec')), $mail['text']);
+        $this->assertSame('Former Employee', StripeFixtures::row('ordrer', $id)['kontakt']);
+        $this->assertSame('Former Owner', StripeFixtures::row('adresser', $debtor)['kontakt']);
+    }
+
+    public function testGreetingFallsBackToInvoiceCompanyThenPlainHejWithoutUsingContact(): void
+    {
+        $debtor = StripeFixtures::debtor(['firmanavn' => '   ', 'kontakt' => 'Former Owner']);
+        $invoice = stripe_invoice_load(StripeFixtures::invoice($debtor, ['firmanavn' => 'Invoice Company A/S', 'kontakt' => 'Former Employee']));
+        $this->assertSame('Hej Invoice Company A/S,', stripe_mail_greeting($invoice));
+        $anonymous = stripe_invoice_load(StripeFixtures::invoice($debtor, ['firmanavn' => '', 'kontakt' => 'Former Employee']));
         $this->assertSame('Hej,', stripe_mail_greeting($anonymous));
         $this->assertTrue(stripe_mail_invoice_link($anonymous));
         $this->assertStringContainsString("Hej,\n\n", StripeTestTransport::$mails[0]['text']);
-        // 20261027 a one-off invoice mail also says how to turn on automatic payment
-        $this->assertFalse($anonymous['recurring']);
-        $this->assertStringContainsString(trim(stripe_txt('mail_body_new_rec')), StripeTestTransport::$mails[0]['text']);
-        $this->assertStringNotContainsString('kunde', StripeTestTransport::$mails[0]['text']);
-        StripeTestEnvironment::setting('email_settings', 'invoice_link_text', 'Hej [Fornavn], her er jeres faktura.');
-        $this->assertTrue(stripe_mail_invoice_link($anonymous));
-        $this->assertStringContainsString('Hej, her er jeres faktura.', StripeTestTransport::$mails[1]['text']);
-        $company = stripe_invoice_load(StripeFixtures::invoice(StripeFixtures::debtor(['kontakt' => 'Stripe test debtor'])));
-        $this->assertSame('Hej,', stripe_mail_greeting($company));
+        $this->assertStringNotContainsString('Former', StripeTestTransport::$mails[0]['text']);
+    }
+
+    public function testCompanyAndLegacyFirstNamePlaceholdersUseTheCompanyInBothMailFormats(): void
+    {
+        $debtor = StripeFixtures::debtor(['firmanavn' => 'Example & Søn ApS', 'kontakt' => 'Former Owner']);
+        $invoice = stripe_invoice_load(StripeFixtures::invoice($debtor));
+        $anonymous = stripe_invoice_load(StripeFixtures::invoice(StripeFixtures::debtor(['firmanavn' => '', 'kontakt' => 'Former Owner'])));
+        foreach (['[Virksomhedsnavn]', '[virksomhedsnavn]', '[Firmanavn]', '[firmanavn]', '$firmanavn', '[Fornavn]', '[fornavn]', '$fornavn'] as $token) {
+            StripeTestEnvironment::setting('email_settings', 'invoice_link_text', 'Hej ' . $token . ', her er jeres faktura.');
+            $this->assertTrue(stripe_mail_invoice_link($invoice));
+            $mail = end(StripeTestTransport::$mails);
+            $this->assertStringContainsString('Hej Example & Søn ApS, her er jeres faktura.', $mail['text']);
+            $this->assertStringContainsString('Hej Example &amp; Søn ApS, her er jeres faktura.', $mail['html']);
+            $this->assertStringNotContainsString('Former', $mail['text']);
+            $this->assertTrue(stripe_mail_invoice_link($anonymous));
+            $mail = end(StripeTestTransport::$mails);
+            $this->assertStringContainsString('Hej, her er jeres faktura.', $mail['text']);
+            $this->assertStringNotContainsString('Former', $mail['text']);
+        }
     }
 
     public function testCustomerContactComesFromStripeSettingsAndMailsNameNoMonth(): void
@@ -331,16 +393,18 @@ final class StripeDeliveryTest extends StripeDatabaseTestCase
         $this->assertTrue(stripe_mail_confirmation($inv, ['pm_brand' => 'visa', 'pm_last4' => '4242',
             'succeeded_at' => StripeFixtures::TODAY, 'amount_ore' => 34000, 'source' => 'page']));
         foreach (['html', 'text'] as $format) {
+            $this->assertStringContainsString('Hej Stripe test debtor,', StripeTestTransport::$mails[0][$format]);
+            $this->assertStringNotContainsString('Hej Anne,', StripeTestTransport::$mails[0][$format]);
             $this->assertStringNotContainsString('Abonnement & fakturering', html_entity_decode(StripeTestTransport::$mails[0][$format], ENT_QUOTES, 'UTF-8'));
             // 20261025 the PDF button opens the invoice in the browser (vis=1 -> Content-Disposition inline)
             $this->assertMatchesRegularExpression('~/faktura_pdf\.php\?r=[a-z0-9_]+&o=\d+&s=[0-9a-f]+&vis=1~', html_entity_decode(StripeTestTransport::$mails[0][$format], ENT_QUOTES, 'UTF-8'));
         }
         $this->assertStringContainsString("(!empty(\$_GET['vis']) ? 'inline' : 'attachment')", file_get_contents(__DIR__ . '/../../api/stripe/faktura_pdf.php'));
         // 20261025 Saldi's own mails show the logo; another company keeps its name as text.
-        $this->assertStringContainsString('/img/SaldiMainLogo.png" width="128" alt="Saldi"', StripeTestTransport::$mails[0]['html']);
+        $this->assertStringContainsString('/img/saldi-moerk-logo-lys-baggrund.png" width="128" alt="Saldi"', StripeTestTransport::$mails[0]['html']);
         $other = $inv;
         $other['brand'] = 'Hansen Tømrer';
-        $this->assertStringNotContainsString('SaldiMainLogo', stripe_mail_layout($other, 'L', 'H', 'B', null, [], '', '', '', '', ''));
+        $this->assertStringNotContainsString('saldi-moerk-logo-lys-baggrund', stripe_mail_layout($other, 'L', 'H', 'B', null, [], '', '', '', '', ''));
         $this->assertStringContainsString('margin-bottom:32px">Hansen Tømrer</div>', stripe_mail_layout($other, 'L', 'H', 'B', null, [], '', '', '', '', ''));
         $page = file_get_contents(__DIR__ . '/../../api/stripe/faktura.php');
         $this->assertStringNotContainsString('Abonnement & fakturering', $page);

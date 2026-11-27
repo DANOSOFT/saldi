@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/stripe/faktura_common.php --- 2026.10.26
+// --- api/stripe/faktura_common.php --- 2026.11.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,20 +23,17 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261019 CL/ASR Created: shared bootstrap for the public invoice & payment page
-//                 (faktura.php, faktura_pay.php, faktura_state.php, faktura_pdf.php).
-//                 Same hardening as subscribe.php: no db parameter, pinned ledger via
-//                 stripeConfigDb(), signed link (o + s), rate limits per IP and per invoice.
-//                 Sets $inv (stripe_invoice_load) and $faktura_o / $faktura_s, or ends the
-//                 request with a status page / JSON error.
+// 20261019 CL/ASR Created: shared bootstrap for the public invoice & payment page (faktura.php, faktura_pay.php, faktura_state.php, faktura_pdf.php).
+//                 Same hardening as subscribe.php: no db parameter, pinned ledger via stripeConfigDb(), signed link (o + s), rate limits per IP and per invoice.
+//                 Sets $inv (stripe_invoice_load) and $faktura_o / $faktura_s, or ends the request with a status page / JSON error.
 // 20261022 CDX/LH Use Europe/Copenhagen consistently for invoice and rendering dates.
 // 20261022 CDX/LH Verify invoice-purpose signatures for every public invoice endpoint.
 // 20261022 CL/LH S5 Error pages show the invoicing company's name and e-mail; Danish texts from stripe_txt().
-// 20261025 CL/ASR Page images (faktura_side.php, $FAKTURA_IMAGE) use their own rate-limit buckets, so viewing a
-//                 multi-page invoice cannot use up the budget that faktura_pay/faktura_state need.
-// 20261026 CL/NTR Multi-ledger: the link's r= selects the ledger (its v3 signature binds it); an unknown or
-//                 closed ledger gets the same answer as a bad link, and "switched off" is only told to a valid link.
+// 20261025 CL/ASR Page images (faktura_side.php, $FAKTURA_IMAGE) use their own rate-limit buckets, so viewing a multi-page invoice cannot use up the budget that faktura_pay/faktura_state need.
+// 20261026 CL/NTR Multi-ledger: the link's r= selects the ledger (its v3 signature binds it); an unknown or closed ledger gets the same answer as a bad link, and "switched off" is only told to a valid link.
 //                 Per-invoice rate limits are per ledger.
+// 20261126 ASR Payment review (GPT-P-7): the company's name and e-mail for the page footer are read only after the link's signature is verified.
+//              An invalid or unsigned link gets the same page as a link to an unknown ledger.
 
 date_default_timezone_set('Europe/Copenhagen');
 
@@ -71,14 +68,13 @@ function faktura_fail($status, $headline, $text, $code = 'error') {
 	stripe_status_page($status, 'warn', $headline, array($text), '', '');
 }
 
-// Error pages carry the invoicing company's own name and e-mail, not the subscription pages' constants.
+// Error pages carry the invoicing company's own name and e-mail, not the subscription pages' constants, once the link is
+// verified. Until then the footer is empty, as for an unknown ledger.
 $GLOBALS['stripe_page_identity'] = array('name' => '', 'email' => '');
 // No ledger resolved (unknown r=, or an old link on an install without a pinned ledger): just an invalid link,
 // so the page cannot be used to find out which ledgers exist.
 if ($stripe_target_db === '') faktura_fail(403, stripe_txt('link_invalid'), stripe_txt('link_invalid_txt'), 'bad_link');
 if (!$stripe_boot_ok) faktura_fail(503, stripe_txt('unavailable'), stripe_txt('unavailable_txt'), 'unavailable');
-$faktura_firma = db_fetch_array(db_select("select firmanavn, email from adresser where art = 'S' order by id limit 1", __FILE__ . " linje " . __LINE__));
-if ($faktura_firma) $GLOBALS['stripe_page_identity'] = array('name' => trim((string)$faktura_firma['firmanavn']), 'email' => stripe_contact_email($faktura_firma));
 
 $faktura_o = (int)(isset($_GET['o']) ? $_GET['o'] : (isset($_POST['o']) ? $_POST['o'] : 0));
 $faktura_s = (string)(isset($_GET['s']) ? $_GET['s'] : (isset($_POST['s']) ? $_POST['s'] : ''));
@@ -86,6 +82,9 @@ $ip = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '0';
 $faktura_image = !empty($FAKTURA_IMAGE);
 if (!stripe_rate_limit(($faktura_image ? 'fak_img_ip_' : 'fak_ip_') . $ip, $faktura_image ? 1500 : 300, 600)) faktura_fail(429, stripe_txt('rate'), stripe_txt('rate_txt'), 'rate');
 if ($faktura_o < 1 || !stripe_link_verify($faktura_o, $faktura_s, 'invoice')) faktura_fail(403, stripe_txt('link_invalid'), stripe_txt('link_invalid_txt'), 'bad_link');
+// A valid link: the pages from here on show the invoicing company.
+$faktura_firma = db_fetch_array(db_select("select firmanavn, email from adresser where art = 'S' order by id limit 1", __FILE__ . " linje " . __LINE__));
+if ($faktura_firma) $GLOBALS['stripe_page_identity'] = array('name' => trim((string)$faktura_firma['firmanavn']), 'email' => stripe_contact_email($faktura_firma));
 // After the signature: only a real link learns that this ledger exists but has Stripe switched off.
 if (stripe_setting('enabled', 'off') !== 'on') faktura_fail(503, stripe_txt('not_active'), stripe_txt('not_active_txt'), 'disabled');
 if (!stripe_rate_limit(($faktura_image ? 'fak_img_' : 'fak_ord_') . $db . '_' . $faktura_o, $faktura_image ? 600 : 120, 600)) faktura_fail(429, stripe_txt('rate'), stripe_txt('rate_txt'), 'rate');

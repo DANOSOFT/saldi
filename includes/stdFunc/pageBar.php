@@ -1,5 +1,5 @@
 <?php
-// ---- includes/stdFunc/pageBar.php --- lap 5.0.0 --- 2026.10.08 ---
+// ---- includes/stdFunc/pageBar.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,18 +15,16 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261008 Sawaneh The page head of a migrated page (topbar addendum 2026-10-05 §5, prototype_dashboard_tema v5): the
-//                  title in the content, the old bar's tabs as a tab row, its actions on the right in the user's colour,
-//                  Ny as the primary button, Hjælp kept as a hidden #tutorial-help for the Assist menu's tour, Tilbage as a
-//                  plain link with accesskey L (the shell hides it, standalone pages keep it).
-// 20261008 Sawaneh Migrated pages follow the theme: html.saldi-dark (css/saldi-theme.css) while the theme is dark.
-// 20261009 Sawaneh Asset links via get_relative(): pages two levels down (lager/lister) got no CSS.
-// 20261009 Sawaneh 'extra' html among the actions for the open-post mode select (rapportfunc).
-// 20261009 Sawaneh The gear (settings section for the page) is the last element of the page toolbar (decision 22, addendum 2 §5).
-// 20261018 Sawaneh Review 2 (PR #803): page_bar_back_ok() - a back link from the request may not run a script.
-
+// 20261008 SS The page head of a migrated page (topbar addendum 2026-10-05 §5, prototype_dashboard_tema v5): the title in the content, the old bar's tabs as a tab row, its actions on the right in the user's colour, Ny as the primary button, Hjælp kept as a hidden #tutorial-help for the Assist menu's tour, Tilbage as a plain link with accesskey L (the shell hides it, standalone pages keep it).
+// 20261009 SS Asset links via get_relative(): pages two levels down (lager/lister) got no CSS.
+// 20261009 SS 'extra' html among the actions for the open-post mode select (rapportfunc).
+// 20261018 SS Review 2 (PR #803): page_bar_back_ok() - a back link from the request may not run a script.
+// 20261031 CL/ASR Settings pages only: no dark-theme switch and no gear in the page toolbar (the gear is in the topbar).
+//                 The shell no longer hides Tilbage.
+// 20261108 CL/ASR css/saldi-theme.css linked as ?v=8 (--page is Saldi's classic page colour #eeeef0 now; no page_bar page uses it).
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 if (!function_exists('page_bar_back_ok')) {
 	/**
 	 * Whether a back link may be printed (review 2, PR #803). Several pages pass a returside taken from the request.
@@ -89,34 +87,6 @@ if (!function_exists('page_bar_back_ok')) {
 if (!function_exists('page_bar')):
 
 /**
- * The gear for this page (settings spec §8.11, addendum 2 §5): the settings section whose context names the page, with a
- * way back. null when no section governs the page or the user may not read it.
- *
- * @return array{href: string, label: string}|null
- */
-function page_bar_gear(string $title): ?array
-{
-	include_once(__DIR__ . '/pageChrome.php');
-	include_once(__DIR__ . '/../../systemdata/settingsRegistry.php');
-	if (!function_exists('settings_context_links') || !function_exists('page_route_key')) {
-		return null;
-	}
-	$page = page_route_key();
-	if ($page === '') {
-		return null;
-	}
-	$map = settings_context_links((int) $GLOBALS['sprog_id']);
-	if (empty($map[$page])) {
-		return null;
-	}
-	$link = $map[$page][0];
-	$back = '/' . $page . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : '');
-	$href = str_repeat('../', substr_count($page, '/')) . ltrim((string) $link['url'], '/') . '&back=' . rawurlencode($back)
-		. ($title !== '' ? '&back_label=' . rawurlencode(mb_substr($title, 0, 60)) : '');
-	return array('href' => $href, 'label' => (string) $link['label']);
-}
-
-/**
  * Print the page head. $o: 'title', 'tabs' => [['label', 'href', on(bool)], ...], 'actions' => [['label', 'href', icon class,
  * target, 'onclick' => ...], ...], 'primary' => ['label', 'href', 'onclick' => '...'], 'back' => href, 'back_onclick' => js,
  * 'help' => bool (a hidden tour trigger), 'extra' => ready-made html printed among the actions (a select).
@@ -135,10 +105,7 @@ function page_bar(array $o): void
 		$assets = true;
 		// Pages sit one level (debitor/) or two levels (lager/lister/) below the install root.
 		$rel = function_exists('get_relative') ? rtrim(get_relative(), '/') : '..';
-		print "<link rel='stylesheet' href='$rel/css/saldi-theme.css?v=7'><link rel='stylesheet' href='$rel/css/page.css?v=2'><link rel='stylesheet' href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css'>";
-		// The page follows the user's theme: html.saldi-dark while the theme (or the device, for System) is dark.
-		print "<script>(function(){var r=document.documentElement;function ap(){var t=r.dataset.theme;r.classList.toggle('saldi-dark',t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches));}ap();"
-			. "new MutationObserver(ap).observe(r,{attributes:true,attributeFilter:['data-theme']});try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',ap);}catch(e){}})();</script>";
+		print "<link rel='stylesheet' href='$rel/css/saldi-theme.css?v=11'><link rel='stylesheet' href='$rel/css/page.css?v=2'><link rel='stylesheet' href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css'>";
 	}
 	$style = "--user-primary:" . $h(!empty($buttonColor) ? $buttonColor : '#114691') . ";--user-primary-text:" . $h(!empty($buttonTxtColor) ? $buttonTxtColor : '#ffffff');
 	print "<div class='pg' style='$style'>";
@@ -177,10 +144,6 @@ function page_bar(array $o): void
 		} else {
 			print "<a class='pg-btn' href='" . $h($p[1]) . "'$key>+ " . $h($p[0]) . "</a>";
 		}
-	}
-	$gear = page_bar_gear($title);
-	if ($gear) {
-		print "<a class='pg-act pg-gear' href='" . $h($gear['href']) . "' title='" . $h($gear['label']) . "' aria-label='" . $h($gear['label']) . "'><i class='bx bx-cog'></i></a>";
 	}
 	print "</span></div></div>";
 }

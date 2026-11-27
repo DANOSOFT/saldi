@@ -7,6 +7,7 @@
 //                  a changed field is marked; a sub-section whose fields are all hidden is hidden too.
 // 20261004 Sawaneh Skift on a stored secret opens its empty input (it did nothing on form sections).
 // 20261109 CL/ASR ruleHolds(): a field whose parent field is hidden by its own rule is hidden too (a chain of rules), as st_visible() in PHP.
+// 20261126 CL/ASR Stripe port (#1098): the ruleHolds() rule chain from the line above.
 (function () {
 	'use strict';
 	var cfg = window.SALDI_SETTINGS || {};

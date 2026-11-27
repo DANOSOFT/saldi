@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/stripe/subscribe.php --- 2026.10.26
+// --- api/stripe/subscribe.php --- 2026.11.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -38,9 +38,14 @@
 // no findtekst()/alert()/std_func rendering here (alert() does no escaping),
 // every dynamic value goes through htmlspecialchars, zero JavaScript.
 // 20261022 CDX/LH Refuse subscription signup unless the independent signup switch is explicitly enabled.
-// 20261026 CL/NTR Multi-ledger: r= selects the ledger (unknown ledger = invalid link); the form, cancel URL,
-//                 Checkout metadata (saldi_db), rate limit and idempotency key carry the ledger. The signup switch is
-//                 checked after the signature.
+// 20261126 CL/ASR Stripe port (#850): a new subscription needs both Aktiv and Nye Stripe-abonnementer (stripe_signup_allowed()); running subscriptions are not affected.
+// 20261026 CL/NTR Multi-ledger: r= selects the ledger (unknown ledger = invalid link); the form, cancel URL, Checkout metadata (saldi_db), rate limit and idempotency key carry the ledger.
+//                 The signup switch is checked after the signature.
+// 20261126 CL/ASR Stripe port (#889): the pinned ledger's subscription signup works as before; the link now carries r=<db> and other ledgers need their own saved Stripe settings.
+// 20261126 CL/ASR Review round 1 (I18): "already subscribed" counts only rows with a subscription id; a customer who has only paid an invoice on the payment page can subscribe.
+//                 A customer whose invoices are charged to a saved card is told so (stripe_debtor_card_enrolled()) and gets no subscription on top.
+// 20261126 ASR Payment review (GPT-P-7): another ledger's company name and e-mail for the page footer are read only after the link's signature is verified.
+//              Until then the footer is the default one, as for an unknown ledger.
 
 ob_start(); // std_func's alert()/injecttjek() print HTML on error paths - keep the buffer ours
 
@@ -154,11 +159,6 @@ function stripe_kr($ore) { return number_format($ore / 100, 2, ',', '.'); }
 // No ledger resolved (unknown r=): the same answer as a bad signature, so ledgers cannot be probed.
 if ($stripe_target_db === '') stripe_fail_page(403, 'Linket er ugyldigt', 'Linket er ugyldigt eller udløbet. Brug linket fra din seneste faktura, eller besvar fakturamailen.');
 if (!$stripe_boot_ok) stripe_fail_page(503, 'Midlertidigt utilgængelig', 'Prøv igen om lidt, eller besvar fakturamailen.');
-// Other ledgers than the pinned one show their own company in the page footer, like the invoice pages.
-if ($db !== stripeConfigDb()) {
-	$sub_firma = db_fetch_array(db_select("select firmanavn, email from adresser where art = 'S' order by id limit 1", __FILE__ . " linje " . __LINE__));
-	$GLOBALS['stripe_page_identity'] = array('name' => trim((string)($sub_firma['firmanavn'] ?? '')), 'email' => trim((string)($sub_firma['email'] ?? '')));
-}
 
 $isPost   = ($_SERVER['REQUEST_METHOD'] === 'POST');
 $order_id = (int)($isPost ? (isset($_POST['id']) ? $_POST['id'] : 0) : (isset($_GET['id']) ? $_GET['id'] : 0));
@@ -171,6 +171,12 @@ if (!stripe_rate_limit('sub_ip_' . $ip, 120, 600)) {
 if ($order_id < 1 || !stripe_link_verify($order_id, $sig)) {
 	stripe_log("subscribe: bad signature for order $order_id from $ip");
 	stripe_fail_page(403, 'Linket er ugyldigt', 'Linket er ugyldigt eller udløbet. Brug linket fra din seneste faktura, eller besvar fakturamailen.');
+}
+// Other ledgers than the pinned one show their own company in the page footer, like the invoice pages, once the link is
+// verified: before that, a link to a ledger that exists looks the same as one to a ledger that does not.
+if ($db !== stripeConfigDb()) {
+	$sub_firma = db_fetch_array(db_select("select firmanavn, email from adresser where art = 'S' order by id limit 1", __FILE__ . " linje " . __LINE__));
+	$GLOBALS['stripe_page_identity'] = array('name' => trim((string)($sub_firma['firmanavn'] ?? '')), 'email' => trim((string)($sub_firma['email'] ?? '')));
 }
 // Master switch (stripe_valg "Aktiv"): off = no new signups, full stop. Checked after the signature, so only a
 // real link learns that this ledger exists but has signup switched off.
@@ -196,10 +202,16 @@ elseif (trim((string)$order['valuta']) !== '' && strtoupper(trim($order['valuta'
 
 // Already subscribed?
 if (!$parkReason) {
-	$sub = db_fetch_array(db_select("select stripe_subscription_id from stripe_customers where konto_id = " . (int)$order['konto_id'] . " and status in ('active','trialing','past_due')", __FILE__ . " linje " . __LINE__));
+	// Invoice payments also add a stripe_customers row (no subscription id) for a customer who paid on the payment page.
+	$sub = db_fetch_array(db_select("select stripe_subscription_id from stripe_customers where konto_id = " . (int)$order['konto_id'] . " and coalesce(stripe_subscription_id, '') <> '' and status in ('active','trialing','past_due')", __FILE__ . " linje " . __LINE__));
 	if ($sub) {
 		stripe_status_page(200, 'ok', 'Du har allerede et aktivt abonnement',
 			['Automatisk betaling er allerede sat op for jeres aftale, så du behøver ikke foretage dig noget.'],
+			'', 'Er det en fejl, eller ønsker du at ændre noget, så besvar fakturamailen.');
+	}
+	if (stripe_debtor_card_enrolled((int)$order['konto_id'])) {
+		stripe_status_page(200, 'ok', 'Jeres fakturaer betales allerede automatisk',
+			['Jeres fakturaer trækkes automatisk på det gemte kort, så du behøver ikke foretage dig noget.'],
 			'', 'Er det en fejl, eller ønsker du at ændre noget, så besvar fakturamailen.');
 	}
 }

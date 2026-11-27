@@ -24,6 +24,7 @@
 // Copyright (c) 2003-2020 saldi.dk aps
 // ----------------------------------------------------------------------
 // 2020.02.27 PHR Check if db exist before dropping 20200227 
+// 20261127 ASR With $allowedLedgers in includes/connect.php only a listed ledger is shown and deleted, named by its row in the master database (includes/ledgerAllowList.php).
 
 @session_start();
 $s_id=session_id();
@@ -81,6 +82,14 @@ if ($_POST['regnskabsantal']) {
 	if ($regnskabsantal) {
 		$slet_antal=0;
 		for ($x=1; $x<=$regnskabsantal; $x++) {
+			if ($slet[$x]=='on' && saldi_allowed_ledgers() !== null) {
+				// An installation with $allowedLedgers deletes only a listed ledger: the one its row in the master database names.
+				$listedRow = db_fetch_array(db_select("select db from regnskab where id = '" . (int) $id[$x] . "'", __FILE__ . " linje " . __LINE__));
+				if (!$listedRow || !saldi_ledger_allowed($listedRow['db']) || trim((string) $listedRow['db']) !== trim((string) $db_navn[$x])) {
+					print htmlspecialchars(saldi_ledger_refusal_text(), ENT_QUOTES, 'UTF-8') . " (" . (int) $id[$x] . ")<br>";
+					$slet[$x] = '';
+				}
+			}
 			if ($slet[$x]=='on'){
 			 	$slet_antal++;
 				$mappe='../nedlagte_regnskaber/';
@@ -135,7 +144,7 @@ $adgang_til=explode(",",$tmp);
 $x=0;
 $q1= db_select("select id, regnskab, db from regnskab where db != '$sqdb' and lukket='on' order by id",__FILE__ . " linje " . __LINE__);
 while ($r1=db_fetch_array($q1)) {
-	if ($admin || in_array($r1['id'],$adgang_til)) {
+	if (($admin || in_array($r1['id'],$adgang_til)) && saldi_ledger_allowed($r1['db'])) {
 		$x++;
 		$id[$x]=$r1['id'];
 		$regnskab[$x]=$r1['regnskab'];	

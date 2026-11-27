@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/actions.php --- lap 5.0.0 --- 2026.10.02 ---
+// ---- includes/settings/actions.php --- ver 5.1.1 --- 2026.11.14 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,21 +15,25 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261005 Sawaneh settings_verify_password() for danger-zone actions; GDPR clean-up of inactive accounts (G1.5).
-// 20261005 Sawaneh G1.1: company e-mail mirrored to the master database's regnskab row through db_modify(..., true).
-// 20261004 Sawaneh §8.13 settings_impact_text(): the number of items an action touches.
-// 20261004 Sawaneh G9.2: pickup addresses added and deleted here (the old page deleted every address missing from its form, B-D17).
-// 20261004 Sawaneh G10 batch B: payment card rows (add, move, remove across the seven tab-joined lists), KDS colour
-//                  compaction after the section is saved, printer cookies cleared as the old page did.
-// 20261002 Sawaneh Settings redesign phase 4b: the actions a generated section can run (spec P4), each after a
-//                  confirmation on the page. Called from systemdata/settingsSection.php.
-// 20261004 Sawaneh G10.1: add a till, remove the last one.
-// 20261004 Sawaneh G4.3: price lists - add, use (one active list), test the file (fetched only here, with a timeout), delete.
-// 20261004 Sawaneh G2.6: FTP connection test for document storage.
-// 20261002 Sawaneh Phase 4b batch 2 (G9): new API key, shop sync, MobilePay webhook and QR codes (includes/settings/integrations.php).
-
+// 20261005 SS settings_verify_password() for danger-zone actions; GDPR clean-up of inactive accounts (G1.5).
+// 20261005 SS G1.1: company e-mail mirrored to the master database's regnskab row through db_modify(..., true).
+// 20261004 SS §8.13 settings_impact_text(): the number of items an action touches.
+// 20261004 SS G9.2: pickup addresses added and deleted here (the old page deleted every address missing from its form, B-D17).
+// 20261004 SS G10 batch B: payment card rows (add, move, remove across the seven tab-joined lists), KDS colour compaction after the section is saved, printer cookies cleared as the old page did.
+// 20261002 SS Settings redesign phase 4b: the actions a generated section can run (spec P4), each after a confirmation on the page.
+//             Called from systemdata/settingsSection.php.
+// 20261004 SS G10.1: add a till, remove the last one.
+// 20261004 SS G4.3: price lists - add, use (one active list), test the file (fetched only here, with a timeout), delete.
+// 20261004 SS G2.6: FTP connection test for document storage.
+// 20261002 SS Phase 4b batch 2 (G9): new API key, shop sync, MobilePay webhook and QR codes (includes/settings/integrations.php).
+// 20261102 CL/ASR employee_add takes the name, initials and e-mail typed in "Tilføj person" (Brugere & ansatte, usersRoles.php), when settingsSection.php passes them (settings_action_person, checked and capped in includes/settings/people.php); without them it adds "Ny medarbejder" as before.
+//                 Same insert, audit entry and redirect.
+// 20261103 CL/ASR QA: the FTP test fails when the configured folder cannot be opened (it went on in the login's root and could report success).
+// 20261105 CL/LH settings_impact_text(): 'batch_missing_info' counts the batches in stock that lack a batch number or expiry date, for the batch details link on Lagerstyring & kostpris.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261114 CL/ASR The action ledger_reset and its impact line are gone: a ledger is reset from the admin panel (admin/admin_panel.php), not by its own users.
 include_once(__DIR__ . '/integrations.php');
 
 /**
@@ -122,12 +126,13 @@ function settings_ftp_test(): bool
 	$conn = $host !== '' ? @ftp_connect($host, $port, 10) : false;
 	if ($conn && @ftp_login($conn, (string) $r['box2'], urldecode((string) $r['box3']))) {
 		@ftp_pasv($conn, true);
-		if ($path !== '') {
-			@ftp_chdir($conn, $path);
+		// A configured folder that does not exist is a failed test, not a test in the login's root.
+		$inPath = ($path === '') || @ftp_chdir($conn, $path);
+		if ($inPath) {
+			@ftp_mkdir($conn, $folderVouchers);
+			@ftp_mkdir($conn, $folderDocuments);
 		}
-		@ftp_mkdir($conn, $folderVouchers);
-		@ftp_mkdir($conn, $folderDocuments);
-		if (@ftp_chdir($conn, $folderVouchers)) {
+		if ($inPath && @ftp_chdir($conn, $folderVouchers)) {
 			$local = tempnam(sys_get_temp_dir(), 'saldi_ftp');
 			file_put_contents($local, "testfil fra saldi $db\n");
 			if (@ftp_put($conn, 'saldi_testfil.txt', $local, FTP_ASCII)) {
@@ -212,22 +217,6 @@ function settings_run_action(array $def, string $selfUrl): string
 			}
 			$_SESSION['settings_flash'] = array('ok', st_txt(6249) . ': ' . $name);
 			return 'settingsSection.php?s=purchase.pricelists';
-		case 'ledger_reset':
-			// G1.4 danger zone: the reset plan of systemdata/resetAccount.php (personal settings are kept since 2026-10-05).
-			global $db_type, $db;
-			require_once(__DIR__ . '/../../systemdata/resetAccount.php');
-			$in = isset($GLOBALS['settings_action_inputs']) ? $GLOBALS['settings_action_inputs'] : array();
-			try {
-				resetAccount(!empty($in['keep_accounts']), !empty($in['keep_items']), (string) $db_type, (string) $db);
-				if (function_exists('audit_log')) {
-					audit_log('setting.action', json_encode(array('keep_accounts' => !empty($in['keep_accounts']), 'keep_items' => !empty($in['keep_items']))), 'indstilling', $def['key']);
-				}
-				$_SESSION['settings_flash'] = array('ok', st_txt(6640));
-				$_SESSION['settings_reload_shell'] = 1;
-			} catch (Throwable $error) {
-				$_SESSION['settings_flash'] = array('err', sprintf(st_txt(6641), $error->getMessage()));
-			}
-			return $selfUrl;
 		case 'ledger_delete':
 			// G1.4 danger zone: as the old page - the ledger is closed in the master database and every session of it ends.
 			global $db, $db_id, $brugernavn;
@@ -240,12 +229,23 @@ function settings_run_action(array $def, string $selfUrl): string
 		case 'employee_add':
 			$sid = settings_company_account_id();
 			$r = db_fetch_array(db_select("select coalesce(max(nummer), 0) + 1 as n, coalesce(max(posnr), 0) + 1 as p from ansatte where konto_id = $sid", __FILE__ . " linje " . __LINE__));
-			$name = db_escape_string(st_txt(6614));
-			db_modify("insert into ansatte (konto_id, navn, nummer, posnr, startdate, slutdate, lukket) values ($sid, '$name', " . (int) $r['n'] . ", " . (int) $r['p'] . ", '" . date('Y-m-d') . "', '9999-12-31', '')", __FILE__ . " linje " . __LINE__);
+			// "Tilføj person" passes what was typed (already checked); otherwise the new row is "Ny medarbejder", as before.
+			$person = (isset($GLOBALS['settings_action_person']) && is_array($GLOBALS['settings_action_person'])) ? $GLOBALS['settings_action_person'] : array();
+			$plain = (isset($person['navn']) && $person['navn'] !== '') ? $person['navn'] : st_txt(6614);
+			$name = db_escape_string($plain);
+			$cols = '';
+			$vals = '';
+			foreach (array('initialer', 'email') as $col) {
+				if (isset($person[$col]) && $person[$col] !== '') {
+					$cols .= ", $col";
+					$vals .= ", '" . db_escape_string($person[$col]) . "'";
+				}
+			}
+			db_modify("insert into ansatte (konto_id, navn$cols, nummer, posnr, startdate, slutdate, lukket) values ($sid, '$name'$vals, " . (int) $r['n'] . ", " . (int) $r['p'] . ", '" . date('Y-m-d') . "', '9999-12-31', '')", __FILE__ . " linje " . __LINE__);
 			$r = db_fetch_array(db_select("select max(id) as id from ansatte where konto_id = $sid", __FILE__ . " linje " . __LINE__));
 			$eid = (int) $r['id'];
 			if (function_exists('audit_log')) {
-				audit_log('setting.row_created', json_encode(array('before' => null, 'after' => st_txt(6614)), JSON_UNESCAPED_UNICODE), 'indstilling', 'organisation.employees#' . $eid);
+				audit_log('setting.row_created', json_encode(array('before' => null, 'after' => $plain), JSON_UNESCAPED_UNICODE), 'indstilling', 'organisation.employees#' . $eid);
 			}
 			return 'settingsSection.php?s=organisation.employees&item=emp_' . $eid;
 		case 'employee_up':
@@ -572,10 +572,6 @@ function settings_impact_text(array $def): string
 		}
 		$r = db_fetch_array(db_select("select count(*) as n from varer where $where", __FILE__ . " linje " . __LINE__));
 		$n = $r ? (int) $r['n'] : 0;
-	} elseif ($def['impact'] === 'ledger_reset') {
-		$t = db_fetch_array(db_select("select count(*) as n from transaktioner", __FILE__ . " linje " . __LINE__));
-		$o = db_fetch_array(db_select("select count(*) as n from ordrer", __FILE__ . " linje " . __LINE__));
-		return sprintf(st_txt(6423), number_format((int) $t['n'], 0, ',', '.')) . ' · ' . sprintf(st_txt(6422), number_format((int) $o['n'], 0, ',', '.'));
 	} elseif ($def['impact'] === 'employee_usage') {
 		$u = settings_employee_usage((int) $def['scope_id']);
 		return $u !== '' ? sprintf(st_txt(6415), $u) : '';
@@ -585,6 +581,10 @@ function settings_impact_text(array $def): string
 	} elseif ($def['impact'] === 'commission_items') {
 		$r = db_fetch_array(db_select("select count(*) as n from varer where (varenr like 'kb%' or varenr like 'kn%') and ((retail_price > 0 and retail_price < 100) or (kostpris > 0 and kostpris < 1)) and coalesce(provision, 0) = 0", __FILE__ . " linje " . __LINE__));
 		$n = $r ? (int) $r['n'] : 0;
+	} elseif ($def['impact'] === 'batch_missing_info') {
+		// Batches in stock that lack their batch number or expiry date, what lager/batch_udfyld.php fills in; nothing when none do, as on master.
+		$missing = batch_missing_info_count();
+		return $missing ? sprintf(st_txt('batch.missing_info_count|%s batches på lager mangler udløbsdato eller batchnummer'), number_format($missing, 0, ',', '.')) : '';
 	}
 	return $n === null ? '' : sprintf(st_txt(6391), number_format($n, 0, ',', '.'));
 }

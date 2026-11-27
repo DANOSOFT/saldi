@@ -15,6 +15,8 @@
 // History:
 // 20260725 CL/LH Created for the end-to-end coverage push.
 // 20261022 CL/NTR Removed the stale "six stock pages" defect note; SD-619 fixed them and they are in PAGES.
+// 20261027 CL/LH The stock balance list no longer ends the session on first open (MB-99, SD-623); its
+//                test now asserts that both opens stay on the page instead of pinning the bounce.
 
 import { test, expect } from "@playwright/test";
 import { login, logout, captureDialogs, expectNoPhpFailure } from "./support/app.mjs";
@@ -106,41 +108,31 @@ test.describe("module pages load", () => {
 });
 
 /**
- * DEFECT PINNED: the stock balance list throws the user back to the login
- * screen the first time it is opened in a session.
+ * The stock balance list keeps the session (SD-623, MB-99).
  *
- * Reproduced deterministically: log in, open
- * /saldi/lager/beholdningsliste.php, and the browser ends up at
- * /saldi/index/index.php. Navigating to it a second time works and keeps
- * working for the rest of the session. It happens whether or not another
- * stock page was visited first, so it is the page's own first request that
- * loses the session, not an interaction with a neighbour.
+ * It used to throw the user back to the login screen the first time it was
+ * opened: a user without a warehouse link was sent to index/logud.php, which
+ * ends the session. The page now offers the warehouses to choose from, or
+ * shows the totals when the account has none set up.
  *
- * The mechanism is not identified here. Worth noting that the page starts
- * with its module number commented out - `# $modulnr=9;`
- * (lager/beholdningsliste.php:25) - while includes/online.php:331 authorises
- * with `substr($rettigheder, $modulnr, 1)`; that is the shape of thing to
- * look at first, but this test only pins the behaviour that was observed.
- *
- * The second half of this test is the invariant that actually matters: the
- * page IS reachable, so whatever is fixed must not break it.
+ * Both opens must stay on the page: the first is the fixed defect, the second
+ * the invariant that the page is reachable at all.
  */
 test.describe("the stock balance list", () => {
-  test("bounces to the login page on first open, then works", async ({ browser }) => {
+  test("stays on the page and keeps the session", async ({ browser }) => {
     const page = await browser.newPage();
     captureDialogs(page);
     await login(page);
 
-    await page.goto("/saldi/lager/beholdningsliste.php", { waitUntil: "domcontentloaded" });
-    await page.waitForLoadState("networkidle").catch(() => {});
-    expect(page.url(), "first open is bounced to the login page").toMatch(/index\/index\.php/);
+    for (const open of ["first", "second"]) {
+      await page.goto("/saldi/lager/beholdningsliste.php", { waitUntil: "domcontentloaded" });
+      await page.waitForLoadState("networkidle").catch(() => {});
+      expect(page.url(), `the ${open} open stays on the page`).toMatch(/beholdningsliste\.php/);
 
-    await page.goto("/saldi/lager/beholdningsliste.php", { waitUntil: "domcontentloaded" });
-    await page.waitForLoadState("networkidle").catch(() => {});
-    expect(page.url(), "the second open stays on the page").toMatch(/beholdningsliste\.php/);
-
-    const html = await page.content();
-    expectNoPhpFailure(html, "stock balance list");
+      const html = await page.content();
+      expectNoPhpFailure(html, "stock balance list");
+      expect(html, `the ${open} open keeps the session`).not.toMatch(/session er udl/i);
+    }
 
     await logout(page);
     await page.close();

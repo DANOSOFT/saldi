@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -----------------finans/autoudlign.php------------ver 5.0.0--------2026.10.02----------
+// -----------------finans/autoudlign.php------------ver 5.1.1--------2026.11.13----------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -46,6 +46,7 @@
 //                  output before json_encode(), localize the selected-entry
 //                  invoice label, and set <html lang> from $sprog_id.
 // 20260922 CDX/PHR Restore cross-account suggestions while retaining validated journal assignment.
+// 20260922 CDX/PHR Limit the optional account selector to accounts with eligible open invoices.
 // 20260925 CL/SZ   (CodeRabbit): escape the save-success notice's findtekst() text for HTML
 //                  output, matching the search placeholder's UTF-8-normalize-then-escape pattern.
 // 20261001 CL/SZ   (CodeRabbit): the header row's "Tilbage" button label and the "Udlign — Kladde N"
@@ -53,7 +54,13 @@
 //                  value on this page - normalized and escaped them the same way.
 // 20261002 CL/NTR  Moved the page's local UTF-8 findtekst() wrapper to includes/stdFunc/findTxtUtf8.php
 //                  as findtekst_utf8() and use it for the $uiText array as well (keyed ids, one call).
-
+// 20261028 CL/MMR SD-785 The Konto selector also offers "Alle debitorer" and "Alle kreditorer", which show only customers' or only suppliers' open posts.
+//                  The choice is carried to the next entry (kontotype in the URL), so it is made once per journal.
+// 20261029 CL/MMR SD-785 The two texts moved to 7650 and 7651, as 7636 is also used by another change.
+//                  The restart link URL-encodes kontotype like kladde_id next to it.
+// 20261103 CL/MMR SST-932 The header bar's table no longer takes the full window height in Safari, which pushed the settlement card out of view and left the page blank.
+// 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 ob_start();
 @session_start();
 $s_id = session_id();
@@ -62,7 +69,6 @@ $permission_key = 'finans.kassekladde';
 #$css = "../css/standard.css";
 include(__DIR__ . "/../includes/connect.php");
 // 20260923 CL/SZ (CodeRabbit): online.php prints a legacy ISO-8859-1 <meta> charset
-// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
 // declaration before this page's own UTF-8 one - send the real header first so browsers
 // use it (a <meta> only wins when no HTTP charset header is present).
 header('Content-Type: text/html; charset=UTF-8');
@@ -74,6 +80,11 @@ $kladde_id = intval($_GET['kladde_id'] ?? 0);
 $id        = intval(if_isset($_GET, 0, ['id']));
 $skipped   = max(0, intval($_GET['skipped']  ?? 0));
 $settled   = max(0, intval($_GET['settled']  ?? 0));
+// SD-785: "Alle debitorer" (D) or "Alle kreditorer" (K) chosen in the Konto selector, carried from entry to entry
+$kontotype = strtoupper(trim((string)ifset($_GET, 'kontotype', '')));
+if ($kontotype !== 'D' && $kontotype !== 'K') {
+    $kontotype = '';
+}
 
 /* ---------------------------------------------------------------
    POST: persist the chosen settlement
@@ -158,6 +169,13 @@ if ($entry) {
         $number = db_escape_string($entryContext['account']);
         $type = db_escape_string($entryContext['accountType']);
         $accountWhere = "kontonr = '$number' AND art = '$type'";
+    } else {
+        $accountWhere .= " AND EXISTS (
+            SELECT 1 FROM openpost
+            WHERE openpost.konto_id=adresser.id AND openpost.konto_nr=adresser.kontonr
+                AND (openpost.udlignet!='1' OR openpost.udlignet IS NULL)
+                AND TRIM(COALESCE(openpost.faktnr,''))!=''
+        )";
     }
     $query = db_select("SELECT id, kontonr, art, firmanavn FROM adresser WHERE $accountWhere ORDER BY firmanavn, kontonr", __FILE__ . ' line ' . __LINE__);
     while ($account = db_fetch_array($query)) {
@@ -194,7 +212,7 @@ $progress_done  = $settled + $skipped;
 $progress_total = $total_unsettled + $settled; // total that needed settling when we started
 
 // Restart URL: go back to id=0 with skipped/settled reset
-$restart_url = 'autoudlign.php?kladde_id=' . urlencode($kladde_id) . '&id=0&skipped=0&settled=0';
+$restart_url = 'autoudlign.php?kladde_id=' . urlencode($kladde_id) . '&id=0&skipped=0&settled=0' . ($kontotype !== '' ? '&kontotype=' . urlencode($kontotype) : '');
 
 $htmlLang = ['1' => 'da', '2' => 'en', '3' => 'no'][(string)$sprog_id] ?? 'da';
 ?>
@@ -252,7 +270,8 @@ $htmlLang = ['1' => 'da', '2' => 'en', '3' => 'no'][(string)$sprog_id] ?? 'da';
     flex-shrink: 0;
     width: 100%;
   }
-  .system-header table { width: 100%; }
+  /* height:auto overrides the table's height="100%" attribute, which WebKit (Safari) applies to the whole body. */
+  .system-header table { width: 100%; height: auto; }
 
   /* ── Full-height layout ──────────────────────────────────── */
   html, body { height: 100%; }
@@ -664,11 +683,20 @@ $htmlLang = ['1' => 'da', '2' => 'en', '3' => 'no'][(string)$sprog_id] ?? 'da';
 <div class="system-header">
 <?php
 include("../includes/topline_settings.php");
-include_once("../includes/stdFunc/pageBar.php");
-page_bar(array(
-	'title' => findtekst_utf8('1066', $sprog_id) . " — " . findtekst_utf8('5300', $sprog_id) . " $kladde_id",
-	'back' => "javascript:confirmClose('" . $returside . "','$tekst')",
-));
+$icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 8l-4 4 4 4M16 12H9"></path></svg>';
+print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; # tabel 1
+print "<tr class='backBtn'><td colspan=\"2\" align=\"center\" valign=\"top\">";
+print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
+print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody><tr>"; # tabel 1.1.1
+
+print "<td width=5% style='$buttonStyle'>
+	<a href=\"javascript:confirmClose('" . htmlspecialchars($returside, ENT_QUOTES, $charset) . "','$tekst')\" accesskey='L'>
+	<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">
+	$icon_back ".htmlspecialchars(findtekst_utf8('30|Tilbage', $sprog_id), ENT_QUOTES, 'UTF-8')."</button></a></td>";
+   print " <td align='center' style='$topStyle' width'75%'>" . htmlspecialchars(findtekst_utf8('1066', $sprog_id), ENT_QUOTES, 'UTF-8') . " — " . htmlspecialchars(findtekst_utf8('5300', $sprog_id), ENT_QUOTES, 'UTF-8') . " $kladde_id<br></td>
+    <td width=\"5%\" style='$topStyle'><br></td></tr>
+    </tbody></table></td></tr>"; # <- tabel 1.1.1
+print "</tbody></table></td></tr></tbody></table>";
 ?>
 <style>
 	.headerbtn, .center-btn {
@@ -765,6 +793,10 @@ page_bar(array(
         <label for="accountSelect"><?= findtekst('592', $sprog_id) ?></label>
         <select id="accountSelect" class="search-input" <?= $entryContext['account'] !== '' ? 'disabled' : '' ?>>
           <option value=""><?= findtekst('5324', $sprog_id) ?></option>
+          <?php if ($entryContext['account'] === ''): ?>
+          <option value="type:D" data-account="" data-type="D" <?= $kontotype === 'D' ? 'selected' : '' ?>><?= htmlspecialchars(findtekst_utf8('7650|Alle debitorer', $sprog_id), ENT_QUOTES, 'UTF-8') ?></option>
+          <option value="type:K" data-account="" data-type="K" <?= $kontotype === 'K' ? 'selected' : '' ?>><?= htmlspecialchars(findtekst_utf8('7651|Alle kreditorer', $sprog_id), ENT_QUOTES, 'UTF-8') ?></option>
+          <?php endif; ?>
           <?php foreach ($accountOptions as $account): ?>
           <option value="<?= (int)$account['id'] ?>"
             data-account="<?= htmlspecialchars($account['kontonr'], ENT_QUOTES, 'UTF-8') ?>"
@@ -869,6 +901,7 @@ page_bar(array(
   const TOKEN       = <?= json_encode($_SESSION['autoudlign_token']) ?>;
   const SNAPSHOT    = <?= json_encode(autoSettlementSnapshot($entry)) ?>;
   const ENTRY_ID    = <?= json_encode((int)$entry['id']) ?>;
+  const KONTOTYPE   = <?= json_encode($kontotype) ?>; // SD-785: D/K carried in from the previous entry, '' for none
   const AMOUNT      = <?= json_encode((float)$entry['resolved_amount']) ?>;
   const BESKRIVELSE = <?= json_encode($entry['beskrivelse'] ?? '') ?>;
   const BRUGT       = <?= json_encode(array_values($brugt)) ?>;
@@ -1176,7 +1209,8 @@ page_bar(array(
         '?kladde_id=' + encodeURIComponent(KLADDE_ID) +
         '&id='      + ENTRY_ID +
         '&settled=' + (SETTLED + 1) +
-        '&skipped=' + SKIPPED;
+        '&skipped=' + SKIPPED +
+        kontotypeParam();
     })
     .catch(error => {
       saving = false;
@@ -1190,7 +1224,27 @@ page_bar(array(
   function doSkip() {
     window.location.href = window.location.pathname +
       '?kladde_id=' + encodeURIComponent(KLADDE_ID) +
-      '&id=' + ENTRY_ID;
+      '&id=' + ENTRY_ID +
+      kontotypeParam();
+  }
+
+  /* ── SD-785: keep "Alle debitorer" / "Alle kreditorer" for the next entry ── */
+  // journalType is the last type chosen in this journal: carried in from the previous entry and
+  // updated by rememberJournalType() whenever "Alle debitorer", "Alle kreditorer" or "Alle debitorer
+  // og kreditorer" is chosen. Picking a single account, or an entry with its own account (selector
+  // disabled), leaves it as it is.
+  let journalType = KONTOTYPE;
+  function rememberJournalType() {
+    const option = accountSelect.selectedOptions[0];
+    if (accountSelect.disabled || !option) return;
+    if (option.value.startsWith('type:')) {
+      journalType = option.dataset.type || '';
+    } else if (option.value === '') {
+      journalType = '';
+    }
+  }
+  function kontotypeParam() {
+    return journalType ? '&kontotype=' + encodeURIComponent(journalType) : '';
   }
 
   /* ── Pagination ──────────────────────────────────────────── */
@@ -1258,6 +1312,7 @@ page_bar(array(
   });
 
   accountSelect.addEventListener('change', () => {
+    rememberJournalType();
     clearTimeout(debounceTimer);
     fetchCandidates(searchInput.value, 1);
   });

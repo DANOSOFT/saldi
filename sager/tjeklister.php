@@ -1,7 +1,7 @@
 <?php
 @session_start();
 $s_id = session_id();
-// ---- sager/tjeklister.php --- lap 5.0.0 --- 2026.10.09 ---
+// ---- sager/tjeklister.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -17,27 +17,35 @@ $s_id = session_id();
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261009 Sawaneh Checklists for cases moved out of Indstillinger into the Sager module (settings redesign §4
 //                  "(Checklists)", phase 4e): the editor that lived in systemdata/diverse.php?sektion=tjekliste and
 //                  sys_div_func.php tjekliste(). Phases are renumbered on save, not at render time (B-T1).
 // 20261019 Sawaneh Review 2 (PR #803): the renumbering selects the list's group ids first (MySQL refuses a same-table subquery in an UPDATE).
-
+// 20261031 CL/ASR Reached from Indstillinger > Organisation (the Sager left menu stays as on master): opened and edited with
+//                 settings.organisation, as Diverse > Tjeklister was with the Indstillinger right; the breadcrumb leads back to Indstillinger.
+// 20261031 CL/ASR Opening the page needs read on settings.organisation in every enforcement mode (require_permission(), as settingsSection.php does).
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 $bg = "nix";
 $header = 'nix';
 $menu_sager = 'id="menuActive"';
 $menu_planlaeg = $menu_dagbog = $menu_kunder = $menu_loen = $menu_ansatte = $menu_certificering = $menu_medarbejdermappe = NULL;
 $modulnr = 0;
+$permission_key = 'settings.organisation';
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+// $permission_key alone only logs a refusal while the company's enforcement is 'log'; master refused this page without Indstillinger.
+if (function_exists('require_permission')) {
+	require_permission('settings.organisation', 'read');
+}
 
 $funktion = 'tjeklister';
 $sag_id = 0;
 $sort = $nysort = $vis = NULL;
 $ret = (int) if_isset($_GET['ret'], 0);
-$canEdit = substr((string) $sag_rettigheder, 2, 1) ? true : false;
+$canEdit = function_exists('perm_can') ? perm_can('settings.organisation', 'write') : (substr((string) $rettigheder, 1, 1) === '1');
 
 if (!isset($_SESSION['csrf_token'])) {
 	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -177,6 +185,8 @@ function sager_tjeklister_form(int $ret, bool $canEdit, string $csrf): void
 }
 
 ini_set("display_errors", "0");
+include_once(__DIR__ . "/../systemdata/settingsRegistry.php");
+$settingsUrl = '../systemdata/settings.php';
 print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">
 <html>
 	<head>
@@ -188,13 +198,14 @@ print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http:/
 		<link rel=\"stylesheet\" type=\"text/css\" href=\"../css/print.css\" media=\"print\">
 		<script type=\"text/javascript\" src=\"../javascript/jquery-1.8.0.min.js\"></script>
 		<title>" . findtekst('796|Tjeklister', $sprog_id) . "</title>
+		" . settings_breadcrumb_script(settings_breadcrumb('organisation', findtekst('796|Tjeklister', $sprog_id), (int) $sprog_id), (isset($db_encode) && $db_encode !== 'UTF8') ? 'ISO-8859-1' : 'UTF-8') . "
 	</head>
 	<body>
 		<div id=\"wrapper\">";
 include("../includes/sagsmenu.php");
 print "<div id=\"breadcrumbbar\"><ul id=\"breadcrumb\">
-	<li><a href=\"sager.php\" title=\"" . findtekst('2781|Hjem', $sprog_id) . "\"><img src=\"../img/home.png\" alt=\"" . findtekst('2781|Hjem', $sprog_id) . "\" class=\"home\" /></a></li>
-	<li><a href=\"sager.php\">" . findtekst('2774|Sager', $sprog_id) . "</a></li>
+	<li><a href=\"$settingsUrl\" title=\"" . findtekst('122|Indstillinger', $sprog_id) . "\"><img src=\"../img/home.png\" alt=\"" . findtekst('122|Indstillinger', $sprog_id) . "\" class=\"home\" /></a></li>
+	<li><a href=\"$settingsUrl\">" . findtekst('122|Indstillinger', $sprog_id) . "</a></li>
 	<li>" . findtekst('796|Tjeklister', $sprog_id) . "</li>
 </ul></div><!-- end of breadcrumbbar -->
 <div id=\"leftmenuholder\">";
@@ -202,7 +213,7 @@ include("leftmenu.php");
 print "</div><!-- end of leftmenuholder -->
 <div class=\"maincontent\">
 	<h2>" . findtekst('796|Tjeklister', $sprog_id) . "</h2>
-	<p>" . findtekst('7021|Tjeklister til sager: faser, grupper og tjekpunkter. Flyttet hertil fra Indstillinger.', $sprog_id) . "</p>";
+	<p>" . findtekst('7021|Tjeklister til sager: faser, grupper og tjekpunkter.', $sprog_id) . "</p>";
 sager_tjeklister_form($ret, $canEdit, $csrf_token);
 print "</div><!-- end of maincontent -->
 		</div><!-- end of wrapper -->

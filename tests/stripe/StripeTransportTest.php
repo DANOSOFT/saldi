@@ -1,7 +1,7 @@
 <?php
 // 20261022 CDX/LH Enforce Stripe's unchanged-body contract when tests reuse an idempotency key.
 
-require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/support/bootstrap.php';
 
 final class StripeTransportTest extends PHPUnit\Framework\TestCase
 {

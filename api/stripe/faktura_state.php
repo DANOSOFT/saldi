@@ -23,9 +23,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261019 CL/ASR Created: GET -> current payment state of the invoice as JSON. The page polls
-//                 this after Stripe redirects back. If a PaymentIntent is still 'pending' here
-//                 the state is synced from Stripe (idempotent, same handler as the webhook).
+// 20261019 CL/ASR Created: GET -> current payment state of the invoice as JSON. The page polls this after Stripe redirects back. If a PaymentIntent is still 'pending' here the state is synced from Stripe (idempotent, same handler as the webhook).
 // 20261022 CDX/LH Record the signed invoice payment-state endpoint in the master port history.
 // 20261022 CL/LH S5 Return the Danish decline sentence instead of Stripe's raw code.
 

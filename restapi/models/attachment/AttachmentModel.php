@@ -20,6 +20,7 @@
 //                 an attachment or reached by its name through this endpoint.
 // 20261005 LOE SST-855 loadFromFilename() confines the request-supplied name to the pool folder, so a
 //                 traversal name can no longer load or unlink the lock in the tenant folder above it.
+// 20261004 CL/SZ SD-727: a bilag posted again while archived in the pool is restored to the pool's list (poolArchiveRestoreOnArrival()); the copy is still not kept.
 require_once __DIR__ . "/../../../includes/docsIncludes/poolAmountNormalizer.php";
 require_once __DIR__ . "/../../../includes/docsIncludes/poolVendorMatcher.php";
 require_once __DIR__ . "/../../../includes/docsIncludes/poolPaths.php";
@@ -521,6 +522,9 @@ class AttachmentModel
         }
         $poolDuplicate = $this->findPoolRowByContentHash($contentHash);
         if ($poolDuplicate && file_exists($uploadDir . $poolDuplicate['filename'])) {
+            // SD-727: an archived bilag that arrives again is needed after all, so it goes back to the pool's list
+            require_once __DIR__ . "/../../../includes/docsIncludes/poolArchive.php";
+            poolArchiveRestoreOnArrival($poolDuplicate['filename'], $filename, 'api', self::$db ?: null);
             $this->filename = $poolDuplicate['filename'];
             $this->filepath = $uploadDir . $poolDuplicate['filename'];
             $this->size = filesize($this->filepath);

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/debitorkort.php --- ver 5.0.0 --- 2026-10-23 ---
+// --- debitor/debitorkort.php --- ver 5.1.1 --- 2026-11-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,6 +22,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+//
 // 20240528 PHR Added $_SESSION['debitorId']
 // 20240906 phr Moved $debitorId to settings as 20240528 didnt work with open orders ??
 // 20250911 LOE Create a contact employee if none exists for erhverv accounts 
@@ -111,21 +112,59 @@
 //             0. Skip the check when the field is blank, matching debitor/debkort_save.php's SD-513 fix
 // 20260904 Sawaneh WP-1.1: Historik/Opgaveliste links now urlencode a returside that carries the card id (was id-less, masked by the nav stack)
 // 20260907 CDX/LH Sanitize the return parameter once before navigation and order-context handling.
-// 20261001 Sawaneh Settings insert skipped when a parallel request already added the key (unique index on settings).
-// 20261006 Sawaneh A new customer gets the company's own payment terms (Firmaoplysninger / onboarding step 4) while there are no customers.
-// 20261006 Sawaneh Inactive groups and VAT codes (Indstillinger, inaktiv) are no longer offered in the dropdown.
-// 20261006 Sawaneh WP-2.9/2.10: job list links carry an urlencoded returside with the card's id; Tilbage to an order hands it
-//                  returside=ordreliste.php instead of the order's own URL.
 // 20260617 MJ Keep account-card report return links tied to the source order when opened from orders
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
-// 20261008 Sawaneh The card on the new page head (page_bar): title, Ny debitor as the primary button, tour kept for Assist.
-// 20261009 Sawaneh The record (kontonr + name, or Nyt debitorkort) as the last breadcrumb level (decision 22).
 // 20261006 CL/SZ SD-721 The CVR lookup goes through the server (sager/cvrLookupProxy.php, cvrLookupClientConfig()): from the browser cvrapi.dk
 //                refused it, as a browser cannot send the User-Agent it requires. A refusal now says why next to the field ("Kvoten ... er opbrugt").
 // 20261007 CL/SZ SD-721 The CVR lookup is back in the browser through cvrapi.dk, as on live: every customer has its own 50 lookups a day there.
 //                It moves to the server only once the Datafordeleren lookup (includes/cvrLookup.php) is tested (Adam Rude).
+// 20261023 CL/MMR SD-774 A business card for a Danish customer with an EAN number shows a warning at the top when the CVR number is missing, as the receiver then rejects e-invoices to the customer.
+//                 It shows the same kind of warning when the stored CVR number is not valid.
+//                 The warning is decided on the saved values by debitorkortEinvoiceCvrBanner() in debitorkortIncludes/einvoiceCvrBanner.php and never blocks or changes the save.
+// 20261027 CL/MMR SD-779 The contact persons can be dragged to a new order (javascript/kontaktSortable.js on their own tbody).
+//                 The drop only renumbers the Pos. fields; Gem/opdatér saves them through the existing posnr rules.
+//                 The card's form got an id and the row inputs form='…', because a row moved by JS loses the parser's form association.
+// 20261001 SS Settings insert skipped when a parallel request already added the key (unique index on settings).
+// 20261006 SS Inactive groups and VAT codes (Indstillinger, inaktiv) are no longer offered in the dropdown.
+// 20261029 CL/MJ SST-892 A new card drawn as private (most debitors are private) lost the company name from a CVR lookup: it went into a hidden field and Gem rebuilt it from the empty first and last name.
+//                The company name is now a hidden row; choosing Erhverv shows it, a successful lookup chooses Erhverv, Gem keeps it, and the name check follows the chosen type.
+// 20261030 CL/MJ SST-892 Only a new card switches to Erhverv by itself after a lookup; on a saved card with contacts Gem refuses a type change and the edits were lost.
+//                On such a card the Kundetype select now refuses the change when it is made, with Gem's message, before anything is typed.
+// 20261031 CL/ASR The debtor-group dropdown leaves out inactive groups only when grupper.inaktiv exists, as includes/orderFuncIncludes/accountLookup.php does.
+//                 The card still opens on a database the settings migration has not reached yet.
+// 20261101 CL/SZ MB-129 A contact name with an apostrophe no longer breaks the card: the name is escaped in the three adresser.kontakt updates.
+//                The hidden kontakt, delivery and felt fields are double-quoted, so saving no longer cuts a stored value off at the apostrophe.
+// 20261104 CL/MJ SST-892 The tutorial's company-name step is only added on an Erhverv card, as the field is hidden on a private one.
+//                A saved card without a type is not locked (Gem allows any type there), and a refused change puts back the drawn type.
+//                A refused change no longer marks the card as edited, so Tilbage doesn't ask to discard changes nobody made.
+// 20261105 CL/LH A posted Slet keeps a customer that open posts or orders point at and says why (account_has_entries()); hiding the button alone did not stop the delete.
+// 20261105 CL/LH Gem on a card drawn before the card was last saved (by a colleague, or in another window) writes nothing, says so and opens the card as it is saved (account_card_begin_save()).
+//                It wrote every field back from the old form, so a colleague's saved Bemærkning was blanked without a word (testlab concurrent-editing DEVY-2).
+//                The form carries the version of the rows its fields are drawn from, and the save compares it and writes in one transaction that locks the account first.
+//                The version is at the top of the form, so a post that PHP cuts at max_input_vars (a card with hundreds of contact persons) still has it; a Gem without one is refused.
+// 20261110 CDX/ASR Redirect CRM leads before reading or changing their debtor-card data; reject direct lead saves and share customer-number allocation locks.
+// 20261110 CDX/ASR Show customer-history links only when the role grants CRM access.
+// 20261112 CL/SS MB-82 A save is refused when the customer was changed after the card was opened (recordHash, debitorkortIncludes/staleSave.php).
+//                Before, one UPDATE wrote every field from the old form, so another user's newer notes were blanked without a warning.
+//                The hash is taken before the customer is read, so a save between the read and the hash can't slip through.
+//                A private card's first and last name are filled in from its name before the hash, and only while both are still empty.
+//                They are stored as plain text, so the first view and Gem no longer turn æøå into HTML entities (debitorkortFillPrivateNames()).
+//                A refused save keeps the card's way back (returside, ordre_id, fokus); split_navn() starts from an empty first name.
+// 20261113 CL/ASR The Hjælp cell is hidden (the top bar has Hjælp); it stays in the page for the tour.
+// 20261114 CL/ASR Merge of master: this card's stale-save check is master's MB-82 alone (recordHash, debitorkortIncludes/staleSave.php), as the owner decided.
+//                 The testlab's card version is taken out again: account_card_begin_save(), card_version, its card transaction and the Kundetype written before the form.
+//                 The delivery-address save has its own transaction again, and the delete guard (account_has_entries()) stays.
+// 20261126 CL/ASR Stripe port (#821): the card shows the Stripe card-on-file status (adresser.stripe, stripe_date) with an Afmeld box, and Gem with it ticked unenrols the customer (stripe_unenrol_debtor()).
 // 20261022 CDX/LH Protect Afmeld with a session CSRF token before writes; display the saved card from payment rows.
-// 20261023 CDX/LH Merge fixed Stripe staff controls while retaining the redesign page header and navigation.
+// 20261126 CL/ASR Stripe port (#850): Afmeld is checked against the session CSRF token before anything is written, then unenrols through stripe_staff_unenrol() in includes/stripeIncludes/stripeStaff.php.
+//                 The Stripe row shows the saved card (stripe_staff_saved_card()).
+// 20261126 CL/ASR Review round 1 (I10): the Stripe row is shown only where the ledger takes invoice payments, or for a customer who is signed up (stripe_staff_card_row_visible()).
+//                 It was on every customer card in every ledger, Stripe off and MySQL included.
+
+/**
+ * Injected by ../includes/online.php, included below:
+ * @var int $sprog_id
+ * @var string $charset
+ */
 @session_start();
 include_once(__DIR__ . '/../includes/stripeIncludes/stripeStaff.php');
 $stripeStaffInput = $_POST;
@@ -143,19 +182,41 @@ $s_id = session_id();
 $fokus = $katString = NULL;
 $konto_id = $lukket = $ordre_id = $productlimit = $status = $status_antal = 0;
 $cat_id = $kategori = array();
-print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/overlib.js\"></script>\n";
 
 $modulnr = 6;
 $title = "Debitorkort";
 $css = "../css/standard.css";
 
-include("../includes/connect.php");
-include("../includes/online.php");
-include("../includes/std_func.php");
+ob_start();
+include(__DIR__ . '/../includes/connect.php');
+include(__DIR__ . '/../includes/online.php');
+include(__DIR__ . '/../includes/std_func.php');
+$crmLeadBootstrap = ob_get_clean();
+include_once(__DIR__ . '/../includes/crmLeadGuard.php');
+crm_guard_lead_accounts(
+	array($_GET['id'] ?? null, $_GET['konto_id'] ?? null, $_POST['id'] ?? null, $_POST['konto_id'] ?? null),
+	(string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'),
+	(int) ($sprog_id ?? 1),
+	array('inframe' => $_GET['inframe'] ?? $_POST['inframe'] ?? null, 'popup' => $_GET['popup'] ?? $_POST['popup'] ?? null),
+	(string) ($charset ?? 'UTF-8')
+);
+// Keep number selection and insertion together with CRM conversion and the legacy debtor saver.
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && empty($_POST['id']) && !crm_lock_customer_number()) {
+	http_response_code(503);
+	echo htmlspecialchars(findtekst('crm.customer.busy|Kunden kunne ikke gemmes. Prøv igen.', (int) ($sprog_id ?? 1)), ENT_QUOTES, (string) ($charset ?? 'UTF-8'));
+	exit;
+}
+echo $crmLeadBootstrap;
+unset($crmLeadBootstrap);
+print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/overlib.js\"></script>\n";
 include("../includes/topline_settings.php");
 include("../includes/grid.php");
 include_once("../includes/emballage_schema.php");
+include_once(__DIR__ . '/debitorkortIncludes/einvoiceCvrBanner.php');
+include_once(__DIR__ . '/../includes/stdFunc/accountHasEntries.php');
+include_once(__DIR__ . '/debitorkortIncludes/staleSave.php');
 $packagingModuleEnabled = (get_settings_value("packagingModuleEnabled", "items", "off") === "on");
+if ($packagingModuleEnabled) ensure_emballage_schema();
 # >> Date picker scripts 
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/jquery-3.6.4.min.js\"></script>";
 print "<script LANGUAGE=\"JavaScript\" SRC=\"../javascript/moment.min.js\"></script>";
@@ -175,6 +236,9 @@ db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 #if (isset($_SESSION['debitorId'])) $_SESSION['debitorId'] = NULL;
 print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>\n";
+print "<script src=\"../javascript/Sortable.min.js\"></script>\n";
+print "<script src=\"../javascript/kontaktSortable.js\" defer></script>\n";
+print "<style>.kontakt-drag-handle{cursor:move;user-select:none;padding:0 4px 0 0;color:#15488f;} #kontaktpersoner .sortable-ghost{opacity:.5;}</style>\n";
 $_private = if_isset($_GET, NULL, 'privat');
 $_business = if_isset($_GET, NULL, 'erhverv');
 
@@ -240,7 +304,7 @@ if ($id) {
 
 	$row = db_fetch_array($query);
 	if ($row && isset($row['navn']) && $row['navn']) {
-		$navnA = $row['navn'];
+		$navnA = db_escape_string($row['navn']);
 
 		// Update adresser where id = konto_id and set kontakt
 		db_modify("UPDATE adresser SET kontakt = '$navnA' WHERE id = '$id'", __FILE__ . " linje " . __LINE__);
@@ -258,7 +322,12 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 	$submit = if_isset($_POST['submit'], NULL);
 	$DelEt = findtekst('1099|Slet', $sprog_id);
 	$id     = $_POST['id'];
-	if (isset($_POST['anonymize']) && $id) {
+	if ($submit != $DelEt && !isset($_POST['anonymize']) && debitorkortSaveIsStale($id, $_POST)) {
+		alert(findtekst('debtor.card.changed_by_another_user|Kunden er ændret af en anden bruger, efter du åbnede kortet. Dine ændringer er ikke gemt. Kortet viser nu de gemte oplysninger, så indtast dine ændringer igen.', $sprog_id));
+		$returside = nav_sanitize_returside($_POST['returside'] ?? null) ?: $returside;
+		$ordre_id = (int)($_POST['ordre_id'] ?? 0);
+		$fokus = $_POST['fokus'] ?? $fokus;
+	} elseif (isset($_POST['anonymize']) && $id) {
 		include('anonymize.php');
 	} elseif ($submit != $DelEt) {
 		$notes = $_POST['notes'];
@@ -349,7 +418,9 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 		$rename_status = if_isset($_POST['rename_status']);
 
 		if ($gl_kontotype == 'privat') {
-			$firmanavn = trim($fornavn . " " . $efternavn);
+			// 20261029 CL/MJ SST-892 A private card switched to Erhverv (by hand or by a CVR lookup) keeps the
+			// company name that is now shown; the names only make up the name while the card stays private.
+			if ($kontotype == 'privat') $firmanavn = trim($fornavn . " " . $efternavn);
 			$lev_firmanavn = trim($lev_fornavn . " " . $lev_efternavn);
 		}
 		#		if (!$pbs) $pbs_nr=NULL;
@@ -704,6 +775,12 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 				print "<meta http-equiv=\"refresh\" content=\"0;URL={$returside}{$sep}fokus=kontonr&konto_id=$id\">\n";
 				exit;
 			}
+			// 20261024 ASR A customer created from the CRM (Kunder -> Ny kunde) lands in its own drawer there, so it is not "gone"
+			//              when it has no status yet (CRM review R54).
+			if (strpos($returside, 'crm.php?') === 0 && strpos($returside, 'drawer=') === false) {
+				print "<meta http-equiv=\"refresh\" content=\"0;URL=" . htmlspecialchars($returside . '&drawer=' . (int) $id, ENT_QUOTES) . "\">\n";
+				exit;
+			}
 			print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?tjek_id=$id&id=$id&returside=" . urlencode($returside) . "\">\n";
 			exit;
 		} elseif ($id > 0) {
@@ -1014,7 +1091,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 									", __FILE__ . " linje " . __LINE__);
 
 						$row = db_fetch_array($query);
-						$navnA = $row['navn'];
+						$navnA = db_escape_string($row['navn'] ?? '');
 						if (!$navnA) $navnA = NULL;
 						//update adresser where id = id and set kontakt to kontakt
 						db_modify("update adresser set kontakt = '$navnA' where id = '$id'", __FILE__ . " linje " . __LINE__);
@@ -1094,7 +1171,7 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 						$navnT = $r_navn['navn'];
 
 						error_log("Position 1 detected for id $emp_id; updating kontakt to '$navnT'");
-						db_modify("UPDATE adresser SET kontakt = '$navnT' WHERE id = $customer_id", __FILE__ . " linje " . __LINE__);
+						db_modify("UPDATE adresser SET kontakt = '" . db_escape_string($navnT) . "' WHERE id = $customer_id", __FILE__ . " linje " . __LINE__);
 					}
 
 					db_modify("UPDATE ansatte SET posnr = $target_posnr WHERE id = $emp_id", __FILE__ . " linje " . __LINE__);
@@ -1113,8 +1190,16 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 				exit;
 			}
 		}
+	} elseif (account_has_entries($id)) {
+		print account_has_entries_alert();
 	} else {
-		
+		$id = (int)$id;
+		// 20261026 ASR a customer with CRM deals is not deleted: the deals would be left without a customer (CRM review R61)
+		if (tbl_exists('crm_deals') && db_fetch_array(db_select("select id from crm_deals where konto_id = '" . (int) $id . "' and state != 'deleted'", __FILE__ . " linje " . __LINE__))) {
+			print "<BODY onLoad=\"javascript:alert('" . addslashes(findtekst('9317|Kunden har sager i CRM og kan ikke slettes.', $sprog_id)) . "')\"><!--....-->\n";
+			print "<meta http-equiv=\"refresh\" content=\"0;URL=debitorkort.php?id=" . (int) $id . "&returside=" . urlencode($returside) . "\">\n";
+			exit;
+		}
 		db_modify("delete from adresser where id = $id", __FILE__ . " linje " . __LINE__);
 		db_modify("delete from shop_adresser where saldi_id = $id", __FILE__ . " linje " . __LINE__);
 		db_modify("delete from kontakt_emails where konto_id = $id", __FILE__ . " linje " . __LINE__);
@@ -1126,6 +1211,9 @@ if (!$is_grid_submission && (isset($_POST['id']) || isset($_POST['firmanavn'])))
 	}
 }
 
+$einvoiceCvrBanner = ''; # SD-774, set from the saved card below
+$namesFromCompany = ($id > 0) ? debitorkortFillPrivateNames($id) : false;
+$recordHash = ($id > 0) ? debitorkortRecordHash($id) : '';
 if ($id > 0) {
 	$q = db_select("select * from adresser where id = '$id'", __FILE__ . " linje " . __LINE__);
 	$r = db_fetch_array($q);
@@ -1160,6 +1248,8 @@ if ($id > 0) {
 	$betalingsbet = trim($r['betalingsbet']);
 	$cvrnr = trim($r['cvrnr']);
 	$ean = trim($r['ean']);
+	// SD-774: decided on the saved values. The country goes in as stored, as $land above is HTML-escaped.
+	$einvoiceCvrBanner = debitorkortEinvoiceCvrBanner($kontotype, $ean, $cvrnr, (string)ifset($r, 'land', ''), $sprog_id, ($db_encode == 'UTF8') ? 'UTF-8' : 'ISO-8859-1');
 	$institution = htmlentities(trim($r['institution']), ENT_COMPAT, $charset);
 	$notes = htmlentities(trim($r['notes']), ENT_COMPAT, $charset);
 	$gruppe = trim($r['gruppe']);
@@ -1170,6 +1260,7 @@ if ($id > 0) {
 	$stripe_status = isset($r['stripe']) ? trim((string)$r['stripe']) : '';
 	$stripe_date = isset($r['stripe_date']) ? trim((string)$r['stripe_date']) : '';
 	$stripe_saved_card = stripe_staff_saved_card($r);
+	$stripe_row_visible = stripe_staff_card_row_visible($r);
 	$kontakt = htmlentities(trim($r['kontakt']), ENT_COMPAT, $charset);
 	if ($r['pbs'] == 'on') $pbs = "checked";
 	$pbs_nr = trim($r['pbs_nr']);
@@ -1287,14 +1378,6 @@ if ($id > 0) {
 	$bd = NULL;
 	$x = NULL;
 	$id = 0;
-	// The company's own payment terms (Firmaoplysninger, onboarding step 4) until there are customers to count.
-	if (!db_fetch_array(db_select("select id from adresser where art = 'D' limit 1", __FILE__ . " linje " . __LINE__))) {
-		$r = db_fetch_array(db_select("select betalingsbet, betalingsdage from adresser where art = 'S' order by id limit 1", __FILE__ . " linje " . __LINE__));
-		if ($r && trim((string) $r['betalingsbet']) !== '') {
-			$maxbb = trim($r['betalingsbet']);
-			$maxbd = ($maxbb === 'Netto' || $maxbb === 'Lb. md.') ? (int) $r['betalingsdage'] : 0;
-		}
-	}
 	$betalingsbet = $maxbb;
 	$betalingsdage = $maxbd;
 	$kontoansvarlig = '0';
@@ -1343,12 +1426,8 @@ if (!isset($lev_tlf)) $lev_tlf = null;
 if (!isset($lev_email)) $lev_email = null;
 if (!isset($lev_kontakt)) $lev_kontakt = null;
 
-if ($kontotype == "privat") {
-	if (!$fornavn && !$efternavn && $firmanavn) {
-		list($fornavn, $efternavn) = explode(",", split_navn($firmanavn));
-		list($lev_fornavn, $lev_efternavn) = explode(",", split_navn($lev_firmanavn));
-		db_modify("update adresser set fornavn='" . db_escape_string($fornavn) . "',efternavn='" . db_escape_string($efternavn) . "' where id = '$id'", __FILE__ . " linje " . __LINE__); #20140507
-	}
+if ($kontotype == "privat" && $namesFromCompany) {
+	list($lev_fornavn, $lev_efternavn) = explode(",", split_navn($lev_firmanavn));
 }
 ######################## OUTPUT ######################
 
@@ -1361,32 +1440,91 @@ if (!isset($kontonr)) $kontonr = NULL;
 
 $tekst = findtekst('154|Dine ændringer er ikke blevet gemt! Tryk OK for at forlade siden uden at gemme.', $sprog_id);
 $backSep = (strpos($returside, '?') !== false) ? '&' : '?';
-// WP-2.10: an order gets the order list as returside instead of its own URL.
-$backReturside = (strpos($returside, 'ordre.php') !== false) ? 'ordreliste.php' : $returside;
 $kontokortReturside = "../debitor/debitorkort.php?id=$id";
 if (strpos($returside, 'ordre.php') !== false && $ordre_id) {
 	$kontokortReturside = "../debitor/ordre.php?id=$ordre_id";
 	if ($fokus) $kontokortReturside .= "&fokus=" . rawurlencode($fokus);
 }
 $kontokortRetursideParam = rawurlencode($kontokortReturside);
-if ($menu == 'S') {
-	// 20261008 Sawaneh The new page head (topbar addendum §5, prototype_dashboard_tema v5) instead of the blue bar.
-	include_once("../includes/stdFunc/pageBar.php");
-	if (function_exists('page_record')) print page_record($id ? trim((string) $kontonr . ' ' . (string) $firmanavn) : findtekst('7024|Nyt debitorkort', $sprog_id));
-	page_bar(array(
-		'title' => findtekst('356|Debitorkort', $sprog_id),
-		'back' => $returside,
-		'help' => true,
-		'primary' => array(findtekst('7000|Ny debitor', $sprog_id), '#', 'accesskey' => 'N',
-			'onclick' => "confirmClose('debitorkort.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=0','$tekst');"),
-	));
-	print "<style>a:link { text-decoration: none; }</style>\n";
+if ($menu == 'T') {
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	print "<div id=\"header\">";
+	## add onClick=\"JavaScript:opener.location.reload();\" but still get style from headlink MALENE
+	print "<div class=\"headerbtnLft headLink\"><a href=\"javascript:confirmClose('$returside{$backSep}returside=" . urlencode($returside) . "&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a>";
+	if ($jobkort) {
+		print "&nbsp;&nbsp;";
+	} else {
+		print "";
+	}
+	print "</div>";
+	print "<div class=\"headerTxt\">$title</div>";
+	print "<div class=\"headerbtnRght headLink\">";
+	if (perm_can('crm.access')) {
+		print "<a href='historikkort.php?id=$id&returside=" . urlencode("debitorkort.php?id=$id") . "' title='" . findtekst('131|Historik', $sprog_id) . "'><i class='fa fa-history fa-lg'></i></a>&nbsp;&nbsp;";
+	}
+	print "<a href='rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=$kontokortRetursideParam' title='" . findtekst('133|Kontokort', $sprog_id) . "'><i class='fa fa-vcard fa-lg'></i></a>";
+	if (substr($rettigheder, 5, 1) == '1') {
+		print "&nbsp;&nbsp;<a href='ordreliste.php?konto_id=$id&account_context=1&valg=faktura&returside=../debitor/debitorkort.php?id=$id' title='" . findtekst('134|Fakturaliste', $sprog_id) . "'><i class='fa fa-dollar fa-lg'></i></a>";
+	} else {
+		print "";
+	}
+	if ($jobkort) {
+		print "&nbsp;&nbsp;<a href='jobliste.php?konto_id=$id&returside=" . urlencode("debitorkort.php?id=$id") . "' title='" . findtekst('38|Opgaveliste', $sprog_id) . "'><i class='fa fa-list-ul fa-lg'></i></a>";
+	} else {
+		print "";
+	}
+	print "</div></div>";
+	print "<div class='content-noside'>";
+	print  "<table border='0' cellspacing='1' class='dataTableForm' width='100%'>";
+} elseif ($menu == 'S') {
+	############################ 
+	$icon_back = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8l-4 4 4 4M16 12H9"/></svg>';
+	$help_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="20px" fill="#FFFFFF"><path d="M478-240q21 0 35.5-14.5T528-290q0-21-14.5-35.5T478-340q-21 0-35.5 14.5T428-290q0 21 14.5 35.5T478-240Zm-36-154h74q0-33 7.5-52t42.5-52q26-26 41-49.5t15-56.5q0-56-41-86t-97-30q-57 0-92.5 30T342-618l66 26q5-18 22.5-39t53.5-21q32 0 48 17.5t16 38.5q0 20-12 37.5T506-526q-44 39-54 59t-10 73Zm38 314q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>';
+	$add_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="20px" fill="#FFFFFF"><path d="M440-280h80v-160h160v-80H520v-160h-80v160H280v80h160v160Zm40 200q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>';
+
+	##########################
+	print "<table width=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n"; # TABEL 1 ->
+	print "<tr><td align=\"center\" valign=\"top\">\n";
+	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>"; # TABEL 1.1 ->
+
+	print "<td width='10%'>
+		<a href=\"$returside\" accesskey=L>
+		<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+		. $icon_back . findtekst('30|Tilbage', $sprog_id) . "</button></a></td>\n";
+
+	print "<td width='75%'  style='$topStyle' align='center'>" . findtekst('356|Debitorkort', $sprog_id) . "</td>\n";
+
+	print "<td id='tutorial-help' hidden width=5% style=$buttonStyle>";
+	print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
+	print $help_icon . findtekst('2564|Hjælp', $sprog_id) . "</button></td>";
+
+	print "<td width='5%'>
+		<a href=\"javascript:confirmClose('debitorkort.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=0','$tekst')\" accesskey=N>
+		<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+		. $add_icon . findtekst('39|Ny', $sprog_id) . "</button></a></td>\n";
+
+	print "</tbody></table>"; # <- TABEL 1.1
+	print "</td></tr>\n"; # <- Close the table row and cell
+	print "</tbody></table>\n"; # <- TABEL 1
+?>
+	<style>
+		.headerbtn,
+		.center-btn {
+			display: flex;
+			align-items: center;
+			text-decoration: none;
+			gap: 5px;
+		}
+	</style>
+<?php
+
 } else {
 	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>\n"; # TABEL 1 ->
 	print "<tr><td align=\"center\" valign=\"top\">\n";
 	print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"2\" cellpadding=\"0\"><tbody>"; # TABEL 1.1 ->
-	if ($popup) print "<td onClick=\"JavaScript:opener.location.reload();\" width=\"10%\" $top_bund><a href=\"javascript:confirmClose('$returside{$backSep}returside=" . urlencode($backReturside) . "&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L>" . findtekst('30|Tilbage', $sprog_id) . "<!--tekst 30--></a></td>\n";
-	else print "<td $top_bund><a href=\"javascript:confirmClose('$returside{$backSep}returside=" . urlencode($backReturside) . "&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L><!--tekst 154-->" . findtekst('30|Tilbage', $sprog_id) . "<!--tekst 30--></a></td>\n";
+	if ($popup) print "<td onClick=\"JavaScript:opener.location.reload();\" width=\"10%\" $top_bund><a href=\"javascript:confirmClose('$returside{$backSep}returside=" . urlencode($returside) . "&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L>" . findtekst('30|Tilbage', $sprog_id) . "<!--tekst 30--></a></td>\n";
+	else print "<td $top_bund><a href=\"javascript:confirmClose('$returside{$backSep}returside=" . urlencode($returside) . "&id=$ordre_id&fokus=$fokus&konto_id=$id','$tekst')\" accesskey=L><!--tekst 154-->" . findtekst('30|Tilbage', $sprog_id) . "<!--tekst 30--></a></td>\n";
 	print "<td width=\"80%\"$top_bund>" . findtekst('356|Debitorkort', $sprog_id) . "<!--tekst 356--></td>\n";
 	print "<td width=\"10%\"$top_bund><a href=\"javascript:confirmClose('debitorkort.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=0','$tekst')\" accesskey=N><!--tekst 154-->" . findtekst('39|Ny', $sprog_id) . "<!--tekst 39--></a></td>\n";
 	print "</tbody></table>"; # <- TABEL 1.1
@@ -1399,16 +1537,18 @@ if ($menu == 'S') {
 
 print "<div class='outer-datatable-wrapper'>";
 print "<div class='form-wrapper'>"; // CHANGED: specific class for form area
-// START A NEW TABLE with the same properties:
-print "<table cellpadding=\"0\" cellspacing=\"10\" border=\"0\" width=\"100%\"><tbody>\n"; # NEW TABEL 1.2 ->
+if ($menu != 'T') {
+	// START A NEW TABLE with the same properties:
+	print "<table cellpadding=\"0\" cellspacing=\"10\" border=\"0\" width=\"100%\"><tbody>\n"; # NEW TABEL 1.2 ->
+}
 
 // JavaScript validation to prevent form submit (and page reload) when required fields are empty
 $js_alert_name = findtekst('346|Navn skal angives', $sprog_id);
 print "<script type=\"text/javascript\">
 function validateDebitorkort(form) {
-	var kontotype = form.gl_kontotype ? form.gl_kontotype.value : (form.kontotype ? form.kontotype.value : '');
+	var kontotype = form.kontotype ? form.kontotype.value : (form.gl_kontotype ? form.gl_kontotype.value : '');
 	var name = '';
-	if (kontotype == 'privat') {
+	if (kontotype == 'privat' && form.fornavn) {
 		var fn = form.fornavn ? form.fornavn.value.trim() : '';
 		var en = form.efternavn ? form.efternavn.value.trim() : '';
 		name = (fn + ' ' + en).trim();
@@ -1429,40 +1569,43 @@ function validateDebitorkort(form) {
 }
 </script>\n";
 
-print "<form name=debitorkort action=debitorkort.php method=post onsubmit=\"return validateDebitorkort(this);\">\n";
+print "<form name=debitorkort id='debitorkortForm' action=debitorkort.php method=post onsubmit=\"return validateDebitorkort(this);\">\n";
 print "<input type='hidden' name='csrf_token' value='" . htmlspecialchars($stripeStaffToken, ENT_QUOTES, 'UTF-8') . "'>\n";
 $vis_addr = get_settings_value("vis_lev_addr", "ordrer", "off", $bruger_id);
 $auto_lookup_cvr = get_settings_value("auto_lookup_cvr", "ordrer", "off", $bruger_id);
 $auto_lookup_cvr_checked = ($auto_lookup_cvr == "on") ? 'checked' : '';
 if ($vis_addr == "on") {
-	print "<input type=hidden name=\"felt_1\" value='$felt_1'>\n";
-	print "<input type=hidden name=\"felt_2\" value='$felt_2'>\n";
-	print "<input type=hidden name=\"felt_3\" value='$felt_3'>\n";
-	print "<input type=hidden name=\"felt_4\" value='$felt_4'>\n";
-	print "<input type=hidden name=\"felt_5\" value='$felt_5'>\n";
+	print "<input type=hidden name=\"felt_1\" value=\"$felt_1\">\n";
+	print "<input type=hidden name=\"felt_2\" value=\"$felt_2\">\n";
+	print "<input type=hidden name=\"felt_3\" value=\"$felt_3\">\n";
+	print "<input type=hidden name=\"felt_4\" value=\"$felt_4\">\n";
+	print "<input type=hidden name=\"felt_5\" value=\"$felt_5\">\n";
 } else {
-	print "<input type=hidden name=\"lev_firmanavn\" value='$lev_firmanavn'>\n";
-	print "<input type=hidden name=\"lev_fornavn\" value='$lev_fornavn'>\n";
-	print "<input type=hidden name=\"lev_efternavn\" value='$lev_efternavn'>\n";
-	print "<input type=hidden name=\"lev_addr1\" value='$lev_addr1'>\n";
-	print "<input type=hidden name=\"lev_addr2\" value='$lev_addr2'>\n";
-	print "<input type=hidden name=\"lev_postnr\" value='$lev_postnr'>\n";
-	print "<input type=hidden name=\"lev_bynavn\" value='$lev_bynavn'>\n";
-	print "<input type=hidden name=\"lev_land\" value='$lev_land'>\n";
-	print "<input type=hidden name=\"lev_tlf\" value='$lev_tlf'>\n";
-	print "<input type=hidden name=\"lev_email\" value='$lev_email'>\n";
-	print "<input type=hidden name=\"lev_kontakt\" value='$lev_kontakt'>\n";
+	print "<input type=hidden name=\"lev_firmanavn\" value=\"$lev_firmanavn\">\n";
+	print "<input type=hidden name=\"lev_fornavn\" value=\"$lev_fornavn\">\n";
+	print "<input type=hidden name=\"lev_efternavn\" value=\"$lev_efternavn\">\n";
+	print "<input type=hidden name=\"lev_addr1\" value=\"$lev_addr1\">\n";
+	print "<input type=hidden name=\"lev_addr2\" value=\"$lev_addr2\">\n";
+	print "<input type=hidden name=\"lev_postnr\" value=\"" . htmlentities((string)$lev_postnr, ENT_QUOTES, $charset) . "\">\n";
+	print "<input type=hidden name=\"lev_bynavn\" value=\"$lev_bynavn\">\n";
+	print "<input type=hidden name=\"lev_land\" value=\"$lev_land\">\n";
+	print "<input type=hidden name=\"lev_tlf\" value=\"" . htmlentities((string)$lev_tlf, ENT_QUOTES, $charset) . "\">\n";
+	print "<input type=hidden name=\"lev_email\" value=\"" . htmlentities((string)$lev_email, ENT_QUOTES, $charset) . "\">\n";
+	print "<input type=hidden name=\"lev_kontakt\" value=\"$lev_kontakt\">\n";
 }
 
 if (!isset($kontakt)) $kontakt = NULL;
 if (!isset($pbs_date)) $pbs_date = NULL;
 
 print "<input type=hidden name=id value='$id'>\n";
+if ($id > 0) {
+	print "<input type=hidden name=recordHash value='$recordHash'>\n";
+}
 print "<input type=hidden name=kontonr value='$kontonr'>\n";
 print "<input type=hidden name=ordre_id value='$ordre_id'>\n";
 print "<input type=hidden name=returside value=\"" . htmlspecialchars($returside, ENT_QUOTES) . "\">\n";
 print "<input type=hidden name=fokus value='$fokus'>\n";
-print "<input type=hidden name=kontakt value='$kontakt'>\n";
+print "<input type=hidden name=kontakt value=\"$kontakt\">\n";
 print "<input type=hidden name=pbs_date value='$pbs_date'>\n";
 # print "<input type=hidden name=pbs_nr value='$pbs_nr'>\n";
 # print "<input type=hidden name=gl_pbs_nr value='$pbs_nr'>\n";
@@ -1470,7 +1613,9 @@ print "<input type=hidden name=pbs_date value='$pbs_date'>\n";
 
 $bg = $bgcolor5;
 print "<input type=hidden name=gl_kontotype value='$kontotype'>\n";
-print "<tr bgcolor='$bg'><td colspan=2 align=center>" . findtekst('1149|Kundetype', $sprog_id) . " <select class='inputbox' NAME=kontotype onchange=\"javascript:docChange = true;\">\n";
+// SD-774: e-invoice CVR warning above the card fields, spanning its three columns.
+if ($einvoiceCvrBanner !== '') print "<tr><td colspan=3>$einvoiceCvrBanner</td></tr>\n";
+print "<tr bgcolor='$bg'><td colspan=2 align=center>" . findtekst('1149|Kundetype', $sprog_id) . " <select class='inputbox' NAME=kontotype onchange=\"javascript:if (debitorkortVisKontotype(this.value)) docChange = true;\">\n";
 if ($kontotype == 'privat') {
 
 	print "<option value=privat>" . findtekst('353|Privat', $sprog_id) . "<!--tekst 353--></option>\n";
@@ -1508,11 +1653,13 @@ if (!isset($stripe_fravalg)) $stripe_fravalg = NULL;
 if (!isset($notes)) $notes = NULL;
 
 if ($kontotype == 'privat') {
-	print "<input type=\"hidden\" name=\"firmanavn\" value=\"$firmanavn\">\n";
+	// 20261029 CL/MJ SST-892 The company name is a row of its own, hidden while the card is private, so choosing
+	// Erhverv or a CVR lookup can show it (debitorkortVisKontotype()) instead of filling a hidden field.
+	print "<tr id='debitorkort_firmanavn' style='display:none;'><td>" . findtekst('360|Firmanavn', $sprog_id) . "<!--tekst 360--></td><td><input class='inputbox' type='text' size='25' name=firmanavn value=\"$firmanavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td>" . findtekst('358|Fornavn', $sprog_id) . "<!--tekst 358--></td><td><input class='inputbox' type='text' size='25' name=fornavn value=\"$fornavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+	print "<tr bgcolor=$bg id='debitorkort_fornavn'><td>" . findtekst('358|Fornavn', $sprog_id) . "<!--tekst 358--></td><td><input class='inputbox' type='text' size='25' name=fornavn value=\"$fornavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
-	print "<tr bgcolor=$bg><td>" . findtekst('359|Efternavn', $sprog_id) . "<!--tekst 359--></td><td><input class='inputbox' type='text' size='25' name=efternavn value=\"$efternavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
+	print "<tr bgcolor=$bg id='debitorkort_efternavn'><td>" . findtekst('359|Efternavn', $sprog_id) . "<!--tekst 359--></td><td><input class='inputbox' type='text' size='25' name=efternavn value=\"$efternavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
 } else {
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 	print "<tr bgcolor=$bg><td>" . findtekst('360|Firmanavn', $sprog_id) . "<!--tekst 360--></td><td><input class='inputbox' type='text' size='25' name=firmanavn value=\"$firmanavn\" onchange=\"javascript:docChange = true;\"></td></tr>\n";
@@ -1825,7 +1972,8 @@ if ($gruppe) {
 	$r = db_fetch_array(db_select("select beskrivelse from grupper where art='DG' and kodenr='$gruppe' and fiscal_year='$regnaar'", __FILE__ . " linje " . __LINE__));
 	print "<option>$gruppe:$r[beskrivelse]</option>\n";
 }
-$q = db_select("select * from grupper where art='DG' and kodenr!='$gruppe' AND fiscal_year='$regnaar' and coalesce(inaktiv, false) = false order by kodenr", __FILE__ . " linje " . __LINE__);
+$hasInactive = (bool) db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'grupper' and column_name = 'inaktiv'" . saldi_schema_filter(), __FILE__ . " linje " . __LINE__));
+$q = db_select("select * from grupper where art='DG' and kodenr!='$gruppe' AND fiscal_year='$regnaar'" . ($hasInactive ? " and coalesce(inaktiv, false) = false" : '') . " order by kodenr", __FILE__ . " linje " . __LINE__);
 
 while ($r = db_fetch_array($q)) {
 	print "<option>$r[kodenr]:$r[beskrivelse]</option>\n";
@@ -1937,7 +2085,7 @@ if ($new_status) {
 	print "</SELECT></td></tr>\n";
 }
 ##################### STRIPE (kort på fil, 20261019 CL/ASR) #####################
-if (isset($r['stripe']) || isset($stripe_status)) {
+if (!empty($stripe_row_visible)) {
 	($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 	$stripeOn = (isset($stripe_status) && $stripe_status === 'on');
 	$stripeTxt = $stripeOn ? 'Tilmeldt automatisk kortbetaling' . ($stripe_date ? ' ' . dkdato($stripe_date) : '') : 'Ikke tilmeldt';
@@ -2497,19 +2645,27 @@ if ($kontotype == 'erhverv') {
 		$q = db_select("select * from ansatte where konto_id = '$id' order by posnr", __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array($q);
 
+		// Own tbody so javascript/kontaktSortable.js can drag the rows; the hidden ans_id/kontakt
+		// inputs sit inside the row so they travel with it. The card's <form> is closed by the HTML
+		// parser long before this table (it has no DOM children), so the rows are only form-associated
+		// through the parser; a moved row loses that, hence the explicit form='debitorkortForm'.
+		$dragTitle = htmlentities(findtekst('5455|Træk for at ændre rækkefølgen. Husk at gemme kortet bagefter', $sprog_id), ENT_COMPAT, $charset);
+		print "<tbody id='kontaktpersoner'>\n";
 		while ($r) {
 			$x++;
 			($bg == $bgcolor) ? $bg = $bgcolor5 : $bg = $bgcolor;
 			print "<tr bgcolor=$bg>\n";
-			print "<td width=10><input class='inputbox' type='text' size=2 name=posnr[$x] value=\"$x\"></td><td title=\"" . htmlentities($r['notes'], ENT_COMPAT, $charset) . "\"><a href=ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id&id=$r[id]>" . htmlentities($r['navn'], ENT_COMPAT, $charset) . "</a></td>\n";
-			print "<td>$r[tlf]</td><td>$r[mobil]</td><td> $r[email]</td></td><td></td></tr>\n";
-			print "<input class='inpPasswordutbox' type=hidden name=ans_id[$x] value=$r[id]>\n";
+			print "<td width=10 nowrap><span class='kontakt-drag-handle' title=\"$dragTitle\">&#x2630;</span><input class='inputbox' type='text' size=2 name=posnr[$x] value=\"$x\" form='debitorkortForm'>";
+			print "<input type=hidden name=ans_id[$x] value=$r[id] form='debitorkortForm'>";
 			if ($x == 1) {
-				print "<input class='inputbox' type=hidden name=kontakt value='$r[navn]'>";
+				print "<input type=hidden name=kontakt value=\"" . htmlentities($r['navn'], ENT_QUOTES, $charset) . "\" form='debitorkortForm'>";
 			}
+			print "</td><td title=\"" . htmlentities($r['notes'], ENT_COMPAT, $charset) . "\"><a href=ansatte.php?returside=$returside&ordre_id=$ordre_id&fokus=$fokus&konto_id=$id&id=$r[id]>" . htmlentities($r['navn'], ENT_COMPAT, $charset) . "</a></td>\n";
+			print "<td>$r[tlf]</td><td>$r[mobil]</td><td> $r[email]</td><td></td></tr>\n";
 			//fetch next
 			$r = db_fetch_array($q);
 		}
+		print "</tbody>\n";
 		print "<tr><td colspan='2' width='20%'><br></td></tr>\n";
 	}
 }
@@ -2521,6 +2677,7 @@ $q = db_select("select id from openpost where konto_id = '$id'", __FILE__ . " li
 if (db_fetch_array($q)) $slet = "NO";
 $q = db_select("select id from ordrer where konto_id = '$id'", __FILE__ . " linje " . __LINE__);
 if (db_fetch_array($q)) $slet = "NO";
+if (tbl_exists('crm_deals') && db_fetch_array(db_select("select id from crm_deals where konto_id = '" . (int) $id . "' and state != 'deleted'", __FILE__ . " linje " . __LINE__))) $slet = "NO"; # 20261026 ASR CRM deals (R61)
 $q = db_select("select id from ansatte where konto_id = '$id'", __FILE__ . " linje " . __LINE__);
 if (db_fetch_array($q)) $slet = "NO";
 if (!isset($slet)) $slet = NULL;
@@ -2563,7 +2720,8 @@ print "</tbody></table></td></tr>"; # <- TABEL 1.2
 print "</div>"; // Close form-wrapper
 
 print "<tr><td align = 'center' valign = 'bottom'>\n";
-if ($menu == 'S') {
+if ($menu == 'T') {
+} elseif ($menu == 'S') {
 
 ##############
 
@@ -2580,12 +2738,14 @@ $jobkort = db_fetch_array(db_select("select box7 from grupper where art = 'DIV' 
 $buttons_html = "<div class='sticky-custom-buttons' style='display: flex; justify-content: center; align-items: center; gap: 10px; padding: 10px 0; width: 100%; background: #f4f4f4; border-top: 2px solid #ddd;'>";
 
 // Historik button
-if ($popup) {
-    $buttons_html .= "<button type='button' onclick=\"window.open('historikkort.php?id=$id&amp;returside=../includes/luk.php', 'historik')\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_historik'>" . findtekst('131|Historik', $sprog_id) . "</button>";
-} elseif ($returside != "historikkort.php") {
-    $buttons_html .= "<button type='button' onclick=\"window.location.href='historikkort.php?id=$id&amp;returside=" . urlencode("debitorkort.php?id=$id") . "'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_historik'>" . findtekst('131|Historik', $sprog_id) . "</button>";
-} else {
-    $buttons_html .= "<button type='button' onclick=\"window.location.href='historikkort.php?id=$id'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_historik'>" . findtekst('131|Historik', $sprog_id) . "</button>";
+if (perm_can('crm.access')) {
+    if ($popup) {
+        $buttons_html .= "<button type='button' onclick=\"window.open('historikkort.php?id=$id&amp;returside=../includes/luk.php', 'historik')\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_historik'>" . findtekst('131|Historik', $sprog_id) . "</button>";
+    } elseif ($returside != "historikkort.php") {
+        $buttons_html .= "<button type='button' onclick=\"window.location.href='historikkort.php?id=$id&amp;returside=" . urlencode("debitorkort.php?id=$id") . "'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_historik'>" . findtekst('131|Historik', $sprog_id) . "</button>";
+    } else {
+        $buttons_html .= "<button type='button' onclick=\"window.location.href='historikkort.php?id=$id'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_historik'>" . findtekst('131|Historik', $sprog_id) . "</button>";
+    }
 }
 
 
@@ -2603,7 +2763,7 @@ if (substr($rettigheder, 5, 1) == '1') {
 
 // Stillingsliste button
 if ($jobkort) {
-    $buttons_html .= "<button type='button' onclick=\"window.location.href='jobliste.php?konto_id=$id&amp;returside=" . urlencode("../debitor/debitorkort.php?id=$id") . "'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_jobliste'>" . findtekst('38|Opgaveliste', $sprog_id) . "</button>";
+    $buttons_html .= "<button type='button' onclick=\"window.location.href='jobliste.php?konto_id=$id&amp;returside=../debitor/debitorkort.php?id=$id'\" style='$buttonStyle; padding: 8px 16px; cursor: pointer;' title='$tekst_jobliste'>" . findtekst('38|Opgaveliste', $sprog_id) . "</button>";
 } else {
     $buttons_html .= "<button style='$buttonStyle; padding: 8px 16px; opacity: 0.5; cursor: not-allowed;' disabled>" . findtekst('38|Opgaveliste', $sprog_id) . "</button>";
 }
@@ -2623,18 +2783,20 @@ $buttons_html_escaped = str_replace("\n", "", $buttons_html_escaped);
 } else {
 	print "<table width='100%' align='center' border='0' cellspacing='1' cellpadding='0'><tbody>"; # TABEL 1.3 ->
 	print "<td width='25%' $top_bund>&nbsp;</td>\n";
-	$tekst = findtekst('130|Vis historik.', $sprog_id);
-	if ($popup) {
-		print "<td width='10%' $top_bund ";
-		print "onClick=\"javascript:historik=window.open('historikkort.php?id=$id&returside=../includes/luk.php',";
-		print "'historik','" . $jsvars . "');historik.focus();' onMouseOver=\"this.style.cursor = 'pointer'\" ";
-		print "title='$tekst'>" . findtekst('131|Historik', $sprog_id) . "<!--tekst 131--></td>\n";
-	} elseif ($returside != "historikkort.php") {
-		print "<td width='10%' $top_bund title='$tekst'><!--tekst 130-->";
-		print "<a href=historikkort.php?id=$id&returside=" . urlencode("debitorkort.php?id=$id") . ">" . findtekst('131|Historik', $sprog_id) . "<!--tekst 131--></td>\n";
-	} else {
-		print "<td width='10%' $top_bund title='$tekst'><!--tekst 130-->";
-		print "<a href=historikkort.php?id=$id>" . findtekst('131|Historik', $sprog_id) . "<!--tekst 131--></td>\n";
+	if (perm_can('crm.access')) {
+		$tekst = findtekst('130|Vis historik.', $sprog_id);
+		if ($popup) {
+			print "<td width='10%' $top_bund ";
+			print "onClick=\"javascript:historik=window.open('historikkort.php?id=$id&returside=../includes/luk.php',";
+			print "'historik','" . $jsvars . "');historik.focus();' onMouseOver=\"this.style.cursor = 'pointer'\" ";
+			print "title='$tekst'>" . findtekst('131|Historik', $sprog_id) . "<!--tekst 131--></td>\n";
+		} elseif ($returside != "historikkort.php") {
+			print "<td width='10%' $top_bund title='$tekst'><!--tekst 130-->";
+			print "<a href=historikkort.php?id=$id&returside=" . urlencode("debitorkort.php?id=$id") . ">" . findtekst('131|Historik', $sprog_id) . "<!--tekst 131--></td>\n";
+		} else {
+			print "<td width='10%' $top_bund title='$tekst'><!--tekst 130-->";
+			print "<a href=historikkort.php?id=$id>" . findtekst('131|Historik', $sprog_id) . "<!--tekst 131--></td>\n";
+		}
 	}
 	$tekst = findtekst('132|Vis Kontokort.', $sprog_id);
 	if ($popup) print "<td width=\"10%\" $top_bund onClick=\"javascript:kontokort=window.open('rapport.php?rapportart=kontokort&layout=grid&konto_fra=$kontonr&konto_til=$kontonr&returside=../includes/luk.php','kontokort','" . $jsvars . "');kontokort.focus();\" onMouseOver=\"this.style.cursor = 'pointer'\" title=\"$tekst\">" . findtekst('133|Kontokort', $sprog_id) . "<!--tekst 133--></td>\n";
@@ -2648,7 +2810,7 @@ $buttons_html_escaped = str_replace("\n", "", $buttons_html_escaped);
 	$jobkort = $r['box7'];
 	if ($jobkort) {
 		$tekst = findtekst('312|Klik her for at åbne listen med arbejdskort.', $sprog_id); #Klik her for at åbne listen med arbejdskort
-		print "<td width=\"10%\" $top_bund title=\"$tekst\"><!--tekst 312--><a href='jobliste.php?konto_id=$id&returside=" . urlencode("debitorkort.php?id=$id") . "'>" . findtekst('38|Opgaveliste', $sprog_id) . "<!--tekst 38--></td>\n";
+		print "<td width=\"10%\" $top_bund title=\"$tekst\"><!--tekst 312--><a href=jobliste.php?konto_id=$id&returside=debitorkort.php>" . findtekst('38|Opgaveliste', $sprog_id) . "<!--tekst 38--></td>\n";
 	} else print "<td width=\"10%\"  $top_bund><span style=\"color:#999;\">" . findtekst('38|Opgaveliste', $sprog_id) . "<!--tekst 38--></span></td>\n";
 	print "<td width=\"25%\" $top_bund>&nbsp;</td>\n";
 	print "</td></tbody></table></td></tr>"; # <- TABEL 1.3 
@@ -2658,6 +2820,7 @@ $buttons_html_escaped = str_replace("\n", "", $buttons_html_escaped);
 function split_navn($firmanavn)
 {
 	$y = 0;
+	$fornavn = '';
 	$tmp = array();
 	$tmp = explode(" ", $firmanavn);
 	$x = count($tmp) - 1;
@@ -2670,6 +2833,44 @@ function split_navn($firmanavn)
 	return ($fornavn . "," . $efternavn);
 }
 
+// 20261029 CL/MJ SST-892 Choosing Erhverv on a card drawn as private shows the company name instead of the first and
+// last name. A CVR lookup that finds a company name on such a card makes that choice for the user (cvrEfterOpslag(),
+// called by cvrapiopslag.js), so the name is visible and saved.
+// 20261030 CL/MJ SST-892 Only a new card switches by itself: a saved card with contacts can't change type (Gem
+// refuses it and reloads), so a lookup there would throw away the user's edits.
+// 20261030 CL/MJ SST-892 On such a card the type select refuses the change at once, with Gem's own message, and
+// goes back, so nothing is typed into the company name that the refused save would throw away.
+// 20261104 CL/MJ SST-892 It returns false for a refused change, and the select only marks the card as edited on true.
+$debitorkortTypeLaast = ($id && isset($an_id) && $kontotype) ? 'true' : 'false';
+print "<script type=\"text/javascript\">
+var debitorkortTypeLaast = $debitorkortTypeLaast;
+function debitorkortVisKontotype(kontotype) {
+	var form = document.forms['debitorkort'];
+	if (debitorkortTypeLaast && form && form.gl_kontotype && kontotype != form.gl_kontotype.value) {
+		alert('Please delete all contacts to proceed');
+		form.kontotype.selectedIndex = 0;
+		return false;
+	}
+	var firma = document.getElementById('debitorkort_firmanavn');
+	if (!firma) return true;
+	var erhverv = (kontotype == 'erhverv');
+	firma.style.display = erhverv ? '' : 'none';
+	document.getElementById('debitorkort_fornavn').style.display = erhverv ? 'none' : '';
+	document.getElementById('debitorkort_efternavn').style.display = erhverv ? 'none' : '';
+	return true;
+}
+</script>\n";
+if (!$id) {
+	print "<script type=\"text/javascript\">
+function cvrEfterOpslag(data) {
+	var type = document.forms['debitorkort'] ? document.forms['debitorkort'].kontotype : null;
+	if (!type || type.value != 'privat' || !data.firmanavn) return;
+	type.value = 'erhverv';
+	docChange = true;
+	debitorkortVisKontotype('erhverv');
+}
+</script>\n";
+}
 if (!$id || substr($cvrnr,0,1)  == '*') {
 	$cvrnr = trim($cvrnr,"*");
 	print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/cvrapiopslag.js\"></script>\n";
@@ -2975,7 +3176,11 @@ SCRIPT;
 
 ##################
 
-include_once '../includes/oldDesign/footer.php';
+if ($menu == 'T') {
+	include_once '../includes/topmenu/footer.php';
+} else {
+	include_once '../includes/oldDesign/footer.php';
+}
 
 $steps = array();
 $steps[] = array(
@@ -2990,10 +3195,13 @@ $steps[] = array(
 	"selector" => 'input[type="text"][name="fornavn"], input[type="text"][name="efternavn"]',
 	"content" => findtekst('2629|Angiv kundens navn', $sprog_id) . "."
 );
-$steps[] = array(
-	"selector" => 'input[type="text"][name="firmanavn"]',
-	"content" => findtekst('2630|Angiv kundens firmanavn', $sprog_id) . "."
-);
+// 20261104 CL/MJ SST-892 The company name is a hidden row on a private card, so the step would point at nothing.
+if ($kontotype != 'privat') {
+	$steps[] = array(
+		"selector" => 'input[type="text"][name="firmanavn"]',
+		"content" => findtekst('2630|Angiv kundens firmanavn', $sprog_id) . "."
+	);
+}
 $steps[] = array(
 	"selector" => 'input[type="text"][name="email"], input[type="checkbox"][name="mailfakt"]',
 	"content" => findtekst('2631|Kundens e-mail indtastes her. Hvis du vil have, at systemet som standard sender e-mails, når du fakturerer en ordre, kan du sætte hak i \'Brug mail\'', $sprog_id) . "."

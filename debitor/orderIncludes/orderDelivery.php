@@ -1,6 +1,11 @@
 <?php
 // 20261022 CDX/LH Preserve stored Stripe delivery across legacy mail flags, local printing and partial order saves.
 // 20261025 CL/ASR 'Link' delivery: option, G6.3 default, block reasons (hard vs temporary), notice and terms script.
+// 20261126 CL/ASR Review round 1 (I10): "Stripe" is offered only when the ledger charges saved cards (stripe_card_charging_on()) and the customer has one.
+//                 A stored Stripe that cannot be charged stays selected and says it goes out as e-mail (texts 8251, 8252).
+// 20261126 CL/ASR Review round 1 (I17): orderInvoicedStripeKept() and orderPrintModeShown(): on an invoiced order whose Udskriv til is Stripe, another choice prints in that mode without being saved.
+// 20261126 ASR Review CARD2-2: a credit note (art DK) is not offered Stripe, as nothing charges or refunds it; a stored Stripe on one stays selected and says it is printed as PDF (texts 8270, 8271).
+// 20261126 ASR Review PAY-R2-5: without a Base-URL in the Stripe settings E-mail med link is not offered; a stored Link says that the Base-URL is missing (reason base_url, text 8274).
 
 /**
  * Resolve legacy delivery flags without overriding a stored automatic-payment instruction.
@@ -40,24 +45,95 @@ function orderDeliveryPostedValue($input, $id) {
 }
 
 /**
- * Offer Stripe to enrolled debtors and always render a stored Stripe instruction as selected.
+ * An invoiced order (status 3 or more) whose stored Udskriv til is Stripe keeps it when another mode is chosen: the
+ * charge job, the payment page's state and the reminder hold all read the stored 'Stripe', so saving the choice (to
+ * print a copy as PDF, say) silently stopped the automatic charge. The choice prints or sends in that mode only.
  *
+ * @param int $id Order id.
+ * @param string $chosen The Udskriv til chosen in this request.
+ * @return array|null The stored udskriv_til and pbs to write back, or null when the choice is saved.
+ */
+function orderInvoicedStripeKept($id, $chosen) {
+	if ($chosen === 'Stripe' || (int)$id <= 0) {
+		return null;
+	}
+	$r = db_fetch_array(db_select('select status, udskriv_til, pbs from ordrer where id = ' . (int)$id, __FILE__ . ' linje ' . __LINE__));
+	if (!$r || (int)$r['status'] < 3 || trim((string)$r['udskriv_til']) !== 'Stripe') {
+		return null;
+	}
+	return $r;
+}
+
+/**
+ * The Udskriv til shown on an invoiced order: the print mode chosen in this request over a kept Stripe
+ * (orderInvoicedStripeKept()), so the next Udskriv/Send uses it; the stored Stripe is shown when the page is opened again.
+ *
+ * @param string $delivery The order's Udskriv til.
+ * @return string
+ */
+function orderPrintModeShown($delivery) {
+	$mode = $GLOBALS['orderPrintMode'] ?? '';
+	return ($delivery === 'Stripe' && is_string($mode) && $mode !== '') ? $mode : $delivery;
+}
+
+/**
+ * Offer Stripe to enrolled debtors and always render a stored Stripe instruction as selected. Stripe is offered only
+ * when this ledger charges saved cards (stripe_card_charging_on()) and the customer has a saved card; a stored Stripe
+ * that cannot be charged stays selected (so it is not lost) and says that the invoice goes out as e-mail, as
+ * stripe_invoice_delivery() then sends it. A credit note is never offered Stripe: the charge job leaves credit notes
+ * alone and nothing refunds a card from it. A stored Stripe on one stays selected and says that it is printed as PDF,
+ * which the print engine does with it (only an invoice with Stripe is mailed, includes/formfunk.php).
+ *
+ * @param string $selected The order's Udskriv til.
+ * @param int $kontoId The customer (adresser.id).
+ * @param string $art The order's art; 'DK' is a credit note.
  * @return string HTML option, or an empty string for an unenrolled debtor using another mode.
  */
-function orderStripeDeliveryOption($selected, $kontoId) {
+function orderStripeDeliveryOption($selected, $kontoId, $art = '') {
+	global $sprog_id;
 	$stored = $selected === 'Stripe';
-	if (!$stored) {
-		$column = db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'adresser' and column_name = 'stripe'", __FILE__ . ' linje ' . __LINE__));
-		if (!$column || (int)$kontoId <= 0) {
+	if ($art === 'DK') {
+		if (!$stored) {
 			return '';
 		}
-		$d = db_fetch_array(db_select('select stripe from adresser where id = ' . (int)$kontoId, __FILE__ . ' linje ' . __LINE__));
-		if (($d['stripe'] ?? '') !== 'on') {
-			return '';
-		}
+		$cs = !empty($GLOBALS['charset']) ? $GLOBALS['charset'] : 'UTF-8';
+		return "<option value='Stripe' selected title='" . htmlspecialchars(findtekst('8271', $sprog_id), ENT_QUOTES, $cs) . "'>"
+			. htmlspecialchars(findtekst('8270', $sprog_id), ENT_QUOTES, $cs) . "</option>\n";
+	}
+	$chargeable = orderStripeChargeable($kontoId);
+	if (!$stored && !$chargeable) {
+		return '';
+	}
+	if ($stored && !$chargeable) {
+		$cs = !empty($GLOBALS['charset']) ? $GLOBALS['charset'] : 'UTF-8';
+		return "<option value='Stripe' selected title='" . htmlspecialchars(findtekst('8251', $sprog_id), ENT_QUOTES, $cs) . "'>"
+			. htmlspecialchars(findtekst('8252', $sprog_id), ENT_QUOTES, $cs) . "</option>\n";
 	}
 	return "<option value='Stripe'" . ($stored ? ' selected' : '')
 		. " title='Trækkes automatisk på kundens kort på forfaldsdatoen. Ingen fakturamail.'>Stripe</option>\n";
+}
+
+/**
+ * Whether an invoice to this customer can be charged automatically: the ledger charges saved cards and the customer
+ * has one (adresser.stripe on with a payment method).
+ *
+ * @return bool
+ */
+function orderStripeChargeable($kontoId) {
+	if ((int)$kontoId <= 0 || !is_file(__DIR__ . '/../../includes/stripeIncludes/stripeSettings.php')) {
+		return false;
+	}
+	include_once(__DIR__ . '/../../includes/stripeIncludes/stripeSettings.php');
+	if (!stripe_card_charging_on()) {
+		return false;
+	}
+	$column = db_fetch_array(db_select("select count(*) as n from information_schema.columns where table_name = 'adresser' and column_name in ('stripe', 'stripe_pm_id')"
+		. saldi_schema_filter(), __FILE__ . ' linje ' . __LINE__));
+	if (!$column || (int)$column['n'] < 2) {
+		return false;
+	}
+	$d = db_fetch_array(db_select('select stripe, stripe_pm_id from adresser where id = ' . (int)$kontoId, __FILE__ . ' linje ' . __LINE__));
+	return ($d['stripe'] ?? '') === 'on' && trim((string)($d['stripe_pm_id'] ?? '')) !== '';
 }
 
 /**
@@ -85,7 +161,8 @@ function orderLinkDefault() {
 
 /**
  * 20261025 CL/ASR Why this order cannot use "E-mail med link": '' = it can. 'ledger' when the payment page is
- * off here; otherwise the stripe_invoice_uncollectable_reason() codes (terms, currency, credit, pbs, ...).
+ * off here, 'base_url' when only the Base-URL is missing in the Stripe settings; otherwise the
+ * stripe_invoice_uncollectable_reason() codes (terms, currency, credit, pbs, ...).
  * $override holds posted order fields that are not saved yet (betalingsbet). Cached per request.
  *
  * @return string Reason code or ''.
@@ -97,7 +174,7 @@ function orderLinkBlockReason($orderId, $override = array()) {
 		return '';
 	}
 	if (!orderLinkAvailable()) {
-		return 'ledger';
+		return function_exists('stripe_invoice_link_base_missing') && stripe_invoice_link_base_missing() ? 'base_url' : 'ledger';
 	}
 	$key = $db . '|' . (int)$orderId . '|' . json_encode($override);
 	if (!array_key_exists($key, $cache)) {
@@ -133,7 +210,7 @@ function orderLinkHardBlock($reason) {
  */
 function orderLinkBlockText($reason, $invoiced) {
 	global $sprog_id;
-	$why = array('ledger' => '7129', 'credit' => '7130', 'currency' => '7131', 'terms' => '7132', 'pbs' => '7133', 'debtor' => '7134', 'no_card' => '7135', 'subscriber' => '7136');
+	$why = array('ledger' => '7129', 'base_url' => '8274', 'credit' => '7130', 'currency' => '7131', 'terms' => '7132', 'pbs' => '7133', 'debtor' => '7134', 'no_card' => '7135', 'subscriber' => '7136');
 	$todo = $invoiced ? array() : array('terms' => '7138', 'currency' => '7139', 'debtor' => '7141');
 	$todo['no_card'] = '7140';
 	return findtekst('7150', $sprog_id) . ' ' . findtekst($why[$reason] ?? '7129', $sprog_id) . ' '

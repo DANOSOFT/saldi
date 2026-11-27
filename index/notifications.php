@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/notifications.php --- lap 5.0.0 --- 2026.09.27 ---
+// ---- index/notifications.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,12 +20,11 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260927 Sawaneh JSON endpoint for the shell's notification bell (topbar spec §3):
-//                  GET = refresh sources (throttled per session) + list + unread count;
-//                  POST action=read (id or all) marks as read.
-
+// 20260927 SS JSON endpoint for the shell's notification bell (topbar spec §3): GET = refresh sources (throttled per session) + list + unread count; POST action=read (id or all) marks as read.
+// 20261031 CL/ASR $skipLogtime: the shell polls this every 60 s, which must not keep the session's online.logtime fresh.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
  * @var int    $bruger_id
@@ -41,6 +40,7 @@ ob_start();
 $title = 'notifications';
 $css = '';
 $permission_key = 'any';
+$skipLogtime = true; // a background poll is no user activity (includes/online.php)
 
 include(__DIR__ . "/../includes/connect.php");
 include(__DIR__ . "/../includes/online.php");

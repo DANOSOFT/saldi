@@ -2,6 +2,7 @@
 // 20261022 CDX/LH Dispatch each rendered mail using its recorded order id; report Stripe fallback failures.
 // 20261022 CL/LH S5 Udskriv til = Stripe sends the pre-charge notice (invoice link, card, charge date); PDF mail on failure.
 // 20261025 CL/ASR Link/Stripe mails also prepare the payment page's invoice page images (stripe_invoice_page_images).
+// 20261126 CL/ASR Review round 1 (I9): a Stripe invoice that cannot be charged automatically (dated before the enrolment, below the card minimum, ...) is sent as the link mail, not the classic PDF mail.
 
 /**
  * Deliver one rendered batch entry. The mail index is independent of the source order index.
@@ -41,6 +42,10 @@ function formSendMailEntry($mailOrderIds, $mailnr, $pdf, $email, $language, $for
 				}
 				// Use the recipients queued with this PDF, as classic mail does.
 				$inv['email'] = $email;
+				// A Stripe invoice the charge job will not collect gets the link mail, so the customer can pay it from the page.
+				if ($delivery === 'stripe' && !stripe_auto_charge_allowed($inv)) {
+					$delivery = 'link';
+				}
 				if ($delivery === 'link' && !stripe_mail_invoice_link($inv)) {
 					throw new RuntimeException('Invoice link mail failed');
 				}

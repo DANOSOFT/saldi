@@ -1,5 +1,5 @@
 <?php
-// --- includes/docsIncludes/showDoc.php --- ver 5.0.0 --- 2026-10-05 ---
+// --- includes/docsIncludes/showDoc.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -19,11 +19,36 @@
 // ----------------------------------------------------------------------
 // PLBM 2024.01.31
 //20240305 PHR Varioous corrections
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
 // 20261003 CL/SZ SD-723 The document is shown through docFile.php (login and tenant checked) instead of its direct path.
 // 20261005 CL/SZ SD-723 A document whose file is not on the server shows "Bilaget findes ikke på serveren" instead of an empty or "Not found" frame.
 // 20261005 CL/SZ SD-701 The XML notices (no EasyUBL key, conversion failed) keep their own height, so in the voucher tab the raw XML shows below them instead of below the fold.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261110 CDX/ASR Validate the original document and its owner before XML conversion or preview registration.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 
+/**
+ * @var string $db Authenticated tenant from documents.php's online.php include.
+ * @var string $docFolder Configured document root from documents.php.
+ * @var string $source Document source from documents.php.
+ * @var int $sourceId Source record ID from documents.php.
+ */
+require_once __DIR__ . '/documentAccess.php';
+if (empty($db) || empty($docFolder) || !function_exists('perm_enforce_request')) {
+	docAccessDeny();
+}
+$showDoc = is_string($showDoc ?? null) ? $showDoc : '';
+$documentTenantRoot = docFileTenantRoot($docFolder, $db);
+$documentTarget = docFileReadTarget($documentTenantRoot, $showDoc);
+if ($documentTarget !== null) {
+	$documentRow = docAccessFindDocument($documentTenantRoot, $showDoc, (string)($source ?? ''), (int)($sourceId ?? 0));
+	if ($documentRow === null) {
+		docAccessDeny();
+	}
+	perm_enforce_request($documentTarget['key'], 'read', true, null);
+	$showDoc = $documentTarget['path'];
+} elseif ($showDoc !== '' && is_file($showDoc)) {
+	docAccessDeny();
+}
 
 // Check if we're in flexbox layout (docPool-style) or table layout
 $inFlexboxLayout = (isset($_GET['showDoc']) && isset($_GET['source']) && $_GET['source'] == 'kassekladde');
@@ -36,44 +61,30 @@ if ($inFlexboxLayout) {
 	print "<tr><td width='100%' height='100%' align='center' valign='middle'>";
 }
 
-#echo "<br>$showDoc<br>";
-#if (file_exists($showDoc)) echo "den er der skam<br>";
-#else echo "Kan ikke finde den<br>";
 $fileInfo = pathinfo($showDoc);
-// Files are served through docFile.php, which checks the login and the tenant, not by their direct path
-include_once(__DIR__ . '/docFileFunc.php');
-$showDocUrl = htmlspecialchars(docFileUrl($showDoc, $docFolder, $db), ENT_QUOTES);
-if (!is_file($showDoc)) {
+$showDocPath = $documentTarget === null ? '' : "$docFolder/$db/" . $documentTarget['relative'];
+$showDocUrl = htmlspecialchars(docFileUrl($showDocPath, $docFolder, $db), ENT_QUOTES);
+if ($documentTarget === null) {
 	print docFileMissingBox(basename($showDoc), $sprog_id);
 } else if (strtolower(substr($showDoc,-3,3))=='pdf') {
 	print "<iframe frameborder='no' width='100%' height='100%' scrolling='auto' src='$showDocUrl'></iframe>";
-} else if (strtolower($fileInfo["extension"]) == "xml") {
-	// Need database connection to get API key
-	if (!isset($db) || !$db) {
-		@session_start();
-		$s_id = session_id();
-		include_once "../includes/connect.php";
-		$permission_key = 'any';
-		include_once "../includes/online.php";
-	}
-	
+} else if (strtolower($fileInfo["extension"] ?? '') == "xml") {
 	// Get the API key from settings
-	include "connect.php";
 	$apiKeyQuery = db_select("SELECT var_value FROM settings WHERE var_name = 'apiKey' AND var_grp = 'easyUBL'", __FILE__ . " linje " . __LINE__);
 	$apiKeyRow = db_fetch_array($apiKeyQuery);
 	$easyUblApiKey = $apiKeyRow ? $apiKeyRow['var_value'] : '';
-	session_start();
-	$s_id=session_id();
-	include "online.php";
 	
 	if ($easyUblApiKey) {
 		// Create a safe temp filename based on the source file path
 		$tempFileName = "xml_view_" . md5($showDoc) . ".html";
-		$tempFilePath = "../temp/$db/" . $tempFileName;
+		$tempFilePath = dirname(__DIR__, 2) . "/temp/$db/" . $tempFileName;
+		if (is_link($tempFilePath)) {
+			docAccessDeny();
+		}
 		
 		// Create temp dir if it doesn't exist
-		if (!file_exists("../temp/$db")) {
-			@mkdir("../temp/$db", 0777, true);
+		if (!is_dir(dirname($tempFilePath))) {
+			mkdir(dirname($tempFilePath), 0770, true);
 		}
 		
 		// Check if we already have a cached converted version
@@ -108,8 +119,8 @@ if (!is_file($showDoc)) {
 			}
 		}
 		
-		if ($tempFilePath && file_exists($tempFilePath)) {
-			print "<iframe frameborder='no' width='100%' height='100%' scrolling='auto' src='" . htmlspecialchars(docFileUrl($tempFilePath, $docFolder, $db), ENT_QUOTES) . "'></iframe>";
+		if ($tempFilePath && docFileRegisterPreview($db, $documentTenantRoot, $showDoc, $tempFilePath)) {
+			print "<iframe frameborder='no' width='100%' height='100%' scrolling='auto' src='" . htmlspecialchars(docFileUrl("../temp/$db/$tempFileName", $docFolder, $db), ENT_QUOTES) . "'></iframe>";
 		} else {
 			// Fallback: show raw XML if conversion failed
 			echo "<pre style='width:90%; margin:1rem auto; overflow:auto; max-height:100%;'>" . htmlspecialchars(file_get_contents($showDoc)) . "</pre>";

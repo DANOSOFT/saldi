@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/mail_modtagere.php --- ver 5.0.0 --- 2026.10.05 ---
+// --- debitor/mail_modtagere.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -33,11 +33,11 @@
 // 20230718 PHR Added $begin & $end to be used in no dates in 'beskrivelse'
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20250407 PHR will now use phpmailer from composer if old phpmailer is not present
-// 20261001 Sawaneh The mail text row is found whether its user_id is 0 or NULL (one row per setting).
 // 20261005 MJ SST-853 Set $mail->CharSet so settlement mails declare UTF-8. The body is built
 //                  as UTF-8 and its meta tag says so, but PHPMailer defaults CharSet to
 //                  iso-8859-1, so recipients saw "KÃ¦re" where the text said "Kære".
-
+// 20261001 SS The mail text row is found whether its user_id is 0 or NULL (one row per setting).
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 

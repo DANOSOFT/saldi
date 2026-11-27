@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/formeditor.php --- patch 5.0.0 --- 2026-07-10 ---
+// --- systemdata/formeditor.php --- ver 5.1.1 --- 2026-11-14 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,15 +21,36 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261005 Sawaneh Settings redesign G6.1: reset keeps the e-mail texts and fee/interest rows (FE2); print-language lock
-//                  and drafts in the settings table via includes/formEditorState.php (FE3); the background link opens
-//                  in the same window and the upload page returns here (FE5).
-// 20261006 Sawaneh Back link has accesskey L, so the shell's breadcrumb replaces it (breadcrumb step 2).
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
-// 20261009 Sawaneh The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
-// 20261009 Sawaneh The page-head title through findtekst so the English and Norwegian UI show it translated.
+// 20261030 CL/MMR SST-917: Text boxes keep every space (white-space: pre), because the PDF engine prints them all.
+//                 The draft preview shows the payment term as the field holds it ("Netto"), not "Netto 8 dage".
+//                 The draft preview leaves out order-line columns at x 0, which the PDF engine never prints.
+// 20261005 SS Settings redesign G6.1: reset keeps the e-mail texts and fee/interest rows (FE2); print-language lock and drafts in the settings table via includes/formEditorState.php (FE3); the background link opens in the same window and the upload page returns here (FE5).
+// 20261008 SS Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
+// 20261009 SS The page on the new page head (page_bar) instead of the blue bar; the print layout untouched.
+// 20261009 SS The page-head title through findtekst so the English and Norwegian UI show it translated.
+// 20261102 CL/ASR The standard settings layout (includes/settings/layout.php; owner, 2 Nov 2026: every page reached from the settings keeps the settings menu) instead of page_bar: Tilbage above the title, breadcrumb Indstillinger / Virksomhed / Formularer / Formulareditor and the Virksomhed menu with Formularer marked beside the editor.
+//                 Tilbage goes where page_bar's did.
+//                 The editor keeps its own font; its canvas and side panel are 76 px shorter, so they end inside the window.
+// 20261103 CL/ASR QA round 2: the page needs Dokumenter & e-mail (settings.documents) instead of the general settings fallback, and Gem & aktivér shows a refusal as its message instead of Netværksfejl.
+// 20261112 CL/MMR SD-821: The own bank fields are named "Egen bank reg.nr." and "Egen bank kontonr." so they sit together in the field list.
+// 20261114 ASR Formularer opens this editor (formularkort.php sends ?valg=formularer here), so Tilbage goes to the settings front page and a Klassisk editor button opens formularkort.php?klassisk=1.
+//              The preview shows the company's own name, address, CVR, phone, e-mail and bank details (adresser art S) instead of Testfirma ApS; an empty field keeps its sample.
+//              The customer, seller and lines stay samples.
+//              The field picker lists the own company in letterhead order without the Eget/Egen prefix, the bank as Bank: navn, reg.nr. and kontonr., and a ready line Reg.nr. og kontonr.
+// 20261114 CL/ASR The background under the page is the user's own one as the print engine picks it for the form (fe_logo_ground()), never a file with the logo stamped on it, and Fjern logo restores every stamped file (fe_logo_remove_all()).
+// 20261114 CL/ASR Gem & aktivér asks first when the logo was moved, resized or uploaded, because the logo has one place on every document (owner, 14 Nov 2026).
+// 20261114 CL/ASR A Tilføj logo button in the toolbar (Skift logo when there is one) selects the form's logo and opens the file picker; a form without a LOGO row gets one at the place the other forms use (owner, 14 Nov 2026: the faint '+ logo' slot was hard to find).
+// 20261114 CL/ASR A failed logo upload says why (not an image, over 5 MB, not received, or the logo folder is not writable) instead of 'kun PNG/JPG, maks 5 MB' for every cause.
+// 20261114 CL/ASR Review of the whole editor (owner, 14 Nov 2026); the fixes follow.
+//                 Undo works for the properties panel (the snapshot is taken before the first change, not after), and undo/redo start afresh after Gem & aktivér, so an undo can no longer bring back a temporary id or a deleted row and save it twice.
+//                 The automatic caption translation follows the language version open (Dansk to the user's language, English to English, others untouched), not only the user's language.
+//                 The local autosave key carries the account, and Gem kladde and Nulstil clear it; Nulstil also drops the draft and keeps the logo's place (one place on every document).
+//                 The keyboard shortcuts leave the e-mail text box alone; the e-mail body is cleaned before it is shown; Lås udskrift is ticked only on the language version it locks to.
+//                 An uploaded logo waits as fe_logo_pending.png until Gem & aktivér, so leaving without saving changes nothing on the documents.
+//                 A field followed by a character other than a space (Tlf: $egen_tlf, CVR) gets the terminator ; on save, as the print engine reads a field up to a space or ;.
+//                 The JSON endpoints answer POST only, as the page's write permission assumes; beskrivelse NULL no longer gives PHP 8 deprecation notices.
 //
 // New visual (drag & drop) form editor - phase 1, increment 1.
 //
@@ -63,6 +84,13 @@ $FE_API    = in_array($fe_action, array('save','reset','logo_upload','logo_remov
 
 if ($FE_API) {
 	ob_start();
+	if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+		ob_end_clean();
+		header('Content-Type: application/json');
+		http_response_code(405);
+		echo json_encode(array('ok' => false, 'error' => 'method'));
+		exit;
+	}
 	$fe_submitted_token = isset($_SERVER['HTTP_X_CSRF_TOKEN']) ? $_SERVER['HTTP_X_CSRF_TOKEN'] : (isset($_GET['csrf_token']) ? $_GET['csrf_token'] : '');
 	if (!$fe_submitted_token || !hash_equals($fe_csrf_token, $fe_submitted_token)) {
 		ob_end_clean();
@@ -73,14 +101,15 @@ if ($FE_API) {
 	}
 }
 
-$title = findtekst('7012|Formulareditor', $sprog_id);
+$title = "Formulareditor";
 $css   = "../css/standard.css";
 
 include("../includes/connect.php");
 $modulnr = 1; // 20260928 Sawaneh Security 4.0 (A8)
-$permission_key = 'system.indstillinger';
+$permission_key = 'settings.documents'; // the invoice forms are Dokumenter & e-mail (QA round 2), not the general settings fallback
 include("../includes/online.php");
 include("../includes/std_func.php");
+$title = findtekst('7012|Formulareditor', $sprog_id);
 include("../includes/topline_settings.php");
 include_once("../includes/formEditorState.php");
 
@@ -222,10 +251,14 @@ if ($fe_action === 'save') {
 	fe_state_delete(fe_draft_name($form_nr, $sprog_raw));
 	@unlink("../logolib/$db_id/fe_draft_{$form_nr}_" . preg_replace('/[^A-Za-z0-9_]/', '_', $sprog_raw) . ".json");
 
+	// A logo uploaded in the editor goes live now (it waited as fe_logo_pending.png), then it is stamped.
+	$logo_url_live = '';
+	$pend = "../logolib/$db_id/fe_logo_pending.png";
+	if (file_exists($pend) && @rename($pend, "../logolib/$db_id/fe_logo.png")) $logo_url_live = "../logolib/$db_id/fe_logo.png?t=" . time();
 	// Stamp the placed logo onto the print background (if any logo uploaded).
 	fe_composite_logo($db_id, $form_nr, $sprog_raw);
 
-	print json_encode(array('ok' => true, 'updated' => $updated, 'deleted' => $deleted, 'inserted' => $inserted));
+	print json_encode(array('ok' => true, 'updated' => $updated, 'deleted' => $deleted, 'inserted' => $inserted, 'logo_url' => $logo_url_live));
 	exit;
 }
 
@@ -305,6 +338,8 @@ if ($fe_action === 'reset') {
 	while ($k = db_fetch_array($q)) {
 		$keepFee[(string) $k['b']] = true;
 	}
+	// The logo has one place on every document: the reset keeps this form's logo where it is.
+	$keepLogo = db_fetch_array(db_select("select xa, ya, xb, yb from formularer where formular=$form_nr and sprog='$sprog_db' and art=1 and upper(beskrivelse)='LOGO'", __FILE__ . " linje " . __LINE__));
 	transaktion('begin');
 	db_modify("delete from formularer where formular=$form_nr and sprog='$sprog_db' and art <> 5 and upper(coalesce(beskrivelse, '')) not in ('GEBYR','RENTE')", __FILE__ . " linje " . __LINE__);
 	foreach ($rows as $r) {
@@ -315,7 +350,17 @@ if ($fe_action === 'reset') {
 		$qtxt .= "$form_nr,$r[art],'$r[besk]',$r[xa],$r[ya],$r[xb],$r[yb],'$r[just]',$r[str],$r[color],'$r[font]','$r[fed]','$r[kursiv]','$r[side]','$sprog_db')";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}
+	if ($keepLogo) {
+		$lg = array((float) $keepLogo['xa'], (float) $keepLogo['ya'], (float) $keepLogo['xb'], (float) $keepLogo['yb']);
+		$hasLogo = db_fetch_array(db_select("select id from formularer where formular=$form_nr and sprog='$sprog_db' and art=1 and upper(beskrivelse)='LOGO'", __FILE__ . " linje " . __LINE__));
+		if ($hasLogo) {
+			db_modify("update formularer set xa=$lg[0], ya=$lg[1], xb=$lg[2], yb=$lg[3] where id=" . (int) $hasLogo['id'], __FILE__ . " linje " . __LINE__);
+		} else {
+			db_modify("insert into formularer (formular,art,beskrivelse,xa,ya,xb,yb,justering,str,color,font,fed,kursiv,side,sprog) values ($form_nr,1,'LOGO',$lg[0],$lg[1],$lg[2],$lg[3],'V',0,0,'Helvetica','','','A','$sprog_db')", __FILE__ . " linje " . __LINE__);
+		}
+	}
 	transaktion('commit');
+	fe_state_delete(fe_draft_name($form_nr, $sprog));   // the draft was made on the rows the reset replaced
 
 	print json_encode(array('ok' => true, 'rows' => count($rows)));
 	exit;
@@ -348,20 +393,9 @@ if ($fe_action === 'logo_remove') {
 	$form_nr = (isset($payload['form_nr'])) ? (int) $payload['form_nr'] : 0;
 	$sprog   = (isset($payload['sprog']))   ? (string) $payload['sprog'] : 'Dansk';
 
-	$dir  = "../logolib/$db_id";
-	$base = "$dir/fe_logobase.pdf";
-	// Put the pristine letterhead back where the print engine reads it, then drop
-	// only the logo overlay + meta. The pristine snapshot itself is KEPT — it is
-	// the user's original letterhead and must never be thrown away.
-	if (file_exists($base)) {
-		$active = fe_active_bg($db_id, $form_nr, $sprog);
-		if ($active) @copy($base, $active);
-	}
-	@unlink("$dir/fe_logo.png");
-	@unlink("$dir/fe_logors.png");
-	@unlink("$dir/fe_logo_meta.json");
-	// bust the editor bg preview cache so the clean background re-renders next load
-	@array_map('unlink', glob("$dir/*_feprev.png") ?: array());
+	// Every stamp gets the user's own background back (or goes when there was none), and the uploaded logo goes
+	// (includes/formEditorState.php fe_logo_remove_all()).
+	fe_logo_remove_all($db_id);
 
 	print json_encode(array('ok'=>true));
 	exit;
@@ -491,8 +525,8 @@ function fe_var_map() {
 			'egen_tlf'        => array('Eget tlf.', 'Own phone'),
 			'egen_mobile'     => array('Egen mobil', 'Own mobile'),
 			'egen_bank_navn'  => array('Eget banknavn', 'Own bank name'),
-			'egen_bank_reg'   => array('Eget reg.nr.', 'Own reg. no.'),
-			'egen_bank_konto' => array('Egen bankkonto', 'Own bank account'),
+			'egen_bank_reg'   => array('Egen bank reg.nr.', 'Own bank reg. no.'),
+			'egen_bank_konto' => array('Egen bank kontonr.', 'Own bank account no.'),
 			'egen_email'      => array('Egen e-mail', 'Own e-mail'),
 			'egen_web'        => array('Egen hjemmeside', 'Own website'),
 			// --- employee / seller (ansat) ---
@@ -630,7 +664,7 @@ if (!isset($forms[$form_nr])) $form_nr = 4;
 $sprog = isset($_GET['sprog']) && $_GET['sprog'] !== '' ? $_GET['sprog'] : 'Dansk';
 $sprog_db = db_escape_string($sprog);
 
-$returside = nav_back_url((isset($_GET['returside']) && $_GET['returside']) ? $_GET['returside'] : 'formularkort.php');
+$returside = nav_back_url((isset($_GET['returside']) && $_GET['returside']) ? $_GET['returside'] : 'settings.php');
 
 // UI language: Danish account (sprog_id==1) -> Danish, otherwise English.
 $dk_ui = ($sprog_id == 1);
@@ -644,7 +678,7 @@ $qtxt = "select id, art, beskrivelse, xa, ya, xb, yb, str, color, font, fed, kur
 $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 while ($r = db_fetch_array($q)) {
 	$art  = (int) $r['art'];
-	$besk = $r['beskrivelse'];
+	$besk = (string) $r['beskrivelse'];
 	if ($art === 1 && strtoupper($besk) === 'LOGO') {
 		$kind = 'logo';
 	} elseif ($art === 1) {
@@ -691,7 +725,7 @@ while ($rt = db_fetch_array($qt)) {
 		$tbl_cols[] = array(
 			'id'    => (int) $rt['id'],
 			'type'  => $rt['beskrivelse'],
-			'label' => fe_var_label($rt['beskrivelse']),
+			'label' => fe_var_label((string) $rt['beskrivelse']),
 			'xa'    => (float) $rt['xa'],
 			'ya'    => (float) $rt['ya'],   // preserved unchanged on save
 			'str'   => (float) $rt['str'],
@@ -735,26 +769,10 @@ while ($rm = db_fetch_array($qmail)) {
 // ---- background letterhead (rendered to PNG, best effort, cached) ----------
 $bg_url = '';
 $bg_src = '';
-$sprog_prefix = ($sprog != 'Dansk') ? $sprog . "_" : "";
-$form_slug = array(1=>'tilbud',4=>'faktura'); // known per-form filenames
-$candidates = array();
-if (isset($form_slug[$form_nr])) {
-	$candidates[] = "../logolib/$db_id/{$sprog_prefix}{$form_slug[$form_nr]}_bg.pdf";
-	$candidates[] = "../logolib/$db_id/{$form_slug[$form_nr]}_bg.pdf";
-}
-$candidates[] = "../logolib/$db_id/{$sprog_prefix}bg.pdf";
-$candidates[] = "../logolib/$db_id/bg.pdf";
 
-$logo_base = "../logolib/$db_id/fe_logobase.pdf";
-$active_bg = '';
-foreach ($candidates as $cand) { if (file_exists($cand)) { $active_bg = $cand; break; } }
-$fe_meta_file = "../logolib/$db_id/fe_logo_meta.json";
-$fe_meta = file_exists($fe_meta_file) ? json_decode(@file_get_contents($fe_meta_file), true) : array();
-if (file_exists($logo_base) && $active_bg && isset($fe_meta['out_md5']) && md5_file($active_bg) === $fe_meta['out_md5']) {
-	$bg_src = $logo_base;      // print bg is our composite -> show the clean base
-} else {
-	$bg_src = $active_bg;      // pristine / freshly uploaded letterhead -> show it
-}
+// The user's own background of this form as the print engine picks it, never a stamp with the logo already on it (the editor
+// draws the logo itself): includes/formEditorState.php fe_logo_ground().
+$bg_src = fe_logo_ground($db_id, $form_nr, $sprog);
 if ($bg_src) {
 	$cache_png = "../logolib/$db_id/" . md5(basename($bg_src)) . "_feprev.png";
 	$need = !file_exists($cache_png) || filemtime($cache_png) < filemtime($bg_src);
@@ -768,6 +786,27 @@ if ($bg_src) {
 	if (file_exists($cache_png)) $bg_url = $cache_png . '?t=' . filemtime($cache_png);
 }
 
+// The company's own details for the preview (adresser art S), keyed as the form variables the PDF engine resolves the same way
+// (includes/formfunk.php: $eget_x / $egen_x = column x of the art S row). Only filled fields; the rest keep their samples.
+$fe_own = array();
+$r_own = db_fetch_array(db_select("select firmanavn, addr1, addr2, postnr, bynavn, land, cvrnr, tlf, mobile, email, web, bank_navn, bank_reg, bank_konto from adresser where art = 'S' order by id limit 1", __FILE__ . " linje " . __LINE__));
+if ($r_own) {
+	$own_keys = array('eget_firmanavn' => 'firmanavn', 'egen_addr1' => 'addr1', 'egen_addr2' => 'addr2', 'eget_postnr' => 'postnr',
+		'eget_bynavn' => 'bynavn', 'eget_land' => 'land', 'eget_cvrnr' => 'cvrnr', 'egen_tlf' => 'tlf', 'egen_mobile' => 'mobile',
+		'egen_email' => 'email', 'egen_web' => 'web', 'egen_bank_navn' => 'bank_navn', 'egen_bank_reg' => 'bank_reg', 'egen_bank_konto' => 'bank_konto');
+	foreach ($own_keys as $tok => $col) {
+		$v = trim((string) $r_own[$col]);
+		if ($v === '') continue;
+		if (!mb_check_encoding($v, 'UTF-8')) $v = mb_convert_encoding($v, 'UTF-8', 'ISO-8859-1');
+		$fe_own[$tok] = $v;
+	}
+}
+
+// The logo's place on the other forms of the language (one place on every document), for a form that has no LOGO row yet.
+$fe_logo_place = array('xa' => 148, 'ya' => 285, 'xb' => 0, 'yb' => 0);
+$r_lp = db_fetch_array(db_select("select xa, ya, xb, yb from formularer where art = 1 and upper(beskrivelse) = 'LOGO' and sprog = '$sprog_db' order by xb desc, formular limit 1", __FILE__ . " linje " . __LINE__));
+if ($r_lp) $fe_logo_place = array('xa' => (float) $r_lp['xa'], 'ya' => (float) $r_lp['ya'], 'xb' => (float) $r_lp['xb'], 'yb' => (float) $r_lp['yb']);
+
 // uploaded logo image (shown in the editor at the LOGO element position)
 $fe_logo_url = ''; $fe_logo_w = 0; $fe_logo_h = 0;
 $logo_png = "../logolib/$db_id/fe_logo.png";
@@ -775,6 +814,14 @@ if (file_exists($logo_png)) {
 	$li = @getimagesize($logo_png);
 	if ($li) { $fe_logo_w = (int) $li[0]; $fe_logo_h = (int) $li[1]; }
 	$fe_logo_url = "../logolib/$db_id/fe_logo.png?t=" . filemtime($logo_png);
+}
+// A logo uploaded but not yet saved (Gem & aktivér makes it live): the editor shows it, as an unsaved change.
+$fe_logo_live_url = $fe_logo_url;
+$logo_pend = "../logolib/$db_id/fe_logo_pending.png";
+if (file_exists($logo_pend)) {
+	$li = @getimagesize($logo_pend);
+	if ($li) { $fe_logo_w = (int) $li[0]; $fe_logo_h = (int) $li[1]; }
+	$fe_logo_url = "../logolib/$db_id/fe_logo_pending.png?t=" . filemtime($logo_pend);
 }
 
 // existing draft for this form + variant (working state not yet activated)
@@ -791,7 +838,7 @@ $fe_data = array();
 foreach ($elements as $el) {
 	$e = $el;
 	if ($el['kind'] === 'text') {
-		$e['label'] = fe_render_besk_labels($el['besk']);
+		$e['label'] = fe_render_besk_labels((string) $el['besk']);
 	}
 	$fe_data[] = $e;
 }
@@ -844,13 +891,16 @@ function fe_render_besk_labels($besk) {
 //  PAGE CHROME (modern top menu, mirrors formularkort.php / logoupload.php)
 // ---------------------------------------------------------------------------
 $menu = isset($menu) ? $menu : '';
-print "<div id=\"fe-header\">";
-include_once("../includes/stdFunc/pageBar.php");
-page_bar(array('title' => $title, 'back' => $returside));
-print "</div>";
+// The standard settings layout: the editor under Formularer (includes/stdFunc/pageRoutes.php), Tilbage as page_bar's was.
+include_once("../includes/settings/layout.php");
+settings_layout_open(array('title' => $title, 'back' => $returside, 'legacy' => false, 'actions' => array(
+	array('label' => $T('Klassisk editor', 'Classic editor'), 'href' => 'formularkort.php?klassisk=1', 'icon' => 'bx-table',
+	      'title' => $T('Formularerne som felter med koordinater', 'The forms as fields with coordinates')),
+)));
 ?>
 <style>
   #fe-wrap { font-family: Arial, Helvetica, sans-serif; }
+  .st-page:has(#fe-main) { padding-bottom: 16px; } /* 20261102: the editor ends inside the window, so the page does not scroll under it */
 
   #fe-header table { font-family: Arial, Helvetica, sans-serif; }
   #fe-toolbar {
@@ -862,7 +912,7 @@ print "</div>";
   #fe-toolbar select, #fe-toolbar input[type=number] { font-size:13px; padding:2px 4px; }
   #fe-toolbar .sep { width:1px; height:22px; background:#c7cdd6; }
   #fe-main { display:flex; align-items:flex-start; gap:0; position:relative; }
-  #fe-canvas-area { position:relative; flex:1 1 auto; height:calc(100vh - 190px); min-height:420px; }
+  #fe-canvas-area { position:relative; flex:1 1 auto; height:calc(100vh - 266px); min-height:420px; } /* 20261102: below the settings head */
   #fe-canvas-scroll {
     position:absolute; inset:0; overflow:auto; background:#8a90a0; padding:24px;
   }
@@ -890,7 +940,7 @@ print "</div>";
   #fe-align-bar .fe-ab-btn:hover { background:#e9f0ff; border-color:#9db4e6; }
   #fe-align-bar .fe-ab-sep { width:1px; height:20px; background:#d3d8e0; margin:0 3px; }
   #fe-align-bar .fe-ab-count { font-size:11px; color:#667; margin-right:4px; white-space:nowrap; }
-  #fe-fields-drawer { position:absolute; z-index:39; top:8px; left:8px; width:234px; max-height:calc(100vh - 240px);
+  #fe-fields-drawer { position:absolute; z-index:39; top:8px; left:8px; width:234px; max-height:calc(100vh - 316px);
     background:#fff; border:1px solid #c7cdd6; border-radius:8px; box-shadow:0 6px 22px rgba(0,0,0,.18);
     display:flex; flex-direction:column; font-family:Arial,Helvetica,sans-serif; }
   #fe-fields-drawer .fe-fd-head { display:flex; align-items:center; justify-content:space-between;
@@ -944,7 +994,7 @@ print "</div>";
     box-shadow:0 1px 3px rgba(0,0,0,.3); z-index:31; cursor:pointer;
   }
   .fe-el {
-    position:absolute; box-sizing:border-box; white-space:nowrap;
+    position:absolute; box-sizing:border-box; white-space:pre;   /* keep every space: the PDF prints them all */
     cursor:move; padding:0; line-height:1;
     border:1px solid transparent;
   }
@@ -1012,7 +1062,7 @@ print "</div>";
   }
   .fe-el.fe-logo-ph:hover { border-color:#8894ad; color:#667; opacity:1; }
   #fe-side { width:280px; flex:0 0 280px; background:#fafbfc; border-left:1px solid #d3d8e0;
-    height:calc(100vh - 190px); overflow:auto; padding:12px; box-sizing:border-box; }
+    height:calc(100vh - 266px); overflow:auto; padding:12px; box-sizing:border-box; }
   #fe-side h3 { margin:0 0 8px; font-size:14px; color:#223; }
   #fe-side .row { display:flex; align-items:center; justify-content:space-between; margin:6px 0; font-size:12px; }
   #fe-side .row input[type=number] { width:80px; }
@@ -1147,6 +1197,7 @@ print "</div>";
     <button type="button" class="fe-btn" id="fe-add-line" title="<?php echo $T('Tilføj streg','Add line'); ?>">&#43; <?php echo $T('Streg','Line'); ?></button>
     <span class="sep"></span>
     <button type="button" class="fe-btn" id="fe-design-open" style="border:1px solid #c7cdd6;border-radius:3px;background:#fff;" title="<?php echo $T('Vælg en færdig skabelon (Klassisk/Moderne/Minimal) og brand-farve/skrifttype','Pick a ready-made template (Classic/Modern/Minimal) and brand colour/font'); ?>">&#127912; <?php echo $T('Skabeloner','Templates'); ?></button>
+    <button type="button" class="fe-btn" id="fe-add-logo" style="border:1px solid #c7cdd6;border-radius:3px;background:#fff;" title="<?php echo $T('Upload dit logo – det kommer på alle dokumenter','Upload your logo – it goes on every document'); ?>">&#128444;<span><?php echo $fe_logo_url ? $T(' Skift logo',' Change logo') : $T(' Tilføj logo',' Add logo'); ?></span></button>
     <?php $bg_label = $bg_url ? $T('Skift baggrund','Change background') : $T('Tilføj baggrund','Add background'); ?>
     <a id="fe-bg-btn" class="fe-btn" style="text-decoration:none;color:inherit;border:1px solid #c7cdd6;border-radius:3px;" href="logoupload.php?upload=yes&amp;returside=<?php echo urlencode('formeditor.php?form_nr=' . (int) $form_nr . '&sprog=' . rawurlencode((string) $sprog)); ?>" title="<?php echo $T('Upload eller skift baggrund/logo (letterhead)','Upload or change background/logo (letterhead)'); ?>">&#128444; <?php echo htmlspecialchars($bg_label); ?></a>
     <button type="button" class="fe-btn" id="fe-mail-btn" style="border:1px solid #c7cdd6;border-radius:3px;background:#fff;" title="<?php echo $T('Rediger e-mailteksten der sendes med PDF&apos;en','Edit the e-mail text sent with the PDF'); ?>">&#9993; <?php echo $T('E-mailtekst','Email text'); ?></button>
@@ -1312,6 +1363,24 @@ print "</div>";
                 if ($grp === null) continue;
                 $buckets[$grp][$tok] = $dk_ui ? $pair[0] : $pair[1];
               }
+              // the own company in the order of a letterhead, without the Eget/Egen prefix the group already says (20261114)
+              $ownLabel = $T('Eget firma','Own company');
+              $buckets[$ownLabel] = array(
+                'eget_firmanavn'  => $T('Firmanavn','Company name'),
+                'egen_addr1'      => $T('Adresse 1','Address 1'),
+                'egen_addr2'      => $T('Adresse 2','Address 2'),
+                'eget_postnr'     => $T('Postnr.','Zip code'),
+                'eget_bynavn'     => $T('By','City'),
+                'eget_land'       => $T('Land','Country'),
+                'eget_cvrnr'      => $T('CVR-nr.','VAT no.'),
+                'egen_tlf'        => $T('Tlf.','Phone'),
+                'egen_mobile'     => $T('Mobil','Mobile'),
+                'egen_email'      => $T('E-mail','E-mail'),
+                'egen_web'        => $T('Hjemmeside','Website'),
+                'egen_bank_navn'  => $T('Bank: navn','Bank: name'),
+                'egen_bank_reg'   => $T('Bank: reg.nr.','Bank: sort code'),
+                'egen_bank_konto' => $T('Bank: kontonr.','Bank: account no.'),
+              );
               // preserve a friendly group order
               $order = array($T('Kunde','Customer'), $T('Levering','Delivery'), $T('Eget firma','Own company'), $T('Sælger','Seller'), $T('Konto','Account'), $T('Beløb & dokument','Amounts & document'));
               $seen = array();
@@ -1319,9 +1388,14 @@ print "</div>";
                 if (empty($buckets[$glabel]) || isset($seen[$glabel])) continue;
                 $seen[$glabel] = 1;
                 echo '<optgroup label="' . htmlspecialchars($glabel) . '">';
-                asort($buckets[$glabel]);
+                if ($glabel !== $ownLabel) asort($buckets[$glabel]);
                 foreach ($buckets[$glabel] as $tok => $lab) {
                   echo '<option value="$' . htmlspecialchars($tok) . '">' . htmlspecialchars($lab) . '</option>';
+                }
+                if ($glabel === $ownLabel) {
+                  // both bank fields with their labels in one go (the engine splits a text on spaces, so each $field stands alone)
+                  $bankLine = $T('Reg.nr. $egen_bank_reg Kontonr. $egen_bank_konto', 'Sort code $egen_bank_reg Account no. $egen_bank_konto');
+                  echo '<option value="' . htmlspecialchars($bankLine) . '">' . htmlspecialchars($T('Reg.nr. og kontonr. (med tekst)', 'Sort code and account no. (with text)')) . '</option>';
                 }
                 echo '</optgroup>';
               }
@@ -1371,7 +1445,7 @@ print "</div>";
     ordre_kontakt:(DK_UI?'Test Testesen':'Test Person'), ordre_cvrnr:'12345678', ordre_email:'test@example.com', ordre_tlf:'+45 00 00 00 00',
     ordre_ordrenr:'10042', ordre_ordredate:'14-07-2026', ordre_fakturanr:'2026-0042', ordre_fakturadate:'14-07-2026',
     ordre_kundenr:'1001', ordre_kundeordnr:'PO-0000', ordre_projekt:'P-0000', ordre_valuta:'DKK',
-    ordre_momssats:'25', ordre_betalingsbet:(DK_UI?'Netto 8 dage':'Net 8 days'), ordre_betalingsdage:'8',
+    ordre_momssats:'25', ordre_betalingsbet:(DK_UI?'Netto':'Net'), ordre_betalingsdage:'8',
     ordre_institution:'', ordre_ean:'5790000000000', ordre_hvem:(DK_UI?'Test Testesen':'Test Person'), ordre_notes:'',
     ordre_lev_navn:(DK_UI?'Testlager':'Test Warehouse'), ordre_lev_addr1:(DK_UI?'Testvej 5':'Test Street 5'), ordre_lev_addr2:'',
     ordre_lev_postnr:'1000', ordre_lev_bynavn:(DK_UI?'Testby':'Test City'), ordre_lev_kontakt:(DK_UI?'Test Testesen':'Test Person'),
@@ -1387,6 +1461,9 @@ print "</div>";
     formular_forfaldsdato:'22-07-2026', formular_betalingsid:'71000000123456', formular_grossWeight:'12,50', formular_netWeight:'10,00',
     forfalden_sum:'12.500,00', rykker_gebyr:'100,00'
   };
+  // the company's own details (adresser art S) replace the samples it has filled in, so the preview shows the real letterhead
+  var OWN = <?php echo json_encode($fe_own); ?> || {};
+  Object.keys(OWN).forEach(function(k){ if (OWN[k]) SAMPLE[k] = OWN[k]; });
   // sample values for order-line columns, per sample row
   var COL_SAMPLE = {
     posnr:['1','2','3'], varenr:['VN-100','VN-205','VN-330'], lev_varenr:['LV-1','LV-2','LV-3'],
@@ -1405,9 +1482,22 @@ print "</div>";
   var VAR_MAP  = <?php echo json_encode(fe_var_map()); ?> || {};
   var LOGO_URL = <?php echo json_encode($fe_logo_url); ?>;
   var LOGO_NAT = { w: <?php echo (int) $fe_logo_w; ?>, h: <?php echo (int) $fe_logo_h; ?> };
+  var LOGO_PLACE = <?php echo json_encode($fe_logo_place); ?>;
+  // why an upload failed (includes/formEditorState.php fe_logo_store()), instead of one message for every cause
+  var LOGO_ERR = <?php echo json_encode(array(
+    'nofile'  => $T('Filen kom ikke frem til serveren – prøv igen', 'The file did not reach the server – try again'),
+    'toobig'  => $T('Billedet er større end 5 MB', 'The image is larger than 5 MB'),
+    'badtype' => $T('Filen er ikke et PNG- eller JPG-billede', 'The file is not a PNG or JPG image'),
+    'badimg'  => $T('Billedet kunne ikke læses', 'The image could not be read'),
+    'store'   => $T('Logoet kunne ikke gemmes på serveren (logomappen er skrivebeskyttet) – kontakt support', 'The logo could not be saved on the server (the logo folder is read-only) – contact support'),
+  )); ?>;
+  // the logo as it is live now: Gem & aktivér warns when it changed, as the logo has one place on every document
+  function logoKey() { var l = elements.filter(function(el){ return el.kind==='logo'; })[0]; return l ? [l.xa, l.ya, l.xb, l.yb].join('|') : ''; }
+  var LOGO_LIVE = logoKey(), LOGO_URL_LIVE = <?php echo json_encode($fe_logo_live_url); ?>;
   var FE_DRAFT = <?php echo json_encode($fe_draft); ?>;   // saved working state, or null
   var FE_MAIL  = <?php echo json_encode($fe_mail); ?>;    // e-mail text (subject/body/attachment)
   var formNr = <?php echo (int) $form_nr; ?>;
+  var FE_DB  = <?php echo (int) $db_id; ?>;
   var sprog  = <?php echo json_encode($sprog); ?>;
   var FE_CSRF = <?php echo json_encode($fe_csrf_token); ?>;
   var FE_PRINTLANG = <?php echo json_encode($fe_printlang); ?>;   // sprog this form is forced to print in, or ''
@@ -1443,6 +1533,8 @@ print "</div>";
     logoRemoved: <?php echo json_encode($T('Logo fjernet','Logo removed')); ?>,
     logoNone: <?php echo json_encode($T('Der er intet logo at fjerne','There is no logo to remove')); ?>,
     logoPlaceholder: <?php echo json_encode($T('+ logo','+ logo')); ?>,
+    logoAdd: <?php echo json_encode($T(' Tilføj logo',' Add logo')); ?>,
+    logoChange: <?php echo json_encode($T(' Skift logo',' Change logo')); ?>,
     savingDraft: <?php echo json_encode($T('Gemmer kladde…','Saving draft…')); ?>,
     draftSaved:  <?php echo json_encode($T('Kladde gemt (ikke live)','Draft saved (not live)')); ?>,
     draftFound:  <?php echo json_encode($T('Du har en gemt kladde fra %s.','You have a saved draft from %s.')); ?>,
@@ -1597,6 +1689,7 @@ print "</div>";
     for (var ri = 0; ri < rows; ri++) {
       var ymm = g.ya - ri * g.spacing;
       table.cols.forEach(function(c){
+        if (!c.xa) return;   // like the print: skriv() skips a column at x 0
         var arr = COL_SAMPLE[c.type];
         var val = (arr && arr[ri] !== undefined) ? arr[ri] : '';
         if (val === '') return;
@@ -2264,7 +2357,7 @@ print "</div>";
       body: JSON.stringify({ form_nr: formNr, sprog: sprog }), credentials:'same-origin'
     }).then(function(r){ return r.json(); }).then(function(j){
       if(j && j.ok){
-        LOGO_URL=''; LOGO_NAT={w:0,h:0};
+        LOGO_URL=''; LOGO_NAT={w:0,h:0}; refreshLogoBtn();
         render(); showProps();
         flashStatus(L.logoRemoved, '#2a7d2a');
       } else if(j && j.error==='session'){ flashStatus(L.session,'#c00'); }
@@ -2272,6 +2365,7 @@ print "</div>";
     }).catch(function(){ flashStatus(L.neterr,'#c00'); });
   }
   function flashStatus(msg, col) { statusEl.textContent = msg; statusEl.style.color = col || '#444'; }
+  function refreshLogoBtn() { var b = document.getElementById('fe-add-logo'); if (b && b.lastChild) b.lastChild.textContent = LOGO_URL ? L.logoChange : L.logoAdd; }
 
   // ---- add new elements ---------------------------------------------------
   // Place near the middle of the visible canvas area so the user sees it.
@@ -2600,8 +2694,11 @@ print "</div>";
   function bindProp(id, fn) {
     var n=document.getElementById(id);
     if (!n) return;
-    n.addEventListener('change', function(){ var el=elById(selId); if(!el) return; pushUndo(); fn(el, n); render(); markDirty(); });
-    n.addEventListener('input', function(){ var el=elById(selId); if(!el) return; fn(el, n); render(); });
+    // one undo step per edit: the snapshot is taken before the first change (typing applies it at once)
+    var pushed=false;
+    n.addEventListener('focus', function(){ pushed=false; });
+    n.addEventListener('input', function(){ var el=elById(selId); if(!el) return; if(!pushed){ pushUndo(); pushed=true; } fn(el, n); render(); });
+    n.addEventListener('change', function(){ var el=elById(selId); if(!el) return; if(!pushed) pushUndo(); pushed=false; fn(el, n); render(); markDirty(); });
   }
   bindProp('fe-x', function(el,n){ el.xa=clampX(parseFloat(n.value)||0); });
   bindProp('fe-y', function(el,n){ el.ya=clampY(parseFloat(n.value)||0); });
@@ -2687,7 +2784,13 @@ print "</div>";
   // the shared translator (feTranslateCaption / TR_PAIRS). Only text captions
   // are touched, never variables/chips. Reversible + undoable. Returns count.
   function applyTranslation() {
-    var toEN = !DK_UI;               // English UI -> template captions to English
+    // the language version open decides: Dansk (the standard) follows the user's language, English goes to English,
+    // any other version (German, a department's own) is left as it is
+    var v = String(sprog||'').toLowerCase();
+    var toEN;
+    if (v==='' || v==='dansk' || v==='danish') toEN = !DK_UI;
+    else if (v==='english' || v==='engelsk') toEN = true;
+    else return 0;
     var n = 0;
     elements.forEach(function(el){
       if (el.kind!=='text') return;
@@ -2705,6 +2808,19 @@ print "</div>";
     var btn=document.getElementById('fe-logo-upload'), fin=document.getElementById('fe-logo-file');
     if(!btn||!fin) return;
     btn.addEventListener('click', function(){ fin.click(); });
+    // Tilføj logo / Skift logo in the toolbar: select the form's logo (a form without one gets it where the others have it)
+    var tb=document.getElementById('fe-add-logo');
+    if(tb) tb.addEventListener('click', function(){
+      var el=elements.filter(function(e){ return e.kind==='logo'; })[0];
+      if(!el){
+        pushUndo();
+        el={ id: nextTmpId--, art: 1, kind: 'logo', besk: 'LOGO', xa: LOGO_PLACE.xa, ya: LOGO_PLACE.ya, xb: LOGO_PLACE.xb, yb: LOGO_PLACE.yb,
+             str: 0, color: 0, justering: 'V', font: 'Helvetica', fed: 0, kursiv: 0, side: 'A' };
+        elements.push(el); markDirty();
+      }
+      selId=el.id; render(); showProps();
+      fin.click();
+    });
     fin.addEventListener('change', function(){
       if(!fin.files || !fin.files[0]) return;
       var el=elById(selId); if(!el||el.kind!=='logo') return;
@@ -2713,13 +2829,13 @@ print "</div>";
       fetch('formeditor.php?fe_action=logo_upload', { method:'POST', headers:{'X-CSRF-Token':FE_CSRF}, body:fd, credentials:'same-origin' })
         .then(function(r){ return r.json(); }).then(function(j){
           if(j && j.ok){
-            LOGO_URL=j.url; LOGO_NAT={w:j.w,h:j.h};
+            LOGO_URL=j.url; LOGO_NAT={w:j.w,h:j.h}; refreshLogoBtn();
             pushUndo();
             if(!(el.xb>0)){ el.xb=35; el.yb=Math.round((35*j.h/j.w)*10)/10; }
             render(); showProps(); markDirty();
             flashStatus(<?php echo json_encode($T('Logo uploadet – husk Gem','Logo uploaded – remember Save')); ?>, '#2a7d2a');
           } else if(j && j.error==='session'){ flashStatus(L.session,'#c00'); }
-          else { flashStatus(<?php echo json_encode($T('Kunne ikke uploade (kun PNG/JPG, maks 5 MB)','Upload failed (PNG/JPG only, max 5 MB)')); ?>,'#c00'); }
+          else { flashStatus(LOGO_ERR[(j && j.error) || ''] || LOGO_ERR.badtype, '#c00'); }
           fin.value='';
         }).catch(function(){ flashStatus(L.neterr,'#c00'); fin.value=''; });
     });
@@ -2730,8 +2846,10 @@ print "</div>";
   // table property inputs
   function bindTableProp(id, fn) {
     var n=document.getElementById(id); if (!n) return;
-    n.addEventListener('change', function(){ if(!table) return; pushUndo(); fn(n); render(); markDirty(); });
-    n.addEventListener('input', function(){ if(!table) return; fn(n); render(); });
+    var pushed=false;
+    n.addEventListener('focus', function(){ pushed=false; });
+    n.addEventListener('input', function(){ if(!table) return; if(!pushed){ pushUndo(); pushed=true; } fn(n); render(); });
+    n.addEventListener('change', function(){ if(!table) return; if(!pushed) pushUndo(); pushed=false; fn(n); render(); markDirty(); });
   }
   bindTableProp('fe-trows',  function(n){ table.gen.count=Math.max(1, Math.round(parseFloat(n.value)||1)); });
   bindTableProp('fe-tspace', function(n){ table.gen.spacing=parseFloat(n.value)||table.gen.spacing; });
@@ -2742,7 +2860,7 @@ print "</div>";
     if ((e.ctrlKey||e.metaKey) && (e.key==='z'||e.key==='Z') && e.shiftKey) { e.preventDefault(); redo(); return; }
     if ((e.ctrlKey||e.metaKey) && (e.key==='y'||e.key==='Y')) { e.preventDefault(); redo(); return; }
     if ((e.ctrlKey||e.metaKey) && (e.key==='z'||e.key==='Z')) { e.preventDefault(); undo(); return; }
-    var inField = document.activeElement && (document.activeElement.tagName==='INPUT' || document.activeElement.tagName==='TEXTAREA' || document.activeElement.tagName==='SELECT');
+    var inField = document.activeElement && (document.activeElement.tagName==='INPUT' || document.activeElement.tagName==='TEXTAREA' || document.activeElement.tagName==='SELECT' || document.activeElement.isContentEditable);
     // ---- editor clipboard shortcuts (copy/paste like a real editor) --------
     if ((e.ctrlKey||e.metaKey) && !inField) {
       var k=(e.key||'').toLowerCase();
@@ -2796,10 +2914,16 @@ print "</div>";
     var ph = elements.filter(function(el){ return el.kind==='text' && (el.besk===NEW_TEXT || !String(el.besk||'').trim()); }).length;
     if (ph > 0 && !window.confirm(ph + (DK_UI ? ' tomme/uredigerede tekstfelter (fx “Ny tekst”) kommer med på udskriften. Gem & aktivér alligevel?'
                                              : ' empty/unedited text fields (e.g. “New text”) will appear on the print. Save & activate anyway?'))) return;
+    // the logo has one place on every document: moving it here moves it on all of them (owner, 14 Nov 2026)
+    if (LOGO_URL && (logoKey() !== LOGO_LIVE || LOGO_URL !== LOGO_URL_LIVE) && !window.confirm(DK_UI
+        ? 'Logoet står samme sted på alle dokumenter.\n\nNår du gemmer, flytter logoet også på tilbud, ordrebekræftelse, følgeseddel, faktura, kreditnota, rykkere, plukliste og indkøbsdokumenter. Tjek at det ikke dækker tekst på de andre formularer.\n\nGem & aktivér?'
+        : 'The logo has one place on every document.\n\nWhen you save, the logo also moves on the quote, order confirmation, delivery note, invoice, credit note, reminders, pick list and purchase documents. Check that it does not cover text on the other forms.\n\nSave & activate?')) return;
     if (feClampText()) { render(); if (selId) syncProps(); }   // never save a title that would print off the top
     statusEl.textContent=L.saving; statusEl.style.color='#444';
     var payload = elements.map(function(el){
-      return { id: el.id, art: el.art, xa: el.xa, ya: el.ya, xb: el.xb, yb: el.yb, str: el.str, color: el.color, justering: el.justering, fed: el.fed, kursiv: el.kursiv, besk: el.besk, font: el.font, side: el.side };
+      // the engine reads a field up to a space or ';': a field followed by other text gets the terminator (Tlf: $egen_tlf, CVR)
+      var besk = (el.kind==='text' && typeof el.besk==='string') ? el.besk.replace(/(\$[A-Za-z][A-Za-z0-9_]*)(?=[^A-Za-z0-9_\s;()])/g, '$1;') : el.besk;
+      return { id: el.id, art: el.art, xa: el.xa, ya: el.ya, xb: el.xb, yb: el.yb, str: el.str, color: el.color, justering: el.justering, fed: el.fed, kursiv: el.kursiv, besk: besk, font: el.font, side: el.side };
     });
     if (table) {
       // generelt row: xa=row count, ya=top Y, xb=row spacing
@@ -2813,12 +2937,21 @@ print "</div>";
     }).then(function(r){ return r.json(); }).then(function(j){
       if (j && j.ok) {
         dirty=false; deletedIds=[]; clearAutosave();   // work is live now
+        LOGO_LIVE = logoKey(); LOGO_URL_LIVE = LOGO_URL;
         // patch newly-inserted elements with their real DB ids
-        if (j.inserted) { elements.forEach(function(el){ if (el.id<=0 && j.inserted[el.id]!=null) el.id = j.inserted[el.id]; }); }
+        if (j.inserted) {
+          elements.forEach(function(el){ if (el.id<=0 && j.inserted[el.id]!=null) el.id = j.inserted[el.id]; });
+          if (selId!=null && j.inserted[selId]!=null) selId = j.inserted[selId];
+          selSet = selSet.map(function(i){ return j.inserted[i]!=null ? j.inserted[i] : i; });
+        }
+        // the history held temporary ids and deleted rows: an undo past the save could save them twice, so it starts afresh
+        undoStack = []; redoStack = [];
+        if (j.logo_url) { LOGO_URL = j.logo_url; LOGO_URL_LIVE = LOGO_URL; render(); }
         hideDraftBanner();   // activating supersedes the draft (server deleted it)
         statusEl.textContent=L.saved.replace('%s', j.updated); statusEl.style.color='#2a7d2a';
       }
       else if (j && j.error==='session') { statusEl.textContent=L.session; statusEl.style.color='#c00'; }
+      else if (j && j.error==='denied' && j.message) { statusEl.textContent=j.message; statusEl.style.color='#c00'; }
       else { statusEl.textContent=L.failed; statusEl.style.color='#c00'; }
     }).catch(function(){ statusEl.textContent=L.neterr; statusEl.style.color='#c00'; });
   });
@@ -2833,7 +2966,7 @@ print "</div>";
       method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-Token':FE_CSRF},
       body: JSON.stringify({ form_nr: formNr, sprog: sprog, state: currentState() }), credentials:'same-origin'
     }).then(function(r){ return r.json(); }).then(function(j){
-      if (j && j.ok) { dirty=false; statusEl.textContent=L.draftSaved; statusEl.style.color='#2a7d2a'; }
+      if (j && j.ok) { dirty=false; clearAutosave(); statusEl.textContent=L.draftSaved; statusEl.style.color='#2a7d2a'; }
       else if (j && j.error==='session') { statusEl.textContent=L.session; statusEl.style.color='#c00'; }
       else { statusEl.textContent=L.failed; statusEl.style.color='#c00'; }
     }).catch(function(){ statusEl.textContent=L.neterr; statusEl.style.color='#c00'; });
@@ -2870,7 +3003,7 @@ print "</div>";
   // ---- autosave (Tier 3): local safety net so work survives a tab close ---
   // Debounced snapshot to localStorage (client-only, never hits the server or
   // goes live). On reload we offer to restore it. Cleared on Save & activate.
-  var AUTO_KEY = 'fe_autosave_' + formNr + '_' + String(sprog).replace(/[^A-Za-z0-9_]/g,'_');
+  var AUTO_KEY = 'fe_autosave_' + FE_DB + '_' + formNr + '_' + String(sprog).replace(/[^A-Za-z0-9_]/g,'_');
   var autosaveArmed = false, autosaveTimer = null, autoBanner = null;
   function scheduleAutosave(){
     if (!autosaveArmed) return;
@@ -2913,7 +3046,7 @@ print "</div>";
       method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-Token':FE_CSRF},
       body: JSON.stringify({ form_nr: formNr, sprog: sprog }), credentials:'same-origin'
     }).then(function(r){ return r.json(); }).then(function(j){
-      if (j && j.ok) { dirty=false; statusEl.textContent=L.resetDone; statusEl.style.color='#2a7d2a'; setTimeout(function(){ location.reload(); }, 400); }
+      if (j && j.ok) { dirty=false; clearAutosave(); statusEl.textContent=L.resetDone; statusEl.style.color='#2a7d2a'; setTimeout(function(){ location.reload(); }, 400); }
       else if (j && j.error==='session') { statusEl.textContent=L.session; statusEl.style.color='#c00'; }
       else if (j && j.error==='nostd')   { statusEl.textContent=L.resetNoStd; statusEl.style.color='#c00'; }
       else { statusEl.textContent=L.failed; statusEl.style.color='#c00'; }
@@ -2986,12 +3119,16 @@ print "</div>";
   // breaks in the textarea and convert back on save, so the client never sees HTML.
   function mailNl2br(s){ return String(s||'').replace(/\r?\n/g,'<br>'); }
   function mailSanitize(html){
-    var d=document.createElement('div'); d.innerHTML=String(html||'');
-    Array.prototype.forEach.call(d.querySelectorAll('script,style'), function(n){ n.remove(); });
+    // parsed in an inert template (nothing loads or runs), then scripts, frames, event handlers and javascript: links go
+    var t=document.createElement('template'); t.innerHTML=String(html||''); var d=t.content;
+    Array.prototype.forEach.call(d.querySelectorAll('script,style,iframe,object,embed,link,meta,base,form'), function(n){ n.remove(); });
     Array.prototype.forEach.call(d.querySelectorAll('*'), function(n){
-      for(var i=n.attributes.length-1;i>=0;i--){ if(/^on/i.test(n.attributes[i].name)) n.removeAttribute(n.attributes[i].name); }
+      for(var i=n.attributes.length-1;i>=0;i--){
+        var a=n.attributes[i];
+        if(/^on/i.test(a.name) || (/^(href|src|xlink:href|action|formaction)$/i.test(a.name) && /^\s*(javascript|data|vbscript):/i.test(a.value))) n.removeAttribute(a.name);
+      }
     });
-    return d.innerHTML;
+    var w=document.createElement('div'); w.appendChild(d.cloneNode(true)); return w.innerHTML;
   }
   var EMAIL_TEMPLATES = [
     { name:(DK_UI?'Standard':'Standard'),
@@ -3037,7 +3174,7 @@ print "</div>";
     document.getElementById('fe-wrap').appendChild(mailModal);
     var bodyEl=mailModal.querySelector('#fe-mail-body');
     mailModal.querySelector('#fe-mail-subject').value = FE_MAIL.subject||'';
-    bodyEl.innerHTML = mailNl2br(FE_MAIL.body);
+    bodyEl.innerHTML = mailSanitize(mailNl2br(FE_MAIL.body));
     if(FE_MAIL.has_attach) mailModal.querySelector('#fe-mail-attach').value = FE_MAIL.attach||'';
     var tplHost=mailModal.querySelector('#fe-mail-tpls');
     EMAIL_TEMPLATES.forEach(function(t){
@@ -3165,7 +3302,7 @@ print "</div>";
   // regardless of the customer's language (writes a per-form lock file server-side).
   (function(){
     var cb=document.getElementById('fe-printlang'); if(!cb) return;
-    cb.checked = (FE_PRINTLANG !== '' && FE_PRINTLANG != null);
+    cb.checked = (FE_PRINTLANG === sprog);   // ticked on the language version it locks to, not on every version
     cb.addEventListener('change', function(){
       var lock=cb.checked;
       if(lock && !window.confirm(DK_UI
@@ -3970,5 +4107,6 @@ print "</div>";
 </script>
 
 <?php
+settings_layout_close();
 print "</body></html>\n";
 ?>

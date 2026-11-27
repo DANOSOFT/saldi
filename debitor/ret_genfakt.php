@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ret_genfakt.php --- lap 5.0.0 --- 2026-10-25 ---
+// --- debitor/ret_genfakt.php --- ver 5.1.1 --- 2026-11-26 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,9 +23,9 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2026 saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 16.08.2012 søg 20120816 - Udskriv_til i rødt hvis stamkort siger pbs og dette ikke er valgt.
 // 12.12.2012.søg 20121212 - Kontrolfejl v. pbs fakturering i 12. måned.
 // 17.01.2013 søg 20130117 - Fejl vi udskrivning til flere forskellige medier - f.eks alle til mail selvom 9 af 10 er til pbs.
@@ -40,9 +40,16 @@
 // 2017.05.30 Betalingsdage sættes til 0 hvis ikke sat. Søg 20170530
 // 20241216 PHR PHP8
 // 20260121 PHR Corrected error in elseif statement  ($gl_betalingsbet && $ny_betaling..... )
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261028 CDX/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
+// 20261105 CL/LH Two users adding lines to one subscription order no longer give lines the same posnr (testlab concurrent-posting DEVY-1, same code as debitor/ordre.php).
+//                Each order in the form carries the ids of the lines it was drawn with (order_lines_drawn), and its save puts a new line after the lines it did not show and keeps those off the positions it writes (includes/stdFunc/orderLinePositions.php).
+//                Each order's lines are saved in a transaction of their own that locks the order row first, so a second save reads the lines the first one wrote.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261117 CL/ASR A line with a discount in kr per unit (rabatart 'amount') counts it as kr in the line's I alt and in the order total the save writes, as posting counts it.
+//                 The VAT the save writes leaves out a reverse-charge line (omvbet), as momsupdat() does.
 // 20261025 CL/ASR Udskriv til 'Link' keeps mail_fakt (was cleared, so Link invoices were not mailed).
-
+// 20261126 CL/ASR Stripe port (#873): an order with Udskriv til 'Link' (E-mail med link) keeps mail_fakt like 'email', and falls back to PDF when the customer has no e-mail.
 print "<script>
 	function fokuser(that, fgcolor, bgcolor){
 	that.style.color = fgcolor;
@@ -67,6 +74,7 @@ include("../includes/ordrefunc.php");
 include("../includes/var2str.php");
 include("../includes/forfaldsdag.php");
 include("../includes/oioublfunk.php");
+include_once(__DIR__ . '/../includes/stdFunc/orderLinePositions.php');
 
 $incl_moms='';
 $art='DO';
@@ -256,34 +264,57 @@ if ($_GET['ordreliste']) {
 		}
 	}
 	if ($fejltekst) print "<BODY onLoad=\"javascript:alert('$fejltekst')\">\n";
+	// Each order's lines are saved in a transaction of their own, which locks the order row first, as debitor/ordre.php
+	// saves an order: a colleague's save of the order ends before this one reads its lines.
+	$linesDrawn = if_array($_POST, 'order_lines_drawn'); // the ids of each order's lines when the form was drawn
+	$linesByOrder = array();
 	for ($x=1 ; $x<=$linjeantal ; $x++) {
-		if ($posnr[$x]=='-') {
-			if ($linje_id[$x]) db_modify("delete from ordrelinjer where id='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
-		} else {
+		$linesByOrder[(int)($ordre_id[$x] ?? 0)][] = $x;
+	}
+	foreach ($linesByOrder as $lineOrderId => $orderLines) {
+		$linesAddedSinceForm = array();
+		if ($lineOrderId) {
+			transaktion('begin');
+			order_lines_lock($lineOrderId);
+			// Lines this form did not show (added by a colleague), before this save writes any line of the order.
+			$linesAddedSinceForm = order_lines_added_since($lineOrderId, $linesDrawn[$lineOrderId] ?? null, $linje_id);
+		}
+		foreach ($orderLines as $x) {
+			if ($posnr[$x]=='-') {
+				if ($linje_id[$x]) db_modify("delete from ordrelinjer where id='$linje_id[$x]'",__FILE__ . " linje " . __LINE__);
+			} else {
 #			if ($ordreliste[$x])
-			$posnr[$x]=$posnr[$x]*1;
-			if ($dkantal[$x]=='') $dkantal[$x]=1; 
-			$antal=usdecimal($dkantal[$x]);
-			(strlen($dkpris[$x]))?$pris=usdecimal($dkpris[$x]):$pris=NULL; #20130916
-			$rabat=usdecimal($dkrabat[$x]);
-			$procent=usdecimal($dkprocent[$x]);
-			$beskrivelse[$x]=trim(db_escape_string($beskrivelse[$x]));
-			if (!$projekt[$x]) $projekt[$x]='';
+				$posnr[$x]=$posnr[$x]*1;
+				if ($dkantal[$x]=='') $dkantal[$x]=1;
+				$antal=usdecimal($dkantal[$x]);
+				(strlen($dkpris[$x]))?$pris=usdecimal($dkpris[$x]):$pris=NULL; #20130916
+				$rabat=usdecimal($dkrabat[$x]);
+				$procent=usdecimal($dkprocent[$x]);
+				$beskrivelse[$x]=trim(db_escape_string($beskrivelse[$x]));
+				if (!$projekt[$x]) $projekt[$x]='';
+				// A new line put after every line the form showed also goes after the lines added since. Pos is posnr here.
+				if (empty($linje_id[$x]) && $lineOrderId) $posnr[$x] = order_line_new_position($lineOrderId, $linesAddedSinceForm, $posnr[$x], 1);
 # if ($linje_id[$x]) echo "update ordrelinjer set posnr='$posnr[$x]',antal='$antal',beskrivelse='$beskrivelse[$x]',pris='$pris',rabat='$rabat',kdo='$kdo[$x]',projekt='$projekt[$x]' where id='$linje_id[$x]'<br>";
-			if ($linje_id[$x]) {
-				$pris*=1;
-				$qtxt = "update ordrelinjer set posnr='$posnr[$x]',antal='$antal',beskrivelse='$beskrivelse[$x]',pris='$pris',rabat='$rabat',";
-				$qtxt.= "procent='$procent',kdo='$kdo[$x]',projekt='$projekt[$x]' where id='$linje_id[$x]'";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			} elseif ($varenr[$x]) {
-				opret_ordrelinje($ordre_id[$x],'',$varenr[$x],$antal,$beskrivelse[$x],$pris,$rabat,$procent,$art,'',$posnr[$x],0,$incl_moms,
-				$kdo[$x],'','','','','',0,__line__);
-			} elseif ($beskrivelse[$x])  {
-				$qtxt = "insert into ordrelinjer (posnr,antal,beskrivelse,pris,rabat,ordre_id,kdo,procent) values ";
-				$qtxt.= "('$posnr[$x]','0','$beskrivelse[$x]','0','0','$ordre_id[$x]','$kdo[$x]','100')";
-				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-			} else $ordre_id[$x]=NULL;
-		}   
+				if ($linje_id[$x]) {
+					$pris*=1;
+					$qtxt = "update ordrelinjer set posnr='$posnr[$x]',antal='$antal',beskrivelse='$beskrivelse[$x]',pris='$pris',rabat='$rabat',";
+					$qtxt.= "procent='$procent',kdo='$kdo[$x]',projekt='$projekt[$x]' where id='$linje_id[$x]'";
+					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+				} elseif ($varenr[$x]) {
+					opret_ordrelinje($ordre_id[$x],'',$varenr[$x],$antal,$beskrivelse[$x],$pris,$rabat,$procent,$art,'',$posnr[$x],0,$incl_moms,
+					$kdo[$x],'','','','','',0,__line__);
+				} elseif ($beskrivelse[$x])  {
+					$qtxt = "insert into ordrelinjer (posnr,antal,beskrivelse,pris,rabat,ordre_id,kdo,procent) values ";
+					$qtxt.= "('$posnr[$x]','0','$beskrivelse[$x]','0','0','$ordre_id[$x]','$kdo[$x]','100')";
+					db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+				} else $ordre_id[$x]=NULL;
+			}
+		}
+		if ($lineOrderId) {
+			// The positions this form wrote may be those of lines it never showed.
+			order_lines_keep_added_apart($lineOrderId, $linesAddedSinceForm);
+			transaktion('commit');
+		}
 	}
 	
 	for ($x=0 ; $x<=$ordreantal ; $x++) {
@@ -295,12 +326,13 @@ if ($_GET['ordreliste']) {
 				$bl_moms=0;
 				$momssum=0;
 				$ordresum=0;
-				$q=db_select("select antal,pris,rabat,momsfri from ordrelinjer where ordre_id = '$ordreliste[$x]' and vare_id>'0'",__FILE__ . " linje " . __LINE__);
+				$q=db_select("select antal,pris,rabat,rabatart,momsfri,omvbet from ordrelinjer where ordre_id = '$ordreliste[$x]' and vare_id>'0'",__FILE__ . " linje " . __LINE__);
 				while($r=db_fetch_array($q)){
-					$linjesum=afrund($r['antal']*($r['pris']-($r['pris']*$r['rabat']/100)),2);
+					if ($r['rabatart']=='amount') $linjesum=afrund($r['antal']*($r['pris']-$r['rabat']),2);
+					else $linjesum=afrund($r['antal']*($r['pris']-($r['pris']*$r['rabat']/100)),2);
 					$ordresum+=$linjesum;
-					if ($momssats && !$r['momsfri']) $momssum+=afrund($linjesum*$momssats/100,2);
-					elseif ($momssats && $r['momsfri']) $bl_moms=1;
+					if ($momssats && !$r['momsfri'] && !$r['omvbet']) $momssum+=afrund($linjesum*$momssats/100,2);
+					elseif ($momssats && ($r['momsfri'] || $r['omvbet'])) $bl_moms=1;
 				}
 				if($momssats && !$bl_moms) $momssum=$ordresum*$momssats/100;
 				db_modify("update ordrer set sum='$ordresum',moms='$momssum' where id='$ordreliste[$x]' and status < '3'",__FILE__ . " linje " . __LINE__);
@@ -375,6 +407,10 @@ if ($_GET['ordreliste']) {
 					else $udskriv="$ordreliste[$x]"; 
 #xit;
 					transaktion('commit');
+					if (empty($GLOBALS['db_modify_fejl'])) {
+						shopSyncDrainQueue();
+						shopSyncAlertFailedItems();
+					}
 				} elseif ($ordreantal) {
 					if (strpos($svar,'invoicedate prior to')) $tekst="Genfaktureringsdato før fakturadato";
 					else $tekst="Der er konstateret en ubalance i posteringssummen\\nfor ordre $ordreliste[$x]\\nkontakt venligst Danosoft på tlf. +45 46902208";
@@ -464,6 +500,8 @@ for ($x=0 ; $x<=$ordreantal ; $x++) {
 #	if ($stam_email[$x]) $spantekst2.="<br>$stam_email[$x]";
 
 	print "<input type=\"hidden\" name=\"ordreliste[$x]\" value=\"$id[$x]\">";
+	// The ids of the order's lines, read before they are drawn below and printed before the fields each line repeats.
+	print "<input type=\"hidden\" name=\"order_lines_drawn[$id[$x]]\" value=\"" . order_lines_drawn($id[$x]) . "\">";
 	print "<input type=\"hidden\" name=\"projekt[$x]\" value=\"$projekt[$x]\">";
 	print "<tr><td width=\"100%\"><table cellpadding=\"0\" cellspacing=\"0\" border=\"1\" width=\"100%\"><tbody>";
 	print "<tr>";
@@ -588,7 +626,8 @@ for ($x=0 ; $x<=$ordreantal ; $x++) {
 		if ($r['kdo']) $kdo[$y]='checked';
 		else $kdo[$y]='';
 
-		$linjesum=$r['pris']*$r['antal']-($r['pris']*$r['antal']*$r['rabat']/100);
+		if ($r['rabatart']=='amount') $linjesum=($r['pris']-$r['rabat'])*$r['antal'];
+		else $linjesum=$r['pris']*$r['antal']-($r['pris']*$r['antal']*$r['rabat']/100);
 		if ($procentfakt)$linjesum*=$r['procent']/100;
 		$ordresum+=$linjesum;
 		$linjesum=dkdecimal($linjesum);

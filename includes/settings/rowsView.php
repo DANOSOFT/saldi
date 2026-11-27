@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/rowsView.php --- lap 5.0.0 --- 2026.10.05 ---
+// ---- includes/settings/rowsView.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,22 +15,50 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261006 Sawaneh Row actions may show per-row confirm text ('confirm_args') and ask for one value ('input', posted as arg).
-// 20261006 Sawaneh §8.13: an empty table with a standard set offers "Opret dansk standardsæt" and "Tilføj selv".
-// 20261005 Sawaneh 4d: read-only columns and locked rows, row actions (with password for danger-zone ones), a parent
-//                  picker above a filtered table, a create card below a table and the confirmation of posted amounts.
-// 20261005 Sawaneh Settings redesign phase 4c (spec §8.2, mock-up 04): a section of 'kind' rows. One card per table:
-//                  column headers, every cell an input, an always-available "Tilføj" row, trash (with the usage count)
-//                  and the inaktiv eye; ordinary fields of the section above the tables; year selector for per-year
-//                  tables. Behaviour in javascript/settingsRows.js.
-// 20261008 Sawaneh A table with 'hide_empty' and no rows is not shown (old discounts in G3.5).
-// 20261008 Sawaneh A table's 'confirm_skip' adds a second confirm button (master's SST-769 Gem kurs uden bogføring).
-// 20261016 Sawaneh The "copy from year" button points at its own form printed after the main one; a form inside the main form
-//                  closed it early, so later blocks fell out of the layout and Save posted the copy action.
-
+// 20261006 SS Row actions may show per-row confirm text ('confirm_args') and ask for one value ('input', posted as arg).
+// 20261006 SS §8.13: an empty table with a standard set offers "Opret dansk standardsæt" and "Tilføj selv".
+// 20261005 SS 4d: read-only columns and locked rows, row actions (with password for danger-zone ones), a parent picker above a filtered table, a create card below a table and the confirmation of posted amounts.
+// 20261005 SS Settings redesign phase 4c (spec §8.2, mock-up 04): a section of 'kind' rows.
+//             One card per table: column headers, every cell an input, an always-available "Tilføj" row, trash (with the usage count) and the inaktiv eye; ordinary fields of the section above the tables; year selector for per-year tables.
+//             Behaviour in javascript/settingsRows.js.
+// 20261008 SS A table with 'hide_empty' and no rows is not shown (old discounts in G3.5).
+// 20261008 SS A table's 'confirm_skip' adds a second confirm button (master's SST-769 Gem kurs uden bogføring).
+// 20261016 SS The "copy from year" button points at its own form printed after the main one; a form inside the main form closed it early, so later blocks fell out of the layout and Save posted the copy action.
+// 20261101 CL/ASR New design (prototype D): the page's root carries the kit's scope class sk; the look is css/unified-components.css on the kit's tokens.
+// 20261101 CL/ASR Settings hub "C - Fold ud": the left menu is settings_menu_html() (includes/settings/listView.php), Tilbage above the title.
+// 20261101 CL/ASR Review: Tilbage carries Alt+L, as on the other settings pages.
+// 20261102 CL/ASR Tilbage goes to the hub, or the module page the gear came from; settings_back_button() adds Alt+L itself.
+// 20261103 CL/ASR QA: "Gælder regnskabsåret" shows each year by its name (grupper RA beskrivelse, e.g.
+//                 2026), not its number (1, 2).
+//                 After a refused save a cell's data-orig is the stored value, not the posted one, so Fortryd and the unsaved-changes warning still see the change.
+// 20261105 CL/LH settings_rows_fields_by_sub(): a field the user may not see at all ('hide_without') is left out, so its sub-section has no empty heading (Momsperioder on Regnskabsår without Kassekladde).
+// 20261105 CL/LH A table card says whether its table has the inaktiv flag as data-can-inactive, not data-inactive, which only the eye carries.
+//                settingsRows.js took a click into a cell for a click on the eye (closest('[data-inactive]') found the card) and threw a TypeError on the card's missing row.
+// 20261105 CL/LH settingsRows.js?v=7, whose Gem posts only the cells that changed and the new rows, so a long table (a variant's values) stays under PHP's max_input_vars.
+//                The new version keeps a cached copy of the old script, which posted every cell, from being used.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 include_once(__DIR__ . '/rows.php');
+
+/**
+ * The section's fields per sub-section, drawn above its tables. Actions and mini rows are drawn elsewhere, and a field
+ * the user may not see at all (st_field_access() 'none', i.e. 'hide_without') is left out, so a sub-section holding
+ * only such fields gets no empty heading.
+ *
+ * @param array<string, array<string, mixed>> $defs the section's definitions, key => definition
+ * @return array<string, array<string, array<string, mixed>>> sub-section => key => definition
+ */
+function settings_rows_fields_by_sub(array $defs): array
+{
+	$fieldsBySub = array();
+	foreach ($defs as $key => $def) {
+		if (!in_array($def['type'], array('action', 'mini'), true) && st_field_access($def) !== 'none') {
+			$fieldsBySub[$def['sub']][$key] = $def;
+		}
+	}
+	return $fieldsBySub;
+}
 
 /**
  * @param array<string, mixed> $c everything the section view computed, plus 'tables', 'year', 'years', 'rowsPosted'
@@ -50,18 +78,12 @@ function settings_rows_render(array $c): void
 	foreach ($section['subsections'] as $sub => $label) {
 		$subs[$sub] = $label;
 	}
-	$fieldsBySub = array();
-	foreach ($defs as $key => $def) {
-		if (!in_array($def['type'], array('action', 'mini'), true)) {
-			$fieldsBySub[$def['sub']][$key] = $def;
-		}
-	}
+	$fieldsBySub = settings_rows_fields_by_sub($defs);
 	$tablesBySub = array();
 	foreach ($tables as $tableId => $t) {
 		$tablesBySub[$t['sub']][$tableId] = $t;
 	}
 	$history = SettingsService::history($sectionId, 20);
-	$otherTabs = $c['tabs'];
 	$posted = isset($c['rowsPosted']) ? $c['rowsPosted'] : array();
 	$errors = $state['errors'];
 	$config = $c['config'] + array(
@@ -84,19 +106,26 @@ function settings_rows_render(array $c): void
 <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
 <script>document.title = <?= json_encode(mb_convert_encoding(st_txt($section['label']), 'UTF-8', $charset)) ?>;</script>
 <?= settings_breadcrumb_script(settings_breadcrumb((string) $section['group'], st_txt($section['label']), $sprogId), $charset, isset($section['return_to']) ? (string) $section['return_to'] : '', isset($section['return_label']) ? (string) $section['return_label'] : '') ?>
-<div class="st-page st-page-rows" style="<?= st_h(st_accent_style((string) $c['accent'], (string) $c['accentTxt'])) ?>">
+<div class="sk st-page st-page-rows" style="<?= st_h(st_accent_style((string) $c['accent'], (string) $c['accentTxt'])) ?>">
   <a class="st-skip" href="#st-form"><?= st_t(5751) ?></a>
   <section class="st-phead">
     <div>
+      <?= settings_back_button($section['return_to'] !== '' ? '..' . $section['return_to'] : '') ?>
       <h1><?= st_t($section['label']) ?><?= st_section_help($section) ?></h1>
       <p class="st-lead"><?php if (!empty($section['lead'])) { ?><?= st_t($section['lead']) ?> <?php } ?><?= st_t(5706) ?> <?= st_h(st_company()) ?>.</p>
     </div>
-	<?php if ($fiscal) { ?>
+	<?php if ($fiscal) {
+		$yearNames = array();
+		$yq = db_select("select kodenr, beskrivelse from grupper where art = 'RA'", __FILE__ . " linje " . __LINE__);
+		while ($yr = db_fetch_array($yq)) {
+			$yearNames[(int) $yr['kodenr']] = trim((string) $yr['beskrivelse']);
+		}
+		?>
     <div class="st-scope">
       <label for="st-year"><?= st_t(6439) ?></label>
       <select class="st-input st-input-short" id="st-year" onchange="if (this.value) { window.location = this.value; }">
 			<?php foreach ($c['years'] as $y) { ?>
-        <option value="<?= st_h($yearUrl($y)) ?>"<?= $y === $year ? ' selected' : '' ?>><?= $y ?></option>
+        <option value="<?= st_h($yearUrl($y)) ?>"<?= $y === $year ? ' selected' : '' ?>><?= st_h(isset($yearNames[$y]) && $yearNames[$y] !== '' ? $yearNames[$y] : (string) $y) ?></option>
 			<?php } ?>
       </select>
     </div>
@@ -115,18 +144,7 @@ function settings_rows_render(array $c): void
 	<?php } ?>
 
   <div class="st-layout">
-    <nav class="st-tabs" aria-label="<?= st_h(html_entity_decode(findtekst($c['group']['label'], $sprogId), ENT_QUOTES | ENT_HTML5, $charset)) ?>">
-      <select class="st-tabs-select" onchange="if (this.value) { window.location = this.value; }">
-			<?php foreach ($otherTabs as $tab) { ?>
-        <option value="<?= st_h($tab['url']) ?>"<?= $tab['id'] === $sectionId ? ' selected' : '' ?>><?= st_h($tab['label']) ?></option>
-			<?php } ?>
-      </select>
-      <ul>
-			<?php foreach ($otherTabs as $tab) { ?>
-        <li><a href="<?= st_h($tab['url']) ?>"<?= $tab['id'] === $sectionId ? ' class="on" aria-current="page"' : '' ?>><span><?= st_h($tab['label']) ?></span><?= $tab['id'] === $sectionId ? '<i class="st-dot" id="st-dot" hidden aria-hidden="true"></i>' : '' ?></a></li>
-			<?php } ?>
-      </ul>
-    </nav>
+    <?= settings_menu_html($c['menu'], $sprogId, array('dot' => true, 'label' => st_txt($section['label']))) ?>
 
     <form class="st-form st-rows-form" id="st-form" method="post" action="<?= st_h($c['selfUrl']) ?>" autocomplete="off" novalidate>
       <input type="hidden" name="csrf_token" value="<?= st_h($c['csrfToken']) ?>">
@@ -270,7 +288,7 @@ function settings_rows_render(array $c): void
   <div class="st-snack" id="st-snack" role="status" hidden></div>
 </div>
 <script>window.SALDI_SETTINGS = <?= json_encode($config) ?>;</script>
-<script src="../javascript/settingsRows.js?v=4"></script>
+<script src="../javascript/settingsRows.js?v=7"></script>
 	<?php
 }
 
@@ -297,11 +315,13 @@ function settings_rows_table(array $c, string $tableId, array $t, array $posted,
 			$editable[] = $col;
 		}
 	}
-	$cell = function (string $rowId, string $col, array $def, string $value, array $row = null) use ($tableId, $canWrite, $errors) {
+	// $orig is the stored value (data-orig, the baseline for Fortryd and the unsaved-changes warning); after a refused save
+	// $value is what was posted, so the posted change still counts as unsaved.
+	$cell = function (string $rowId, string $col, array $def, string $value, array $row = null, ?string $orig = null) use ($tableId, $canWrite, $errors) {
 		$id = 'c-' . str_replace('.', '-', $tableId . '-' . $rowId . '-' . $col);
 		$name = 'r[' . $tableId . '][' . $rowId . '][' . $col . ']';
 		$err = isset($errors[$tableId . '/' . $rowId . '/' . $col]) ? (int) $errors[$tableId . '/' . $rowId . '/' . $col] : 0;
-		$attrs = ' id="' . st_h($id) . '" name="' . st_h($name) . '" data-orig="' . st_h($value) . '"' . ($err ? ' aria-invalid="true" title="' . st_t($err) . '"' : '');
+		$attrs = ' id="' . st_h($id) . '" name="' . st_h($name) . '" data-orig="' . st_h($orig !== null ? $orig : $value) . '"' . ($err ? ' aria-invalid="true" title="' . st_t($err) . '"' : '');
 		$ro = !$canWrite || $def['readonly'] || ($row && !empty($row['locked'])) || ($row && ($def['create_only'] || $def['transient']));
 		if ($def['type'] === 'code' && $row && $row['usage'] > 0) {
 			$ro = true;
@@ -357,7 +377,7 @@ function settings_rows_table(array $c, string $tableId, array $t, array $posted,
           </div>
 					<?php } ?>
         </div>
-        <div class="st-card st-rows" data-table="<?= st_h($tableId) ?>" data-inactive="<?= $t['inactive'] ? '1' : '0' ?>">
+        <div class="st-card st-rows" data-table="<?= st_h($tableId) ?>" data-can-inactive="<?= $t['inactive'] ? '1' : '0' ?>">
           <table class="st-rt" aria-labelledby="tbl-<?= st_h($tableId) ?>-h"<?= (!$rows && !$postedRows) ? ' hidden' : '' ?>>
             <thead>
               <tr>
@@ -375,8 +395,9 @@ function settings_rows_table(array $c, string $tableId, array $t, array $posted,
 							?>
               <tr class="<?= $row['inactive'] ? 'st-row-inactive' : '' ?>" data-row="<?= st_h($rowId) ?>" data-code="<?= st_h($code) ?>" data-use="<?= st_h($row['usage_text']) ?>"<?= $row['inactive'] && !$hasInactive ? '' : '' ?>>
 							<?php foreach ($t['columns'] as $col => $def) {
-								$value = $cells !== null && isset($cells[$col]) ? (string) $cells[$col] : settings_rows_form_value($def, (string) $row['cells'][$col]);
-								$cell($rowId, $col, $def, $value, $row);
+								$stored = settings_rows_form_value($def, (string) $row['cells'][$col]);
+								$value = $cells !== null && isset($cells[$col]) ? (string) $cells[$col] : $stored;
+								$cell($rowId, $col, $def, $value, $row, $stored);
 							} ?>
                 <td class="st-ra">
 				<?php if ($canWrite) { ?>

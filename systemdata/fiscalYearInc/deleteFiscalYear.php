@@ -5,7 +5,7 @@
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
 //
-// --- systemdata/financialYearInc/deleteFinancialYear.php --- ver 4.1.1 --- 2025-07-02 --
+// --- systemdata/financialYearInc/deleteFinancialYear.php --- ver 5.1.1 --- 2026-11-13 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,20 +21,17 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------------
 // 20250629 - PHR $basecurrency  & some cleanup
 // 20250702 - PHR Updated deletion of fiscal year
-// 20261005 Sawaneh Settings redesign G1.2 (audit F10-F15): returns '' when deleted or the reason it refused instead of
-//                  alert + exit; refuses a year somebody has active; the base currency is compared as a value, not as
-//                  the text '$baseCurrency'; the report rows are deleted once; no stray HTML after the include. The
-//                  stock re-basing never ran (F11: its loops never started and would have died on db_modify(qtxt));
-//                  its variables are fixed but it stays switched off until the valuation rule is decided.
-// 20261019 Sawaneh Review 2 (PR #803): the active-year check casts with db_cast() (MySQL has no cast as text).
-
+// 20261005 SS Settings redesign G1.2 (audit F10-F15): returns '' when deleted or the reason it refused instead of alert + exit; refuses a year somebody has active; the base currency is compared as a value, not as the text '$baseCurrency'; the report rows are deleted once; no stray HTML after the include.
+//             The stock re-basing never ran (F11: its loops never started and would have died on db_modify(qtxt)); its variables are fixed but it stays switched off until the valuation rule is decided.
+// 20261019 SS Review 2 (PR #803): the active-year check casts with db_cast() (MySQL has no cast as text).
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 function deleteFinancialYear($year, $rebaseStock = false) {
 	global $regnaar;
-
+	
 	$year = (int) $year;
 	$qtxt = "select * from grupper where art = 'RA' and kodenr = '$year'";
 	if (!$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
@@ -65,7 +62,7 @@ function deleteFinancialYear($year, $rebaseStock = false) {
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "update batch_salg set variant_id = 0 where variant_id is NULL";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-
+	
 	$accountId = array();
 	// Accounts invoiced up to the end of the year.
 	$qtxt = "select distinct(konto_id) from openpost where transdate <= '$yearEnd'";
@@ -73,7 +70,7 @@ function deleteFinancialYear($year, $rebaseStock = false) {
 	while ($r = db_fetch_array($q)) {
 		$accountId[] = $r['konto_id'];
 	}
-
+	
 	$stockList = array();
 	$q = db_select("select kodenr from grupper where art='LG' order by kodenr",__FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
@@ -103,7 +100,7 @@ function deleteFinancialYear($year, $rebaseStock = false) {
 		}
 	}
 	db_modify("delete from report where date <= '$yearEnd'",__FILE__ . " linje " . __LINE__);
-
+			
 	if ($rebaseStock) {
 		$itemId = array();
 		$qtxt = "select distinct vare_id from batch_kob where (fakturadate >= '2000-01-01' and fakturadate <= '$yearEnd') ";

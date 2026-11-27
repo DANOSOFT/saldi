@@ -1,4 +1,6 @@
 <?php
+// 20261105 CL/LH List the SM/KM/EM/YM VAT codes of the current fiscal year (api_current_fiscal_year()), rate from box2 and description from beskrivelse.
+// 20261127 ASR With $allowedLedgers in includes/connect.php the token's account database must be listed, the master database too (403).
 /**
  * GET /vat-codes
  * Get list of VAT codes (momskoder)
@@ -31,11 +33,17 @@ class VatCodesEndpoint extends BaseEndpoint
             return false;
         }
         
-        $this->db = JWTAuth::getTenantDatabase();
-        if (!$this->db) {
+        $tenantDb = JWTAuth::getTenantDatabase();
+        if (!$tenantDb) {
             $this->sendResponse(false, null, 'Tenant database not found. Set X-Tenant-ID header.', 400);
             return false;
         }
+        // An installation with $allowedLedgers (includes/connect.php) serves only the listed ledgers, the master database too.
+        if (!saldi_ledger_allowed($tenantDb)) {
+            $this->sendResponse(false, null, saldi_ledger_refusal_text(), 403);
+            return false;
+        }
+        $this->db = $tenantDb;
         
         return true;
     }
@@ -50,8 +58,11 @@ class VatCodesEndpoint extends BaseEndpoint
             return;
         }
         
-        // Get VAT codes from grupper table where art = 'S' (momssatser)
-        $qtxt = "SELECT kodenr, box1 as rate, box2 as description FROM grupper WHERE art = 'S' ORDER BY kodenr";
+        // The VAT codes are the grupper rows art SM/KM/EM/YM of a fiscal year, as vat/ and the Moms page read them:
+        // box1 is the account, box2 the rate. grupper has no art 'S', so the old query always came back empty.
+        $fiscalYear = (int)api_current_fiscal_year();
+        $qtxt = "SELECT kodenr, box2 AS rate, beskrivelse AS description FROM grupper "
+            . "WHERE art IN ('SM', 'KM', 'EM', 'YM') AND fiscal_year = $fiscalYear ORDER BY kode, kodenr";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
         
         $vatCodes = [];

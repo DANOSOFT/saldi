@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stripeIncludes/stripeAlertMail.php --- 2026.10.26
+// --- includes/stripeIncludes/stripeAlertMail.php --- 2026.11.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,6 +31,7 @@
 //                and not PHPMailer (hardcoded vendor path in its one api/
 //                usage) - plain mail() like debitor/easyUBL.php.
 // 20261026 CL/NTR Multi-ledger: alert throttling is per ledger (keys often hold an order id).
+// 20261126 CL/ASR Stripe port (#889): the throttle key includes the ledger ($db).
 
 include_once(__DIR__ . '/stripeSettings.php');
 include_once(__DIR__ . '/stripeRateLimit.php');

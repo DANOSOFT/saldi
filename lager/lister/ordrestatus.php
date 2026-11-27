@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- lager/lister/ordrestatus.php --- lap 4.1.0 --- 2026.09.23 ---
+// ---- lager/lister/ordrestatus.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -27,8 +27,11 @@
 // 20260807 CL/MS Converted hardcoded Danish UI text to findtekst() calls for multi-language support
 // 20260911 LOE SD-685: filter selections are keyed, column setup follows the code.
 // 20260923 CDX/PHR Generate warehouse columns and joins once per warehouse across fiscal years.
-// 20261008 Sawaneh The list sits under the new page head (topLineVarer.php, page_bar): grid height adjusted.
-
+// 20261013 CL/MJ The Indkoebsordre hover box dates its orders by the expected delivery date (ordrer.levdate) instead of the order date, and says so in the column header.
+//                An order without a delivery date is still listed, with a dash for the date.
+// 20261030 CL/MJ Text 7636/7637 are now 8407/8408: #921 also adds 7636, and findtekst() keeps the first text a tenant stores for an id.
+// 20261103 CL/ASR $permission_key declared for the roles and permissions system, as every page does now; nothing else changed here.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 
@@ -74,7 +77,7 @@ $columns[] =    array(
     "headerName" => findtekst('138|Navn', $sprog_id),
     "width" => "3",
     "render" => function ($value, $row, $column) {
-        $url = "../../lager/varekort.php?id=$row[id]&returside=../lager/lister/ordrestatus.php";
+        $url = "../../lager/varekort.php?id=$row[id]&returside=lister/vareliste.php";
 
         $notes = htmlspecialchars($row['notes'] ?? '', ENT_QUOTES, 'UTF-8');
         return "<td title='$notes' align='$column[align]' onclick=\"window.location.href='$url'\" style='cursor:pointer'>$value</td>";
@@ -115,7 +118,7 @@ $columns[] = array(
         if ($value) {
             foreach (explode("\n", $value) as $lev) {
                 list($id, $kontonr, $name) = explode("\t", $lev);
-                $url = "../../kreditor/kreditorkort.php?id=$id&returside=../lager/lister/ordrestatus.php";
+                $url = "../../kreditor/kreditorkort.php?id=$id&returside=../lager/lister/indkøb.php";
                 $html .= "<span><a href='$url'>$kontonr</a> : $name</span><br>";
             }
         }
@@ -131,7 +134,7 @@ $columns[] = array(
 );
 
 // Add in_sales_offer field
-function renderColumn($value, $row, $column, $type, $idField, $orderField, $amountField, $dateField, $style = "") {
+function renderColumn($value, $row, $column, $type, $idField, $orderField, $amountField, $dateField, $style = "", $dateText = '438|Dato') {
     global $sprog_id;
     if ($value == "0,00" || !$value) {
         return "<td align='$column[align]' style='$style'>0,00</td>";
@@ -145,21 +148,23 @@ function renderColumn($value, $row, $column, $type, $idField, $orderField, $amou
 
     // Create a dropdown with table details
     $details = '';
-    if ($orders && $amounts && $dates) {
-        $idList = explode(', ', $ids);
-        $ordrenrList = explode(', ', $orders);
-        $antalList = explode(', ', $amounts);
-        $dateList = explode(', ', $dates);
+    // Only the order numbers decide whether there is a table. An order with no date belongs in
+    // the list as much as a dated one, and the date list is empty when that is the only order.
+    if ($orders) {
+        $idList = explode(', ', (string)$ids);
+        $ordrenrList = explode(', ', (string)$orders);
+        $antalList = explode(', ', (string)$amounts);
+        $dateList = explode(', ', (string)$dates);
 
         $details .= '<table>';
-        $details .= '<thead><tr><th>'.findtekst('500|Ordrenr.', $sprog_id).'</th><th>'.findtekst('916|Antal', $sprog_id).'</th><th>'.findtekst('438|Dato', $sprog_id).'</th><th>('.count($idList).')</th></tr></thead>';
+        $details .= '<thead><tr><th>'.findtekst('500|Ordrenr.', $sprog_id).'</th><th>'.findtekst('916|Antal', $sprog_id).'</th><th>'.findtekst($dateText, $sprog_id).'</th><th>('.count($idList).')</th></tr></thead>';
         $details .= '<tbody>';
         foreach ($ordrenrList as $index => $ordrenr) {
-            $id = $idList[$index];
-            $antal = $antalList[$index];
-            $date = $dateList[$index];
+            $id = ifset($idList, $index, '');
+            $antal = ifset($antalList, $index, '');
+            $date = ifset($dateList, $index, '');
             $url = "../../$type/ordre.php?id=$id&returside=../lager/lister/ordrestatus.php";
-            $details .= "<tr><td><a href='$url'>$ordrenr</a></td><td>".dkdecimal($antal)."</td><td colspan=2>".dkdato($date)."</td></tr>";
+            $details .= "<tr><td><a href='$url'>$ordrenr</a></td><td>".dkdecimal($antal)."</td><td colspan=2>".($date !== '' ? dkdato($date) : '&ndash;')."</td></tr>";
         }
         $details .= '</tbody></table>';
     }
@@ -215,7 +220,7 @@ $columns[] = array(
     "width" => "0.2",
     "sqlOverride" => "COALESCE(os.in_buy_order, 0)",
     "render" => function ($value, $row, $column) {
-        return renderColumn($value, $row, $column, 'kreditor', 'buy_order_orders_id', 'buy_order_orders', 'buy_order_qty', 'buy_order_date', 'border-right: 1px black solid');
+        return renderColumn($value, $row, $column, 'kreditor', 'buy_order_orders_id', 'buy_order_orders', 'buy_order_qty', 'buy_order_date', 'border-right: 1px black solid', '8407|Forventet lev. dato');
     }
 );
 
@@ -262,7 +267,7 @@ foreach ($warehouseRows as $row) {
                 return "<td align='$column[align]'>0,00</td>";
             }
             if ($value != "0,00") {
-                $url = "../lagerflyt.php?lager=$column[lagerId]&vare_id=$row[id]&returside=../lager/lister/ordrestatus.php";
+                $url = "../lagerflyt.php?lager=$column[lagerId]&vare_id=$row[id]&returside=../lager/lister/vareliste.php";
                 return "<td align='$column[align]'><a href='$url'>$value</a></td>";
             } else {
                 return "<td align='$column[align]'>$value</td>";
@@ -574,13 +579,16 @@ sales_summary AS (
 categorized_orders AS (
     SELECT 
         ol.vare_id AS vare_id,
+        ol.id AS linjeid,
         o.ordrenr::text AS ordrenr,
+        o.ordrenr AS ordrenr_sort,
         o.id::text AS ordreid,
         o.status AS status,
         o.art AS art,
         ol.antal AS antal,
         ol.leveret AS leveret,
         o.ordredate AS ordredate,
+        o.levdate AS levdate,
         CASE 
             WHEN o.status < 1 AND o.art = 'DO' THEN 'sales_offer_qty'
             WHEN o.status < 3 AND o.art = 'DO' THEN 'sales_order_qty'
@@ -614,10 +622,20 @@ order_summary AS (
         STRING_AGG(CASE WHEN category   = 'buy_proposal_qty' THEN ordredate::text ELSE NULL END, ', ')                      AS buy_proposal_orders_date,
 
         COALESCE(SUM(CASE WHEN category = 'buy_order_qty' THEN (antal - COALESCE(leveret, 0)) ELSE 0 END), 0)               AS in_buy_order,
-        STRING_AGG(CASE WHEN category   = 'buy_order_qty' THEN ordrenr ELSE NULL END, ', ')                                 AS buy_order_orders,
-        STRING_AGG(CASE WHEN category   = 'buy_order_qty' THEN ordreid ELSE NULL END, ', ')                                 AS buy_order_orders_id,
-        STRING_AGG(CASE WHEN category   = 'buy_order_qty' THEN (antal - COALESCE(leveret, 0))::text ELSE NULL END, ', ')    AS buy_order_qty,
-        STRING_AGG(CASE WHEN category   = 'buy_order_qty' THEN ordredate::text ELSE NULL END, ', ')                         AS buy_order_date
+        -- renderColumn() zips these four lists by index, so they have to agree on both length
+        -- and order. Every one of them carries the same ORDER BY, ending on linjeid, which is
+        -- unique - without a unique last key two rows with the same date and order number
+        -- could sort differently in one list than in another. COALESCE keeps an undated order
+        -- in the date list: STRING_AGG drops NULLs, which would move every later date up onto
+        -- the wrong order.
+        STRING_AGG(CASE WHEN category   = 'buy_order_qty' THEN ordrenr ELSE NULL END, ', '
+            ORDER BY levdate NULLS LAST, ordrenr_sort, linjeid)                                                             AS buy_order_orders,
+        STRING_AGG(CASE WHEN category   = 'buy_order_qty' THEN ordreid ELSE NULL END, ', '
+            ORDER BY levdate NULLS LAST, ordrenr_sort, linjeid)                                                             AS buy_order_orders_id,
+        STRING_AGG(CASE WHEN category   = 'buy_order_qty' THEN (antal - COALESCE(leveret, 0))::text ELSE NULL END, ', '
+            ORDER BY levdate NULLS LAST, ordrenr_sort, linjeid)                                                             AS buy_order_qty,
+        STRING_AGG(CASE WHEN category   = 'buy_order_qty' THEN COALESCE(levdate::text, '') ELSE NULL END, ', '
+            ORDER BY levdate NULLS LAST, ordrenr_sort, linjeid)                                                             AS buy_order_date
     FROM categorized_orders
     GROUP BY vare_id
 )
@@ -742,7 +760,7 @@ ORDER BY {{SORT}}
 );
 
 
-print "<div style='width: 100%; height: calc(100vh - 112px);'>";
+print "<div style='width: 100%; height: calc(100vh - 34px - 16px);'>";
 create_datagrid("ordrestat", $data);
 print "</div>";
 
@@ -786,7 +804,7 @@ $steps[] = array(
 );
 $steps[] = array(
     "selector" => ".in_sales_offer,.in_buy_order",
-    "content" => findtekst('2646|Ordrestatus viser, hvor mange varer der er i tilbud, ordrer eller indkøbsforslag. <br><br>Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer.', $sprog_id)
+    "content" => findtekst('8408|Ordrestatus viser, hvor mange varer der er i tilbud, ordrer eller indkøbsforslag.<br><br>Hold musen over et beholdningstal for at se, hvilke ordrer varen er inkluderet i. Du får en liste med ordrenumre og datoer. For indkøbsordrer er datoen den forventede leveringsdato.', $sprog_id)
 );
 $steps[] = array(
     "selector" => ".lager_total",

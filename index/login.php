@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php --- patch 5.0.0 --- 2026-10-08 ---
+// --- index/login.php --- ver 5.1.1 --- 2026-11-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,7 +23,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20220118 PHR - Added 'if ($db != $sqdb && $dbver > '4.0.4')'
 // 20200222 PHR - Added call to locator and added global_id;
 // 20200225 PHR - Added call to 'includes/betewwnUpdates';
@@ -61,15 +61,34 @@
 //                  shared is_input_too_long() from std_func.php.
 // 20260908 CDX/PHR Preserve Danish characters when redisplaying an unknown account.
 // 20260908 CDX/PHR Count login input characters directly to support older std_func.php installations.
-// 20260916 Sawaneh Successful login written to audit_log (roles & permissions, spec R7).
-// 20260929 Sawaneh Roles stage 2 (§8.4, §8.6): tmp_kode read and written in the common format; ?invite= opens the invitation page.
-// 20260930 Sawaneh Roles stage 2 (§7.1): login.failed, login.2fa_failed, login.ip_blocked and session.forced_logout in the audit log.
-// 20260930 Sawaneh Indexes on online.session_id and online.logtime (roles spec §4.7, without the primary key: see comment);
-//                  created only when missing.
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20260916 SS Successful login written to audit_log (roles & permissions, spec R7).
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20260924 Sawaneh SST-757: A user without regnskabsaar takes the fiscal year online.php falls back to.
-// 20261018 Sawaneh Review 2 (PR #803): the invitation's auto-login data is taken from the session before the reset at the top, which lost it.
+// 20260929 SS Roles stage 2 (§8.4, §8.6): tmp_kode read and written in the common format; ?invite= opens the invitation page.
+// 20260930 SS Roles stage 2 (§7.1): login.failed, login.2fa_failed, login.ip_blocked and session.forced_logout in the audit log.
+// 20260930 SS Indexes on online.session_id and online.logtime (roles spec §4.7, without the primary key: see comment); created only when missing.
 // 20261008 CDX/PHR Validate ssl3 locator replies and send installation URL and user email.
+// 20261018 SS Review 2 (PR #803): the invitation's auto-login data is taken from the session before the reset at the top, which lost it.
+// 20261029 CDX/NTR Share online log permissions with the web server.
+// 20261102 CL/NTR Share the tenant SQL log permissions like includes/login.php does.
+// 20261102 CL/ASR The message for a closed account is plain text, so sanitize_input() in login() no longer empties or garbles it.
+// 20261105 CL/LH The version read at login goes to regnskab.version through tjek4opdat_skriv_version(), which writes only under the update lock.
+//                Written straight away, a version read before another login updated the regnskab took regnskab.version back, and the update ran again.
+// 20261105 CL/LH The IP limit is checked by user_ip_allowed() (includes/stdFunc/userIpAllowed.php), which the REST login and token refresh now share.
+//                Addresses may also be separated by spaces or semicolons, as Brugere og roller reads them, and a limit without any address limits nothing.
+// 20261105 CL/MMR SD-807 The login messages and the max users and already logged in screens use the language chosen on the login page (languageId cookie, 1-3).
+//                 A message that names the account is kept within 80 characters (loginFejltxt()), so a long account name no longer makes it disappear.
+// 20261113 CDX/NTR Keep reset-token validation and login auditing alongside translated login messages.
+// 20261114 CL/ASR Failed logins are counted per user and per IP address (includes/loginThrottle.php): five wrong attempts are answered at once, then the user's login pauses.
+//                 A wrong two-factor code counts too, and a temporary password from Glemt adgangskode works during a pause.
+// 20261114 CL/ASR Two-factor login runs before the session gets its row in online, and the session counts as logged in only once the code is right. Rules and storage in includes/twoFactor.php.
+//                 The user chooses SMS or e-mail and can ask for a new code or for the other way on the code page; without a phone number and an e-mail the user is not let in.
+//                 The code is no longer written over the temporary password in brugere.tmp_kode. A wrong code is answered on the code page and counted with the wrong passwords.
+//                 The question about another login ("Log ud og fortsæt") is asked once the password and the code are right, it takes the temporary password too, and posted values are escaped where they are printed.
+// 20261124 CL/ASR Comments state the current rule; no code change.
+// 20261127 ASR With $sharedWithLive in includes/connect.php the session's rights string comes from the user's role (perm_session_rights()), as the stored one holds read as '0'.
+// 20261127 ASR With $allowedLedgers in includes/connect.php only a listed ledger logs in (includes/ledgerAllowList.php), the master database too; any other is answered with text 8235 before anything is read from it or updated.
+// 20261127 ASR $sharedWithLive is read through saldi_install_setting() (includes/installSettings.php).
 
 if (isset($_GET['invite'])) {
 	$inviteToken = preg_match('/^\d{1,9}-[a-f0-9]{48}$/', (string) $_GET['invite']) ? (string) $_GET['invite'] : '';
@@ -80,11 +99,18 @@ ob_start(); //Starter output buffering
 @session_start();
 // The auto-login after an invitation (invite.php) is read before the session is reset below, else it is lost.
 $inviteLogin = (!empty($_POST['invite_login']) && isset($_SESSION['invite_login']) && is_array($_SESSION['invite_login'])) ? $_SESSION['invite_login'] : null;
+// So is the note that this browser has just given the right two-factor code (set in the two-factor step below). The
+// questions that can follow the code, "allerede logget ind - fortsæt?" and the user limit, post the login once more,
+// and the code is not asked for a second time.
+$tfaPassedBefore = (isset($_SESSION['twofactor_ok']) && is_array($_SESSION['twofactor_ok'])) ? $_SESSION['twofactor_ok'] : null;
 session_unset();
 session_destroy();
 
 @session_start();
 $s_id=session_id();
+// This request is the login itself. includes/online.php lets a session that still owes its two-factor code through
+// here only (the code is sent and checked below), never on another page.
+$GLOBALS['saldiLoginFlow'] = true;
 $css="../css/std.css";
 $title="login";
 $fortsaet=NULL;
@@ -95,6 +121,14 @@ include("../includes/db_query.php");
 include("../includes/tjek4opdat.php");
 include("../includes/std_func.php");
 require_once(__DIR__ . '/../includes/locatorClient.php');
+require_once __DIR__ . '/../includes/sharedFile.php';
+require_once __DIR__ . '/../includes/stdFunc/userIpAllowed.php';
+
+// Nobody is logged in yet, so the messages on this page use the language chosen on the login page.
+$languageId = (int) ifset($_COOKIE, 'languageId', 1);
+if ($languageId < 1 || $languageId > 3) {
+	$languageId = 1;
+}
 
 #print "<!--";
 $timezone = system("timedatectl 2>/dev/null | grep \"Time zone\"", $errcode);
@@ -143,6 +177,7 @@ if ($db_type == 'mysql' || $db_type == 'mysqli') {
 	foreach (array('online_session_idx' => 'session_id', 'online_logtime_idx' => 'logtime') as $idxName => $idxCol) {
 		$qtxt = "SELECT index_name FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'online' AND index_name = '$idxName'";
 		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			// guardrails-allow migrations until 2027-06-30 by ASR: the online table is in the master database, which the per-company update chain never touches; the index is looked up before it is created
 			db_modify("CREATE INDEX $idxName ON online ($idxCol)", __FILE__ . " linje " . __LINE__);
 		}
 	}
@@ -151,6 +186,7 @@ if ($db_type == 'mysql' || $db_type == 'mysqli') {
 	foreach (array('online_session_idx' => 'session_id', 'online_logtime_idx' => 'logtime') as $idxName => $idxCol) {
 		$qtxt = "SELECT indexname FROM pg_indexes WHERE tablename = 'online' AND indexname = '$idxName'";
 		if (!db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
+			// guardrails-allow migrations until 2027-06-30 by ASR: the online table is in the master database, which the per-company update chain never touches; the index is looked up before it is created
 			db_modify("CREATE INDEX IF NOT EXISTS $idxName ON online ($idxCol)", __FILE__ . " linje " . __LINE__);
 		}
 	}
@@ -252,6 +288,32 @@ function sanitize_input($input, $allowed_length = 80) {
 
 	return $input;
 }
+
+/**
+ * Builds a login error message that names a value (the account name, a phone number) and still fits
+ * the 80 characters that login() and index/index.php accept for fejltxt. The value is filtered the
+ * way login() filters the message and, if the message in the user's language would be too long,
+ * shortened with "...", so the message is shown instead of being dropped.
+ *
+ * @param string $format Translated text with one %s.
+ * @param string $value  The value to put in, e.g. the account name the user typed.
+ *
+ * @return string The message, at most 80 characters, in the page charset.
+ */
+function loginFejltxt($format, $value) {
+	global $charset;
+
+	$maxLength = 80;
+	$value = sanitize_input(htmlspecialchars((string)$value, ENT_COMPAT, $charset), 1000);
+	if ($value === false) {
+		$value = '';
+	}
+	$room = $maxLength - mb_strlen(sprintf($format, ''), $charset);
+	if (mb_strlen($value, $charset) > $room) {
+		$value = mb_substr($value, 0, max(0, $room - 3), $charset) . '...';
+	}
+	return sprintf($format, $value);
+}
 /* file_put_contents("passwords.txt", "regnskab: $regnskab, brugernavn: $brugernavn, password: $password\n", FILE_APPEND); */
 if (isset($_POST['regnskab'])) {
 	if ($regnskab = trim($_POST['regnskab'])){
@@ -269,8 +331,8 @@ if (isset($_POST['regnskab'])) {
 		$fortsaet = isset($_POST['fortsaet']) ? sanitize_input(trim($_POST['fortsaet'])) : null;
 	}
 	if (isset($_POST['huskmig'])) {
-		if ($_POST['huskmig']) saldi_setcookie("saldi_huskmig",$_POST['huskmig'].chr(9).$regnskab.chr(9).$brugernavn,time()+60*60*24*365*10);
-		else saldi_setcookie("saldi_huskmig",$huskmig.chr(9).$regnskab.chr(9).$brugernavn,time()-1);
+		if ($_POST['huskmig']) setcookie("saldi_huskmig",$_POST['huskmig'].chr(9).$regnskab.chr(9).$brugernavn,time()+60*60*24*365*10);
+		else setcookie("saldi_huskmig",$huskmig.chr(9).$regnskab.chr(9).$brugernavn,time()-1);
 	}#20211018
 	if (isset($_COOKIE['timezone'])) $timezone=$_COOKIE['timezone']; 
 	if (!isset($timezone)) $timezone='Europe/Copenhagen';
@@ -281,13 +343,32 @@ if (isset($_POST['regnskab'])) {
 		$r=db_fetch_array(db_select("select var_value from settings where var_name='timezone'",__FILE__ . " linje " . __LINE__));
 		if ($timezone=$r['var_value']) {
 			date_default_timezone_set($timezone);
-			#saldi_setcookie("saldi_timezone",$timezone,time(+60*60*24*365*10));
-			saldi_setcookie("saldi_timezone",$timezone,time() + (60*60*24*7*10*365));#20211007
+			#setcookie("saldi_timezone",$timezone,time(+60*60*24*365*10));
+			setcookie("saldi_timezone",$timezone,time() + (60*60*24*7*10*365));#20211007
 		} else {
 			date_default_timezone_set('Europe/Copenhagen');
         }
 	}
 	$unixtime=date("U");
+	// Failed logins are counted on the server (includes/loginThrottle.php). A paused address is answered here; a
+	// paused user goes on to the password check below, where only a temporary password from Glemt adgangskode is tried.
+	include_once("../includes/loginThrottle.php");
+	$throttleIp = isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : '';
+	$throttleRegnskab = (string) $regnskab;
+	$throttleUser = (string) (isset($brugernavn) ? $brugernavn : '');
+	$throttleLang = isset($_COOKIE['languageId']) ? $_COOKIE['languageId'] : 1;
+	$throttlePausedUntil = 0;
+	if ($regnskab && isset($password) && $password !== null) {
+		$throttleNow = login_throttle_status($throttleRegnskab, $throttleUser, $throttleIp);
+		if ($throttleNow['by'] === 'ip') {
+			$loginHelp = 1;
+			login($regnskab, $brugernavn, login_throttle_message('paused', $throttleLang, $throttleNow['until']));
+			exit;
+		}
+		if ($throttleNow['by'] === 'user') {
+			$throttlePausedUntil = $throttleNow['until'];
+		}
+	}
 	$qtxt = "select * from regnskab where regnskab = '$sqdb'";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$masterversion=$r["version"];
@@ -328,6 +409,13 @@ if (isset($_POST['regnskab'])) {
 			  $globalId = $r['global_id'];
 			  $_SESSION['globalId']= $globalId; //20241202
 		}
+		// This installation opens only the ledgers in $allowedLedgers (includes/connect.php), when it is set.
+		include_once(__DIR__ . '/../includes/ledgerAllowList.php');
+		if (!saldi_ledger_allowed($db ? $db : $sqdb)) {
+			error_log("login.php: ledger " . ($db ? $db : $sqdb) . " is not in \$allowedLedgers of this installation");
+			login($regnskab, $brugernavn, findtekst('8235|Regnskabet kan ikke åbnes i denne installation.', $languageId));
+			exit;
+		}
 		if (!$db) {
 			$db=$sqdb;
 			db_modify("update regnskab set db='$sqdb' where id='$db_id'",__FILE__ . " linje " . __LINE__);
@@ -335,7 +423,9 @@ if (isset($_POST['regnskab'])) {
 		if ($lukket) {
 			if (!$mastername) $mastername='SALDI';
 			if (!$mastertel) $mastertel='+45 4690 2208';
-			$fejltxt="Regnskab '$regnskab' er lukket!<br>Ring $mastertel for gen&aring;bning";
+			// Plain text: login() runs fejltxt through sanitize_input(), which strips quotes, < > and & and refuses
+			// more than 80 characters, so the old "Regnskab '<name>' er lukket!<br>..." arrived empty or garbled.
+			$fejltxt = loginFejltxt(findtekst('8431|Regnskabet er lukket. Ring %s for genåbning', $languageId), $mastertel);
 			login($regnskab,$brugernavn,$fejltxt);
  			exit;
 		}
@@ -352,12 +442,13 @@ if (isset($_POST['regnskab'])) {
 			$url = htmlspecialchars(preg_replace('#^http://#', 'https://', $location) . '/index/login.php', ENT_QUOTES, 'UTF-8');
 			print "<form name=\"login\" METHOD=\"POST\" ACTION=\"$url\" onSubmit=\"return handleLogin(this);\">\n";
 			print "<input type=\"hidden\" name=\"regnskab\" value=\"$regnskab\">\n";
-			print "<input type=\"hidden\" name=\"brugernavn\" value=\"$_POST[brugernavn]\">\n";
-			print "<input type=\"hidden\" name=\"password\"  value=\"$_POST[password]\">\n";
+			// The posted values go back into the page as they came, escaped for HTML.
+			$fwd = function ($value) use ($charset) { return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, $charset); };
+			print "<input type=\"hidden\" name=\"brugernavn\" value=\"" . $fwd(isset($_POST['brugernavn']) ? $_POST['brugernavn'] : '') . "\">\n";
+			print "<input type=\"hidden\" name=\"password\"  value=\"" . $fwd(isset($_POST['password']) ? $_POST['password'] : '') . "\">\n";
 			if(isset($_COOKIE['languageId'])){
-				print "<input type=\"hidden\" name=\"languageId\"  value=\"$_COOKIE[languageId]\">\n"; #20220330
+				print "<input type=\"hidden\" name=\"languageId\"  value=\"" . (int) $_COOKIE['languageId'] . "\">\n"; #20220330
 			}
-			print "<input type=\"hidden\" name=\"vent\"  value=\"$_POST[vent]\">\n";
 			print "<body onload=\"document.login.submit()\">";
 			print "</form>";
 			?>
@@ -367,7 +458,8 @@ if (isset($_POST['regnskab'])) {
 		<?php
 		exit();
 		}
-		if ($regnskab) $fejltxt="Regnskab $regnskab findes ikke";
+		if ($regnskab) $fejltxt = loginFejltxt(findtekst('8429|Regnskab %s findes ikke', $languageId), $regnskab);
+		if ($regnskab && function_exists('login_throttle_fail')) login_throttle_fail('', '', $throttleIp);
 		login($regnskab,$brugernavn,$fejltxt);
  	}
 } else {
@@ -385,30 +477,15 @@ while($row = db_fetch_array($query)) {
 		db_modify("UPDATE regnskab SET brugerantal = 1 WHERE id = $id", __FILE__ . " linje " . __LINE__);
 	}
 }
-if (isset($_POST['force_logout']) && isset($_POST['user_to_logout'])) {
-    $user_to_logout = db_escape_string($_POST['user_to_logout']);
-    $forcedLogoutOf = (string) $_POST['user_to_logout'];
-    
-    // Remove the selected user from online table
-    $qtxt = "DELETE FROM online WHERE brugernavn = '$user_to_logout' AND db = '$db'";
-    db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-    
-    // Continue with login process
-    $_POST['fortsaet'] = true;
-}
 
-if(isset($_COOKIE['languageId'])) $languageId = $_COOKIE['languageId']; #20220618
-else $languageId = 1;
 #$qtxt = "select id, var_value from settings where var_name = 'languageId'";
 #$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)); 
 #($r['var_value'])? $languageId = $r['var_value'] : $languageId = 1;
 $spor = null; 
 db_modify("delete from online where session_id = '$s_id'",__FILE__ . " linje " . __LINE__);
 if ($db && !file_exists("../temp/.ht_$db.log")) {
-	$fp=fopen("../temp/.ht_$db.log","a");
-	fwrite($fp,"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n");
-	fwrite($fp,"\\connect $db;\n");
-	fclose ($fp);
+	sharedFilePutContents(__DIR__ . "/../temp/.ht_$db.log",
+		"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n" . "\\connect $db;\n", true);
 }
 if ($db) {
 	$qtxt = "delete from online where (brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up') ";
@@ -430,9 +507,9 @@ if ( $db && $db!=$sqdb ) {
 		$qtxt="select box1 from grupper where art = 'VE'";
 		if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 			if (!$dbver || $dbver>$r['box1']) $dbver=$r['box1'];
-			include("../includes/connect.php");
-			if ($dbver) db_modify("update regnskab set version = '$dbver' where id='$db_id'",__FILE__ . " linje " . __LINE__);
-			include("../includes/online.php"); #20211008 moved from line 259
+			include(__DIR__ . '/../includes/connect.php');
+			if ($dbver) tjek4opdat_skriv_version($dbver);
+			include(__DIR__ . '/../includes/online.php'); #20211008 moved from line 259
 		}
 	}
 	if ($dbver<$version) {
@@ -444,7 +521,9 @@ if ( $db && $db!=$sqdb ) {
 #$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__)); 
 #if ($r['var_value']) $languageId = $r['var_value'];
 $userId=NULL;
-if (isset ($brug_timestamp)) {
+if (isset ($brug_timestamp) && !empty($throttlePausedUntil)) {
+	// Paused after too many wrong attempts: the password is not tried.
+} elseif (isset ($brug_timestamp)) {
 	$qtxt = "select * from brugere where brugernavn='".db_escape_string($brugernavn)."' ";
 	$qtxt.= "and (upper(md5('$timestamp' || upper(kode)))=upper('$password'))";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
@@ -466,24 +545,20 @@ if (isset ($brug_timestamp)) {
 	$qtxt = "select * from brugere where brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up' limit 1";
 	$r  = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$brugernavn = isset($r['brugernavn']) ? $r['brugernavn'] : $brugernavn;
-	$accepted_ips = isset($r["ip_address"]) ? $r["ip_address"] : NULL;
 	$ip_address = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '';
-	if ($accepted_ips != null && $accepted_ips != '') {
-		$accepted_ips = explode(',', $accepted_ips);
-		if (!in_array($ip_address, $accepted_ips)) {
-			$fejltxt = "Din IP-adresse er ikke godkendt til at logge ind.";
-			login_audit('login.ip_blocked', (string) $brugernavn, isset($r['id']) ? (string) $r['id'] : '');
-			echo "<script type='text/javascript'>
-				alert(" . json_encode($fejltxt) . ");
-					window.location.href = 'index.php';
-				</script>";
-			exit;
-		}
+	if (!user_ip_allowed(isset($r['ip_address']) ? $r['ip_address'] : NULL, (string) $ip_address)) {
+		$fejltxt = findtekst('8432|Din IP-adresse er ikke godkendt til at logge ind.', $languageId);
+		login_audit('login.ip_blocked', (string) $brugernavn, isset($r['id']) ? (string) $r['id'] : '');
+		echo "<script type='text/javascript'>
+			alert(" . json_encode(mb_convert_encoding($fejltxt, 'UTF-8', $charset), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ");
+				window.location.href = 'index.php';
+			</script>";
+		exit;
 	}
 	$pw1  = md5($password);
 	$pw2  = saldikrypt(isset($r['id']) ? $r['id'] : null, $password);
 	$rkode = isset($r['kode']) ? $r['kode'] : null;
-	if ($rkode && ($rkode == $pw1 || $rkode == $pw2)) {
+	if ($rkode && empty($throttlePausedUntil) && ($rkode == $pw1 || $rkode == $pw2)) {
 		$userId      = isset($r['id']) ? $r['id'] : null;
 		$rettigheder = trim(if_isset($r['rettigheder'], ''));
 		$regnskabsaar = isset($r['regnskabsaar']) ? $r['regnskabsaar'] : '';
@@ -507,7 +582,7 @@ if (isset ($brug_timestamp)) {
 				$rettigheder=trim(if_isset($r['rettigheder'], '')); #20150209 + næste 2
 				$regnskabsaar=$r['regnskabsaar'];
 				$ansat_id=$r['ansat_id']*1;
-			} elseif ($tmpState == 'expired') $fejltxt="Midlertidig adgangskode udløbet";
+			} elseif ($tmpState == 'expired') $tmpCodeExpired = 1;
 		}
 	}
 }
@@ -523,6 +598,132 @@ if ($userId && $db != $sqdb) {
 		$fejltxt = "Din bruger er lukket. Kontakt din administrator. / Your user is closed. Contact your administrator.";
 		echo "<script type='text/javascript'>alert(" . json_encode($fejltxt) . "); window.location.href = 'index.php';</script>";
 		exit;
+	}
+	if (!empty(saldi_install_setting('sharedWithLive'))) {
+		// The stored string holds read as '0' in an installation that shares its ledgers; the role gives the levels here.
+		include_once(__DIR__ . '/../includes/permissions.php');
+		$rettigheder = perm_session_rights($statusRow);
+	}
+}
+// ---- Two-factor login ------------------------------------------------------------------------------------------
+// The password was right. A user with two-factor login is not logged in until the code is right too, so the step
+// runs here: before the session gets its row in the master table online, and before anything is shown about the
+// ledger's other users. From the first line $_SESSION['twofactor_pending'] says for which ledger and user the code
+// is still owed, and includes/online.php refuses that login on every other page. The rules and the code's storage are in
+// includes/twoFactor.php, the page is index/tofaktor.php.
+if ($userId && $db != $sqdb && (int) $db_id !== 1) {
+	include_once("../includes/twoFactor.php");
+	$tfaUser = twofactor_user((int) $userId);
+	if ($tfaUser['on']) {
+		$_SESSION['twofactor_pending'] = array('db' => (string) $db, 'user' => (string) $brugernavn);
+		$tfaLang = isset($throttleLang) ? $throttleLang : 1;
+		$tfaMethods = $tfaUser['methods'];
+		if (!$tfaMethods) {
+			// Two-factor is on, but the user has no phone number and no e-mail, so no code can be sent. The user is
+			// not let in without one: an administrator adds one under Brugere & roller.
+			login_audit('login.2fa_failed', (string) $brugernavn . ' (ingen telefon eller e-mail til koden)', (string) $userId);
+			include("../includes/connect.php");
+			login($regnskab, $brugernavn, login_throttle_message('tfa_nocontact', $tfaLang));
+			exit;
+		}
+		$tfaNow = time();
+		$tfaRemembered = (is_array($tfaPassedBefore) && isset($tfaPassedBefore['db'], $tfaPassedBefore['uid'], $tfaPassedBefore['at'])
+			&& $tfaPassedBefore['db'] === $db && (int) $tfaPassedBefore['uid'] === (int) $userId && $tfaNow - (int) $tfaPassedBefore['at'] < 300);
+		$tfaState = twofactor_state((int) $userId);
+		$tfaLive = ($tfaState['code'] !== '' && $tfaNow <= $tfaState['expire']);
+		// tfa_action: 'resend' asks for a new code, 'sms' or 'email' asks for one the other way (index/tofaktor.php).
+		$tfaAction = isset($_POST['tfa_action']) ? (string) $_POST['tfa_action'] : '';
+		$tfaWantsNew = in_array($tfaAction, array('resend', 'sms', 'email'), true);
+		if (in_array($tfaAction, array('sms', 'email'), true)) {
+			$tfaRequested = $tfaAction;
+		} elseif (isset($_POST['tfa_method'])) {
+			$tfaRequested = (string) $_POST['tfa_method'];
+		} else {
+			$tfaRequested = $tfaLive ? $tfaState['method'] : '';
+		}
+		$tfaMethod = twofactor_pick($tfaMethods, $tfaUser['preferred'], $tfaRequested);
+		$tfaCode = '';
+		foreach (array('code_1', 'code_2', 'code_3', 'code_4', 'code_5', 'code_6') as $tfaField) {
+			$tfaCode .= isset($_POST[$tfaField]) ? (string) $_POST[$tfaField] : '';
+		}
+		$tfaCode = (string) preg_replace('/\D/', '', $tfaCode);
+		$tfaNotice = '';
+		$tfaError = '';
+		$tfaSendOutput = '';
+		// The right code was given in this browser within the last five minutes, and the login was not finished yet
+		// (a question came in between): the step is passed.
+		$tfaPassed = $tfaRemembered;
+		if (!$tfaPassed && $tfaCode !== '' && !$tfaWantsNew) {
+			if ($tfaLive && hash_equals((string) $tfaState['code'], $tfaCode)) {
+				$tfaPassed = true;
+			} else {
+				login_audit('login.2fa_failed', (string) $brugernavn, (string) $userId);
+				$tfaFail = login_throttle_fail($throttleRegnskab, $throttleUser, $throttleIp);
+				if ($tfaFail['until']) {
+					// Too many wrong codes: the user's login pauses, as after too many wrong passwords.
+					include("../includes/connect.php");
+					$loginHelp = 1;
+					login($regnskab, $brugernavn, login_throttle_message('paused', $tfaLang, $tfaFail['until']));
+					exit;
+				}
+				$tfaError = $tfaLive ? 'wrong' : 'expired';
+			}
+		}
+		if ($tfaPassed) {
+			if (!$tfaRemembered) {
+				// A code works once.
+				$tfaState['code'] = '';
+				$tfaState['expire'] = 0;
+				twofactor_save_state((int) $userId, $tfaState);
+			}
+			$_SESSION['twofactor_ok'] = array('db' => $db, 'uid' => (int) $userId, 'at' => $tfaRemembered ? (int) $tfaPassedBefore['at'] : $tfaNow);
+			unset($_SESSION['twofactor_pending']);
+		} else {
+			if ($tfaLive && $tfaWantsNew && $tfaNow - (int) $tfaState['sent'][$tfaMethod] < TWOFACTOR_RESEND_WAIT) {
+				// A code went out this way a moment ago: no new one yet (a text message costs the ledger money).
+				$tfaNotice = 'wait';
+				$tfaMethod = twofactor_pick($tfaMethods, $tfaUser['preferred'], $tfaState['method']);
+			} elseif (!$tfaLive || $tfaWantsNew) {
+				$tfaNew = twofactor_new_code();
+				if ($tfaMethod === 'sms') {
+					// send_sms() reads the ledger from the session's row in online (through includes/online.php), so
+					// the row is there while the message is sent and is removed again below. Should the request die
+					// while sending, the row is removed as the request ends.
+					register_shutdown_function(function () use ($s_id) {
+						if (!empty($_SESSION['twofactor_pending'])) {
+							try {
+								db_modify("delete from online where session_id = '$s_id'", __FILE__ . " linje " . __LINE__, true);
+							} catch (Throwable $error) {
+								// Nothing more to do here: includes/online.php refuses the session as long as the code is owed.
+							}
+						}
+					});
+					$qtxt = "insert into online (session_id, brugernavn, db, dbuser, rettigheder, logtime, language_id) values ";
+					$qtxt.= "('$s_id', '" . db_escape_string($brugernavn) . "', '$db', '$dbuser', '" . db_escape_string((string) $rettigheder) . "', '$unixtime', '" . (int) $languageId . "')";
+					db_modify($qtxt, __FILE__ . " linje " . __LINE__, true);
+					if ($regnskabsaar) {
+						db_modify("update online set regnskabsaar = '" . (int) $regnskabsaar . "' where session_id = '$s_id'", __FILE__ . " linje " . __LINE__, true);
+					}
+				}
+				$tfaSent = twofactor_send($tfaMethod, $tfaMethods[$tfaMethod], $tfaNew, $tfaLang, $tfaSendOutput);
+				db_modify("delete from online where session_id = '$s_id'", __FILE__ . " linje " . __LINE__, true);
+				if ($tfaSent) {
+					$tfaState = array('expire' => $tfaNow + TWOFACTOR_TTL, 'code' => $tfaNew, 'method' => $tfaMethod, 'sent' => $tfaState['sent']);
+					$tfaState['sent'][$tfaMethod] = $tfaNow;
+					twofactor_save_state((int) $userId, $tfaState);
+					$tfaNotice = ($tfaError === 'expired') ? 'expired' : ($tfaWantsNew ? 'new' : '');
+					$tfaError = '';
+				} else {
+					$tfaError = 'sendfail';
+				}
+			}
+			// The page is a document of its own: what this file has printed so far (its own head) is dropped.
+			while (ob_get_level()) {
+				ob_end_clean();
+			}
+			include("tofaktor.php");
+			exit;
+		}
 	}
 }
 # Check whether the user exsists
@@ -548,6 +749,16 @@ if ($userId) {
 			if (!$connection) die( "Unable to connect to PostgreSQL");
 		}	
 		include("../includes/connect.php"); #20111105
+
+	// "Log ud og fortsæt" from the user-limit question below. It runs for a user whose password (and two-factor
+	// code) is right.
+	if (isset($_POST['force_logout']) && isset($_POST['user_to_logout'])) {
+		$user_to_logout = db_escape_string($_POST['user_to_logout']);
+		$forcedLogoutOf = (string) $_POST['user_to_logout'];
+		// Remove the selected user from online table
+		$qtxt = "DELETE FROM online WHERE brugernavn = '$user_to_logout' AND db = '$db'";
+		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	}
 
 	# Get 2fa keys for SMS
 	if (!empty($useSettings)) {
@@ -688,11 +899,11 @@ if ($userId) {
 			<input type="hidden" name="timestamp" value="<?= time() ?>">
 			
 			<div class="force-logout-container">
-				<h2 class="force-logout-title">Max antal samtidige brugere (<?= $bruger_max ?>) er overskredet</h2>
+				<h2 class="force-logout-title"><?= sprintf(findtekst('8424|Max antal samtidige brugere (%s) er overskredet', $languageId), $bruger_max) ?></h2>
 				
-				<p class="force-logout-info">Aktive brugere: <?= htmlspecialchars($activeUsers) ?></p>
+				<p class="force-logout-info"><?= findtekst('8425|Aktive brugere:', $languageId) ?> <?= htmlspecialchars($activeUsers) ?></p>
 				
-				<p class="force-logout-info">Vælg en bruger at logge ud:</p>
+				<p class="force-logout-info"><?= findtekst('8426|Vælg en bruger at logge ud:', $languageId) ?></p>
 				<select name="user_to_logout" class="force-logout-select">
 					<?php
 					if($db_type == 'mysql' || $db_type == 'mysqli') {
@@ -717,14 +928,14 @@ if ($userId) {
 							date("H:i:s", strtotime($row['logtime'])) : 
 							date("H:i:s", $row['logtime']);
 						echo '<option value="' . htmlspecialchars($row['brugernavn']) . '">' 
-							. htmlspecialchars($row['brugernavn']) . ' (Sidst aktiv: ' . $last_active . ')</option>';
+							. htmlspecialchars($row['brugernavn']) . ' (' . findtekst('8427|Sidst aktiv', $languageId) . ': ' . $last_active . ')</option>';
 					}
 					?>
 				</select>
 				
 				<div class="force-logout-buttons">
-					<input type="submit" name="force_logout" value="Log ud og fortsæt" class="btn btn-primary">
-					<input type="button" value="Afbryd" onclick="window.location.href='index.php'" class="btn btn-secondary">
+					<input type="submit" name="force_logout" value="<?= htmlspecialchars(findtekst('8428|Log ud og fortsæt', $languageId), ENT_QUOTES, $charset) ?>" class="btn btn-primary">
+					<input type="button" value="<?= htmlspecialchars(findtekst('81|Afbryd', $languageId), ENT_QUOTES, $charset) ?>" onclick="window.location.href='index.php'" class="btn btn-secondary">
 				</div>
 			</div>
 		</form>
@@ -746,7 +957,7 @@ if ($userId) {
 		if ($r = db_fetch_array($q)) {
 			$last_time = $r['logtime'];
 			if (!$fortsaet && (time() - $last_time < 3600)) {
-				online($regnskab, $db, $userId, $brugernavn, $password, $timestamp, $s_id);
+				online($regnskab, $db, $userId, $brugernavn, $password, $timestamp, $s_id, $languageId);
 			} elseif (!$fortsaet) {
 				$qtxt = "DELETE FROM online 
 						WHERE (brugernavn = '$asIs' OR lower(brugernavn) = '$low' OR upper(brugernavn) = '$up') 
@@ -776,9 +987,11 @@ if ($userId) {
 	if ($dbver > '4.0.4') $qtxt.= ", language_id='$languageId' ";
 	$qtxt.= "where session_id = '$s_id'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	if ($login=="cookie") {saldi_setcookie("saldi_std",$regnskab,time()+60*60*24*30);}
+	if ($login=="cookie") {setcookie("saldi_std",$regnskab,time()+60*60*24*30);}
 	include("../includes/online.php"); #20111105
 	include_once("../includes/permissions.php");
+	// Logged in: the note that the two-factor code was given has done its job (see the two-factor step above).
+	unset($_SESSION['twofactor_ok']);
 	if (function_exists('audit_log')) {
 		audit_log('login.success', $db, 'session', (string) $db);
 		if (!empty($forcedLogoutOf)) {
@@ -787,123 +1000,8 @@ if ($userId) {
 	}
 	if (!$regnskabsaar && $db != $sqdb) $regnskabsaar = if_isset($regnaar, '');
 
-	# ###################################################
-	#
-	# 2FA SETUP
-	#
-	# ###################################################
-	# If its not an administrator
-	#if ($db_id !== 1) {
-
-	$qtxt = "SELECT * FROM INFORMATION_SCHEMA.COLUMNS ";
-	$qtxt.= "WHERE table_name = 'brugere' AND column_name = 'tlf' ";
-	if (!db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-		$qtxt = "ALTER TABLE brugere add tlf varchar(16)";
-		db_modify($qtxt, __FILE__ . "linje" . __LINE__);
-	}
-
-	if ((int)$db_id !== 1) { // 20240502 Without the integer this always evaluates to true on goods account as admin
-		$qtxt = "select email, twofactor, tmp_kode, tlf from brugere where id=$userId";
-		$r  = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-	} else {
-		$r = array("twofactor" => FALSE);
-	}
-	if (isset($r["twofactor"]) && $r["twofactor"] == 't') {
-		$json_data = file_get_contents('php://input');
-		$decoded_data = json_decode($json_data, true);
-							       
-		$tlf_num = $r["tlf"];
-		$email = $r["email"];
-		$bruger_id = $userId; // Set bruger_id to userId
-		$real_code = NULL;
-		$real_expire = 0;
-		if (!empty($r["tmp_kode"])) {
-			include_once("../includes/tmpCode.php");
-			$tmpCode = tmp_code_parse($r["tmp_kode"], '2fa');
-			if ($tmpCode && $tmpCode['type'] == '2fa') {
-				$real_code = $tmpCode['code'];
-				$real_expire = $tmpCode['expire'];
-			}
-		}
-		$status = NULL;
-
-		$code = $_POST['code_1'] . $_POST['code_2'] . $_POST['code_3'] . $_POST['code_4'] . $_POST['code_5'] . $_POST['code_6'];
-		if ($code && $real_expire && time() <= $real_expire) {
-			if ($real_code == $code) {
-				$status = "success";
-			} else {
-				$status = "Ikke en valid kode, prøv igen";
-				login_audit('login.2fa_failed', (string) $brugernavn, (string) $bruger_id);
-			}
-		}
-		if ($bruger_id && $tlf_num) {
-		# The code has expired and a new one needs sent
-		if ((!$real_expire || time() > $real_expire) && $status !== "success") {
-			$status = "En sms er sendt til din telefon +" . substr($tlf_num, 0, 4) . "______";
-
-			# Generate secure random 4 didget integer using urandom
-			$urandom = fopen('/dev/urandom', 'rb');
-			$seed = fread($urandom, 32);
-			fclose($urandom);
-			$seed = unpack('L', $seed)[1];
-			mt_srand($seed);
-			$random_integer = mt_rand(100000, 999999);
-
-			$cleanedPhoneNumber = clean_phone_number($tlf_num);
-			$result = send_sms("Saldi", $cleanedPhoneNumber, "Din tofaktor kode: $random_integer\nDen er valid i 3 minutter");
-
-			// Check for errors
-			if ($result === false) {
-				echo "Der opstod en fejl ved afsendelse af sms. Prøv igen senere.";
-			} else {
-				$current_time = time();
-				$expire = $current_time + 180; // Expires in 3 minutes
-				
-				include_once("../includes/tmpCode.php");
-				db_modify("UPDATE brugere SET tmp_kode='" . tmp_code_make('2fa', $expire, (string) $random_integer) . "' WHERE id=$bruger_id", __FILE__ . "linje" . __LINE__);
-
-				include("tofaktor.php");
-			}
-			exit;
-		} else if ($status !== "success") {
-			include("tofaktor.php");
-			exit;
-		}
-	}elseif($bruger_id && $email) {
-		# The code has expired and a new one needs sent
-		if ((!$real_expire || time() > $real_expire) && $status !== "success") {
-			# Generate secure random 6 digit integer using urandom
-			$urandom = fopen('/dev/urandom', 'rb');
-			$seed = fread($urandom, 32);
-			fclose($urandom);
-			$seed = unpack('L', $seed)[1];
-			mt_srand($seed);
-			$random_integer = mt_rand(100000, 999999);
-
-			$status = "En email er sendt til din email " . $email;
-			$result = send_email($email, "Saldi 2FA kode", "Din tofaktor kode: $random_integer\nDen er valid i 3 minutter");
-			if ($result === false) {
-				echo "Der opstod en fejl ved afsendelse af email. Prøv igen senere.";
-			} else {
-				$current_time = time();
-				$expire = $current_time + 180; // Expires in 3 minutes
-				include_once("../includes/tmpCode.php");
-				db_modify("UPDATE brugere SET tmp_kode='" . tmp_code_make('2fa', $expire, (string) $random_integer) . "' WHERE id=$bruger_id", __FILE__ . "linje" . __LINE__);
-				include("tofaktor.php");
-			}
-			exit;
-		} else if ($status !== "success") {
-			include("tofaktor.php");
-			exit;
-		}
-	}
-	echo "2fa done";
-	# ###################################################
-	#
-	# 2FA SETUP DONE
-	#
-	# ###################################################
-	}
+	// Logged in (and past the two-factor step): the count of wrong attempts for this user is gone.
+	if (function_exists('login_throttle_success')) login_throttle_success($throttleRegnskab, $throttleUser);
 	if ($post_max && $db!=$sqdb) {
 		$r=db_fetch_array(db_select("select box6 from grupper where art = 'RA' and kodenr = '".(int)$regnskabsaar."'",__FILE__ . " linje " . __LINE__));
 		$post_antal=$r['box6']*1;
@@ -926,9 +1024,8 @@ if(!isset($afbryd)){
 	$db_skriv_id = NULL;
 	$dbLocation = loginLocatorInstallation($_SERVER);
 	
-	$fp=fopen("../temp/.ht_online.log","a");
-	fwrite($fp,date("Y-m-d")." ".date("H:i:s")." ".getenv("remote_addr")." ".$s_id." ".$regnskab." ".$brugernavn."\n"); #20210902
-	fclose($fp);
+	sharedFilePutContents(__DIR__ . "/../temp/.ht_online.log",
+		date("Y-m-d")." ".date("H:i:s")." ".getenv("remote_addr")." ".$s_id." ".$regnskab." ".$brugernavn."\n", true);
 	if ($regnskab==$sqdb) {
 		if ($dbver<$version) tjek4opdat($dbver,$version); #20130919
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=admin_menu.php\">";
@@ -1004,7 +1101,20 @@ if (!$sag_rettigheder&&$rettigheder) {
 	include("../includes/connect.php");
 	db_modify("delete from online where session_id='$s_id'",__FILE__ . " linje " . __LINE__);
 	include("../includes/std_func.php");
-	$fejltxt='Fejl i brugernavn eller adgangskode';
+	// The answer comes at once. From the third wrong attempt it says how many are left, and after the fifth the user's
+	// login pauses (includes/loginThrottle.php). An attempt made during a pause is not counted.
+	if (!empty($tmpCodeExpired)) {
+		// The temporary password was the right one, but too old. Not a guess, so it is not counted.
+		$fejltxt = findtekst('8430|Midlertidig adgangskode udløbet', $languageId);
+	} elseif (!empty($throttlePausedUntil)) {
+		$fejltxt = login_throttle_message('paused', $throttleLang, $throttlePausedUntil);
+	} elseif (function_exists('login_throttle_fail')) {
+		$throttleResult = login_throttle_fail($throttleRegnskab, $throttleUser, $throttleIp);
+		$fejltxt = $throttleResult['until'] ? login_throttle_message('paused', $throttleLang, $throttleResult['until']) : login_throttle_message('wrong', $throttleLang, $throttleResult['remaining']);
+	} else {
+		$fejltxt = findtekst('8421|Fejl i brugernavn eller adgangskode', $languageId);
+	}
+	$loginHelp = 1;
 	login($regnskab,$brugernavn,$fejltxt);
 #	print "<meta http-equiv=\"refresh\" content=\"0;URL=index.php?regnskab=".htmlentities($regnskab,ENT_COMPAT,$charset)."&navn=".htmlentities($brugernavn,ENT_COMPAT,$charset)."\">";
 	exit;
@@ -1023,11 +1133,26 @@ function login_audit($handling, $attemptedName, $userId) {
 	}
 }
 
-function online($regnskab,$db,$userId,$brugernavn,$password,$timestamp,$s_id) {
+/**
+ * Ask whether to continue when the user already has an active session, or send a wrong password
+ * back to the login page. Prints the form and ends the request.
+ *
+ * @param string $regnskab   Account name from the login form.
+ * @param string $db         Database of the account.
+ * @param int    $userId     Id of the user in brugere.
+ * @param string $brugernavn Username.
+ * @param string $password   Password from the login form, posted again when the user continues.
+ * @param string $timestamp  Timestamp from the login form.
+ * @param string $s_id       Session id of this login.
+ * @param int    $languageId Language of the texts (1 Danish, 2 English, 3 Norwegian), chosen on the login page.
+ *
+ * @return void
+ */
+function online($regnskab,$db,$userId,$brugernavn,$password,$timestamp,$s_id,$languageId) {
 	global $charset;
 	global $sqhost,$squser,$sqpass;
 	global $dbuser,$dbpass,$db_type;
-    global $nonce;
+	global $nonce;
 	if (!$dbuser) $dbuser = $squser;
 	if (!$dbpass) $dbpass = $sqpass;
 	if (isset($_POST['vent'])) { #20250325
@@ -1037,13 +1162,13 @@ function online($regnskab,$db,$userId,$brugernavn,$password,$timestamp,$s_id) {
 			echo "<script nonce='{$nonce}'>alert('$message');</script>";
 		
 			echo "<script nonce='{$nonce}'>window.location.href = 'index.php';</script>";
-        	exit;
+			exit;
 		}
 		$vent = htmlspecialchars($_POST['vent'], ENT_QUOTES, 'UTF-8'); 
 	}
 
 	if ($db_type=='mysql') {
-	if (!mysql_select_db("$db")) die( "Unable to connect to MySQL"); #20170911
+		if (!mysql_select_db("$db")) die( "Unable to connect to MySQL"); #20170911
 	} else {
 		$connection = db_connect ("'$sqhost'", "'$dbuser'", "'$dbpass'", "'$db'", __FILE__ . " linje " . __LINE__);
 		if (!$connection) die( "Unable to connect to PostgreSQL");
@@ -1053,31 +1178,37 @@ function online($regnskab,$db,$userId,$brugernavn,$password,$timestamp,$s_id) {
 	$pw2=saldikrypt($r['id'],$password);
 	if ($r['kode']==$pw1 || $r['kode']==$pw2) $pw_ok=1;
 	else $pw_ok=0;
+	// The temporary password from Glemt adgangskode is accepted here as in the login above: a user who was logged
+	// in somewhere else got "Fejl i brugernavn eller adgangskode" on the way in with it.
+	if (!$pw_ok && !empty($r['tmp_kode'])) {
+		include_once("../includes/tmpCode.php");
+		if (tmp_code_check($r['tmp_kode'], 'reset', (string) $password) == 'ok') $pw_ok=1;
+	}
 	if ($pw_ok) {
 		print "<FORM METHOD=POST NAME=\"login\" ACTION=\"login.php\">";
 		print "<INPUT TYPE=\"hidden\" NAME=\"regnskab\" VALUE=\"$regnskab\">";
 		print "<INPUT TYPE=\"hidden\" NAME=\"brugernavn\" VALUE=\"$brugernavn\">";
-		print "<INPUT TYPE=\"hidden\" NAME=\"password\" VALUE=\"$password\">";
+		print "<INPUT TYPE=\"hidden\" NAME=\"password\" VALUE=\"" . htmlspecialchars((string) $password, ENT_QUOTES | ENT_SUBSTITUTE, $charset ?: 'UTF-8') . "\">";
 		print "<INPUT TYPE=\"hidden\" NAME=\"timestamp\" VALUE=\"$timestamp\">";
 		print "<INPUT TYPE=\"hidden\" NAME=\"vent\" VALUE=\"$vent\">";
 		print "<table width=50% align=center border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
-		print "<tr><td colspan=\"2\" align=\"center\" valign=\"center\"> <big><b>Brugeren <i>$brugernavn</i> er allerede logget ind.</b></big></td></tr>";
-		print "<tr><td colspan=\"2\" align=\"center\"> <big><b>Vil du forts&aelig;tte?</b></big></td></tr>";
+		print "<tr><td colspan=\"2\" align=\"center\" valign=\"center\"> <big><b>" . sprintf(findtekst('8422|Brugeren %s er allerede logget ind.', $languageId), "<i>$brugernavn</i>") . "</b></big></td></tr>";
+		print "<tr><td colspan=\"2\" align=\"center\"> <big><b>" . findtekst('8423|Vil du fortsætte?', $languageId) . "</b></big></td></tr>";
 		print "<tr>";
 		print "<tr><td><br></td></tr>";
 		print "<tr><td><br></td></tr>";
 		print "<tr><td><br></td></tr>";
-		print "<td align=\"center\"><INPUT TYPE=\"submit\" name=\"afbryd\" VALUE=\"Afbryd\"></td>";
-		print "<td align=\"center\"><INPUT TYPE=\"submit\" name=\"fortsaet\" VALUE=\"Forts&aelig;t\"></td>";
+		print "<td align=\"center\"><INPUT TYPE=\"submit\" name=\"afbryd\" VALUE=\"" . htmlspecialchars(findtekst('81|Afbryd', $languageId), ENT_QUOTES, $charset) . "\"></td>";
+		print "<td align=\"center\"><INPUT TYPE=\"submit\" name=\"fortsaet\" VALUE=\"" . htmlspecialchars(findtekst('1991|Fortsæt', $languageId), ENT_QUOTES, $charset) . "\"></td>";
 		print "</tr>";
 	} else {
 		print "<FORM METHOD=POST NAME=\"login\" ACTION=\"index.php\">";
 		print "<INPUT TYPE=\"hidden\" NAME=\"regnskab\" VALUE=\"$regnskab\">";
 		print "<INPUT TYPE=\"hidden\" NAME=\"brugernavn\" VALUE=\"$brugernavn\">";
-		print "<INPUT TYPE=\"hidden\" NAME=\"password\" VALUE=\"$password\">";
+		print "<INPUT TYPE=\"hidden\" NAME=\"password\" VALUE=\"" . htmlspecialchars((string) $password, ENT_QUOTES | ENT_SUBSTITUTE, $charset ?: 'UTF-8') . "\">";
 		print "<INPUT TYPE=\"hidden\" NAME=\"timestamp\" VALUE=\"$timestamp\">";
 		print "<INPUT TYPE=\"hidden\" NAME=\"vent\" VALUE=\"$vent\">";
-		print "<INPUT TYPE=\"hidden\" NAME=\"fejltxt\" VALUE=\"Fejl i brugernavn eller adgangskode\">";
+		print "<INPUT TYPE=\"hidden\" NAME=\"fejltxt\" VALUE=\"" . htmlspecialchars(findtekst('8421|Fejl i brugernavn eller adgangskode', $languageId), ENT_QUOTES, $charset) . "\">";
 #		print "<tr><td colspan=\"2\" align=\"center\" valign=\"center\"> <big><b>Fejl i brugernavn eller adgangskode</b></big></td></tr>";
 #		print "<tr>";
 #		print "<tr><td><br></td></tr>";
@@ -1112,11 +1243,11 @@ function login($regnskab,$brugernavn,$fejltxt) {
 		}
 		$vent = htmlspecialchars($_POST['vent'], ENT_QUOTES, 'UTF-8'); 
 	}
-	if (!$vent) $vent=0;
-	sleep($vent);
-	$vent*=2;
-	if (!$vent) $vent=2;
+	// Failed logins are counted in includes/loginThrottle.php. The form field vent is sent empty, for an older login
+	// page on another server.
+	$vent = '';
 	print "<form name=\"login\" action=\"index.php\" method=\"POST\">\n";
+	if (!empty($GLOBALS['loginHelp'])) print "<input type=\"hidden\" name=\"loginhelp\" value=\"1\">\n";
 	print "<input type=\"hidden\" name=\"regnskab\" value=\"$regnskab\">\n";
 	print "<input type=\"hidden\" name=\"brugernavn\" value=\"$brugernavn\">\n";
 	print "<input type=\"hidden\" name=\"fejltxt\" value=\"$fejltxt\">\n";
@@ -1185,7 +1316,7 @@ function login($regnskab,$brugernavn,$fejltxt) {
 	print "</tbody></table></td></tr><tr><td align=\"center\" valign=\"middle\">\n"; # <- tabel 1.1 slut
 	print "<table width=\"350\" align=\"center\" border=\"5\" cellspacing=\"5\" cellpadding=\"5\"><tbody>"; # tabel 1.2 ->
 	print "<tr><td><FORM name=\"login\" METHOD=\"POST\" ACTION=\"login.php\" onSubmit=\"return handleLogin(this);\"><table width=\"100%\" align=center border=\"0\" cellspacing=\"0\" cellpadding=\"1\"><tbody>"; # tabel 1.2.1 ->
-	sleep($vent);
+
 	if (isset($mastername)&&$mastername) $tmp="<big><big><big><b>$mastername</b></big></big></big>";   
 	elseif (strpos($_SERVER['PHP_SELF'],"beta")) $tmp="<big><big><big><b>!!! BETA !!!</b></big></big></big>";
 	else $tmp="<big><big><big><b>SALDI</b></big></big></big>";

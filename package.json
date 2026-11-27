@@ -3,6 +3,7 @@
     "@playwright/test": "^1.61.1"
   },
   "scripts": {
-    "test": "node e2e/seed-user.mjs && playwright test"
+    "test": "node e2e/seed-user.mjs && playwright test",
+    "guardrails": "node tools/guardrails/check.mjs"
   }
 }

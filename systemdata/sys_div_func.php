@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/sys_div_func.php --- ver 5.0.0 -- 2026.10.10 ---
+// --- systemdata/sys_div_func.php --- ver 5.1.1 -- 2026.11.19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -85,8 +85,6 @@
 // 20211022 LOE Fixed some bugs
 // 20211123 PHR added paperflow
 // 20211123 PHR added paperflowId & paperflowBearer
-// 20260928 Sawaneh Security 4.0: SQL tool, DocuBizz and Paperflow removed; Vibrant password never shown; MobilePay/QuickPay
-//                  secrets write-only; Flatpay login handled server-side; FTP test via PHP ftp_*; variant delete id cast.
 // 20220413 PHR Renamed pos_valg til posOptions and moved function to diverse/posOptions.php
 // 20231228 PBLM Added mobilePay (diverse valg)
 // 20240130 PBLM Added Nemhandel (diverse valg)
@@ -124,34 +122,49 @@
 //                query (was mislabeled $mySaleTest but still read var_name='mySale');
 //                also dropped the debug echo block referencing it. Never saved
 //                ($_POST['mySaleTest'] was read nowhere) and had no consumer. MB-28.
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20260928 Sawaneh Removed personlige_valg() (replaced by systemdata/personalSettings.php, no callers left).
-// 20261002 Sawaneh Phase 4b batch 1: provision() and orediff() removed (generated sections); div_valg() no longer shows
-//                  mySale, print, payment lists, payment days or voucher-date rows, and no longer calls checkip.dyndns.com.
-//                  The four debtor-card rows (Debitorkort section since 4a) are gone from it too.
-// 20261002 Sawaneh Phase 4b batch 2: GLS, Danske Fragtmænd, QuickPay, Flatpay, Vibrant, MobilePay and Copayone left div_valg()
-//                  for Indstillinger » Integrationer (pick-up addresses stay); api_valg() only runs the shop sync.
-// 20261005 Sawaneh G1.4: kontoindstillinger() keeps only the user count; name/reset/delete/time zone moved.
-// 20261003 Sawaneh G6.3: the SMTP form left kontoindstillinger() for Indstillinger » Dokumenter & e-mail » E-mail.
-// 20261004 Sawaneh G5.8 (B-L1): labels() escapes the label name and the custom text lines, and accepts only valg box1/box2.
-// 20261004 Sawaneh G2.6: bilag() and testftp() removed (generated section Finans » Bilagsopbevaring).
-// 20261003 Sawaneh G3.4: rykker_valg() removed (generated section Salg » Betalingsbetingelser & rykkere).
-// 20261004 Sawaneh Pick-up addresses are edited under Indstillinger » Integrationer » Afhentningsadresser; the list and its script are gone from Diverse valg.
 // 20260731 MJ api_valg(): close the <form> also when no eligible API user exists
 // 20260924 LOE SD-657 The setting that keeps turnover from users without the Indstillinger right.
 // 20260929 CDX/PHR Offer legacy and form-based HTML layout choices beside the generator setting.
 // 20261002 LOE SST-844 The Flatpay ID popup sends a CSRF token and only reloads when the save succeeded.
 // 20261002 LOE SST-847 The Flatpay ID popup no longer writes the login to the browser console.
-// 20261008 Sawaneh Settings 4e: the dead prislister() removed (price lists live in Indstillinger » Prislister).
-// 20261010 Sawaneh G5.8: the label template functions moved unchanged to includes/labelTemplates.php (shared with
-//                  systemdata/labels.php); labels() stays only for the old page, which now redirects.
-// 20261011 Sawaneh The include of sys_div_func_includes/chooseProvision.php removed: the file left with 4a on 2 October
-//                  (provision lives in Organisation » Provision) and the include has warned on every load since.
 // 20261007 CL/SZ SST-843 The Vibrant API key is no longer printed on Diverse valg; the field shows only its last four characters.
 //                Creating a Vibrant login and "Vis login" now go through server-side endpoints instead of calling Vibrant from the page.
 //                Both calls show an alert when the answer is not JSON, e.g. after the session expired.
 //                (Merge into redesign 23/10: that Diverse valg block is gone here - the settings page's masked 'secret' control replaces it.)
-
+// 20261027 CL/MMR SD-780 The SMTP password on Kontoindstillinger is a password field (was clear text) with a "Vis" box to show it.
+//                 The value is still posted unchanged, so Skift works without retyping it.
+//                 The two includes in kontoindstillinger() use __DIR__ now (include-path convention for an edited block).
+//                 The brugerantal lookup between them sits at function level (was indented one tab too far).
+//                 (Merge into redesign 31/10: that SMTP form is gone here - Dokumenter & e-mail » E-mail keeps the password write-only as a 'secret'.)
+// 20261029 CL/MJ SST-885 ordre_valg(): new checkbox "Send 'Bemærkning til ordre' med på e-fakturaer" (settings sendOrderNote/easyUBL, off by default).
+// 20261029 CL/MMR SST-911 Ordrerelaterede valg has "Fakturér webshopordrer med ordredato" (settings ordre/webshopInvoiceOrderDate, default off).
+//                 The lock-payment row in ordre_valg() has braces around its multi-line if.
+// 20261029 CL/MMR SD-786 Ordrerelaterede valg: "Vis besked når kostprisen er anslået" (off by default) turns on the cost-price message on delivery.
+//                 ordre_valg(): braces on the multi-line "Lås fakturér-knappen" if.
+// 20261030 CL/MMR SD-786 The title of "Vis besked når kostprisen er anslået" has text id 8402, because #848 took 7640 on master.
+// 20261030 CL/MMR SD-786 The checkbox text moved from 7639 to 8406, next to its title 8402, because other changes also use 7636-7639.
+// 20260928 SS Security 4.0: SQL tool, DocuBizz and Paperflow removed; Vibrant password never shown; MobilePay/QuickPay secrets write-only; Flatpay login handled server-side; FTP test via PHP ftp_*; variant delete id cast.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20260928 SS Removed personlige_valg() (replaced by systemdata/personalSettings.php, no callers left).
+// 20261002 SS Phase 4b batch 1: provision() and orediff() removed (generated sections); div_valg() no longer shows mySale, print, payment lists, payment days or voucher-date rows, and no longer calls checkip.dyndns.com.
+//             The four debtor-card rows (Debitorkort section since 4a) are gone from it too.
+// 20261002 SS Phase 4b batch 2: GLS, Danske Fragtmænd, QuickPay, Flatpay, Vibrant, MobilePay and Copayone left div_valg() for Indstillinger » Integrationer (pick-up addresses stay); api_valg() only runs the shop sync.
+// 20261005 SS G1.4: kontoindstillinger() keeps only the user count; name/reset/delete/time zone moved.
+// 20261003 SS G6.3: the SMTP form left kontoindstillinger() for Indstillinger » Dokumenter & e-mail » E-mail.
+// 20261004 SS G5.8 (B-L1): labels() escapes the label name and the custom text lines, and accepts only valg box1/box2.
+// 20261004 SS G2.6: bilag() and testftp() removed (generated section Finans » Bilagsopbevaring).
+// 20261003 SS G3.4: rykker_valg() removed (generated section Salg » Betalingsbetingelser & rykkere).
+// 20261004 SS Pick-up addresses are edited under Indstillinger » Integrationer » Afhentningsadresser; the list and its script are gone from Diverse valg.
+// 20261008 SS Settings 4e: the dead prislister() removed (price lists live in Indstillinger » Prislister).
+// 20261010 SS G5.8: the label template functions moved unchanged to includes/labelTemplates.php (shared with systemdata/labels.php); labels() stays only for the old page, which now redirects.
+// 20261011 SS The include of sys_div_func_includes/chooseProvision.php removed: the file left with 4a on 2 October (provision lives in Organisation » Provision) and the include has warned on every load since.
+// 20261105 CL/LH kontoindstillinger() keeps the regnskab's name, reset and delete where Abonnement & konto (G1.4) does not exist, i.e. without the hosted module.
+//                Its 'Flyttet til' line there links only to Lokalisering; the link to Abonnement & konto redirected to settings.php?err=module.
+//                The three forms post thisDb, so online.php refuses them once the session has moved to another regnskab.
+//                The regnskab's name is escaped in the installation's charset (st_h()), so a LATIN9 name such as 'Jørgens ApS' is not dropped.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261114 CL/ASR Without the hosted module kontoindstillinger() keeps the name and Slet regnskab, but not Nulstil regnskab (owner, 14 Nov 2026): a ledger is reset only from the admin panel (admin/admin_panel.php).
+// 20261119 CL/ASR ordre_valg(): an Omgående bogføring box that is on cannot be unticked (owner, 19 Nov 2026), as saveOrderOptions() keeps it on; the page itself is no longer reached (diverse.php redirects it).
 include_once("../includes/connect.php"); 
 include_once(__DIR__ . "/../includes/labelTemplates.php");
 
@@ -177,18 +190,18 @@ function kontoindstillinger($regnskab, $skiftnavn)
 	$disabled  = "";
 	@session_start();
 	$s_id = session_id();
-	include("../includes/connect.php");
-		$query = "SELECT brugerantal FROM regnskab WHERE db = '$db'";
-		$result = db_select($query, __FILE__ . " linje " . __LINE__);
-	
-		if ($result) {
-			if (db_num_rows($result) > 0) {
-				$row = db_fetch_array($result);
-				$max_users = (int)$row['brugerantal'];
-			}
+	include(__DIR__ . '/../includes/connect.php');
+	$query = "SELECT brugerantal FROM regnskab WHERE db = '$db'";
+	$result = db_select($query, __FILE__ . " linje " . __LINE__);
+
+	if ($result) {
+		if (db_num_rows($result) > 0) {
+			$row = db_fetch_array($result);
+			$max_users = (int)$row['brugerantal'];
 		}
+	}
 	$permission_key = 'system.indstillinger';
-	include("../includes/online.php");
+	include(__DIR__ . '/../includes/online.php');
 	if($masterDb == "gratis" || $masterDb == "mini") {
 		$disabled = "disabled";
 	}
@@ -205,10 +218,46 @@ function kontoindstillinger($regnskab, $skiftnavn)
 		}
 	</script>\n";
 
-	// 20261005 Sawaneh G1.3/G1.4: name, reset and delete moved to Indstillinger » Virksomhed » Abonnement & konto, the
-	// time zone to Lokalisering; only the user count stays here until the billing spec replaces it.
 	print "<tr><td colspan='6'><hr></td></tr>\n";
-	print "<tr><td colspan='6'>" . findtekst('6645|Flyttet til', $sprog_id) . " <a href='settingsSection.php?s=company.account'>" . findtekst('6630|Abonnement & konto', $sprog_id) . "</a> · <a href='settingsSection.php?s=company.localisation'>" . findtekst('6524|Lokalisering', $sprog_id) . "</a></td></tr>\n";
+	if (settings_has_module('hosted')) {
+		// 20261005 Sawaneh G1.3/G1.4: name, reset and delete moved to Indstillinger » Virksomhed » Abonnement & konto, the
+		// time zone to Lokalisering; only the user count stays here until the billing spec replaces it.
+		print "<tr><td colspan='6'>" . findtekst('6645|Flyttet til', $sprog_id) . " <a href='settingsSection.php?s=company.account'>" . findtekst('6630|Abonnement & konto', $sprog_id) . "</a> · <a href='settingsSection.php?s=company.localisation'>" . findtekst('6524|Lokalisering', $sprog_id) . "</a></td></tr>\n";
+		print "<tr><td colspan='6'><br></td></tr>\n";
+		return;
+	}
+	// Abonnement & konto (G1.4) exists only where the hosted module is on (Saldi's own servers). Elsewhere the
+	// regnskab's name and delete stay here, as before the redesign; systemdata/diverse.php saves them.
+	// The reset is not offered here: a ledger is reset only from the admin panel (admin/admin_panel.php).
+	print "<tr><td colspan='6'>" . findtekst('6645|Flyttet til', $sprog_id) . " <a href='settingsSection.php?s=company.localisation'>" . findtekst('6524|Lokalisering', $sprog_id) . "</a></td></tr>\n";
+	print "<tr><td colspan='6'><hr></td></tr>\n";
+	$name = st_h($regnskab); // in the installation's charset (includes/settings/components.php, loaded by top.php): a LATIN9 name is not UTF-8
+	// Each of these forms carries the regnskab it was drawn in, as stamkort.php's did: includes/online.php refuses the post
+	// once the session has moved to another regnskab (admin/aaben_regnskab.php keeps the session and its CSRF token).
+	$thisDb = "<input type='hidden' name='thisDb' value='" . st_h($db) . "'>";
+	if ($skiftnavn) {
+		print "<form name='diverse' action='diverse.php?sektion=kontoindstillinger' method='post'>$thisDb\n";
+		print "<tr><td colspan='6'>" . findtekst('2524|Skriv nyt navn på regnskab', $sprog_id) . "<input class='inputbox' type='text' style='width:400px' name='newName' value='$name'> ";
+		print findtekst('2525|og klik', $sprog_id) . " <input class='button gray medium' style='width:75px' type='submit' value='" . findtekst('2526|Skift navn', $sprog_id) . "' name='changeAccountName'></td></tr>\n";
+		print "</form>\n";
+		print "<tr><td colspan='6'><br></td></tr>\n";
+		return;
+	}
+	$klik = explode(" ", findtekst('149|Klik her for at sortere på telefonnummer.', $sprog_id)); #20210710
+	print "<tr><td colspan='6'>" . findtekst('1237|Dit regnskab hedder', $sprog_id) . " <span style='font-weight:bold'>$name</span>. ";
+	print "$klik[0] <a href='diverse.php?sektion=kontoindstillinger&amp;skiftnavn=ja'>" . findtekst('2157|her', $sprog_id) . "</a> " . findtekst('1238|for at ændre navnet.', $sprog_id) . "</td></tr>\n";
+	print "<tr><td colspan='6'><hr></td></tr>\n";
+	$r = db_fetch_array(db_select("select count(id) as transantal from transaktioner where logdate >= '" . date('Y-m-d', time() - 60 * 60 * 24 * 365) . "'", __FILE__ . " linje " . __LINE__));
+	print "<tr><td>" . findtekst('1233|Der er foretaget', $sprog_id) . " " . (int) $r['transantal'] . " " . findtekst('1234|posteringer de sidste 12 mdr.', $sprog_id) . "</td></tr>";
+	print "<tr><td colspan='6'><hr></td></tr>\n";
+	print "<tr><td colspan='6'><br></td></tr>\n";
+	print "<form name='slet_regnskab' action='diverse.php?sektion=kontoindstillinger' method='post'>$thisDb\n"; #20170731 ->
+	$tekst1 = findtekst('852|Slet regnskab', $sprog_id);
+	$tekst2 = findtekst('853|Hvis du sætter flueben i feltet og klikker på &apos;Slet&apos; slettes regnskabet og din konto lukkes. Vi beholder en sikkerhedskopi i 5 år jf. bogføringsloven.', $sprog_id);
+	print "<tr><td title='$tekst2'><b>$tekst1: $name</b></td><td title='$tekst2'><input type='checkbox' name='slet_regnskab'></td></tr>";
+	$confirm = htmlspecialchars(jsString(array(findtekst('851|Er du sikker på at du vil slette dit regnskab? Denne handling kan ikke fortrydes! - Tag en sikkerhedskopi først!', $sprog_id))), ENT_QUOTES, 'UTF-8');
+	print "<tr><td></td><td><input class='button gray medium' title='$tekst2' style='width:200px' type='submit' name='slet' value='" . findtekst('1099|Slet', $sprog_id) . "' onclick=\"return confirm($confirm)\"></td></tr>";
+	print "</form>\n"; # <- 20170731
 	print "<tr><td colspan='6'><br></td></tr>\n";
 } # endfunc kontoindstillinger
 
@@ -537,6 +586,7 @@ function ordre_valg() {
 
 	// SD-657: while this is on, users without the Indstillinger right are kept out of turnover and Finans.
 	$hideRevenue = (get_settings_value('hideRevenue', 'finans', 'off') === 'on') ? 'checked' : '';
+	$sendOrderNote = (get_settings_value('sendOrderNote', 'easyUBL', 'off') === 'on') ? 'checked' : ''; #20261029
 	$rabatvareid = (int)$grupper_data['box2'];
 	($grupper_data['box3'] == 'on') ? $folge_s_tekst = "checked" : $folge_s_tekst = NULL;
 	($grupper_data['box4'] == 'on') ? $hurtigfakt = "checked" : $hurtigfakt = NULL;
@@ -548,6 +598,13 @@ function ordre_valg() {
 	}
 	($straks_deb == 'on') ? $straks_deb = 'checked' : $straks_deb = NULL;
 	($straks_kred == 'on') ? $straks_kred = 'checked' : $straks_kred = NULL;
+	// Omgående bogføring that is on cannot be switched off again (owner, 19 Nov 2026): the ticked box cannot be unticked.
+	if ($straks_deb) {
+		$straks_deb = "checked onclick='return false'";
+	}
+	if ($straks_kred) {
+		$straks_kred = "checked onclick='return false'";
+	}
 	($grupper_data['box6'] == 'on') ? $fifo = "checked" : $fifo = NULL;
 	$kontantkonto = $grupper_data['box7'];
 	($grupper_data['box8'] == 'on') ? $vis_nul_lev = "checked" : $vis_nul_lev = NULL;
@@ -591,7 +648,9 @@ function ordre_valg() {
 	$gs1parsing          = get_settings_value("gs1_parsing", "ordre", "off") === "on" ? "checked" : "";
 	$ourRefStockSwitch   = get_settings_value("ourRefStockSwitch", "ordre", "off") === "on" ? "checked" : "";
 	$stockWarningEnabled = get_settings_value("stockWarningEnabled", "ordre", "off") === "on" ? "checked" : "";
+	$showCostEstimateNotice = get_settings_value("showCostEstimateNotice", "ordre", "off") === "on" ? "checked" : ""; # SD-786
 	$showBothAddrExtra   = get_settings_value("showBothAddrExtra", "ordre", "off") === "on" ? "checked" : "";
+	$webshopInvoiceOrderDate = get_settings_value("webshopInvoiceOrderDate", "ordre", "off") === "on" ? "checked" : ""; #SST-911
 
 	$rabatvarenr = NULL;
 	if ($rabatvareid) {
@@ -619,9 +678,10 @@ function ordre_valg() {
 	print "<tr bgcolor='$bgcolor5'><td colspan='6'><b><u>".findtekst('786|Ordrerelaterede valg', $sprog_id)."</u></b></td></tr>";
 	print "<tr><td colspan='6'><br></td></tr>";
 	print "<input type=hidden name=id value='$id'>";
-	$qtxt = "select box12 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '$regnaar'";
-	if($r = db_fetch_array(db_select($qtxt, __FILE__ . "linje " . __LINE__)))
+	$qtxt = "select box12 from grupper where art = 'POS' and kodenr = '2' and fiscal_year = '" . (int) $regnaar . "'";
+	if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 		print "<tr><td title='".findtekst('3356|Hvis dette felt afmærkes, låses fakturér-knappen hvis ordren ikke er betalt', $sprog_id)."'>".findtekst('3357|Lås fakturér-knappen, hvis ordren ikke er betalt', $sprog_id)."</td><td><input type='checkbox' class='checkbox' name='lockPayment' $lockPayment><td></tr>";
+	}
 
 	print "<tr><td title='Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer'>Vis priser inkl. moms på kundeordrer (private kunder)</td><td><INPUT title='Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer' class='inputbox' type='checkbox' name=vatPrivateCustomers $incl_moms_private></td></tr>";
 	print "<tr><td title='Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer'>Vis priser inkl. moms på kundeordrer (erhvervskunder)</td><td><INPUT title='Hvis dette felt afmærkes vises priser inkl. moms på salgsordrer' class='inputbox' type='checkbox' name=vatBusinessCustomers $incl_moms_business></td></tr>";
@@ -667,9 +727,15 @@ function ordre_valg() {
 	print "<tr><td title='$ourRefStockTitle'>".findtekst("5034|Vælg en anden vare, hvis lageret på 'Vores ref.' er tomt", $sprog_id)."</td><td><INPUT title='$ourRefStockTitle' class='inputbox' type='checkbox' name='ourRefStockSwitch' $ourRefStockSwitch></td></tr>";
 	$stockWarningTitle = htmlspecialchars(findtekst('5037|Aktiverer popup-advarsel og krav om begrundelse ved salg af udsolgte varer i både POS og Debitor/Ordre. Godkendelsen logges på ordren.', $sprog_id), ENT_QUOTES);
 	print "<tr><td title='$stockWarningTitle'>".findtekst('5036|Advar ved salg af udsolgte varer (popup + begrundelse)', $sprog_id)."</td><td><INPUT title='$stockWarningTitle' class='inputbox' type='checkbox' name='stockWarningEnabled' $stockWarningEnabled></td></tr>";
+	$costEstimateTitle = htmlspecialchars(findtekst('8402|Afmærkes feltet, kommer der en besked ved levering af en ordre, når kostprisen på en vare er anslået, fordi der ikke var et købsparti at tage den fra, og prisen kommer fra varekortet eller fra en åben indkøbsordre med en anden pris end varekortet. Kostprisen beregnes ens, uanset om feltet er afmærket.', $sprog_id), ENT_QUOTES);
+	print "<tr><td title='$costEstimateTitle'>".findtekst('8406|Vis besked når kostprisen er anslået', $sprog_id)."</td><td><INPUT title='$costEstimateTitle' class='inputbox' type='checkbox' name='showCostEstimateNotice' $showCostEstimateNotice></td></tr>";
 	print "<tr><td title='".findtekst('5039|Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer', $sprog_id)."'>".findtekst('5038|Vis både leveringsadresse og ekstrafelter på åbne ordrer', $sprog_id)."</td><td><INPUT title='".findtekst('5039|Vis både leveringsadresse og ekstrafelter samtidigt på åbne ordrer', $sprog_id)."' class='inputbox' type='checkbox' name='showBothAddrExtra' $showBothAddrExtra></td></tr>";
+	$webshopInvoiceOrderDateTitle = htmlspecialchars(findtekst('7695|Hvis dette felt afmærkes, får en webshopordre ordredatoen som fakturadato, når Fakt. dato er tom ved fakturering. Ellers bruges dags dato.', $sprog_id), ENT_QUOTES);
+	print "<tr><td title='$webshopInvoiceOrderDateTitle'>".findtekst('7694|Fakturér webshopordrer med ordredato', $sprog_id)."</td><td><input type='hidden' name='webshopInvoiceOrderDateShown' value='1'><INPUT title='$webshopInvoiceOrderDateTitle' class='inputbox' type='checkbox' name='webshopInvoiceOrderDate' $webshopInvoiceOrderDate></td></tr>";
 	#	print "<tr><td title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."'>".findtekst('3116|Decimaler på rabat', $sprog_id)."</td><td><INPUT title='".findtekst('3117|Angiv antallet af decimaler på rabatfelter på ordrer', $sprog_id)."' class='inputbox' type='text' style='width:70px;text-align:right;' name='rabatdecimal' value='$rabatdecimal'></td></tr>";
 	print "<tr><td title='".findtekst('5247|Skjul omsætning på ordrelisten og i kasseoptællingen for brugere uden rettigheden Indstillinger. Brugere med rettigheden ser uændret.', $sprog_id)."'>".findtekst('5246|Skjul omsætning for brugere uden adgang til Indstillinger', $sprog_id)."</td><td><INPUT title='".findtekst('5246|Skjul omsætning for brugere uden adgang til Indstillinger', $sprog_id)."' class='inputbox' type='checkbox' name='hideRevenue' $hideRevenue></td></tr>";
+	$sendOrderNoteTitle = htmlspecialchars(findtekst('8401|Afmærkes feltet, sendes teksten i "Bemærkning til ordre" med som bemærkning på e-fakturaer, e-kreditnotaer og e-ordrer. Feltet bruges ofte til interne noter, så det er slået fra som standard. PDF-fakturaen er uændret.', $sprog_id), ENT_QUOTES); #20261029
+	print "<tr><td title='$sendOrderNoteTitle'>".htmlspecialchars(findtekst('8400|Send "Bemærkning til ordre" med på e-fakturaer', $sprog_id), ENT_QUOTES)."</td><td><INPUT title='$sendOrderNoteTitle' class='inputbox' type='checkbox' name='sendOrderNote' $sendOrderNote></td></tr>";
 
 	print "<tr><td><br></td></tr>";
 	print "<tr><td><br></td></tr>";
@@ -1270,7 +1336,7 @@ Pris $pris<br>
     }
 } # endfunc labels
 
-
+    
  # endfunc prislister
 
 

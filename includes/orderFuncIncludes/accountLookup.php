@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//---includes/orderFuncIncludes/accountLookup.php ---patch 5.0.0 ----2026-10-08 ---
+//---includes/orderFuncIncludes/accountLookup.php ---ver 5.1.1 ----2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,15 +23,14 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------
-
+//
 // 20260827 CDX/PHR Restored supplier lookup for KO, including AJAX results.
 // 20260901 CL/LH Escape grid cell values before rendering (XSS) and pass
 //                 o_art=KO along on row select so supplier choice survives
 // 20260901 CL/LH Skip the debtor-creation form for KO (supplier) lookups
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
 // 20261008 CDX/PHR Include open accounts with a NULL closed flag in order lookups.
-// 20261019 Sawaneh Review 2 (PR #803): inactive debtor groups left out of the new-customer group dropdown.
-
+// 20261019 SS Review 2 (PR #803): inactive debtor groups left out of the new-customer group dropdown.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $addr2, $postnr, $bynavn, $land, $kontakt, $email, $cvrnr, $ean, $betalingsbet, $betalingsdage)
 {
     $art = ($o_art == 'KO') ? 'K' : 'D';
@@ -78,6 +77,9 @@ function kontoopslag($o_art, $sort, $fokus, $id, $kontonr, $firmanavn, $addr1, $
     if (isset($_GET['fokus'])) $fokus = $_GET['fokus'];
     if (isset($_GET['find'])) $find = $_GET['find'];
 
+    if ($menu == 'T') {
+        include_once '../includes/top_menu.php';
+    }
 
     if ($fokus == 'kontonr')
         $find = $kontonr;
@@ -558,6 +560,10 @@ CREATEFORM;
     else
         print "<BODY onLoad=\"javascript:document.getElementById('fokus').focus()\">";
 
-    include_once '../includes/oldDesign/footer.php'; 
+    if ($menu == 'T') {
+        include_once '../includes/topmenu/footer.php';
+    } else {
+        include_once '../includes/oldDesign/footer.php'; 
+    }
     exit;
 }

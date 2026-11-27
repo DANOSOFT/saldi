@@ -1,0 +1,16 @@
+/* 20261110 CDX/ASR Compact settings menu leaves room for role editing, preserving every navigation destination. */
+.st-page .st-menu-toggle { display: block; min-height: 32px; padding: 5px 8px; border: 1px solid var(--st-border); border-radius: var(--st-r); background: var(--st-surface); color: var(--st-text-2); font: inherit; cursor: pointer; }
+.st-page .st-menu-toggle[hidden] { display: none; }
+.st-layout.is-menu-compact { grid-template-columns: minmax(0, 1fr); }
+.st-layout.is-menu-compact > .st-menu { position: static; grid-row: auto; display: flex; flex-direction: row; align-items: center; max-height: none; }
+.st-layout.is-menu-compact > .st-menu > .st-menu-panel { display: none; }
+.st-layout.is-menu-compact > .st-menu > .st-tabs-select { display: block; min-width: 0; flex: 1; height: 34px; padding: 4px 8px; border: 1px solid var(--st-border); border-radius: var(--st-r); background: var(--st-surface); color: var(--st-text); font: inherit; }
+.st-layout.is-menu-compact > .st-hist { grid-column: 1; }
+.st-page .st-menu-group-toggle { display: flex; align-items: center; gap: 6px; width: 100%; padding: 3px 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.st-menu-group-toggle::after { content: '+'; margin-left: auto; }
+.st-menu-group-toggle[aria-expanded="true"]::after { content: '\2212'; }
+.st-menu .st-menu-rows[hidden] { display: none; }
+.st-menu :is(.st-menu-toggle, .st-menu-group-toggle):focus-visible { outline: 2px solid var(--st-mark); outline-offset: 2px; }
+@media (max-width: 900px) {
+    .st-page .st-menu-toggle { display: none; }
+}

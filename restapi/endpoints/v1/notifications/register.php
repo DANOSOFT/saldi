@@ -1,5 +1,6 @@
 <?php
 // 20260906 CDX/LH Reuse inherited endpoint properties and database includes to prevent PHP 8 fatal errors; reject unsupported GET with 405.
+// 20261127 ASR With $allowedLedgers in includes/connect.php a token for an account database that is not listed (the master database too) is refused with 403.
 /**
  * POST /notifications/register - Register device token for push notifications
  * DELETE /notifications/register - Unregister device token
@@ -29,7 +30,13 @@ class NotificationsRegisterEndpoint extends BaseEndpoint
         }
         
         $this->userId = $payload['user_id'];
-        $this->db = JWTAuth::getTenantDatabase();
+        $tenantDb = JWTAuth::getTenantDatabase();
+        // An installation with $allowedLedgers (includes/connect.php) serves only the listed ledgers, the master database too.
+        if ($tenantDb && !saldi_ledger_allowed($tenantDb)) {
+            $this->sendResponse(false, null, saldi_ledger_refusal_text(), 403);
+            return false;
+        }
+        $this->db = $tenantDb;
         
         // Database is optional for notifications (can be global)
         return true;

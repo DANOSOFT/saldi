@@ -1,14 +1,33 @@
 <?php
 // 20261109 CL/ASR Link reminders (Linkrykker): which reminders become link reminders, registration, renteloven § 9 b, the reminder fee and interest on the next invoice (and when they are waived), the reminder mail and its send path with classic fallback, the dunning hold for card-on-file invoices and closing paid reminders.
 // 20261109 CL/ASR Review fixes: paid and out-of-year reminders are not escalated, a shared fee/interest item, the earlier classic fee as a bank row (D1), the first mailed_at kept (D2), the PDF treatment (D3), staff texts in the database's encoding (D4), no fee on cash/card sales, the current lines and the order's project, the hold only while the job collects, booked drafts kept, "Frafald" with its token.
-
+//
 // 20261111 CDX/ASR Cover link PDF deadlines and preserve classic and collection-warning text.
+// 20261116 CDX/ASR Multi-invoice buttons name one invoice and skip below-minimum invoices while retaining their balance and view link.
+// 20261118 CDX/ASR Verify that customer mails greet the recipient company rather than a contact person.
+// 20261126 ASR Review I5: the reminder letter states the reminder's own fee (capped when it was made), not the fee item's price; a capped 2nd reminder's letter says 100,00.
+// 20261126 ASR Review I19: a fee and interest posted as an open item are paid by bank transfer, not with the Betal link: their rows say so, and the bank box names the reminder as the reference.
+// 20261126 CL/ASR Review round 1 (I14): the multi-invoice button sentence has one full stop after the amount.
+// 20261126 ASR Payment review (GPT-P-6): the card-on-file hold releases an invoice whose open item is one øre off its total, as the charge job does not collect it.
+// 20261126 ASR Payment review (GPT-P-3): it also releases an invoice split in several open items, as the charge job does not collect it.
+// 20261126 ASR Payment review (GPT-G-2): it releases an open item within half an øre of the total on another project than the order's, as the charge job does not collect it; an exact one stays held.
+// 20261126 ASR Review GPT-R-3: the legal check counts the reminders with a fee for the same invoice in a closed chain: no 4th fee, and 10 days after the newest one was sent.
+// 20261126 ASR Review GPT-R-4: a classic reminder counts the 10 days from the day it was first mailed or printed (reminder_dispatch), and one from before keeps its date.
+// 20261126 ASR Review GPT-R-8: the letter's overdue balance ($forfalden_sum) leaves out an invoice the link reminder leaves out as settled, as the lines do.
+// 20261126 ASR Review GPT-R-10: a settled installment leaves out only itself; the invoice stays on the link reminder with its remaining open item, by bank transfer.
+// 20261126 ASR Review GPT-R-11: a credit note draft does not leave its invoice out of the link reminder; an invoiced credit note does.
+// 20261126 ASR Review GPT-G-7: the fees counted per invoice leave out reminders made while the dispatch day is recorded that were closed without being mailed or printed.
+//              Sent ones still block a 4th fee and the 10 days; reminders made before the day was recorded still count from their dates.
+// 20261126 ASR Review R3-G7-1: such a reminder whose fee was booked to the customer (fee open item or postings) counts without a recorded day, dated by its date.
+//              One left at status 3 without posting, or closed with Afslut unbooked, still does not.
+// 20261127 ASR Review GPT-H-1: an older draft sent for the first time after a later chain counts that chain: no 4th fee after three, and the 10 days after one; sending a reminder that already went out again is checked as before.
+//              The last check and the record of the day it went out hold the customer's dispatch lock, by mail and on paper, and another session's dispatch for the customer is waited for.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 
-require_once __DIR__ . '/bootstrap.php';
-require_once __DIR__ . '/reminderFixtures.php';
+require_once __DIR__ . '/support/bootstrap.php';
+require_once __DIR__ . '/support/reminderFixtures.php';
 require_once __DIR__ . '/../../includes/stripeIncludes/stripeManualFee.php';
 require_once __DIR__ . '/../../includes/stripeIncludes/stripeDunning.php';
 // The link reminder code (spec §3.1/§3.2). A file that is not there leaves its tests red instead of stopping the suite.
@@ -307,6 +326,370 @@ final class StripeReminderTest extends StripeDatabaseTestCase
         $this->assertSame('', reminder_legal_check($classicSecond, '2026-01-28'));
     }
 
+    public function testLegalCheckCountsTheFeesForTheSameInvoiceInAClosedChain(): void
+    {
+        $debtor = StripeFixtures::debtor();
+        $invoice = StripeFixtures::invoice($debtor, ['udskriv_til' => 'email']);
+        $nr = StripeFixtures::row('ordrer', $invoice)['fakturanr'];
+        $r = ['debtor' => $debtor, 'invoice' => $invoice, 'reminder' => StripeReminderFixtures::reminder($debtor, [$invoice], ['date' => '2026-01-20'])];
+        $chain = [$r['reminder'], StripeReminderFixtures::nextLevel($r, 2, '2026-02-01'), StripeReminderFixtures::nextLevel($r, 3, '2026-02-15')];
+        // Afslut closes the chain; the invoice is still unpaid, so a new chain can be made for it.
+        StripeTestEnvironment::query("UPDATE ordrer SET betalt = 'on', status = 4 WHERE id = ANY($1::int[])", ['{' . implode(',', $chain) . '}']);
+        $again = StripeReminderFixtures::reminder($debtor, [$invoice], ['date' => '2026-03-10']);
+        $this->assertSame("Der er allerede opkrævet rykkergebyr for 3 rykkere for faktura $nr (renteloven § 9 b).", reminder_legal_check($again, '2026-03-10'));
+        $this->assertSame('', reminder_legal_check(StripeReminderFixtures::reminder($debtor, [$invoice], ['date' => '2026-03-10', 'fee' => 0]), '2026-03-10'),
+            'a reminder without a fee may still be sent');
+        // Another invoice of the same customer has its own count.
+        $other = StripeFixtures::invoice($debtor, ['udskriv_til' => 'email']);
+        $this->assertSame('', reminder_legal_check(StripeReminderFixtures::reminder($debtor, [$other], ['date' => '2026-03-10']), '2026-03-10'));
+
+        // A chain closed after one reminder with a fee: a new reminder with a fee for the invoice waits 10 days after it was sent.
+        $debtor2 = StripeFixtures::debtor();
+        $invoice2 = StripeFixtures::invoice($debtor2, ['udskriv_til' => 'email']);
+        $nr2 = StripeFixtures::row('ordrer', $invoice2)['fakturanr'];
+        $first = StripeReminderFixtures::reminder($debtor2, [$invoice2], ['date' => '2026-01-20']);
+        StripeTestEnvironment::query("UPDATE ordrer SET betalt = 'on' WHERE id = $1", [$first]);
+        $new = StripeReminderFixtures::reminder($debtor2, [$invoice2], ['date' => '2026-01-25']);
+        $this->assertSame("Faktura $nr2 fik en rykker med gebyr den 20.01.2026. En ny rykker med gebyr kan tidligst sendes den 30.01.2026 (renteloven § 9 b).",
+            reminder_legal_check($new, '2026-01-29'));
+        $this->assertSame('', reminder_legal_check($new, '2026-01-30'));
+    }
+
+    public function testAClassicReminderCountsTheTenDaysFromTheDayItWentOut(): void
+    {
+        require_once __DIR__ . '/../../includes/opdat_func/reminderDispatch.php';
+        reminder_dispatch_schema_ensure('postgresql');
+        reminder_dispatch_schema_ensure('postgresql');   // once
+        $debtor = StripeFixtures::debtor();
+        $invoice = StripeFixtures::invoice($debtor, ['udskriv_til' => 'email']);
+        $r = ['debtor' => $debtor, 'invoice' => $invoice, 'reminder' => StripeReminderFixtures::reminder($debtor, [$invoice], ['date' => '2026-01-01'])];
+        // Made on 1 January, mailed on 20 January.
+        $GLOBALS['stripe_charge_today'] = '2026-01-20';
+        $result = formSendReminderEntry($r['reminder'], $this->pdf($r['reminder']), 'jens@stripe-tests.invalid', 'Dansk', 6, $this->classicSender());
+        $this->assertTrue($result['sent']);
+        $this->assertSame('classic', $result['channel']);
+        $this->assertSame('2026-01-20', reminder_sent_date($r['reminder']));
+        $second = StripeReminderFixtures::nextLevel($r, 2, '2026-01-21');
+        $wait = '2. rykker kan tidligst sendes den 30.01.2026 (mindst 10 dage efter forrige rykker, renteloven § 9 b).';
+        $this->assertSame($wait, reminder_legal_check($second, '2026-01-21'));
+        $this->assertSame($wait, reminder_escalation_check($r['reminder'], '2026-01-21'));
+        $this->assertSame('', reminder_legal_check($second, '2026-01-30'));
+        // Mailed again later: the first day stays.
+        $GLOBALS['stripe_charge_today'] = '2026-01-28';
+        $this->assertTrue(formSendReminderEntry($r['reminder'], $this->pdf($r['reminder']), 'jens@stripe-tests.invalid', 'Dansk', 6, $this->classicSender())['sent']);
+        $this->assertSame('2026-01-20', reminder_sent_date($r['reminder']));
+        // A mail that did not go out records nothing.
+        $failed = StripeReminderFixtures::linkReminder([], ['udskriv_til' => 'email'], ['date' => '2026-01-01']);
+        formSendReminderEntry($failed['reminder'], $this->pdf($failed['reminder']), 'jens@stripe-tests.invalid', 'Dansk', 6, static fn(...$args): string => 'Mail error');
+        $this->assertSame('2026-01-01', reminder_sent_date($failed['reminder']));
+
+        // Printed on paper on 15 January.
+        $printed = StripeReminderFixtures::linkReminder([], ['udskriv_til' => 'email'], ['date' => '2026-01-01']);
+        $GLOBALS['stripe_charge_today'] = '2026-01-15';
+        formReminderPrinted($printed['reminder']);
+        $this->assertSame('2026-01-15', reminder_sent_date($printed['reminder']));
+        $this->assertSame(['sent_date' => '2026-01-15', 'channel' => 'print'],
+            pg_fetch_assoc(StripeTestEnvironment::query('SELECT sent_date, channel FROM reminder_dispatch WHERE order_id = $1', [$printed['reminder']])));
+
+        // A reminder made before Saldi recorded the day keeps its date, as before.
+        $old = StripeReminderFixtures::linkReminder([], ['udskriv_til' => 'email'], ['date' => '2026-01-05']);
+        $this->assertSame('2026-01-05', reminder_sent_date($old['reminder']));
+    }
+
+    public function testAReminderMadeWhileDispatchIsRecordedCountsTowardsTheFeesOnlyWhenItWentOut(): void
+    {
+        require_once __DIR__ . '/../../includes/opdat_func/reminderDispatch.php';
+        reminder_dispatch_schema_ensure('postgresql');
+        $limit = static fn(string $nr): string => "Der er allerede opkrævet rykkergebyr for 3 rykkere for faktura $nr (renteloven § 9 b).";
+        $chain = static function (int $debtor, int $invoice, array $dates): array {
+            $r = ['debtor' => $debtor, 'invoice' => $invoice, 'reminder' => StripeReminderFixtures::reminder($debtor, [$invoice], ['date' => $dates[0]])];
+            $ids = [$r['reminder']];
+            foreach (array_slice($dates, 1) as $i => $date) $ids[] = StripeReminderFixtures::nextLevel($r, $i + 2, $date);
+            return $ids;
+        };
+        $close = static function (array $ids): void {   // Afslut: the invoice is still unpaid, so a new chain can be made for it
+            StripeTestEnvironment::query("UPDATE ordrer SET betalt = 'on', status = 4 WHERE id = ANY($1::int[])", ['{' . implode(',', $ids) . '}']);
+        };
+
+        // Made before Saldi recorded the day reminders go out: they may have gone out then, so they count from their dates.
+        $oldDebtor = StripeFixtures::debtor();
+        $oldInvoice = StripeFixtures::invoice($oldDebtor, ['udskriv_til' => 'email']);
+        $old = $chain($oldDebtor, $oldInvoice, ['2026-01-05', '2026-01-20', '2026-02-05']);
+        $oldDebtor2 = StripeFixtures::debtor();
+        $oldInvoice2 = StripeFixtures::invoice($oldDebtor2, ['udskriv_til' => 'email']);
+        $old2 = $chain($oldDebtor2, $oldInvoice2, ['2026-01-20']);
+
+        reminder_dispatch_since_ensure('postgresql');
+        reminder_dispatch_since_ensure('postgresql');   // recorded once
+        $first = reminder_dispatch_first_id();
+        $this->assertSame([['id' => '1', 'first_order_id' => (string)$first]],
+            pg_fetch_all(StripeTestEnvironment::query('SELECT id, first_order_id FROM reminder_dispatch_since')));
+        $this->assertGreaterThan(max(array_merge($old, $old2)), $first, 'the reminders made so far are older');
+
+        $close($old);
+        $close($old2);
+        $this->assertSame($limit(StripeFixtures::row('ordrer', $oldInvoice)['fakturanr']),
+            reminder_legal_check(StripeReminderFixtures::reminder($oldDebtor, [$oldInvoice], ['date' => '2026-03-10']), '2026-03-10'),
+            'three older reminders without a recorded day still count');
+        $oldNr2 = StripeFixtures::row('ordrer', $oldInvoice2)['fakturanr'];
+        $this->assertSame("Faktura $oldNr2 fik en rykker med gebyr den 20.01.2026. En ny rykker med gebyr kan tidligst sendes den 30.01.2026 (renteloven § 9 b).",
+            reminder_legal_check(StripeReminderFixtures::reminder($oldDebtor2, [$oldInvoice2], ['date' => '2026-01-25']), '2026-01-29'));
+
+        // Made afterwards and closed without being mailed or printed: no fee was claimed, so they do not hold back a real reminder's fee.
+        $draftDebtor = StripeFixtures::debtor();
+        $draftInvoice = StripeFixtures::invoice($draftDebtor, ['udskriv_til' => 'email']);
+        $drafts = $chain($draftDebtor, $draftInvoice, ['2026-01-05', '2026-01-20', '2026-02-05']);
+        $close($drafts);
+        $close($chain($draftDebtor, $draftInvoice, ['2026-03-08']));   // abandoned two days before
+        $real = StripeReminderFixtures::reminder($draftDebtor, [$draftInvoice], ['date' => '2026-03-10']);
+        $this->assertSame(['count' => 0, 'invoice' => '', 'last_sent' => '', 'last_invoice' => ''], reminder_claim_fee_history($real));
+        $this->assertSame('', reminder_claim_fee_refusal($real, '2026-03-10'), 'creation puts the fee on');
+        $this->assertSame('', reminder_legal_check($real, '2026-03-10'), 'and it may be sent with it');
+        $this->assertSame('2026-01-05', reminder_sent_date($drafts[0]), 'within a chain the 10 days still count from the date of a level without a recorded day');
+
+        // Made afterwards and sent (printed, mailed, a link mail): they count as before. No 4th fee for the invoice ...
+        $sentDebtor = StripeFixtures::debtor();
+        $sentInvoice = StripeFixtures::invoice($sentDebtor, ['udskriv_til' => 'email']);
+        $sent = $chain($sentDebtor, $sentInvoice, ['2026-01-05', '2026-01-20', '2026-02-05']);
+        reminder_dispatch_record($sent[0], 'print', '2026-01-06');
+        reminder_dispatch_record($sent[1], 'classic', '2026-01-21');
+        StripeReminderFixtures::linkRow($sent[2], ['mailed_at' => '2026-02-06 09:00:00']);
+        $close($sent);
+        $sentNr = StripeFixtures::row('ordrer', $sentInvoice)['fakturanr'];
+        $fourth = StripeReminderFixtures::reminder($sentDebtor, [$sentInvoice], ['date' => '2026-03-10']);
+        $this->assertSame(['count' => 3, 'invoice' => $sentNr, 'last_sent' => '2026-02-06', 'last_invoice' => $sentNr], reminder_claim_fee_history($fourth));
+        $this->assertSame($limit($sentNr), reminder_legal_check($fourth, '2026-03-10'));
+
+        // ... and a new fee waits 10 days after the day one went out, not after an abandoned draft made later.
+        $spacedDebtor = StripeFixtures::debtor();
+        $spacedInvoice = StripeFixtures::invoice($spacedDebtor, ['udskriv_til' => 'email']);
+        $went = $chain($spacedDebtor, $spacedInvoice, ['2026-01-10']);
+        reminder_dispatch_record($went[0], 'classic', '2026-01-20');
+        $close($went);
+        $close($chain($spacedDebtor, $spacedInvoice, ['2026-01-28']));
+        $spacedNr = StripeFixtures::row('ordrer', $spacedInvoice)['fakturanr'];
+        $new = StripeReminderFixtures::reminder($spacedDebtor, [$spacedInvoice], ['date' => '2026-01-25']);
+        $this->assertSame("Faktura $spacedNr fik en rykker med gebyr den 20.01.2026. En ny rykker med gebyr kan tidligst sendes den 30.01.2026 (renteloven § 9 b).",
+            reminder_legal_check($new, '2026-01-29'));
+        $this->assertSame('', reminder_legal_check($new, '2026-01-30'));
+    }
+
+    public function testAReminderWhoseFeeWasBookedCountsTowardsTheFeesWithoutARecordedDay(): void
+    {
+        require_once __DIR__ . '/../../includes/opdat_func/reminderDispatch.php';
+        reminder_dispatch_schema_ensure('postgresql');
+        reminder_dispatch_since_ensure('postgresql');   // every reminder of this test is made while the dispatch day is recorded
+        $limit = static fn(string $nr): string => "Der er allerede opkrævet rykkergebyr for 3 rykkere for faktura $nr (renteloven § 9 b).";
+        $close = static function (array $ids): void {   // Afslut: betalt only; the invoice is still unpaid, so a new chain can be made for it
+            StripeTestEnvironment::query("UPDATE ordrer SET betalt = 'on' WHERE id = ANY($1::int[])", ['{' . implode(',', $ids) . '}']);
+        };
+        // What bogfor_nu() leaves: status 4 and the fee open item (refnr = the reminder) on the customer's account.
+        $bookFeeOpenItem = static function (int $rykker): int {
+            $o = StripeFixtures::row('ordrer', $rykker);
+            StripeTestEnvironment::query('UPDATE ordrer SET status = 4 WHERE id = $1', [$rykker]);
+            return StripeFixtures::insert('openpost', ['konto_id' => (int)$o['konto_id'], 'konto_nr' => $o['kontonr'], 'faktnr' => $o['fakturanr'],
+                'refnr' => $rykker, 'amount' => '100.000', 'beskrivelse' => 'Gebyr mm. fra tidligere rykker', 'udlignet' => '0',
+                'transdate' => $o['fakturadate'], 'valuta' => 'DKK', 'valutakurs' => '100.000', 'projekt' => '']);
+        };
+
+        // R1 is booked by "Ryk alle" when it escalates it, but never mailed or printed itself. R2 lists its fee and is mailed, R3 is mailed.
+        $debtor = StripeFixtures::debtor();
+        $invoice = StripeFixtures::invoice($debtor, ['udskriv_til' => 'email']);
+        $nr = StripeFixtures::row('ordrer', $invoice)['fakturanr'];
+        $r = ['debtor' => $debtor, 'invoice' => $invoice, 'reminder' => StripeReminderFixtures::reminder($debtor, [$invoice], ['date' => '2026-01-05'])];
+        $feeOpenItem = $bookFeeOpenItem($r['reminder']);
+        $r2 = StripeReminderFixtures::nextLevel($r, 2, '2026-01-20', ['openposts' => [$feeOpenItem]]);
+        $r3 = StripeReminderFixtures::nextLevel($r, 3, '2026-02-05');
+        reminder_dispatch_record($r2, 'classic', '2026-01-20');
+        reminder_dispatch_record($r3, 'classic', '2026-02-05');
+        $close([$r['reminder'], $r2, $r3]);
+        $this->assertSame('', reminder_dispatch_date($r['reminder']), 'precondition: R1 itself did not go out');
+        $new = StripeReminderFixtures::reminder($debtor, [$invoice], ['date' => '2026-03-10']);
+        $this->assertSame(['count' => 3, 'invoice' => $nr, 'last_sent' => '2026-02-05', 'last_invoice' => $nr], reminder_claim_fee_history($new),
+            'the booked fee was claimed from the customer, on R2');
+        $this->assertSame($limit($nr), reminder_claim_fee_refusal($new, '2026-03-10'), 'creation leaves the fee off');
+        $this->assertSame($limit($nr), reminder_legal_check($new, '2026-03-10'), 'and it may not be sent with one');
+
+        // A booking that left only its postings (transaktioner.ordre_id) counts too, dated as reminder_sent_date(): its date, 25.02.
+        $debtor2 = StripeFixtures::debtor();
+        $invoice2 = StripeFixtures::invoice($debtor2, ['udskriv_til' => 'email']);
+        $nr2 = StripeFixtures::row('ordrer', $invoice2)['fakturanr'];
+        $posted = StripeReminderFixtures::reminder($debtor2, [$invoice2], ['date' => '2026-02-25', 'status' => 4]);
+        StripeFixtures::insert('transaktioner', ['bilag' => 0, 'transdate' => '2026-02-25', 'beskrivelse' => 'Gebyr mm. fra tidligere rykker',
+            'kontonr' => 56000, 'faktura' => StripeFixtures::row('ordrer', $posted)['fakturanr'], 'debet' => '100.000', 'kredit' => '0.000',
+            'kladde_id' => 0, 'afd' => 0, 'projekt' => '0', 'ordre_id' => $posted]);
+        // A level left at status 3 without anything posted (GPT-F-1) and a draft closed with Afslut were not booked: they do not count.
+        $close([$posted, StripeReminderFixtures::reminder($debtor2, [$invoice2], ['date' => '2026-02-27', 'status' => 3]),
+            StripeReminderFixtures::reminder($debtor2, [$invoice2], ['date' => '2026-02-28'])]);
+        $spaced = StripeReminderFixtures::reminder($debtor2, [$invoice2], ['date' => '2026-03-01']);
+        $this->assertSame(['count' => 1, 'invoice' => $nr2, 'last_sent' => '2026-02-25', 'last_invoice' => $nr2], reminder_claim_fee_history($spaced));
+        $this->assertSame("Faktura $nr2 fik en rykker med gebyr den 25.02.2026. En ny rykker med gebyr kan tidligst sendes den 07.03.2026 (renteloven § 9 b).",
+            reminder_legal_check($spaced, '2026-03-06'));
+        $this->assertSame('', reminder_legal_check($spaced, '2026-03-07'));
+    }
+
+    public function testAnOlderDraftSentForTheFirstTimeCountsTheRemindersMadeAfterIt(): void
+    {
+        require_once __DIR__ . '/../../includes/opdat_func/reminderDispatch.php';
+        reminder_dispatch_schema_ensure('postgresql');
+        reminder_dispatch_since_ensure('postgresql');   // every reminder of this test is made while the dispatch day is recorded
+        $limit = static fn(string $nr): string => "Der er allerede opkrævet rykkergebyr for 3 rykkere for faktura $nr (renteloven § 9 b).";
+        $close = static function (array $ids): void {   // Afslut: betalt only; the invoice is still unpaid, so a new chain can be made for it
+            StripeTestEnvironment::query("UPDATE ordrer SET betalt = 'on' WHERE id = ANY($1::int[])", ['{' . implode(',', $ids) . '}']);
+        };
+        $sentOn = static function (array $ids): void {   // each mailed on its date
+            foreach ($ids as $id) reminder_dispatch_record($id, 'classic', (string)StripeFixtures::row('ordrer', $id)['fakturadate']);
+        };
+
+        // An R1 with a fee made on 05.01 and closed with Afslut without being mailed, printed or booked; its editor is still open.
+        // A later chain for the same invoice then has three reminders with a fee, each mailed, and is closed.
+        $debtor = StripeFixtures::debtor();
+        $invoice = StripeFixtures::invoice($debtor, ['udskriv_til' => 'email']);
+        $nr = StripeFixtures::row('ordrer', $invoice)['fakturanr'];
+        $draft = StripeReminderFixtures::reminder($debtor, [$invoice], ['date' => '2026-01-05']);
+        $noFee = StripeReminderFixtures::reminder($debtor, [$invoice], ['date' => '2026-01-06', 'fee' => 0]);
+        $close([$draft, $noFee]);
+        $r = ['debtor' => $debtor, 'invoice' => $invoice, 'reminder' => StripeReminderFixtures::reminder($debtor, [$invoice], ['date' => '2026-01-20'])];
+        $chain = [$r['reminder'], StripeReminderFixtures::nextLevel($r, 2, '2026-02-01'), StripeReminderFixtures::nextLevel($r, 3, '2026-02-15')];
+        $sentOn($chain);
+        $close($chain);
+        $this->assertSame(0, reminder_claim_fee_history($draft)['count'], 'when the draft was made, nothing for the invoice came before it');
+        $this->assertSame([true, false], [reminder_claim_first_dispatch($draft), reminder_claim_first_dispatch($chain[0])]);
+        $this->assertSame(['count' => 3, 'invoice' => $nr, 'last_sent' => '2026-02-15', 'last_invoice' => $nr], reminder_claim_fee_history($draft, true));
+        $this->assertSame($limit($nr), reminder_legal_check($draft, '2026-03-10'), 'its first dispatch would be a 4th fee');
+        $draftNr = StripeFixtures::row('ordrer', $draft)['fakturanr'];
+        $GLOBALS['stripe_charge_today'] = '2026-03-10';
+        $mailed = formSendReminderEntry($draft, $this->pdf($draft), 'jens@stripe-tests.invalid', 'Dansk', 6, $this->classicSender());
+        $this->assertSame([false, "Rykker $draftNr er ikke sendt: " . $limit($nr)], [$mailed['sent'], $mailed['message']], 'mailed: refused');
+        $this->assertSame([], $this->classic, 'no mail went out');
+        $this->assertSame("Rykker $draftNr er ikke sendt: " . $limit($nr), formReminderPrintChecked($draft), 'printed: refused');
+        $this->assertSame('', reminder_dispatch_date($draft), 'nothing recorded as sent');
+        // As before: an older draft without a fee may go, and a reminder made now is made without a fee.
+        $this->assertSame('', reminder_legal_check($noFee, '2026-03-10'));
+        $this->assertSame($limit($nr), reminder_claim_fee_refusal(StripeReminderFixtures::reminder($debtor, [$invoice], ['date' => '2026-03-10']), '2026-03-10'));
+
+        // One later reminder with a fee mailed on 20.02: the older draft's first dispatch waits 10 days after it, and then counts as sent.
+        $debtor2 = StripeFixtures::debtor();
+        $invoice2 = StripeFixtures::invoice($debtor2, ['udskriv_til' => 'email']);
+        $nr2 = StripeFixtures::row('ordrer', $invoice2)['fakturanr'];
+        $older = StripeReminderFixtures::reminder($debtor2, [$invoice2], ['date' => '2026-01-05']);
+        $close([$older]);
+        $later = StripeReminderFixtures::reminder($debtor2, [$invoice2], ['date' => '2026-02-18']);
+        reminder_dispatch_record($later, 'classic', '2026-02-20');
+        $this->assertSame(['count' => 1, 'invoice' => $nr2, 'last_sent' => '2026-02-20', 'last_invoice' => $nr2], reminder_claim_fee_history($older, true));
+        $this->assertSame("Faktura $nr2 fik en rykker med gebyr den 20.02.2026. En ny rykker med gebyr kan tidligst sendes den 02.03.2026 (renteloven § 9 b).",
+            reminder_legal_check($older, '2026-03-01'));
+        $GLOBALS['stripe_charge_today'] = '2026-03-02';
+        $this->assertSame('', formReminderPrintChecked($older), 'printed on 02.03');
+        $this->assertSame('2026-03-02', reminder_dispatch_date($older));
+        $this->assertFalse(reminder_claim_first_dispatch($older), 'from then on it counts');
+        $this->assertSame('', reminder_legal_check($older, '2026-03-03'), 'printed again, it is checked as before');
+
+        // A chain whose levels all went out: sending its R1 again is checked as before, not held back by its later levels (10 days after R3).
+        $debtor3 = StripeFixtures::debtor();
+        $invoice3 = StripeFixtures::invoice($debtor3, ['udskriv_til' => 'email']);
+        $r3 = ['debtor' => $debtor3, 'invoice' => $invoice3, 'reminder' => StripeReminderFixtures::reminder($debtor3, [$invoice3], ['date' => '2026-01-05'])];
+        $levels = [$r3['reminder'], StripeReminderFixtures::nextLevel($r3, 2, '2026-01-20'), StripeReminderFixtures::nextLevel($r3, 3, '2026-02-05')];
+        $sentOn($levels);
+        $this->assertFalse(reminder_claim_first_dispatch($levels[0]));
+        $this->assertSame('', reminder_legal_check($levels[0], '2026-02-10'));
+        $GLOBALS['stripe_charge_today'] = '2026-02-10';
+        $this->assertTrue(formSendReminderEntry($levels[0], $this->pdf($levels[0]), 'jens@stripe-tests.invalid', 'Dansk', 6, $this->classicSender())['sent']);
+        $this->assertSame('2026-01-05', reminder_dispatch_date($levels[0]), 'the first day stays');
+        // A level booked by "Ryk alle" before it went out already counts: printing it the first time is checked as before too.
+        $debtor4 = StripeFixtures::debtor();
+        $invoice4 = StripeFixtures::invoice($debtor4, ['udskriv_til' => 'email']);
+        $r4 = ['debtor' => $debtor4, 'invoice' => $invoice4, 'reminder' => StripeReminderFixtures::reminder($debtor4, [$invoice4], ['date' => '2026-01-05', 'status' => 4])];
+        $o4 = StripeFixtures::row('ordrer', $r4['reminder']);
+        $fee4 = StripeFixtures::insert('openpost', ['konto_id' => $debtor4, 'konto_nr' => $o4['kontonr'], 'faktnr' => $o4['fakturanr'],
+            'refnr' => $r4['reminder'], 'amount' => '100.000', 'beskrivelse' => 'Gebyr mm. fra tidligere rykker', 'udlignet' => '0',
+            'transdate' => '2026-01-05', 'valuta' => 'DKK', 'valutakurs' => '100.000', 'projekt' => '']);
+        reminder_dispatch_record(StripeReminderFixtures::nextLevel($r4, 2, '2026-02-05', ['openposts' => [$fee4]]), 'classic', '2026-02-05');
+        $close([$r4['reminder']]);
+        $this->assertFalse(reminder_claim_first_dispatch($r4['reminder']));
+        $this->assertSame('', reminder_legal_check($r4['reminder'], '2026-02-10'));
+    }
+
+    public function testTheLastCheckAndTheRecordOfAFirstDispatchHoldTheCustomersLock(): void
+    {
+        require_once __DIR__ . '/../../includes/opdat_func/reminderDispatch.php';
+        reminder_dispatch_schema_ensure('postgresql');
+        reminder_dispatch_since_ensure('postgresql');
+        $dsn = [];
+        foreach (['host' => 'SALDI_TEST_PGHOST', 'user' => 'SALDI_TEST_PGUSER', 'password' => 'SALDI_TEST_PGPASSWORD', 'dbname' => 'SALDI_TEST_DB'] as $key => $env) {
+            $dsn[] = $key . "='" . str_replace(['\\', "'"], ['\\\\', "\\'"], (string)getenv($env)) . "'";
+        }
+        $dsn = implode(' ', $dsn);
+        $lockSql = static fn(string $fn, int $konto): string => "SELECT $fn(hashtext('saldi:reminder_dispatch'), $konto)";
+        $held = static fn(): string => pg_fetch_result(StripeTestEnvironment::query(
+            "SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND pid = pg_backend_pid()"), 0, 0);
+        // What the dispatch record sees: whether this session holds the customer's lock when the day it went out is written.
+        StripeTestEnvironment::query('CREATE TEMP TABLE h1_dispatch_seen (order_id integer, held bigint)');
+        StripeTestEnvironment::query("CREATE FUNCTION public.h1_dispatch_seen() RETURNS trigger LANGUAGE plpgsql AS \$\$
+            BEGIN
+                INSERT INTO h1_dispatch_seen SELECT NEW.order_id, count(*) FROM pg_locks l, ordrer o
+                    WHERE o.id = NEW.order_id AND l.locktype = 'advisory' AND l.pid = pg_backend_pid() AND l.granted AND l.objsubid = 2
+                    AND l.objid::text::bigint = o.konto_id AND l.classid::text::bigint = (hashtext('saldi:reminder_dispatch')::bigint & 4294967295);
+                RETURN NEW;
+            END \$\$");
+        StripeTestEnvironment::query('CREATE TRIGGER h1_dispatch_seen AFTER INSERT ON reminder_dispatch FOR EACH ROW EXECUTE FUNCTION public.h1_dispatch_seen()');
+        $seen = static function (int $id): ?string {
+            $held = pg_fetch_result(StripeTestEnvironment::query('SELECT held FROM h1_dispatch_seen WHERE order_id = $1', [$id]), 0, 0);
+            return $held === false ? null : $held;
+        };
+
+        // Mailed: another session cannot take the customer's lock while the mail goes out, and it is let go afterwards.
+        $debtor = StripeFixtures::debtor();
+        $invoice = StripeFixtures::invoice($debtor, ['udskriv_til' => 'email']);
+        $mailed = StripeReminderFixtures::reminder($debtor, [$invoice], ['date' => '2026-01-20']);
+        $second = pg_connect($dsn, PGSQL_CONNECT_FORCE_NEW);
+        $this->assertNotFalse($second);
+        try {
+            $during = null;
+            $result = formSendReminderEntry($mailed, $this->pdf($mailed), 'jens@stripe-tests.invalid', 'Dansk', 6,
+                function (...$args) use ($second, $lockSql, $debtor, &$during): string {
+                    $during = pg_fetch_result(pg_query($second, $lockSql('pg_try_advisory_lock', $debtor)), 0, 0);
+                    return 'Mail sent to fixture';
+                });
+            $this->assertTrue($result['sent']);
+            $this->assertSame('f', $during, 'the lock is held while the mail goes out');
+            $this->assertSame('1', $seen($mailed), 'and when the day it went out is recorded');
+            $this->assertSame('t', pg_fetch_result(pg_query($second, $lockSql('pg_try_advisory_lock', $debtor)), 0, 0), 'let go afterwards');
+            pg_query($second, $lockSql('pg_advisory_unlock', $debtor));
+            $this->assertSame('t', pg_fetch_result(pg_query($second, $lockSql('pg_try_advisory_lock', $debtor + 1)), 0, 0), 'another customer is not locked');
+            pg_query($second, $lockSql('pg_advisory_unlock', $debtor + 1));
+        } finally {
+            pg_close($second);
+        }
+
+        // Printed: recorded under the lock, and let go afterwards.
+        $printed = StripeReminderFixtures::reminder($debtor, [$invoice], ['date' => '2026-02-05', 'fee' => 0]);
+        $this->assertSame('', formReminderPrintChecked($printed));
+        $this->assertSame('1', $seen($printed));
+        $this->assertSame('0', $held());
+
+        // Another session is dispatching for the same customer: the check waits until it is done.
+        $waiting = StripeReminderFixtures::reminder($debtor, [$invoice], ['date' => '2026-02-20', 'fee' => 0]);
+        $code = '$c = pg_connect(getenv("H1_DSN"), PGSQL_CONNECT_FORCE_NEW); $k = (int)getenv("H1_KONTO");'
+            . ' pg_query($c, "SELECT pg_advisory_lock(hashtext(\'saldi:reminder_dispatch\'), $k)"); echo "locked\n"; usleep(1200000);'
+            . ' pg_query($c, "SELECT pg_advisory_unlock(hashtext(\'saldi:reminder_dispatch\'), $k)"); echo "done\n";';
+        $other = proc_open([PHP_BINARY, '-r', $code], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, null, ['H1_DSN' => $dsn, 'H1_KONTO' => (string)$debtor] + getenv());
+        $this->assertIsResource($other);
+        try {
+            $this->assertSame("locked\n", fgets($pipes[1]));
+            $before = microtime(true);
+            $this->assertSame('', formReminderPrintChecked($waiting));
+            $this->assertGreaterThan(0.8, microtime(true) - $before, 'it waited for the other session');
+            $this->assertSame("done\n", fgets($pipes[1]));
+        } finally {
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            proc_close($other);
+        }
+        $this->assertSame('1', $seen($waiting));
+        $this->assertSame('0', $held(), 'nothing is left locked');
+    }
+
     public function testCreationNoticeEscalationCheckAndReminderListMarkers(): void
     {
         // ny_rykker.php (helpers of reminderLegal.php): the L1 notice and the L3 check before a 2nd/3rd reminder is created.
@@ -346,7 +729,9 @@ final class StripeReminderTest extends StripeDatabaseTestCase
         // Where the fee went and what the mail leaves out (formReminderPdfTreatment(), tested above), a draft printed on paper
         // is sent, and every printed reminder writes its own HTML page while a mailed one's HTML is thrown away ("Brug html").
         $this->assertStringContainsString('formReminderPdfTreatment(', $body);
-        $this->assertStringContainsString('formReminderPrinted(', $body);
+        // 20261127 ASR Review GPT-H-1: a printed reminder is checked again and recorded under the customer's lock before it is printed.
+        $this->assertStringContainsString('formReminderPrintChecked(', $body);
+        $this->assertLessThan(strpos($body, '$nomailantal++;'), strpos($body, 'formReminderPrintChecked('));
         $this->assertStringContainsString('$htmfp = fopen("../temp/$db/{$printfilnavn}_$nomailantal.htm", "w");', $body);
         $this->assertStringContainsString('$htmfp = fopen("../temp/$pfnavn.htm", "w");', $body);
     }
@@ -524,7 +909,7 @@ final class StripeReminderTest extends StripeDatabaseTestCase
         $this->assertSame("Rykker: Faktura $nr fra {$inv['brand']} er ikke betalt", $mail['subject']);
         $plain = self::plain($mail['html']);
         $this->assertStringContainsStringIgnoringCase("1. rykker · faktura $nr", $plain);
-        foreach (['Vi mangler din betaling', 'Hej Anne,',
+        foreach (['Vi mangler din betaling', 'Hej Stripe test debtor,',
             "Vi har endnu ikke modtaget betalingen af faktura $nr, som forfaldt den 16.01.2026. Måske er den bare gledet forbi – du kan betale den med kort lige her.",
             'Slå automatisk betaling til – og spar rykkergebyret på 100,00 kr.',
             'Betaler du med knappen nedenfor og gemmer kortet, fjerner vi rykkergebyret.',
@@ -559,19 +944,41 @@ final class StripeReminderTest extends StripeDatabaseTestCase
         $this->assertSame("Rykker: 2 fakturaer fra $brand er ikke betalt", $mail['subject']);
         $plain = self::plain($mail['html']);
         $this->assertStringContainsStringIgnoringCase('1. rykker · 2 fakturaer', $plain);
-        $this->assertStringContainsString('Vi har endnu ikke modtaget betalingen af disse fakturaer. Du kan betale dem med kort lige her – start med den ældste.', $plain);
-        $this->assertStringContainsString('Når automatisk betaling er slået til, betaler du de øvrige fakturaer med ét klik med dit gemte kort.', $plain);
+        $this->assertStringContainsString('Fakturaerne betales én ad gangen via deres egne links nedenfor.', $plain);
+        $this->assertStringContainsString("Den store knap åbner faktura $olderNr på 340,00 kr. Brug linkene", $plain);
+        $this->assertStringNotContainsString('kr..', $plain . $mail['text']);
         $first = strpos($plain, "Faktura $olderNr · forfaldt 16.01.2026");
         $second = strpos($plain, "Faktura $newerNr · forfaldt 20.01.2026");
         $this->assertNotFalse($first);
         $this->assertNotFalse($second);
         $this->assertLessThan($second, $first, 'the oldest invoice first');
         $this->assertMatchesRegularExpression('/At betale nu 680,00 kr\./u', $plain);
-        $this->assertSame(stripe_invoice_url($older), self::link($mail['html'], 'Betal og slå automatisk betaling til'));
+        $this->assertSame(stripe_invoice_url($older), self::link($mail['html'], "Betal faktura $olderNr · 340,00 kr."));
         $this->assertSame([stripe_invoice_url($older), stripe_invoice_url($newer)], self::links($mail['html'], 'Betal ›'));
         foreach ([$older, $newer] as $invoice) {
             $this->assertStringContainsString(stripe_invoice_url($invoice), $mail['text']);
         }
+    }
+
+    public function testMultiInvoiceReminderStartsWithAnInvoiceThatCanBePaidByCard(): void
+    {
+        $GLOBALS['stripe_charge_today'] = '2026-01-25';
+        $debtor = StripeFixtures::debtor(['stripe' => 'on', 'stripe_pm_id' => 'pm_saved']);
+        $small = StripeFixtures::invoice($debtor, ['sum' => 1, 'moms' => 0.25]);
+        $next = StripeFixtures::invoice($debtor, ['sum' => 4.5, 'moms' => 1.13]);
+        $last = StripeFixtures::invoice($debtor, ['sum' => 133, 'moms' => 33.25, 'betalingsdage' => 12]);
+        $rykker = StripeReminderFixtures::reminder($debtor, [$small, $next, $last]);
+        StripeReminderFixtures::linkRow($rykker, ['status' => 'draft']);
+        $mail = $this->mailReminder($rykker);
+        $nr = StripeFixtures::row('ordrer', $next)['fakturanr'];
+        $this->assertSame(stripe_invoice_url($next), self::link($mail['html'], "Betal faktura $nr · 5,63 kr."));
+        $this->assertSame([stripe_invoice_url($small)], self::links($mail['html'], 'Se faktura ›'));
+        $this->assertSame([stripe_invoice_url($next), stripe_invoice_url($last)], self::links($mail['html'], 'Betal ›'));
+        foreach ([self::plain($mail['html']), $mail['text']] as $body) {
+            $this->assertStringContainsString("Den store knap åbner faktura $nr på 5,63 kr.", $body);
+            $this->assertMatchesRegularExpression('/At betale nu\s*:?\s*173,13 kr\./u', $body);
+        }
+        $this->assertSame([], StripeTestTransport::$requests);
     }
 
     public function testLaterRemindersSayStillAndTheThirdCanWarnAboutClosing(): void
@@ -653,13 +1060,24 @@ final class StripeReminderTest extends StripeDatabaseTestCase
             'valuta' => 'DKK', 'valutakurs' => '100.000', 'projekt' => '']);
         StripeFixtures::insert('ordrelinjer', ['ordre_id' => $r['reminder'], 'posnr' => 10, 'enhed' => (string)$credit, 'beskrivelse' => 'Kreditnota']);
         StripeReminderFixtures::linkRow($r['reminder'], ['status' => 'draft', 'fee_mode' => 'classic', 'interest_ore' => 1250]);
+        StripeTestEnvironment::query("UPDATE adresser SET bank_reg = '', bank_konto = '' WHERE art = 'S'");
         $plain = self::plain($this->mailReminder($r['reminder'])['html']);
-        $this->assertMatchesRegularExpression('/Rykkergebyr 100,00 kr\. betales sammen med fakturaen/u', $plain);
-        $this->assertMatchesRegularExpression('/Renter 12,50 kr\./u', $plain);
+        // The Betal link pays the invoice only: the fee and interest open item is paid by bank transfer (I19).
+        $this->assertMatchesRegularExpression('/Rykkergebyr 100,00 kr\. betales via bankoverførsel/u', $plain);
+        $this->assertMatchesRegularExpression('/Renter 12,50 kr\. betales via bankoverførsel/u', $plain);
+        $this->assertStringNotContainsString('betales sammen med fakturaen', $plain);
         $this->assertStringContainsString('Tilgodehavende', $plain);
         $this->assertMatchesRegularExpression('/At betale nu 412,50 kr\./u', $plain);   // 340 + 100 + 12,50 - 40
         $this->assertStringNotContainsString('på næste faktura', $plain);
         $this->assertStringNotContainsString('spar rykkergebyret', $plain);
+        $this->assertStringNotContainsString('reg. ', $plain, 'no bank details, no bank line');
+
+        // With the company's bank details: a bank line with the reminder as the reference.
+        StripeTestEnvironment::query("UPDATE adresser SET bank_reg = '1234', bank_konto = '5678901' WHERE art = 'S'");
+        $nr = StripeFixtures::row('ordrer', $r['reminder'])['fakturanr'];
+        $mail = $this->mailReminder($r['reminder']);
+        $this->assertStringContainsString("Rykkergebyr: reg. 1234 · konto 5678901 · reference $nr", self::plain($mail['html']));
+        $this->assertStringContainsString("Rykkergebyr: reg. 1234 · konto 5678901 · reference $nr", $mail['text']);
     }
 
     public function testPaidOrInFlightInvoicesAreLeftOutAndAFullyPaidReminderIsNotMailed(): void
@@ -689,6 +1107,61 @@ final class StripeReminderTest extends StripeDatabaseTestCase
         StripeTestTransport::$mails = [];
         $this->assertFalse(stripe_mail_reminder($rykker, $this->pdf($rykker), 'jens@stripe-tests.invalid'));
         $this->assertSame([], StripeTestTransport::$mails);
+    }
+
+    /** Review GPT-R-10: an invoice paid in installments stays on the reminder with what is left when one installment is settled. */
+    public function testASettledInstallmentLeavesTheRestOfItsInvoiceOnTheReminder(): void
+    {
+        $debtor = StripeFixtures::debtor();
+        $invoice = StripeReminderFixtures::invoiceOn($debtor, '2026-01-12');
+        $first = StripeReminderFixtures::openpost($invoice);
+        // Two due dates: 200 kr. on 20.01.2026 and 140 kr. on 27.01.2026.
+        StripeTestEnvironment::query("UPDATE openpost SET amount = '200.000' WHERE id = $1", [$first['id']]);
+        $second = StripeFixtures::insert('openpost', ['konto_id' => $debtor, 'konto_nr' => $first['konto_nr'], 'faktnr' => $first['faktnr'],
+            'amount' => '140.000', 'udlignet' => '0', 'transdate' => '2026-01-12', 'forfaldsdate' => '2026-01-27',
+            'valuta' => 'DKK', 'valutakurs' => '100.000', 'projekt' => '']);
+        $rykker = StripeReminderFixtures::reminder($debtor, [$invoice], ['openposts' => [$second]]);
+        StripeReminderFixtures::linkRow($rykker, ['status' => 'draft']);
+        $set = stripe_reminder_invoices($rykker);
+        $this->assertSame([[$invoice, 340.0]], array_map(static fn($inv) => [(int)$inv['id'], (float)$inv['amount']], $set['invoices']), 'one row, both amounts');
+
+        StripeTestEnvironment::query("UPDATE openpost SET udlignet = '1' WHERE id = $1", [$first['id']]);
+        $set = stripe_reminder_invoices($rykker);
+        $this->assertSame([[$invoice, 140.0]], array_map(static fn($inv) => [(int)$inv['id'], (float)$inv['amount']], $set['invoices']), 'what is left');
+        $this->assertSame([], $set['skipped']);
+        $this->assertSame([(int)$first['id'] => 'settled'], $set['skipped_items']);
+        $this->assertSame([(int)$first['id']], formReminderPdfTreatment($rykker)['skip'], 'the PDF leaves out the settled installment only');
+        $this->assertSame('', formReminderRefusal($rykker), 'it may be sent');
+        $plain = self::plain($this->mailReminder($rykker)['html']);
+        $this->assertMatchesRegularExpression('/At betale nu 140,00 kr\./u', $plain);
+        $this->assertSame('bank', stripe_reminder_variant($set['invoices'][0]), 'a partly paid invoice is not collected by card');
+
+        StripeTestEnvironment::query("UPDATE openpost SET udlignet = '1' WHERE id = $1", [$second]);
+        $set = stripe_reminder_invoices($rykker);
+        $this->assertSame([], $set['invoices']);
+        $this->assertSame([$invoice => 'settled'], $set['skipped'], 'every installment settled: the invoice is left out');
+    }
+
+    /** Review GPT-R-11: a credit note draft credits nothing yet, so the invoice is still on the link reminder; an invoiced credit note leaves it out. */
+    public function testACreditNoteDraftDoesNotLeaveItsInvoiceOut(): void
+    {
+        $r = StripeReminderFixtures::linkReminder();
+        StripeReminderFixtures::linkRow($r['reminder'], ['status' => 'draft']);
+        $credit = StripeFixtures::insert('ordrer', ['art' => 'DK', 'konto_id' => $r['debtor'], 'kred_ord_id' => $r['invoice'], 'status' => 1,
+            'ordrenr' => 900001, 'firmanavn' => 'Kreditnota-kladde', 'sum' => 100, 'moms' => 25, 'valuta' => 'DKK']);
+        $set = stripe_reminder_invoices($r['reminder']);
+        $this->assertSame([[$r['invoice'], 340.0]], array_map(static fn($inv) => [(int)$inv['id'], (float)$inv['amount']], $set['invoices']));
+        $this->assertSame([], $set['skipped']);
+        $this->assertSame([], formReminderPdfTreatment($r['reminder'])['skip']);
+        $this->assertSame('', formReminderRefusal($r['reminder']), 'it may be sent');
+        $this->assertMatchesRegularExpression('/At betale nu 340,00 kr\./u', self::plain($this->mailReminder($r['reminder'])['html']));
+        $this->assertSame('bank', stripe_reminder_variant($set['invoices'][0]), 'no card payment while the draft exists');
+
+        // Invoiced: the credit note credits the invoice, which is left out as before.
+        StripeTestEnvironment::query("UPDATE ordrer SET status = 3, fakturanr = '900001' WHERE id = $1", [$credit]);
+        $set = stripe_reminder_invoices($r['reminder']);
+        $this->assertSame([], $set['invoices']);
+        $this->assertSame([$r['invoice'] => 'credited'], $set['skipped']);
     }
 
     // ---------------------------------------------------------------- sending (rykkerprint)
@@ -825,6 +1298,10 @@ final class StripeReminderTest extends StripeDatabaseTestCase
         // No saved card, a credit on the account or a partial payment: the job does not collect it.
         $noCard = StripeFixtures::invoice(StripeFixtures::debtor(['stripe' => 'on', 'stripe_pm_id' => null, 'stripe_date' => '2025-12-01']), ['udskriv_til' => 'Stripe']);
         $this->assertTrue($this->remindable($noCard), 'no saved card');
+        foreach ([125, 249, 250] as $ore) {
+            $small = StripeFixtures::invoice($debtor, ['udskriv_til' => 'Stripe', 'sum' => $ore / 100, 'moms' => 0]);
+            $this->assertSame($ore < 250, $this->remindable($small), 'the hold must match the card minimum');
+        }
         $creditDebtor = StripeFixtures::debtor(['stripe' => 'on', 'stripe_pm_id' => 'pm_saved', 'stripe_date' => '2025-12-01']);
         $credited = StripeFixtures::invoice($creditDebtor, ['udskriv_til' => 'Stripe']);
         $this->assertFalse($this->remindable($credited));
@@ -835,6 +1312,37 @@ final class StripeReminderTest extends StripeDatabaseTestCase
         $partial = StripeFixtures::invoice(StripeFixtures::debtor(['stripe' => 'on', 'stripe_pm_id' => 'pm_saved', 'stripe_date' => '2025-12-01']), ['udskriv_til' => 'Stripe']);
         StripeTestEnvironment::query("UPDATE openpost SET amount = '200.000' WHERE id = $1", [(int)StripeReminderFixtures::openpost($partial)['id']]);
         $this->assertTrue($this->remindable($partial), 'partly paid');
+    }
+
+    public function testAnOpenItemTheChargeDoesNotSettleIsNotHeldFromReminders(): void
+    {
+        $today = (string)pg_fetch_result(StripeTestEnvironment::query('SELECT CURRENT_DATE'), 0, 0);
+        $GLOBALS['stripe_charge_today'] = $today;
+        $debtor = StripeFixtures::debtor(['stripe' => 'on', 'stripe_pm_id' => 'pm_saved', 'stripe_date' => '2025-12-01']);
+        foreach (['340.000' => false, '339.995' => false, '340.004' => false, '339.99' => true, '340.01' => true, '340.005' => true] as $amount => $remindable) {
+            $invoice = StripeFixtures::invoice($debtor, ['udskriv_til' => 'Stripe']);
+            StripeTestEnvironment::query('UPDATE openpost SET amount = $1 WHERE id = $2', [$amount, (int)StripeReminderFixtures::openpost($invoice)['id']]);
+            $this->assertSame(!$remindable, stripe_auto_charge_allowed(stripe_invoice_load($invoice)) && stripe_invoice_payable(stripe_invoice_load($invoice)), $amount . ': the charge job');
+            $this->assertSame($remindable, $this->remindable($invoice), $amount . ': the hold follows the charge job');
+        }
+        // The invoice split in two open items: the charge job leaves it to the bookkeeper.
+        $split = StripeFixtures::invoice($debtor, ['udskriv_til' => 'Stripe']);
+        $open = StripeReminderFixtures::openpost($split);
+        StripeTestEnvironment::query("UPDATE openpost SET amount = '170.000' WHERE id = $1", [(int)$open['id']]);
+        StripeFixtures::insert('openpost', ['konto_id' => (int)$open['konto_id'], 'konto_nr' => $open['konto_nr'], 'faktnr' => $open['faktnr'],
+            'amount' => '170.000', 'udlignet' => '0', 'transdate' => $open['transdate'], 'forfaldsdate' => $open['forfaldsdate'],
+            'valuta' => 'DKK', 'valutakurs' => '100.000', 'projekt' => '']);
+        $this->assertFalse(stripe_invoice_payable(stripe_invoice_load($split)));
+        $this->assertTrue($this->remindable($split), 'two open items');
+        // Within half an øre only with the order's project; the exact amount whatever the project.
+        foreach ([['', '', '340.004', false], ['821', '821', '340.004', false], ['', '821', '340.004', true],
+            ['821', '', '339.995', true], ['', '821', '340.000', false], ['821', null, '340.000', false]] as [$orderProject, $itemProject, $amount, $remindable]) {
+            $label = "order '$orderProject', item '" . ($itemProject ?? 'NULL') . "', $amount";
+            $invoice = StripeFixtures::invoice($debtor, ['udskriv_til' => 'Stripe', 'projekt' => $orderProject]);
+            StripeTestEnvironment::query('UPDATE openpost SET amount = $1, projekt = $2 WHERE id = $3', [$amount, $itemProject, (int)StripeReminderFixtures::openpost($invoice)['id']]);
+            $this->assertSame(!$remindable, stripe_auto_charge_allowed(stripe_invoice_load($invoice)) && stripe_invoice_payable(stripe_invoice_load($invoice)), $label . ': the charge job');
+            $this->assertSame($remindable, $this->remindable($invoice), $label . ': the hold follows the charge job');
+        }
     }
 
     public function testSavedCardAuthenticationHoldsRemindersForFourteenDays(): void
@@ -983,9 +1491,10 @@ final class StripeReminderTest extends StripeDatabaseTestCase
 
         $plain = self::plain($this->mailReminder($second)['html']);
         $this->assertMatchesRegularExpression('/Rykkergebyr fra 1\. rykker 100,00 kr\. betales via bankoverførsel/u', $plain);
-        $this->assertMatchesRegularExpression('/Rykkergebyr 100,00 kr\. betales sammen med fakturaen/u', $plain);
+        $this->assertMatchesRegularExpression('/Rykkergebyr 100,00 kr\. betales via bankoverførsel/u', $plain);   // I19: this fee too
         $this->assertMatchesRegularExpression('/At betale nu 540,00 kr\./u', $plain);   // 340 + the earlier fee 100 + this fee 100
-        $this->assertStringContainsString("Rykkergebyr: reg. 1234 · konto 5678901 · reference $firstNr", $plain);
+        $secondNr = StripeFixtures::row('ordrer', $second)['fakturanr'];
+        $this->assertStringContainsString("Rykkergebyr: reg. 1234 · konto 5678901 · reference $firstNr, $secondNr", $plain);
 
         // Paid in the meantime: no longer on the mail.
         StripeTestEnvironment::query("UPDATE openpost SET udlignet = '1' WHERE id = $1", [$fee]);
@@ -1368,6 +1877,122 @@ final class StripeReminderTest extends StripeDatabaseTestCase
         StripeTestEnvironment::query("UPDATE stripe_payments SET status = 'succeeded' WHERE id = $1", [$card]);
         $this->payment($owed, 'succeeded', 'page');
         $this->assertFalse($released(), 'all paid by card');
+    }
+
+    // ---------------------------------------------------------------- review round 1 (20261126)
+
+    public function testTheLetterStatesTheRemindersOwnFeeNotTheFeeItemsPrice(): void
+    {
+        // The fee item costs 556 kr. today; the 2nd reminder was made with the fee capped to 100 kr. (renteloven § 9 b).
+        StripeTestEnvironment::query('UPDATE varer SET salgspris = 556 WHERE id = $1', [$this->items['fee']]);
+        $r = StripeReminderFixtures::linkReminder([], [], ['status' => 4, 'date' => '2026-01-05']);
+        $second = StripeReminderFixtures::nextLevel($r, 2, '2026-01-25', ['fee' => 100]);
+        $this->assertSame(100.0, formReminderLetterFee($second, 7, 'dansk', 'DKK', 100.0), 'the capped fee the reminder carries');
+
+        // A reminder made without a fee (booked with fee 0) says 0,00 when it is printed again, not today's price.
+        $without = StripeReminderFixtures::reminder($r['debtor'], [$r['invoice']], ['fee' => 0, 'status' => 4]);
+        $this->assertSame(0.0, formReminderLetterFee($without, 6, 'dansk', 'DKK', 100.0));
+
+        // A foreign currency reminder: its own fee line, already in its currency (no conversion).
+        $eur = StripeReminderFixtures::reminder($r['debtor'], [$r['invoice']], ['fee' => 13.4, 'valuta' => 'EUR', 'valutakurs' => 746]);
+        $this->assertSame(13.4, formReminderLetterFee($eur, 6, 'dansk', 'EUR', 746.0));
+
+        // An order that is no reminder: the fee item's price as before, in the debtor's currency, capped.
+        $this->assertSame(100.0, formReminderLetterFee($r['invoice'], 7, 'dansk', 'DKK', 100.0));
+        $this->assertSame(13.4, formReminderLetterFee($r['invoice'], 7, 'dansk', 'EUR', 746.0), '556 kr. is 74,53 EUR, capped at 100 kr. = 13,40 EUR');
+        StripeTestEnvironment::query('UPDATE varer SET salgspris = 63 WHERE id = $1', [$this->items['fee']]);
+        $this->assertSame(63.0, formReminderLetterFee($r['invoice'], 7, 'dansk', 'DKK', 100.0), 'a fee below the cap is kept');
+    }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testACappedSecondReminderLetterSaysOneHundred(): void
+    {
+        if (!function_exists('send_mails')) {
+            function send_mails(...$args)   // formfunk.php only includes its mail code when this is missing; nothing is mailed here
+            {
+                return 'OK';
+            }
+        }
+        require_once __DIR__ . '/../../includes/formfunk.php';
+        StripeTestEnvironment::query('UPDATE varer SET salgspris = 556 WHERE id = $1', [$this->items['fee']]);
+        $r = StripeReminderFixtures::linkReminder([], [], ['status' => 4, 'date' => '2026-01-05']);
+        $second = StripeReminderFixtures::nextLevel($r, 2, '2026-01-25', ['fee' => 100]);
+        StripeTestEnvironment::query("UPDATE ordrer SET pbs = '' WHERE id = $1", [$second]);
+        // The letter text of the 2nd reminder form (formular 7), as the standard forms word it.
+        StripeTestEnvironment::query("DELETE FROM formularer WHERE formular = 7 AND side = 'S'");
+        StripeFixtures::insert('formularer', ['formular' => 7, 'art' => 2, 'side' => 'S', 'sprog' => 'Dansk', 'xa' => 20, 'ya' => 100,
+            'str' => 10, 'justering' => 'V', 'font' => 'Helvetica', 'beskrivelse' => 'Gebyr for denne skrivelse udgør kr. $rykker_gebyr']);
+        $ps = tempnam(sys_get_temp_dir(), 'rem-letter-');
+        $htm = $ps . '.htm';
+        $this->files[] = $ps;
+        $this->files[] = $htm;
+        $GLOBALS['psfp'] = fopen($ps, 'w');
+        $GLOBALS['htmfp'] = fopen($htm, 'w');
+        $GLOBALS['formularsprog'] = 'dansk';
+        $GLOBALS['deb_valuta'] = 'DKK';
+        $GLOBALS['deb_valutakurs'] = 100;
+        $GLOBALS['side'] = 1;
+        ob_start();
+        try {
+            find_form_tekst($second, 'S', 7, 0, 0, '');
+        } finally {
+            ob_end_clean();
+            fclose($GLOBALS['psfp']);
+            fclose($GLOBALS['htmfp']);
+        }
+        $letter = file_get_contents($ps) . file_get_contents($htm);
+        $this->assertStringContainsString('kr. 100,00', $letter);
+        $this->assertStringNotContainsString('556,00', $letter, 'not the fee item\'s price above the cap');
+    }
+
+    /** Review GPT-R-8: the letter's overdue balance is the sum of the invoices on its lines, without one the link reminder leaves out. */
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testTheLettersOverdueBalanceLeavesOutAnInvoiceTheLinkReminderLeavesOut(): void
+    {
+        if (!function_exists('send_mails')) {
+            function send_mails(...$args)   // formfunk.php only includes its mail code when this is missing; nothing is mailed here
+            {
+                return 'OK';
+            }
+        }
+        require_once __DIR__ . '/../../includes/formfunk.php';
+        $debtor = StripeFixtures::debtor();
+        $settled = StripeReminderFixtures::invoiceOn($debtor, '2026-01-12');
+        $open = StripeReminderFixtures::invoiceOn($debtor, '2026-01-13');
+        $rykker = StripeReminderFixtures::reminder($debtor, [$settled, $open]);
+        StripeTestEnvironment::query("UPDATE ordrer SET pbs = '' WHERE id = $1", [$rykker]);
+        StripeReminderFixtures::linkRow($rykker, ['status' => 'draft']);
+        $letter = function () use ($rykker): string {
+            StripeTestEnvironment::query("DELETE FROM formularer WHERE formular = 6 AND side = 'S'");
+            StripeFixtures::insert('formularer', ['formular' => 6, 'art' => 2, 'side' => 'S', 'sprog' => 'Dansk', 'xa' => 20, 'ya' => 100,
+                'str' => 10, 'justering' => 'V', 'font' => 'Helvetica', 'beskrivelse' => 'Forfaldent tilgodehavende kr. $forfalden_sum']);
+            $ps = tempnam(sys_get_temp_dir(), 'rem-letter-');
+            $this->files[] = $ps;
+            $this->files[] = $ps . '.htm';
+            $GLOBALS['psfp'] = fopen($ps, 'w');
+            $GLOBALS['htmfp'] = fopen($ps . '.htm', 'w');
+            $GLOBALS['formularsprog'] = 'dansk';
+            $GLOBALS['deb_valuta'] = 'DKK';
+            $GLOBALS['deb_valutakurs'] = 100;
+            $GLOBALS['side'] = 1;
+            ob_start();
+            try {
+                find_form_tekst($rykker, 'S', 6, 0, 0, '');
+            } finally {
+                ob_end_clean();
+                fclose($GLOBALS['psfp']);
+                fclose($GLOBALS['htmfp']);
+            }
+            return file_get_contents($ps) . file_get_contents($ps . '.htm');
+        };
+        $this->assertStringContainsString('kr. 680,00', $letter(), 'both invoices are owed');
+        StripeTestEnvironment::query("UPDATE openpost SET udlignet = '1' WHERE id = $1", [StripeReminderFixtures::openpost($settled)['id']]);
+        $this->assertSame([(int)StripeReminderFixtures::openpost($settled)['id']], formReminderPdfTreatment($rykker)['skip'], 'not on the lines');
+        $text = $letter();
+        $this->assertStringContainsString('kr. 340,00', $text, 'the invoice the lines and the mail still list');
+        $this->assertStringNotContainsString('680,00', $text);
     }
 
     /** @return int openpost id of a classic reminder's fee as bogfor_nu() posts it (refnr = the reminder, faktnr = its number). */

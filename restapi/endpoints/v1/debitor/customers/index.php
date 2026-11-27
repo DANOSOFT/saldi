@@ -88,6 +88,12 @@ class CustomerEndpoint extends BaseEndpoint
             return;
         }
 
+        // 20261105 CL/LH Refused like the customer card, which offers Anonymisér instead of Slet here.
+        if ($customer->hasEntries()) {
+            $this->sendResponse(false, null, 'Customer has open posts or orders and cannot be deleted', 409);
+            return;
+        }
+
         if ($customer->delete("D")) {
             $this->sendResponse(true, null, 'Customer deleted successfully');
         } else {

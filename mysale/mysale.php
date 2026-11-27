@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- mysale/mysale.php -----patch 4.0.8 ----2023-09-18--------------
+// --- mysale/mysale.php -----ver 5.1.1 ----2026-11-27--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20200617 PHR Design issues
 // 20200702 PHR Looking in 'labels' for 'minpris'
@@ -40,8 +40,12 @@
 // 20230918 PHR Check if db exists 
 // 20260915 CDX/PHR Resolve the shop from a logged-in Saldi session before customer lookup.
 // 20260915 CDX/PHR Customer logout returns to customer-number entry and preserves the staff session.
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261105 CL/LH Every sign-in records the regnskab with the customer (mySaleSignIn()).
+//                The password is skipped only for a session signed in as that customer of that regnskab (mySaleSignedInAs()), not for the same customer id at another shop.
+//                A temporary code signs in the customer number and regnskab of the recovery row it matches, not the regnskab of the file's last row or another customer with the same e-mail.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261127 ASR With $allowedLedgers in includes/connect.php the regnskab of a link or a temporary code must be listed, the master database too, before anything is written for it.
 @session_start();
 $s_id=session_id();
 header('Cache-Control: no-store, private');
@@ -56,7 +60,7 @@ if (($_POST['action'] ?? '') === 'logout_customer') {
 	}
 	include(__DIR__ . '/../includes/connect.php');
 	mySaleRemoveCustomerSession($s_id);
-	saldi_setcookie('mylabel', '', time() - 3600, '/');
+	setcookie('mylabel', '', time() - 3600, '/');
 	header('Location: mysale.php', true, 303);
 	exit;
 }
@@ -137,27 +141,39 @@ if ($tmpcode) {
 			list ($a,$b,$c,$d,$e) = explode (chr(9),$tmp);
 #cho "$a<br>$b<br>$c<br>$d<br>";
 
-			if ($a == $email && $b == $tmppw) {
+			if ($a === $email && $b === $tmppw) {
 				$found = 1;
 #cho "Found $found<br>";
 				if ($e <= date('U')+60*60) $found=2;
 #cho "Found $found<br>";
+				break; // $c and $d stay this row's: the regnskab and customer number the code was issued for
 			}
 		}
 		if ($found == 1) alert('Midertidig kode udløbet');
 		elseif ($found == 2) {	
-			$_SESSION['mySalePw'] = $s_id;
+			// resetPW (below) sent the code for customer number $d with this e-mail in regnskab $c.
+			// Sign in that customer of that regnskab, not the e-mail's link at another shop or another customer's with the same e-mail.
 			include ('../includes/connect.php');
-			$qtxt = "select deb_id,link from mysale where email = '$email' and db = '$c'";
-echo "$qtxt<br>";
-			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-				$id = $r['link'];
-				$_SESSION['mySaleAcId'] = $r['deb_id'];
+			$tmpLinks = array();
+			$qtxt = "select deb_id,link from mysale where email = '". db_escape_string($email) ."' and db = '". db_escape_string($c) ."'";
+			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+			while ($r = db_fetch_array($q)) $tmpLinks[(int)$r['deb_id']] = $r['link'];
+			$tmpAccountId = 0;
+			if ($tmpLinks && saldi_ledger_allowed($c) && ($tmpConnection = db_connect($sqhost, $squser, $sqpass, $c)) && db_select_database($tmpConnection, $c)) {
+				$qtxt = "select id from adresser where lower(email) = '". db_escape_string($email) ."' and kontonr = '". db_escape_string($d) ."'";
+				$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+				while (!$tmpAccountId && ($r = db_fetch_array($q))) {
+					if (isset($tmpLinks[(int)$r['id']])) $tmpAccountId = (int)$r['id'];
+				}
+			}
+			if ($tmpAccountId) {
+				$id = $tmpLinks[$tmpAccountId];
+				mySaleSignIn($_SESSION, $s_id, $tmpAccountId, $c);
 				print "<meta http-equiv=\"refresh\" content=\"0;URL='mysale.php?id=$id&condition=$condition&editProfile=1'\">";
 				exit;
 			}
 		}
-	} else $_SESSION['mySaleAcId'] = $_SESSION['mySalePw'] = NULL;
+	} else $_SESSION['mySaleDb'] = $_SESSION['mySaleAcId'] = $_SESSION['mySalePw'] = NULL;
 }
 
 if ($id) {
@@ -199,6 +215,7 @@ if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 	print "<center><br><br><br><br><b>Konto ikke fundet<br><br>Kontakt butikken.</b>";
 	exit;
 }
+saldi_ledger_guard($db); // $allowedLedgers in includes/connect.php: before the online rows are written
 $qtxt = "delete from online where rettigheder = '0' and regnskabsaar = '0' and logtime < '". $logtime ."'";
 db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 # 20260828 SST-743: staff access from debitor_kommission.php. Replaces the 20210505 referer bypass,
@@ -212,15 +229,14 @@ if (isset($_GET['st']) && $accountId && $db) {
 		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($rs=db_fetch_array($q)) {
 			if (hash_equals(hash('sha256',(string)$rs['session_id']),$st)) {
-				$_SESSION['mySalePw'] = $s_id;
-				$_SESSION['mySaleAcId'] = $accountId;
+				mySaleSignIn($_SESSION, $s_id, $accountId, $db);
 				break;
 			}
 		}
 	}
 }
 if ($account && !$resetPW) {
-	saldi_setcookie("mylabel","$account|$db",time()-60,"/");
+	setcookie("mylabel","$account|$db",time()-60,"/");
 	$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='online' and column_name='sprog'";
 	if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 		db_modify("ALTER table online ADD column sprog varchar(10)",__FILE__ . " linje " . __LINE__);
@@ -244,7 +260,7 @@ if ($account && !$resetPW) {
 	if(!isset($_SESSION['linkLog']) && $_SESSION['mySaleAcId'] != $accountId){
 		$_SESSION['linkLog'] = 1;
 		}
-	($id && ($_SESSION['mySalePw'] != $s_id || $_SESSION['mySaleAcId'] != $accountId))?$askPW=1:$askPW=0;
+	($id && !mySaleSignedInAs($_SESSION, $s_id, $accountId, $db))?$askPW=1:$askPW=0;
 	if ($askPW) {
 		$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='adresser' and column_name='password'";
 		if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
@@ -272,17 +288,15 @@ if ($account && !$resetPW) {
 			}
 			if ($acPw) {
 				if ($pw && saldikrypt($accountId,$pw) == $acPw) {
-				$_SESSION['mySalePw'] = $s_id;
-				$_SESSION['mySaleAcId'] = $accountId;
+					mySaleSignIn($_SESSION, $s_id, $accountId, $db);
 					print "<meta http-equiv=\"refresh\" content=\"0;URL='mysale.php?id=$id'\">";
 				} else {
 					$askPW = 1;
-					$_SESSION['mySaleAcId'] = $_SESSION['mySalePw'] = NULL;
+					$_SESSION['mySaleDb'] = $_SESSION['mySaleAcId'] = $_SESSION['mySalePw'] = NULL;
 				}
 			} else {
 				$askPW = 0;
-				$_SESSION['mySalePw'] = $s_id;
-				$_SESSION['mySaleAcId'] = $accountId;
+				mySaleSignIn($_SESSION, $s_id, $accountId, $db);
 			}
 			if ($askPW) {
 				askPW($accountId,$email,$mobile);
@@ -307,6 +321,8 @@ if ($account && !$resetPW) {
 						$x++;
 					}
 				}
+				// An installation with $allowedLedgers (includes/connect.php) looks only in the listed ledgers.
+				$databases = array_values(array_filter(isset($databases) ? $databases : array(), 'saldi_ledger_allowed'));
 				$found=$x=0;
 				while ($found == '0' && $x<count($databases)) {
 					$qtxt = "insert into online(session_id,brugernavn,db,dbuser,rettigheder,regnskabsaar,logtime,revisor,sprog)";
@@ -369,6 +385,8 @@ if ($account && !$resetPW) {
 #cho __line__." $databases[$x]<br>";
 					$x++;
 				}
+				// An installation with $allowedLedgers (includes/connect.php) looks only in the listed ledgers.
+				$databases = array_values(array_filter(isset($databases) ? $databases : array(), 'saldi_ledger_allowed'));
 				$found = $x = '0';
 				while ($found == '0' && $x<count($databases)) {
 					$qtxt = "insert into online(session_id,brugernavn,db,dbuser,rettigheder,regnskabsaar,logtime,revisor,sprog)";
@@ -407,9 +425,8 @@ if ($account && !$resetPW) {
 					include ('../includes/connect.php');
 					if ($found) {
 						$qtxt = "select link from mysale where deb_id = '$accountId' and email = '$email' and db='$found'";
-#						saldi_setcookie("mySalePw", $s_id,0,"/");
-						$_SESSION['mySalePw'] = $s_id;
-						$_SESSION['mySaleAcId'] = $accountId;
+#						setcookie("mySalePw", $s_id,0,"/");
+						mySaleSignIn($_SESSION, $s_id, $accountId, $found);
 						$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 						if ($r=db_fetch_array($q)) {
 							$link = $r['link'];

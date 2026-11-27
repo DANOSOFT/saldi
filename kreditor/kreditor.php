@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---------------kreditor/kreditor.php---lap 4.0.8------2025-04-15----
+// ---------------kreditor/kreditor.php---ver 5.1.1------2026-11-13----
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -23,7 +23,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2018.03.08 Indhold kopieret dra debitor/debitor.php og tilrettet til kreditor
 // 20210331 LOE Translated some of these texts to English
@@ -33,10 +33,10 @@
 // 01072025 PBLM Added openKreditorKort function to open creditor card in same window
 // 20251127 LOE Modified to use grid table structure. 
 // 20260506 sawaneh fixed not directing to new account creation when the look for that account does not exist
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
-// 20261008 Sawaneh The list on the new page head (page_bar): title, Kreditorer tab, Ny kreditor as the primary button.
-
+// 20261103 CL/ASR QA round 2: gated on the kreditor right ($modulnr 8, kreditor.konti) instead of the debitor one, so Indkøb opens the page and Salg does not.
+//
 #ob_start();
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 
@@ -64,7 +64,8 @@ function openKreditorKort(kreditorId) {
 </script>
 ";
 $css = "../css/standard.css";
-$modulnr = 6;
+$modulnr = 8; // Kreditorkonti (was 6, Debitorkonti)
+$permission_key = 'kreditor.konti';
 $firmanavn = NULL;
 
 include("../includes/connect.php");
@@ -82,7 +83,11 @@ if (!is_feature_licensed('kreditor')) {
 	exit;
 }
 
-$title = "Kreditorliste";
+if ($menu == 'T') {
+	$title = "Konti";
+} else {
+	$title = "Kreditorliste";
+}
 
 $id = if_isset($_GET,NULL,'id');
 $returside = if_isset($_GET,NULL,'returside');
@@ -103,19 +108,44 @@ if ($popup) $returside = "../includes/luk.php";
 else $returside = $backUrl;
 
 // Top menu rendering
-if ($menu == 'S') {
-	// 20261008 Sawaneh The new page head (topbar addendum §5, prototype_dashboard_tema v5) instead of the blue bar.
-	include_once("../includes/stdFunc/pageBar.php");
-	page_bar(array(
-		'title' => findtekst('607|Kreditorer', $sprog_id),
-		'tabs' => array(array(findtekst('607|Kreditorer', $sprog_id), 'kreditor.php', true)),
-		'primary' => array(findtekst('7002|Ny kreditor', $sprog_id), 'kreditorkort.php?returside=kreditor.php'),
-		'back' => $returside,
-	));
+if ($menu == 'T') {
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	print "<div id=\"header\">";
+	print "<div class=\"headerbtnLft headLink\"><a href='$returside' accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;" . findtekst('30|Tilbage', $sprog_id) . "</a></div>";
+	print "<div class=\"headerTxt\">$title</div>";
+	print "<div class=\"headerbtnRght headLink\"><a accesskey=V href=kreditorvisning.php?valg=$valg title='Ændre ordrevisnig'><i class='fa fa-gear'></i></a> &nbsp; <a accesskey=N href='kreditorkort.php?returside=kreditor.php' title='Opret nyt leverandør kort'><i class='fa fa-plus-square'></i></a></div>";
+	print "</div>";
+	print "<div class='content-noside'>";
+} elseif ($menu == 'S') {
+
+	#####################
+
+	$add_icon = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="#FFFFFF"><path d="M440-280h80v-160h160v-80H520v-160h-80v160H280v80h160v160Zm40 200q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>';
+	
+	#####################
 	print "<table width=100% height=100% border=0 cellspacing=0 cellpadding=0><tbody>\n";
-	print "<tr><td align=\"center\" valign=\"top\" width=\"100%\">";
+	print "<tr><td height = 25 align=center valign=top>";
+	print "<table width=100% align=center border=0 cellspacing=2 cellpadding=0><tbody>\n";
+	print "<tr id='topTr'><td width=5% style='$topStyle'>";
+	print "<span></span>";
+	print "</td>";
+
+	print "<td width = 75% align=center style='$topStyle'>" . findtekst(607, $sprog_id) . "</td>";
+
+	print "<td width=5%><a href=kreditorkort.php?returside=kreditor.php>";
+		  print "<button class='headerbtn'style='$buttonStyle; width: 100%' onMouseOver=\"this.style.cursor = 'pointer'\">"
+		.$add_icon. findtekst(39, $sprog_id) . "</button></a></td></tr>\n";
+	print "</tbody></table>";
+	print " </td></tr>\n<tr><td align=\"center\" valign=\"top\" width=\"100%\">";
 	?>
 	<style>
+	.headerbtn, .center-btn {
+		display: flex;
+		align-items: center;
+		text-decoration: none;
+		gap: 5px;
+	}
 	a:link{
 		text-decoration: none;
 	}
@@ -391,5 +421,9 @@ document.addEventListener('DOMContentLoaded', function() {
 // Close the main content wrapper
 print "</td></tr></tbody></table>";
 
-include_once '../includes/oldDesign/footer.php';
+if ($menu == 'T') {
+	include_once '../includes/topmenu/footer.php';
+} else {
+	include_once '../includes/oldDesign/footer.php';
+}
 ?>

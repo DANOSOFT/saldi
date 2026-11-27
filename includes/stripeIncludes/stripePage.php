@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stripeIncludes/stripePage.php --- 2026.10.26
+// --- includes/stripeIncludes/stripePage.php --- 2026.11.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,8 +31,12 @@
 //                Fonts are a local system stack on purpose: these are public
 //                EU-facing pages, so no Google Fonts (GDPR) and no CDNs.
 // 20261022 CL/LH S5 Footer identity can be overridden per request (invoice pages: invoicing company's name and e-mail).
+// 20261126 CL/ASR Stripe port (#850): the footer shows $GLOBALS['stripe_page_identity'] when set; the subscription pages keep the pinned sender.
 // 20261026 CL/NTR Comment only: the constant identity is the pinned ledger's default, not the only tenant.
-
+// 20261126 CL/ASR Stripe port (#889): subscribe.php sets the identity for a ledger other than the pinned one.
+// 20261116 CDX/ASR Match payment status pages to the supplied dark Saldi logo and button gradient.
+// 20261126 CL/ASR Stripe port (#1134): the logo and button change applies to every status page here, the subscription pages too.
+//
 // Default page identity (the pinned stripeConfigDb ledger) is a constant: tak.php
 // may not open a DB connection to look it up. Pages that know their ledger
 // override it through $GLOBALS['stripe_page_identity'].
@@ -56,7 +60,7 @@ body{margin:0;padding:40px 16px 24px;background:#f3f5f9;font-family:'Inter','Seg
 .card.center{text-align:center}
 h1{margin:0 0 10px;font-size:22px;line-height:1.3;font-weight:700;color:#163e80}
 p{margin:0 0 12px;font-size:15px;line-height:1.6;color:#475069}
-a{color:#2563eb}
+a{color:#183d78}
 .eyebrow{margin:0 0 6px;font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6b7590}
 .badge{width:56px;height:56px;border-radius:50%;margin:0 auto 20px;display:flex;align-items:center;justify-content:center}
 .badge.ok{background:#e8f7ee}.badge.stop{background:#f1f4f9}.badge.info{background:#eaf0fc}.badge.warn{background:#fbf3e6}
@@ -66,7 +70,7 @@ td{font-size:15px;color:#1f2a44;padding:13px 0;border-bottom:1px solid #eef1f7}
 td.r,th.r{text-align:right;padding-left:12px;font-variant-numeric:tabular-nums}
 tr.total td{font-weight:600;color:#163e80;border-top:2px solid #163e80;border-bottom:none;padding:14px 0 0}
 tr.total td.r{font-size:16px;font-weight:700}
-.btn{display:block;box-sizing:border-box;width:100%;background:#2563eb;color:#fff;text-align:center;text-decoration:none;font-size:15px;font-weight:600;font-family:inherit;padding:14px 24px;border:none;border-radius:10px;cursor:pointer}
+.btn{display:block;box-sizing:border-box;width:100%;background:#183d78;background-image:linear-gradient(90deg,#183d78,#29295c 50%,#4c1d86);color:#fff;text-align:center;text-decoration:none;font-size:15px;font-weight:600;font-family:inherit;padding:14px 24px;border:none;border-radius:10px;cursor:pointer}
 .muted{font-size:13px;line-height:1.6;color:#8a93a8}
 .note{margin:24px 0 0;padding-top:20px;border-top:1px solid #eef1f7;font-size:13px;line-height:1.6;color:#8a93a8}
 .box{background:#f6f8fc;border:1px solid #e3e8f2;border-radius:10px;padding:16px 20px;margin:0 0 8px}
@@ -76,7 +80,7 @@ tr.total td.r{font-size:16px;font-weight:700}
 .site a{color:#6b7590}
 @media (max-width:480px){body{padding:24px 12px 20px}.card{padding:28px 22px 24px}}
 </style></head><body><div class='page'>";
-		print "<img class='logo' src='../../img/SaldiMainLogo.png' alt='Saldi'>";
+		print "<img class='logo' src='../../img/saldi-moerk-logo-lys-baggrund.svg' alt='Saldi'>";
 		print "<div class='" . $cardClass . "'>" . $bodyHtml . "</div>";
 		// The invoice endpoints set the invoicing company's identity; the subscription pages keep the pinned constants.
 		$identity = $GLOBALS['stripe_page_identity'] ?? array('name' => STRIPE_PAGE_SENDER, 'email' => STRIPE_PAGE_SUPPORT);

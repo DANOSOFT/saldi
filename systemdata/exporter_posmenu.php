@@ -1,5 +1,5 @@
 <?php
-// ---- /systemdata/exporter_posmenu.php -------- ver. 4.0.4 -- 2021-11-19 --
+// ---- /systemdata/exporter_posmenu.php -------- ver 5.1.1 -- 2026-11-13 --
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,13 +18,20 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2021 Saldi.dk ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // --------------------------------------------------------------------------
 // 20211119 CA  Export all menus for PoS
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20261008 Sawaneh The page on the new page head (page_bar) instead of the blue bar: title, Tilbage only outside the shell.
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261008 SS The page on the new page head (page_bar) instead of the blue bar: title, Tilbage only outside the shell.
+// 20261031 CL/ASR Tilbage goes to Indstillinger > Import & eksport (settingsSection.php?s=import_export.data), not via the old diverse.php?sektion=div_io redirect.
+// 20261101 CL/ASR Tilbage is the shared settings button above the title (settings_back_button(), css/saldi-kit.css), as on every settings page, instead of page_bar's link.
+//                 It goes back to POS-menuer, whose form posts here; Alt+L kept.
+// 20261102 CL/ASR settings_back_button() adds Alt+L itself; the kit is linked as ?v=20261102.
+// 20261102 CL/ASR The standard settings layout (settings_layout_open(), includes/settings/layout.php; owner, 2 Nov 2026: every page reached from Indstillinger keeps the left menu).
+//                 The left menu of Salg with POS-menuer marked under Kasse > Skærm & kassemenuer, Tilbage above the title back to POS-menuer, the breadcrumb Indstillinger / Salg / Skærm & kassemenuer / POS-menuer / this page.
+//                 The page's own Tilbage and page_bar title are gone; its form and steps are unchanged.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 $saldifileformat="saldi_posmenus"; 
@@ -43,7 +50,7 @@ $regnskabsaar=if_isset($_GET['aar']);
 if ($db_encode == "UTF8") $charset = "UTF-8";
 else $charset = "ISO-8859-1";
 
-$returside="../includes/luk.php"; // WP-6.4: opened as a popup from diverse.php; Tilbage closes it
+$returside="settingsSection.php?s=import_export.data";
 
 $filnavn="../temp/".$db."/".$saldifileformat."_".$saldifileformatversion."_".date("Y-m-d").".csv";
 
@@ -73,8 +80,9 @@ if (fwrite($fp,"fileformat".chr(9)."version".chr(9)."delimiter".chr(9)."charset"
 } 
 fclose($fp);
 
-include_once("../includes/stdFunc/pageBar.php");
-page_bar(array('title' => findtekst(1932, $sprog_id), 'back' => $returside));
+// The standard settings layout (includes/settings/layout.php): Tilbage, the title and the left menu with the page's row marked.
+include_once("../includes/settings/layout.php");
+settings_layout_open();
 print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody>"; #tabel 1 
 print "<tr><td colspan=\"2\" align=\"center\" valign=\"top\">";
 print "<table width=\"100%\" align=\"center\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tbody><tr><td>"; # tabel 1.1
@@ -95,4 +103,5 @@ print "</tbody></table>";
 </table>
 </td></tr>
 </tbody></table>
+<?php settings_layout_close(); ?>
 </body></html>

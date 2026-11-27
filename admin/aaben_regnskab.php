@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/aaben_regnskab.php --- lap 4.1.1 --- 2025-05-16 ---
+// --- admin/aaben_regnskab.php --- ver 5.1.1 --- 2026-11-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2015.01.04 Initerer variablen $nextver så den bypasser versionskontrol i online.php
 // 2018.11.07 Rettet stavefejl i variablen $regnskabsaar linje 63
@@ -31,8 +31,11 @@
 // 2023.11.03 PHR Added call to online.php after tjek4opdat
 // 2025.05.14 LOE Added check for empty database and added error message if database is empty
 // 2025.05.14 LOE Added check for global_id in table regnskab and added error message if not exist as the former failed for mysql insert
-// 20260930 Sawaneh Roles stage 2 (§7.1): opening a company from the admin panel is written to its audit log (session.revisor_open).
-// 20260930 Sawaneh Declared permission key 'any' (the page checks the master database itself); unguarded pages are refused in Deny mode.
+// 20261008 CDX/PHR Route locator requests to the PostgreSQL service on ssl3.
+// 20260930 SS Roles stage 2 (§7.1): opening a company from the admin panel is written to its audit log (session.revisor_open).
+// 20260930 SS Declared permission key 'any' (the page checks the master database itself); unguarded pages are refused in Deny mode.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261127 ASR With $allowedLedgers in includes/connect.php only a listed ledger is opened (includes/ledgerAllowList.php), before its updates run.
 @session_start();
 $s_id=session_id();
 
@@ -58,6 +61,8 @@ $tmp_db_id=if_isset($_GET,NULL,'db_id');
 $qtxt="select db from regnskab where id = '$tmp_db_id'";
 $r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 $tmp_db=$r['db'];
+// This installation opens only the ledgers in $allowedLedgers (includes/connect.php), when it is set.
+if ($tmp_db) saldi_ledger_guard($tmp_db);
 if (!db_exists($tmp_db)) {
 	print "<center><br><br>";
 	print "<center>".findtekst('2690|Regnskab med ID', $sprog_id).": $tmp_db_id ".findtekst('1594|eksisterer ikke', $sprog_id)."<br><br>";
@@ -112,7 +117,7 @@ if (if_isset($r, NULL, 'id') && ($_SERVER['SERVER_NAME'] != 'ssl12.saldi.dk')) {
 	if ($_SERVER['HTTPS']) $dbLocation="s".$dbLocation;
 	$dbLocation="http".$dbLocation;
 	$dbAlias=urlencode($r['regnskab']);
-	$url = "https://saldi.dk/locator/locator.php?action=getDBlocation&dbAlias=$dbAlias&globalId=$r[global_id]";
+	$url = "https://ssl3.saldi.dk/locator/locator.php?action=getDBlocation&dbAlias=$dbAlias&globalId=$r[global_id]";
 	$url.= "&dbName=$tmp_db&dbLocation=$dbLocation";
 	$result = file_get_contents($url);
 	$a = explode(',',json_decode($result, true));

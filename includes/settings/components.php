@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/settings/components.php --- ver 5.0.0 --- 2026.11.09 ---
+// ---- includes/settings/components.php --- ver 5.1.1 --- 2026.11.26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,37 +22,44 @@
 //
 // Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260929 Sawaneh Settings redesign phase 4a (spec §7.3, §8.1): the components every generated
-//                  settings form is built from, and the conversion between a posted field and
-//                  the stored string. Styles live in css/unified-components.css (.st-*).
-// 20261006 Sawaneh §8.14: "?" in the section header (guide or SALDI Assist with the section as context) and a field's
-//                  "Læs mere" expander ('more' text id).
-// 20261006 Sawaneh G3.5: field type 'matrix' - the discount grid (customer groups × item groups), kept as one value in a
-//                  hidden input, stored through virtual storage (discount_matrix).
-// 20261001 Sawaneh Accessibility §8.6: readable text on a user-chosen button colour, darker shade for links/outlines.
-// 20261002 Sawaneh Phase 4b: type 'date' (shown dd-mm-yyyy, stored yyyy-mm-dd), decimals stored with a dot, 'range' rule.
-// 20261002 Sawaneh Hand-over 2 Oct (A2, §8.0): a field is a row - label and help left, control right, amber dot when changed,
-//                  dependent fields indented; actions are rows too.
-// 20261004 Sawaneh G10.1: 'decimal_comma', options from departments, sales VAT groups and table names.
-// 20261004 Sawaneh st_current_form_value(): a setting without a stored row shows its registry default.
-// 20261005 Sawaneh Field permissions are enforced (st_field_access): no read = hidden, read only = read-only; decimal
-//                  'decimals' shows a stored number with a Danish comma.
-// 20261004 Sawaneh G4.3: 'value_map' (form value <-> stored value, e.g. tab), rules 'required' and 'csv_url', supplier names.
-// 20261004 Sawaneh G2.6: a secret stored URL-encoded ('urlencode'), 'ensure_suffix' on text fields.
-// 20261003 Sawaneh G3.4 Reminders: type 'creditor' (lookup, stored as adresser id), options from the user list, a group
-//                  label above a run of fields ("Rykker 1"), a help line under a card heading.
-// 20261003 Sawaneh G6.3 E-mail: type 'textarea', a label suffix (the form language of a sender field), mixed select labels.
-// 20261004 Sawaneh §8.13: an action shows what it touches (impact) under its help and in its dialog.
-// 20261004 Sawaneh G10.6: 'color' type, a #rrggbb text with a colour swatch beside it (empty allowed).
-// 20261002 Sawaneh Phase 4b batch 2 (G9): write-only 'secret' control (masked, Skift), 'info', 'link' and 'mini' rows,
-//                  computed select options, rule 'setting_set', lock 'ht_keys:<var>' for keys the installation manages.
-// 20261016 Sawaneh virtualStorage.php loaded with the components: a matrix save and Transfer failed when it was not yet read.
-// 20261008 Sawaneh Settings decision 21: the "?" opens the section's guide (guides/settings/<group>-<section>.html|.pdf)
-//                  when installed, otherwise the section description with a link to Guides.
-// 20261019 Sawaneh Review 2 (PR #803): the grupper.inaktiv column check reads information_schema for this database/schema only.
+// 20260929 SS Settings redesign phase 4a (spec §7.3, §8.1): the components every generated settings form is built from, and the conversion between a posted field and the stored string.
+//             Styles live in css/unified-components.css (.st-*).
+// 20261006 SS §8.14: "?" in the section header (guide or SALDI Assist with the section as context) and a field's "Læs mere" expander ('more' text id).
+// 20261006 SS G3.5: field type 'matrix' - the discount grid (customer groups × item groups), kept as one value in a hidden input, stored through virtual storage (discount_matrix).
+// 20261001 SS Accessibility §8.6: readable text on a user-chosen button colour, darker shade for links/outlines.
+// 20261002 SS Phase 4b: type 'date' (shown dd-mm-yyyy, stored yyyy-mm-dd), decimals stored with a dot, 'range' rule.
+// 20261002 SS Hand-over 2 Oct (A2, §8.0): a field is a row - label and help left, control right, amber dot when changed, dependent fields indented; actions are rows too.
+// 20261004 SS G10.1: 'decimal_comma', options from departments, sales VAT groups and table names.
+// 20261004 SS st_current_form_value(): a setting without a stored row shows its registry default.
+// 20261005 SS Field permissions are enforced (st_field_access): no read = hidden, read only = read-only; decimal 'decimals' shows a stored number with a Danish comma.
+// 20261004 SS G4.3: 'value_map' (form value <-> stored value, e.g. tab), rules 'required' and 'csv_url', supplier names.
+// 20261004 SS G2.6: a secret stored URL-encoded ('urlencode'), 'ensure_suffix' on text fields.
+// 20261003 SS G3.4 Reminders: type 'creditor' (lookup, stored as adresser id), options from the user list, a group label above a run of fields ("Rykker 1"), a help line under a card heading.
+// 20261003 SS G6.3 E-mail: type 'textarea', a label suffix (the form language of a sender field), mixed select labels.
+// 20261004 SS §8.13: an action shows what it touches (impact) under its help and in its dialog.
+// 20261004 SS G10.6: 'color' type, a #rrggbb text with a colour swatch beside it (empty allowed).
+// 20261002 SS Phase 4b batch 2 (G9): write-only 'secret' control (masked, Skift), 'info', 'link' and 'mini' rows, computed select options, rule 'setting_set', lock 'ht_keys:<var>' for keys the installation manages.
+// 20261016 SS virtualStorage.php loaded with the components: a matrix save and Transfer failed when it was not yet read.
+// 20261008 SS Settings decision 21: the "?" opens the section's guide (guides/settings/<group>-<section>.html|.pdf) when installed, otherwise the section description with a link to Guides.
+// 20261019 SS Review 2 (PR #803): the grupper.inaktiv column check reads information_schema for this database/schema only.
+// 20261101 CL/ASR Settings hub "C - Fold ud": a section without a lead of its own describes itself with its hub row's hint, not the old group's text. settings_back_button(): the Tilbage button every settings page shows above its title (kit classes, target from settings_back_link()).
+// 20261102 CL/ASR settings_back_button() takes the access key (default 'l', Alt+L), so callers no longer patch its markup.
+// 20261103 CL/ASR QA: a reader (no write) keeps navigation links (another settings page, an export, external documentation such as the data processing agreement); only links to pages that change data are disabled.
+// 20261104 CL/ASR Final QA: a setting marked 'empty_is_default' also shows its default when its stored value is empty (Landekonfiguration: an empty adresser.land is Danmark), so the field is not blank and saving the page does not change it.
+// 20261105 CL/LH st_options(): the department list's blank choice is the field's 'options_none' (default '0', a till's and an employee's "no department").
+//                A warehouse's Afd. passes '' (grupper LG box1), so a blank Afd. matches an option and a department 0 stays a choice of its own.
+// 20261105 CL/LH st_render_field(): a field with an 'impact' shows it under its text, as an action does, counted only while the field is visible (the batch details link on Lagerstyring & kostpris).
+// 20261105 CL/LH st_fill_city_from_zip(): a city field ('fill_from_zip') posted empty next to a postal code gets the code's town (bynavn()), as Stamdata and the employee card did on save.
+// 20261105 CL/LH st_decimal_number(): a 'decimal' field takes a Danish amount with thousands separators (32.456,78, 1.234.567) as usdecimal() did on the old pages.
+//                The employee card refused Løn 32.456,78 and saved nothing.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261119 CL/ASR st_locked() has the rule 'stays_on' (owner, 19 Nov 2026): a bool that is stored on cannot be switched off again, while switching it on stays possible; its locked_text may be a text key.
+// 20261119 CL/ASR st_posted_to_raw() has the rule 'hent_first' (validate): Omgående bogføring of sales or purchase orders is not switched on while invoices of that kind wait at status 3 for Hent ordrer (orders_waiting_for_hent()), and the error, a text key, says to fetch them into a cash journal first. The rule is st_hent_first_error(): when the other setting is on, invoices of the other kind keep it off too, as the cash journal has no Hent for any kind once both are on, and the error names the kind that waits; settings_section_save() asks it again under the row lock.
+// 20261120 CL/ASR Comment of st_hent_first_error(): the cash journal keeps Hent for an invoice left waiting after both settings are on (owner, 20 Nov 2026), so the rule no longer gives that as its reason.
 // 20261109 CL/ASR st_visible(): a field whose parent field is hidden by its own visible_if is hidden too (a chain of rules, e.g. the link reminder's warning text under its switch under "Rykkerform").
-
+// 20261126 CL/ASR Stripe port (#1098): the st_visible() rule chain from the source line above.
 include_once(__DIR__ . '/SettingsService.php');
+include_once(__DIR__ . '/../stdFunc/ordersWaitingForHent.php');
 // The matrix check and the discount transfer run on a POST before any virtual value is read, so load them up front.
 include_once(__DIR__ . '/virtualStorage.php');
 
@@ -245,17 +252,68 @@ function st_current_form_value(array $def): string
 	$key = (string) $def['key'];
 	$raw = SettingsService::raw($key);
 	if ($raw === '' && array_key_exists('default', $def) && $def['default'] !== '' && $def['default'] !== null && $def['default'] !== false
-		&& !in_array($def['type'], array('secret', 'action', 'info', 'link', 'mini'), true) && !SettingsService::exists($key)) {
+		&& !in_array($def['type'], array('secret', 'action', 'info', 'link', 'mini'), true) && (!empty($def['empty_is_default']) || !SettingsService::exists($key))) {
 		return st_form_value($def, st_default_raw($def));
 	}
 	return st_form_value($def, $raw);
 }
 
 /**
- * The stored string for a posted value, or an error text id when the value is not valid.
+ * A typed decimal number with a dot as its decimal separator, or null when it is not a number.
+ *
+ * One '.' or ',' is the decimal separator (2.5 and 2,5 are both 2.5), so 1.234 stays 1.234. Dots that cannot be a
+ * decimal separator are a Danish amount's thousands separators and are dropped, as usdecimal() drops them on the old
+ * pages: dots before a decimal comma (32.456,78 is 32456.78) or more than one dot (1.234.567 is 1234567). Each group
+ * after a dot has three digits, so a mistyped 32.45,78 is still refused.
+ */
+function st_decimal_number(string $value): ?string
+{
+	$value = trim($value);
+	if (preg_match('/^-?[0-9]+([.,][0-9]+)?$/', $value)) {
+		return str_replace(',', '.', $value);
+	}
+	if (preg_match('/^-?[0-9]{1,3}(\.[0-9]{3})+(,[0-9]+)?$/', $value)) {
+		return str_replace(array('.', ','), array('', '.'), $value);
+	}
+	return null;
+}
+
+/**
+ * The rule 'hent_first' ('validate' => ['hent_first', kind, text key, the other setting's key]) of Omgående bogføring of
+ * sales and of purchase orders (owner, 19 Nov 2026): the text key of the error when switching the setting on must wait
+ * for Hent ordrer, or null.
+ *
+ * Once on, it cannot be switched off again, and Hent ordrer is for ledgers where it is off. So it is not switched on while
+ * invoices of its own kind wait at status 3 (orders_waiting_for_hent()), nor, when the other setting is on, while invoices
+ * of the other kind wait; the error is the text of the kind that waits. An invoice that still waits once both are on (its
+ * journal lines deleted after it was fetched) keeps Hent in finans/kassekladde.php (owner, 20 Nov 2026).
+ * The other setting is on another page, so its stored value decides. settings_section_save() asks again after it has
+ * read the stored row again under a row lock (SettingsService::lockForSave()), so a save of the other setting that
+ * committed in between counts.
+ */
+function st_hent_first_error(array $def, string $value): ?string
+{
+	if (!is_array($def['validate'] ?? null) || $def['validate'][0] !== 'hent_first' || $def['type'] !== 'bool' || trim($value) !== '1'
+		|| st_current_form_value($def) === '1') {
+		return null;
+	}
+	if (orders_waiting_for_hent((string) $def['validate'][1])) {
+		return (string) $def['validate'][2];
+	}
+	$otherKey = isset($def['validate'][3]) ? (string) $def['validate'][3] : '';
+	$other = ($otherKey !== '') ? SettingsService::definition($otherKey) : null;
+	if ($other && is_array($other['validate'] ?? null) && $other['validate'][0] === 'hent_first' && st_current_form_value($other) === '1'
+		&& orders_waiting_for_hent((string) $other['validate'][1])) {
+		return (string) $other['validate'][2];
+	}
+	return null;
+}
+
+/**
+ * The stored string for a posted value, or an error text id (a text key for 'hent_first') when the value is not valid.
  *
  * @param array<string, string> $posted every posted field of the form, for 'requires' rules
- * @return array{raw: string, error: int|null}
+ * @return array{raw: string, error: int|string|null}
  */
 function st_posted_to_raw(array $def, string $value, array $posted): array
 {
@@ -282,14 +340,18 @@ function st_posted_to_raw(array $def, string $value, array $posted): array
 			}
 			break;
 		case 'decimal':
-			if ($value !== '' && !preg_match('/^-?[0-9]+([.,][0-9]+)?$/', $value)) {
-				$error = 5732;
+			$number = st_decimal_number($value);
+			if ($number === null) {
+				// An empty field stays empty.
+				if ($value !== '') {
+					$error = 5732;
+				}
 			} elseif (!empty($def['decimal_comma'])) {
 				// Read back through usdecimal() by its reader, so it keeps the Danish comma.
-				$raw = str_replace('.', ',', $value);
+				$raw = str_replace('.', ',', $number);
 			} else {
 				// Stored with a dot, as the old pages did through usdecimal().
-				$raw = str_replace(',', '.', $value);
+				$raw = $number;
 			}
 			break;
 		case 'date':
@@ -398,6 +460,9 @@ function st_posted_to_raw(array $def, string $value, array $posted): array
 	if ($error === null && $value !== '' && is_array($def['validate']) && $def['validate'][0] === 'range' && ((int) $value < (int) $def['validate'][1] || (int) $value > (int) $def['validate'][2])) {
 		$error = 5732;
 	}
+	if ($error === null) {
+		$error = st_hent_first_error($def, $value);
+	}
 	if ($error === null && is_array($def['validate']) && $def['validate'][0] === 'requires' && $def['type'] === 'bool' && $value === '1') {
 		$other = isset($posted[$def['validate'][1]]) ? trim($posted[$def['validate'][1]]) : null;
 		if ($other === null) {
@@ -409,6 +474,32 @@ function st_posted_to_raw(array $def, string $value, array $posted): array
 		}
 	}
 	return array('raw' => $raw, 'error' => $error);
+}
+
+/**
+ * A city field left empty next to a postal code gets the code's town from importfiler/postnr.csv (bynavn()), as the old
+ * Stamdata (stamkort.php) and employee card (ansatte_save.php) did on save. The city field names its postal code field
+ * in 'fill_from_zip'; a field expanded per employee uses the code field of the same employee. Both fields must be in the
+ * post, so a Gendan of the city alone restores what was stored.
+ *
+ * @param array<string, array<string, mixed>> $defs
+ * @param array<string, string>               $posted the posted fields by key
+ * @return array<string, string> $posted, with the towns filled in
+ */
+function st_fill_city_from_zip(array $defs, array $posted): array
+{
+	foreach ($defs as $key => $def) {
+		if (empty($def['fill_from_zip']) || !isset($posted[$key]) || trim($posted[$key]) !== '') {
+			continue;
+		}
+		$zipKey = (string) $def['fill_from_zip'] . (isset($def['per_key']) ? substr((string) $key, strlen((string) $def['per_key'])) : '');
+		$zip = isset($posted[$zipKey]) ? trim($posted[$zipKey]) : '';
+		$city = $zip !== '' ? (string) bynavn($zip) : '';
+		if ($city !== '') {
+			$posted[$key] = $city;
+		}
+	}
+	return $posted;
 }
 
 /**
@@ -450,7 +541,8 @@ function st_display_value(array $def, string $raw): string
 }
 
 /**
- * The options of a select: as defined, or computed ('options_from') from the company's own lists.
+ * The options of a select: as defined, or computed ('options_from') from the company's own lists. The department
+ * list's blank choice is 'options_none' (default '0').
  *
  * @return array<string, mixed> value => text id, or value => literal text when 'options_literal' is set
  */
@@ -469,7 +561,8 @@ function st_options(array $def): array
 				$cache[$from][(string) $r['kodenr']] = $r['kodenr'] . ' : ' . $r['beskrivelse'];
 			}
 		} elseif ($from === 'departments') {
-			$cache[$from] = array('0' => '');
+			// The blank choice is added on the way out: its value depends on the field ('options_none').
+			$cache[$from] = array();
 			$q = db_select("select kodenr, beskrivelse from grupper where art = 'AFD' order by kodenr", __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
 				$cache[$from][(string) $r['kodenr']] = (string) $r['beskrivelse'];
@@ -551,6 +644,12 @@ function st_options(array $def): array
 				$cache[$from][(string) $r['id']] = (string) $r['brugernavn'];
 			}
 		}
+	}
+	if ($from === 'departments') {
+		// "No department" is '0' for a till and an employee, and a department 0 takes that place in their list.
+		// A warehouse stores it as '' ('options_none' => ''), so its blank choice is '' and a department 0 stays a choice of its own.
+		$none = isset($def['options_none']) ? (string) $def['options_none'] : '0';
+		return array_replace(array($none => ''), $cache[$from]);
 	}
 	return $cache[$from];
 }
@@ -661,12 +760,15 @@ function st_visible(array $def, array $values, int $depth = 0): bool
 }
 
 /**
- * Text id of the reason a field cannot be changed, or 0.
+ * Text id or key of the reason a field cannot be changed, or 0.
  *
  * $current is the field's form value as stored, $wanted the form value a save or restore would write. Callers that
  * pass neither get the strict answer (locked whenever the rule applies).
+ *
+ * Rules ('locked_if'): 'ht_keys:<var>' (the installation manages the value), 'batch_control' (cannot be switched on
+ * while an item group has batch control) and 'stays_on' (a bool that is on cannot be switched off again).
  */
-function st_locked(array $def, ?string $current = null, ?string $wanted = null): int
+function st_locked(array $def, ?string $current = null, ?string $wanted = null): int|string
 {
 	if (empty($def['locked_if'])) {
 		return 0;
@@ -687,6 +789,15 @@ function st_locked(array $def, ?string $current = null, ?string $wanted = null):
 		$turnsOn = ($wanted !== null) ? ($wanted === '1') : ($current !== '1');
 		if ($turnsOn && db_fetch_array(db_select("select id from grupper where art = 'VG' and box9 = 'on'", __FILE__ . " linje " . __LINE__))) {
 			return (int) $def['locked_text'];
+		}
+	}
+	if ($def['locked_if'] === 'stays_on') {
+		// Omgående bogføring (owner, 19 Nov 2026): once it is on, it cannot be switched off again, so invoices are never
+		// again left at status 3 for Hent in the cash journal. Switching it ON stays possible. The stored value decides, not
+		// $current: after a refused save the form shows what was posted. Locked while it is stored on, unless the save or
+		// restore would write on as well (no change).
+		if (st_current_form_value($def) === '1' && $wanted !== '1') {
+			return is_int($def['locked_text']) ? $def['locked_text'] : (string) $def['locked_text'];
 		}
 	}
 	return 0;
@@ -747,7 +858,8 @@ function st_section_help(array $section): string
 		return ' <a class="st-qhelp" href="' . st_h($guide) . '" target="_blank" rel="noopener" title="' . st_t(6893) . '" aria-label="' . st_t(6893) . '">?</a>';
 	}
 	$groups = getSettingsGroups();
-	$desc = !empty($section['lead']) ? st_txt($section['lead']) : (isset($groups[$section['group']]['description']) ? st_txt($groups[$section['group']]['description']) : '');
+	$rowHint = function_exists('settings_hub_hint_for') ? settings_hub_hint_for((string) $section['group'] . '.' . (string) $section['section'], (int) $GLOBALS['sprog_id']) : '';
+	$desc = !empty($section['lead']) ? st_txt($section['lead']) : ($rowHint !== '' ? $rowHint : (isset($groups[$section['group']]['description']) ? st_txt($groups[$section['group']]['description']) : ''));
 	return ' <span class="st-qwrap"><button type="button" class="st-qhelp" data-section-help aria-expanded="false" aria-controls="st-qpop" title="' . st_t(6893) . '" aria-label="' . st_t(6893) . '">?</button>'
 		. '<span class="st-qpop" id="st-qpop" role="note" hidden><span class="st-qpop-t">' . st_h($desc) . '</span> <a href="#" class="st-qpop-guides" data-guides hidden>' . st_t(5504) . '</a></span>'
 		. '<script>(function () { var b = document.querySelector(\'[data-section-help]\'); if (!b || b.dataset.bound) { return; } b.dataset.bound = 1;'
@@ -757,6 +869,21 @@ function st_section_help(array $section): string
 		. ' b.addEventListener(\'click\', function (e) { e.stopPropagation(); show(pop.hidden); });'
 		. ' document.addEventListener(\'click\', function (e) { if (!pop.hidden && !pop.contains(e.target)) { show(false); } });'
 		. ' document.addEventListener(\'keydown\', function (e) { if (e.key === \'Escape\' && !pop.hidden) { show(false); b.focus(); } }); })();</script></span>';
+}
+
+/**
+ * The Tilbage button above a settings page's title (owner, 1 Nov 2026): a small kit button with a left arrow, the same on
+ * every settings page. The target comes from settings_back_link() (the hub and the personal settings: the last page outside
+ * the settings system, or Oversigt; any other settings page: the hub). $returnTo (a module page a gear link came from, or the
+ * page's own parent) wins. $accessKey: Alt+<key> follows it ('l' as every Luk/Tilbage in Saldi; '' = none).
+ * Place it as the first child of .sk-head-tx, above h1.sk-title; css/saldi-kit.css places .sk-back there.
+ */
+function settings_back_button(string $returnTo = '', string $accessKey = 'l'): string
+{
+	$back = settings_back_link((int) $GLOBALS['sprog_id'], $returnTo);
+	return '<a class="sk-btn sk-btn-sm sk-back" href="' . st_h($back['url']) . '" title="' . st_h($back['title']) . '" data-back'
+		. ($accessKey !== '' ? ' accesskey="' . st_h($accessKey) . '"' : '') . '>'
+		. '<i class="bx bx-left-arrow-alt" aria-hidden="true"></i><span>' . st_h($back['label']) . '</span></a>';
 }
 
 function st_render_field(array $def, array $state): void
@@ -800,6 +927,8 @@ function st_render_field(array $def, array $state): void
 	$defaultText = $hasDefault ? st_txt(5714) . ' ' . st_display_value($def, st_default_raw($def)) . '.' : '';
 	$nameAttr = $disabled ? '' : ' name="f[' . st_h($key) . ']"';
 	$invalid = !empty($state['error']) ? ' aria-invalid="true" aria-describedby="e-' . $id . '"' : '';
+	// A field's 'impact' (settings_impact_text(), as on an action) is counted only while the field shows, so a hidden one costs no query.
+	$impact = (!empty($def['impact']) && !empty($state['visible']) && function_exists('settings_impact_text')) ? settings_impact_text($def) : '';
 	?>
 <?php if (!empty($state['group_heading'])) { ?>
 <div class="st-grouphead"><?= st_h($state['group_heading']) ?></div>
@@ -818,6 +947,9 @@ function st_render_field(array $def, array $state): void
     </span>
 	<?php if ($help !== '' || $defaultText !== '') { ?>
     <span class="st-help"><?= st_h($help) ?><?= ($help !== '' && $defaultText !== '') ? ' ' : '' ?><?php if ($defaultText !== '') { ?><span class="st-default"><?= st_h($defaultText) ?></span><?php } ?><?php if ($hasDefault && !$disabled) { ?> <button type="button" class="st-reset" data-reset hidden><?= st_t(5717) ?></button><?php } ?></span>
+	<?php } ?>
+	<?php if ($impact !== '') { ?>
+    <span class="st-impact"><?= st_h($impact) ?></span>
 	<?php } ?>
 	<?php if (!empty($def['more'])) { ?>
     <details class="st-more"><summary><?= st_t(6894) ?></summary><p><?= st_t($def['more']) ?></p></details>
@@ -928,7 +1060,12 @@ function st_render_field(array $def, array $state): void
 	<?php } elseif ($def['type'] === 'info') { ?>
     <span class="st-info"><?= function_exists('settings_integration_info') ? settings_integration_info($def) : '' ?></span>
 	<?php } elseif ($def['type'] === 'link') { ?>
-	<?php if (!empty($state['readonly']) && st_field_access($def) !== 'write') { ?>
+	<?php
+		// Pure navigation (another settings page, an export, external documentation) stays a link for readers; links to pages
+		// that change data (imports, uploads, backup/restore, translations) are disabled without write.
+		$linkReadOnly = (isset($def['needs']) && $def['needs'] === 'read') || !empty($def['blank'])
+			|| preg_match('#^(settingsSection\.php|https?:|exporter_|\.\./restapi/swagger)#', (string) $def['href']);
+		if (!empty($state['readonly']) && st_field_access($def) !== 'write' && !$linkReadOnly) { ?>
     <span class="st-btn" aria-disabled="true" style="opacity:.5;cursor:not-allowed"><?= st_t($def['button']) ?></span>
 	<?php } else { ?>
     <a class="st-btn" href="<?= st_h($def['href']) ?>"<?= !empty($def['blank']) ? ' target="_blank" rel="noopener"' : '' ?>><?= st_t($def['button']) ?><?php if (!empty($def['blank'])) { ?> <i class='bx bx-link-external' aria-hidden="true"></i><?php } ?></a>

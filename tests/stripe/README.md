@@ -2,6 +2,11 @@
 <!-- // 20261022 CDX/LH Map M1–M6 regression coverage and require a fresh gate after the 150-test baseline. -->
 <!-- // 20261109 CL/ASR Link reminders (Linkrykker): StripeReminderTest and reminderFixtures.php, plus the manual evidence they leave out. -->
 <!-- // 20261109 CL/ASR Review fixes: both "Bogfør" copies are run, and the manual evidence list names the page flows no test drives. -->
+<!-- // 20261126 CL/ASR Stripe port: the helpers bootstrap.php, fixtures.php and reminderFixtures.php are in support/ (guardrails test-discovery). -->
+<!-- // 20261126 CL/ASR Review round 1 (M5): without SALDI_TEST_* the suite makes its own fresh tenant with TestDatabase, so CI runs it instead of skipping it. -->
+<!-- // 20261126 ASR Payment review (GPT-P-6): R04 names the half-øre settlement window instead of the one-øre tolerance. -->
+<!-- // 20261126 ASR Payment review (GPT-G-2): R04 adds the project condition of the half-øre window and the exact amount on any project. -->
+<!-- // 20261126 ASR Payment review (GPT-P-4, P-5): unsent refund/dispute alerts retried by redelivery and repair; claim ownership and 409 for a row in progress. -->
 
 # Stripe PostgreSQL suite
 
@@ -12,14 +17,25 @@ and PHPUnit 10/11:
 php /phpunit.phar --testsuite stripe
 ```
 
-Set `SALDI_TEST_PGHOST`, `SALDI_TEST_PGUSER`, `SALDI_TEST_PGPASSWORD` and
-`SALDI_TEST_DB`. PostgreSQL can also use its normal `PGPORT` environment setting.
-The gate supplies database `s821_unittest`, restored from the scrubbed demo
-tenant. The suite expects the existing Saldi tables and fiscal years (RA
-kodenr 5 is 2026). It does not create a master `regnskab` database or run
-`online.php` or `connect.php`.
+Without further settings the suite uses the test-database helper the other
+database suites use (`tests/characterization/support/database/TestDatabase.php`):
+with `SALDI_CHAR_PGPASS` (and optionally `SALDI_CHAR_PGHOST`, `SALDI_CHAR_PGUSER`,
+`SALDI_CHAR_MASTER_DB`) and the installed test master, as in CI, the first test
+installs a fresh, UUID-named tenant with the production installer, adds three
+historical journals (kladdeliste) for the booking tests, and points
+`SALDI_TEST_*` at it for the rest of the process and its child processes. The
+tenant and its `temp/` folder are removed when the PHPUnit process ends
+(`SALDI_TEST_KEEP_DATABASES=1` keeps the database). Without either setting the
+suite skips.
 
-Each test requires `bootstrap.php`. It installs guarded replacements for the
+To run it on a restored tenant instead, set `SALDI_TEST_PGHOST`,
+`SALDI_TEST_PGUSER`, `SALDI_TEST_PGPASSWORD` and `SALDI_TEST_DB`. PostgreSQL can
+also use its normal `PGPORT` environment setting. The gate supplied database
+`s821_unittest`, restored from the scrubbed demo tenant. The suite expects the
+existing Saldi tables and some journal history. It does not create a master
+`regnskab` database or run `online.php` or `connect.php`.
+
+Each test requires `support/bootstrap.php`. It installs guarded replacements for the
 Stripe HTTP transport, customer mail, operational alerts, logging and the
 tenant resolver before loading production Stripe helpers. HTTP requests consume
 queued responses and record method, path, parameters, options and idempotency
@@ -30,7 +46,8 @@ The fake also rejects a reused idempotency key with a different method/path/body
 `StripeTransportTest` verifies that contract without needing a database.
 
 The connection is established lazily in `setUp()`. Missing connection
-configuration skips tests for ordinary local test discovery. With configuration
+configuration (neither `SALDI_TEST_*` nor a reachable test PostgreSQL through
+`SALDI_CHAR_PGPASS`) skips tests for ordinary local test discovery. With configuration
 present, missing extensions, bad connections, schema errors and SQL failures
 fail visibly. The external gate should run with all database tests executed.
 
@@ -71,7 +88,8 @@ pending while another caller wins, receipt/enrolment after COMMIT, guarded late
 failure/cancellation, journal INSERT/reference failure and rollback, repair and
 repair dry run, receipt retry, missing clearing configuration, identity/amount/
 currency validation (including webhook backfill), unrelated subscription PIs,
-refund/dispute flags, subscription-refund fallback, and fiscal voucher allocation
+refund/dispute flags and their unsent alerts (redelivery and repair), the
+dispatcher's claim ownership, subscription-refund fallback, and fiscal voucher allocation
 across posted/owned journals and year boundaries. Trigger fixtures return no row
 to exercise unsuccessful writes without concealing PHP or PostgreSQL warnings.
 The repair tests call the same `stripe_payment_repair()` used by the CLI's
@@ -127,7 +145,7 @@ actual subscription PDF downloads still require the sandbox/operator run.
 | R01 / T1–T2, repeated success and sync/webhook interleaving | `StripeBookingTest`: sync first, webhook first, pending read overtaken by success, guarded late failure; one line/receipt/enrolment. New one-off capture test also checks no saved PM/date. |
 | R02, R14 / T3, second capture and identity | `StripeBookingTest`: duplicate_paid plus both IDs, failed alert retry/repair, adjustment replay, tenant/order/currency/amount mismatch and backfill. |
 | R03, R32 / T7, mixed PDF/email/email | `StripeDeliveryTest`: execute enqueue assignment and actual delivery helper, own PDF bytes/URL/recipient/subject; classic overrides and original mail slot forwarded. |
-| R04 / T8–T9, fully open only | `StripeCollectionTest`: ±1 øre, partial/stale snapshot, absent/split openpost, cash/card terms. `StripePageTest`: manual/credit/bank-paid/pending panels contain no collection controls. |
+| R04 / T8–T9, fully open only | `StripeCollectionTest`: the half-øre settlement window (with the order's project; the exact amount on any project), partial/stale snapshot, absent/split openpost, cash/card terms. `StripePageTest`: manual/credit/bank-paid/pending panels contain no collection controls. |
 | R06, R26, R28, R30 / T10, central eligibility | `StripeCollectionTest`: active/trialing/past_due, PBS debtor/order, EUR, copied tenant, stale eligibility. `StripeChargeTest`: actual runner refuses subscription/PBS/EUR/opt-out/partial/credit/cash candidates. |
 | R08, R25 invoice branch / T13, DB failure and repair | `StripeBookingTest`: trigger-induced journal/paid/reference rollback, received retry state, lost line adoption, mail retry, missing clearing, dry-run and switches-off repair. New full-job test checks post-commit enrolment failure/repair counts/exit code without collecting. |
 | R09, R39, persisted identity | `StripeChargeTest`: pre-POST reservation, lost-response lookup, old ambiguity, changed amount, technical retry, fresh canceled identity. `StripeCollectionTest`: every unresolved PI, DB-age clock, confirmed retirement before replacement. |
@@ -200,7 +218,7 @@ Production activation and rollback are in Danosoft's internal operations runbook
 
 ## Link reminders (Linkrykker)
 
-`StripeReminderTest` (fixtures in `reminderFixtures.php`: GEBYR forms 6/7/8, R1/R2/R3
+`StripeReminderTest` (fixtures in `support/reminderFixtures.php`: GEBYR forms 6/7/8, R1/R2/R3
 orders like `debitor/ny_rykker.php` makes them, `stripe_reminders` rows) covers which
 reminders become link reminders, registration, renteloven § 9 b (L1/L2/L3 with the
 mailed/fakturadate/ordredate fallbacks), the fee and interest on the next invoice

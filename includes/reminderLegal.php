@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/reminderLegal.php --- ver 5.0.0 --- 2026.11.09 ---
+// --- includes/reminderLegal.php --- ver 5.1.1 --- 2026.11.27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,50 @@
 //                 Also the shared reading of a reminder's lines: its fee/interest lines (GEBYR items of formular level+5) and the newest invoice it reminds of.
 // 20261109 CL/ASR Review fixes: a fee item that is also the interest item counts only its last line as fee (the others are interest); the fee of an earlier level of the same chain is recognised (reminder_prior_fee_level()); which reminded invoices are paid (reminder_invoice_payment()); the active fiscal year (reminder_in_active_year()).
 //                 reminder_txt() returns its Danish fallback in the database's encoding, like findtekst().
+//
+// 20261116 CDX/ASR Bind reminder creation to the report's ledger, including popup requests.
+// 20261117 CDX/ASR Use the automation queue's confirmed sending date when checking the next reminder.
+// 20261126 ASR Review I3: an automatic reminder that was not sent (a reminder_automation_jobs row whose state is not 'sent') is not escalated: reminder_escalation_skip() returns 'unsent'.
+//              reminder_sent_date() returns '' for such a reminder instead of its date, and reminder_automation_unsent()/reminder_automation_unsent_sql() find it.
+// 20261126 ASR Review GPT-R-1: reminder_posting_year() and reminder_group_year_order() let both bogfor_rykker() copies read the item and debtor groups of the year the reminder is posted in, as invoice posting does.
+// 20261126 ASR Review GPT-R-3: L2 and L3 also count the reminders with a fee made earlier for the same invoice in another chain (reminder_claim_fee_history()), as closing a chain does not end the claim.
+//              reminder_legal_check() refuses a 4th fee for an invoice (8215) and a fee less than 10 days after the newest reminder with a fee for it was sent (8216).
+//              reminder_claim_fee_refusal() lets creation leave the fee off such a reminder.
+// 20261126 ASR Review GPT-R-4: reminder_sent_date() takes the day a reminder first went out by mail or on paper (reminder_dispatch, reminder_dispatch_record()) before its date.
+//              A reminder from before the update has no such row and keeps its date, as before.
+// 20261126 ASR Review GPT-F-1: reminder_booking_posted() and reminder_unposted_sql() tell a booked reminder from one left at status 3 by a booking that stopped before it posted.
+//              Both bogfor_rykker() copies, the reminder overview and "Ryk alle" book such a reminder again; one with a fee open item or a posting stays booked.
+// 20261126 ASR Review GPT-G-4: reminder_posting_groups() replaces reminder_group_year_order(): a reminder is posted only with the item and debtor groups of its posting year.
+//              When one of them has no row in that year, nothing is posted and the message names the groups and the year (8227-8229); another year's row is never used.
+// 20261126 ASR Review GPT-G-7: the fees counted per invoice leave out a reminder made while Saldi records the day reminders go out (reminder_dispatch_first_id()) that was never mailed or printed.
+//              reminder_claim_sent_date() counts such a reminder only by its recorded day (reminder_recorded_sent_date()); a reminder made before that still counts from its date.
+// 20261126 ASR Review R3-G7-1: such a reminder also counts when its fee was booked to the customer (reminder_booking_posted()), dated as reminder_sent_date().
+//              Escalating with "Ryk alle" books the level first, and the next level lists that fee, also when the level itself was never mailed or printed.
+// 20261126 ASR Review AR2-2: the refusal for an automatic reminder that was not sent follows its job's state (reminder_automation_state()).
+//              A draft (approval, queued) keeps 8242, approve it or delete it; one that is paused or whose sending failed or is uncertain (held, failed, sending) points to Automatiske rykkere (8231) and is not offered to be deleted.
+// 20261126 ASR Review AR2-1: reminder_went_out() tells a reminder that was mailed, printed or sent by the automatic flow (or whose sending is unresolved) from a draft.
+//              reminder_delete_draft() deletes a draft with its lines, its draft link reminder row and its automatic flow's job (logged as the event 'deleted'), for "Ryk alle".
+// 20261126 ASR Review R3E2E-1: reminder_sending_tracked() replaces reminder_went_out() and looks only at the automatic flow's job and the link reminder's row, whose deletion would leave them without their reminder.
+//              A classic reminder that was only printed or mailed (a reminder_dispatch row and nothing else) is deleted by "Ryk alle" as before the update, as whether a delivered reminder is kept is owner question Q26.
+//              reminder_delete_draft() also deletes the reminder's reminder_dispatch row.
+// 20261127 ASR Review GPT-H-1: when a reminder goes out for the first time (reminder_claim_first_dispatch()), the fees counted per invoice include every other reminder for it that went out or whose fee was booked, also one made after it.
+//              A reminder that already counts (sent, booked, or made before Saldi recorded the day) is checked as before, against the reminders made before it, so sending it again is not held back by its later levels.
+//              reminder_dispatch_locked() lets the final check and the record of the day it went out run under a lock per customer, so two first dispatches at once cannot both use the last fee allowed.
+// 20261127 ASR Review AR3-1: the refusal for a paused automatic reminder follows whether an attempt to send it is unresolved (reminder_automation_attempt_unresolved(), the predicate of ReminderAutomation::uncertainSql()).
+//              A paused draft that was never attempted, or whose attempt was checked and approved again, gets 8234: approve it under Automatiske rykkere or delete it. One with an unresolved attempt keeps 8231.
+//              reminder_sending_tracked() uses the same function.
+
+/**
+ * Whether the report and the current session refer to the same ledger.
+ * Missing context is refused so a stale report cannot create reminders in another company.
+ *
+ * @param mixed $requested Ledger carried by the report form or popup URL.
+ * @param string $current Authenticated session ledger.
+ * @return bool
+ */
+function reminder_request_ledger_matches($requested, string $current): bool {
+	return is_string($requested) && $requested !== '' && $current !== '' && hash_equals($current, $requested);
+}
 
 /**
  * Staff text through findtekst() with the Danish wording as fallback, so a text that is not in tekster.csv
@@ -268,21 +312,317 @@ function reminder_newest_invoice($rykkerId) {
 }
 
 /**
- * When a reminder was sent: the day it was mailed (stripe_reminders.mailed_at) when Saldi knows it, otherwise its
- * date (fakturadate, fallback ordredate).
+ * When a reminder was sent: the day it was mailed (stripe_reminders.mailed_at) or first mailed or printed
+ * (reminder_dispatch) when Saldi knows it, otherwise its date (fakturadate, fallback ordredate): a reminder made
+ * before Saldi recorded the day has no row.
+ * An automatic reminder (reminder_automation_jobs) was sent on its sent_date, and not at all without one.
  *
  * @param int $rykkerId ordrer.id of the reminder.
- * @return string Y-m-d, or '' when the reminder does not exist.
+ * @return string Y-m-d, or '' when the reminder does not exist or is an automatic reminder that was not sent.
  */
 function reminder_sent_date($rykkerId) {
-	if (reminder_link_table()) {
-		$s = db_fetch_array(db_select("select mailed_at from stripe_reminders where rykker_id = " . (int)$rykkerId . " and mailed_at is not null", __FILE__ . " linje " . __LINE__));
-		if ($s && preg_match('/^\d{4}-\d{2}-\d{2}/', (string)$s['mailed_at'])) return substr((string)$s['mailed_at'], 0, 10);
-	}
+	$recorded = reminder_recorded_sent_date((int)$rykkerId);
+	if ($recorded !== null) return $recorded;
 	$o = db_fetch_array(db_select("select fakturadate, ordredate from ordrer where id = " . (int)$rykkerId, __FILE__ . " linje " . __LINE__));
 	if (!$o) return '';
 	$date = trim((string)$o['fakturadate']) ?: trim((string)$o['ordredate']);
 	return preg_match('/^\d{4}-\d{2}-\d{2}/', $date) ? substr($date, 0, 10) : '';
+}
+
+/**
+ * The day Saldi recorded that a reminder went out: an automatic reminder's sending date, the link mail's mailed_at, or the
+ * first day it was mailed or printed (reminder_dispatch). reminder_sent_date() falls back to the reminder's date without one.
+ *
+ * @param int $rykkerId ordrer.id of the reminder.
+ * @return string|null Y-m-d; '' for an automatic reminder that was not sent; null when nothing is recorded.
+ */
+function reminder_recorded_sent_date(int $rykkerId): ?string {
+    if (tbl_exists('reminder_automation_jobs')) {
+        $tracked = db_fetch_array(db_select('select sent_date from reminder_automation_jobs where order_id=' . (int)$rykkerId, __FILE__ . ' line ' . __LINE__));
+        // 20261126 ASR Review I3: a tracked reminder without a sending date was not sent; its date is when it was drafted
+        if ($tracked) return !empty($tracked['sent_date']) ? substr((string)$tracked['sent_date'], 0, 10) : '';
+    }
+	if (reminder_link_table()) {
+		$s = db_fetch_array(db_select("select mailed_at from stripe_reminders where rykker_id = " . (int)$rykkerId . " and mailed_at is not null", __FILE__ . " linje " . __LINE__));
+		if ($s && preg_match('/^\d{4}-\d{2}-\d{2}/', (string)$s['mailed_at'])) return substr((string)$s['mailed_at'], 0, 10);
+	}
+	// 20261126 ASR Review GPT-R-4: the day a classic reminder first went out, not the day it was made
+	$dispatched = reminder_dispatch_date((int)$rykkerId);
+	return $dispatched !== '' ? $dispatched : null;
+}
+
+/**
+ * The first reminder (ordrer.id) made while Saldi records the day reminders go out (reminder_dispatch_since, written once
+ * by includes/opdat_func/reminderDispatch.php when reminder_dispatch is there).
+ *
+ * @return int ordrer.id; 0 when it is not recorded, and every reminder counts as made before.
+ */
+function reminder_dispatch_first_id(): int {
+	if (!reminder_dispatch_table() || !tbl_exists('reminder_dispatch_since')) return 0;
+	$r = db_fetch_array(db_select("select first_order_id from reminder_dispatch_since where id = 1", __FILE__ . " linje " . __LINE__));
+	return $r ? max(0, (int)$r['first_order_id']) : 0;
+}
+
+/**
+ * When a reminder with a fee went out or its fee was claimed, for the fees counted per invoice (reminder_claim_fee_history()).
+ * A reminder made while Saldi records the day reminders go out (from reminder_dispatch_first_id() on) counts by that recorded
+ * day (reminder_recorded_sent_date()). Without one it counts only when its fee was booked to the customer: its booking
+ * posted the fee open item or postings (reminder_booking_posted(); "Ryk alle" books a level before it escalates it, and the
+ * next level lists that fee). It is then dated as reminder_sent_date(). A link reminder whose fee goes on the next invoice
+ * posts nothing when it is booked (all three booking paths), so it counts only by its link mail (mailed_at), after which
+ * that fee is charged. One that was made and closed without being mailed, printed or booked was never sent, and its fee was
+ * never claimed. An older reminder (or any reminder, when the line is not recorded) may have gone out before Saldi recorded
+ * it, so it counts from its date (reminder_sent_date()), as before.
+ *
+ * @param int $rykkerId ordrer.id of the earlier reminder.
+ * @param int $firstTrackedId reminder_dispatch_first_id(); 0 = not recorded.
+ * @return string|null Y-m-d it was sent ('' = counted without a date); null when it was neither sent nor its fee booked.
+ */
+function reminder_claim_sent_date(int $rykkerId, int $firstTrackedId): ?string {
+	if ($firstTrackedId > 0 && $rykkerId >= $firstTrackedId) {
+		$recorded = reminder_recorded_sent_date($rykkerId);
+		if ($recorded !== null && $recorded !== '') return $recorded;
+		// 20261126 ASR Review R3-G7-1: a fee booked to the customer was claimed, also when this level itself did not go out
+		return reminder_booking_posted($rykkerId) ? reminder_sent_date($rykkerId) : null;
+	}
+	return reminder_sent_date($rykkerId);
+}
+
+/** @return bool Whether the ledger records the day reminders go out (reminder_dispatch, includes/opdat_func/reminderDispatch.php). */
+function reminder_dispatch_table(): bool {
+	return function_exists('tbl_exists') && (bool)tbl_exists('reminder_dispatch');
+}
+
+/**
+ * The day a reminder first went out by mail or on paper (reminder_dispatch_record()).
+ *
+ * @param int $rykkerId ordrer.id of the reminder.
+ * @return string Y-m-d, '' when it is not recorded (not sent through Saldi yet, or sent before Saldi recorded it).
+ */
+function reminder_dispatch_date(int $rykkerId): string {
+	if (!reminder_dispatch_table()) return '';
+	$r = db_fetch_array(db_select("select sent_date from reminder_dispatch where order_id = " . (int)$rykkerId, __FILE__ . " linje " . __LINE__));
+	return ($r && preg_match('/^\d{4}-\d{2}-\d{2}/', (string)$r['sent_date'])) ? substr((string)$r['sent_date'], 0, 10) : '';
+}
+
+/**
+ * Record the day a reminder went out (rykkerprint(): mailed, or printed on paper), for the 10 days to the next reminder
+ * with a fee (reminder_sent_date()). Only the first day is kept: sending the same reminder again does not move it.
+ *
+ * @param int $rykkerId ordrer.id of the reminder.
+ * @param string $channel How it went out: classic, link or print.
+ * @param string $date Y-m-d; '' = today.
+ * @return void
+ */
+function reminder_dispatch_record(int $rykkerId, string $channel, string $date = ''): void {
+	if ($rykkerId <= 0 || !reminder_dispatch_table() || reminder_dispatch_date($rykkerId) !== '') return;
+	$date = $date !== '' ? $date : reminder_today();
+	if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) return;
+	$channel = substr(preg_replace('/[^a-z]/', '', strtolower($channel)), 0, 12);
+	$mysql = in_array($GLOBALS['db_type'] ?? '', array('mysql', 'mysqli'), true);
+	db_modify("insert " . ($mysql ? "ignore " : "") . "into reminder_dispatch (order_id, sent_date, channel) values (" . (int)$rykkerId . ", '$date', '$channel')"
+		. ($mysql ? "" : " on conflict (order_id) do nothing"), __FILE__ . " linje " . __LINE__);
+}
+
+/**
+ * Run the final renteloven § 9 b check before a reminder goes out and the record of its dispatch under a lock per customer
+ * (the reminder's konto_id), so two first dispatches for the same invoice at once cannot both find the last fee still
+ * allowed (reminder_claim_fee_history() counts only the customer's own reminders). PostgreSQL session advisory lock: it
+ * holds outside and across transactions, the same session may take it again (the automatic sending takes it around the
+ * mail, whose send path takes it too), and it is let go when $work ends or throws, or at the latest when the connection
+ * closes. MySQL ledgers take no lock, as reminder_create_lock().
+ *
+ * @param int $rykkerId ordrer.id of the reminder.
+ * @param callable $work The check, the dispatch and its record.
+ * @return mixed What $work returns.
+ */
+function reminder_dispatch_locked(int $rykkerId, callable $work) {
+	$kontoId = reminder_dispatch_lock($rykkerId);
+	try {
+		return $work();
+	} finally {
+		reminder_dispatch_unlock($kontoId);
+	}
+}
+
+/**
+ * Take the dispatch lock of the reminder's customer (reminder_dispatch_locked()); it waits while another session holds it.
+ *
+ * @param int $rykkerId ordrer.id of the reminder.
+ * @return int konto_id locked; 0 when no lock was taken (MySQL, or no such reminder).
+ */
+function reminder_dispatch_lock(int $rykkerId): int {
+	if ($rykkerId <= 0 || in_array($GLOBALS['db_type'] ?? '', array('mysql', 'mysqli'), true)) return 0;
+	$o = db_fetch_array(db_select("select konto_id from ordrer where id = " . $rykkerId, __FILE__ . " linje " . __LINE__));
+	$kontoId = $o ? (int)$o['konto_id'] : 0;
+	if ($kontoId <= 0) return 0;
+	db_select("select pg_advisory_lock(hashtext('saldi:reminder_dispatch'), " . $kontoId . ")", __FILE__ . " linje " . __LINE__);
+	return $kontoId;
+}
+
+/**
+ * Let go of a lock reminder_dispatch_lock() took. In a transaction that already failed no statement runs; the lock is then
+ * let go when the connection closes.
+ *
+ * @param int $kontoId reminder_dispatch_lock()'s result; 0 = nothing to let go.
+ * @return void
+ */
+function reminder_dispatch_unlock(int $kontoId): void {
+	if ($kontoId <= 0) return;
+	$connection = $GLOBALS['connection'] ?? null;
+	if ($connection && function_exists('pg_transaction_status') && pg_transaction_status($connection) === PGSQL_TRANSACTION_INERROR) return;
+	db_select("select pg_advisory_unlock(hashtext('saldi:reminder_dispatch'), " . $kontoId . ")", __FILE__ . " linje " . __LINE__);
+}
+
+/**
+ * Whether a reminder is an automatic reminder that was not sent yet (a draft awaiting approval, queued, held, being sent
+ * or failed). Its fee is not owed, so it is neither booked nor escalated by hand.
+ *
+ * @param int $rykkerId ordrer.id of the reminder.
+ * @return bool
+ */
+function reminder_automation_unsent($rykkerId): bool {
+	if (!tbl_exists('reminder_automation_jobs')) return false;
+	return (bool)db_fetch_array(db_select("select order_id from reminder_automation_jobs where order_id = " . (int)$rykkerId . " and state <> 'sent'", __FILE__ . " linje " . __LINE__));
+}
+
+/**
+ * SQL predicate that leaves out automatic reminders that were not sent (reminder_automation_unsent()), for "Ryk alle".
+ *
+ * @param string $alias Trusted SQL alias for the reminder order.
+ * @return string '1=1' when the ledger has no automatic reminders.
+ */
+function reminder_automation_unsent_sql($alias = 'ordrer'): string {
+	if (!preg_match('/^[a-z_][a-z0-9_]*$/i', $alias)) throw new InvalidArgumentException('Invalid reminder alias');
+	if (!tbl_exists('reminder_automation_jobs')) return '1=1';
+	return "not exists (select 1 from reminder_automation_jobs s_aj where s_aj.order_id = $alias.id and s_aj.state <> 'sent')";
+}
+
+/**
+ * Whether a booking of the reminder posted anything: its fee open item (openpost.refnr = the reminder on its account) or a
+ * posting (transaktioner.ordre_id = the reminder). Both bogfor_nu() copies have written both since 2013, and a complete
+ * booking ends at status 4. A reminder at status 3 without either was left by a booking that stopped before bogfor_nu()
+ * ran (earlier code committed the status the bookable lines had set when another line was refused).
+ *
+ * @param int $rykkerId ordrer.id of the reminder.
+ * @return bool True when anything was posted for it.
+ */
+function reminder_booking_posted(int $rykkerId): bool {
+	if (db_fetch_array(db_select("select id from transaktioner where ordre_id = " . (int)$rykkerId . " limit 1", __FILE__ . " linje " . __LINE__))) return true;
+	return (bool)db_fetch_array(db_select("select openpost.id from openpost, ordrer where ordrer.id = " . (int)$rykkerId . "
+		and openpost.refnr = ordrer.id and openpost.konto_id = ordrer.konto_id limit 1", __FILE__ . " linje " . __LINE__));
+}
+
+/**
+ * SQL predicate for a reminder left at status 3 without anything posted (reminder_booking_posted()): it is not booked, so
+ * the overview lists it under Åbne rykkere and Bogfør or "Ryk alle" can book it.
+ *
+ * @param string $alias Trusted SQL alias for the reminder order.
+ * @return string
+ */
+function reminder_unposted_sql($alias = 'ordrer'): string {
+	if (!preg_match('/^[a-z_][a-z0-9_]*$/i', $alias)) throw new InvalidArgumentException('Invalid reminder alias');
+	return "($alias.status = 3 and not exists (select 1 from transaktioner s_ut where s_ut.ordre_id = $alias.id)
+		and not exists (select 1 from openpost s_uo where s_uo.refnr = $alias.id and s_uo.konto_id = $alias.konto_id))";
+}
+
+/**
+ * The state of the automatic flow's job for a reminder (reminder_automation_jobs.state).
+ *
+ * @param int $rykkerId ordrer.id of the reminder.
+ * @return string approval, queued, sending, sent, held or failed; '' when the flow does not track it.
+ */
+function reminder_automation_state(int $rykkerId): string {
+	if (!tbl_exists('reminder_automation_jobs')) return '';
+	$r = db_fetch_array(db_select("select state from reminder_automation_jobs where order_id = " . (int)$rykkerId, __FILE__ . " linje " . __LINE__));
+	return $r ? trim((string)$r['state']) : '';
+}
+
+/**
+ * Whether an attempt to send the automatic reminder is unresolved: the flow logged a 'sending' event for it and no 'approve'
+ * after it (the operator approves again only after checking the mail server's log), also when the job was paused since.
+ * The predicate of ReminderAutomation::uncertainSql() for a job that is not sent.
+ *
+ * @param int $rykkerId ordrer.id of the reminder.
+ * @return bool False when the ledger has no audit events for the flow.
+ */
+function reminder_automation_attempt_unresolved(int $rykkerId): bool {
+	if (!tbl_exists('reminder_automation_events')) return false;
+	return (bool)db_fetch_array(db_select("select s.id from reminder_automation_events s
+		where s.order_id = " . (int)$rykkerId . " and s.action = 'sending' and not exists (select 1 from reminder_automation_events a
+		where a.order_id = s.order_id and a.action = 'approve' and a.id > s.id) limit 1", __FILE__ . " linje " . __LINE__));
+}
+
+/**
+ * Why an automatic reminder that was not sent is neither booked nor escalated by hand. A draft that waits for approval or
+ * for the next run (approval, queued) is approved in the flow or deleted (8242). A paused draft without an unresolved
+ * sending attempt (held, reminder_automation_attempt_unresolved() false) cannot have reached the customer: it is approved
+ * under Automatiske rykkere or deleted (8234). One that is being sent, whose sending failed, or that is paused with an
+ * unresolved attempt (sending, failed, held) may have reached the customer, so it is handled under Automatiske rykkere
+ * (8231): Registrér som sendt when the mail server's log shows that it went out, otherwise Godkend. It is not offered to be
+ * deleted, as the flow's own refusal of a manual Send says too (8214).
+ *
+ * @param int $rykkerId ordrer.id of the reminder; 0 = the wording for a draft.
+ * @return string A clause for reminder_txt(8108) and reminder_skip_notice().
+ */
+function reminder_automation_unsent_text(int $rykkerId = 0): string {
+	$state = $rykkerId > 0 ? reminder_automation_state($rykkerId) : '';
+	if ($state === 'held' && !reminder_automation_attempt_unresolved($rykkerId)) { // 20261127 ASR Review AR3-1: a paused draft that was never attempted
+		return reminder_txt(8234, 'den automatiske rykker er sat på pause og ikke sendt. Godkend den under Automatiske rykkere, eller slet den.');
+	}
+	if ($state !== '' && !in_array($state, array('approval', 'queued'), true)) {
+		return reminder_txt(8231, 'den automatiske rykker er ikke registreret som sendt. Den er sat på pause, eller dens afsendelse fejlede eller er uafklaret. Se den under Automatiske rykkere: vælg Registrér som sendt, hvis mailserverens log viser, at den blev sendt, ellers Godkend den.');
+	}
+	return reminder_txt(8242, 'den automatiske rykker er ikke sendt endnu. Godkend den i rykkerflowet, eller slet den.');
+}
+
+/**
+ * Whether the automatic flow or a link reminder tracks the reminder as sent to the customer, or its sending as unresolved:
+ * the automatic flow sent it, is sending it, or its sending failed or is unresolved (a sending attempt that was not approved
+ * again after the mail server's log was checked, also when the job was paused since); or it was mailed as a link reminder
+ * (stripe_reminders: mailed_at, or status sent or charged). Deleting such a reminder would leave the flow's job or the link
+ * reminder's row without its reminder, so "Ryk alle" does not delete it when its customer has no more open items, and says so.
+ * A classic reminder that was only printed or mailed (a reminder_dispatch row and nothing else) is not tracked here: "Ryk
+ * alle" deletes it as before the update, as whether a delivered reminder is kept is owner question Q26.
+ *
+ * @param int $rykkerId ordrer.id of the reminder.
+ * @return bool
+ */
+function reminder_sending_tracked(int $rykkerId): bool {
+	if (tbl_exists('reminder_automation_jobs')) {
+		$job = db_fetch_array(db_select("select state from reminder_automation_jobs where order_id = " . (int)$rykkerId, __FILE__ . " linje " . __LINE__));
+		if ($job && in_array(trim((string)$job['state']), array('sent', 'sending', 'failed'), true)) return true;
+		if ($job && reminder_automation_attempt_unresolved($rykkerId)) return true; // 20261127 ASR Review AR3-1: the shared predicate
+	}
+	if (reminder_link_table() && db_fetch_array(db_select("select rykker_id from stripe_reminders where rykker_id = " . (int)$rykkerId . "
+		and (mailed_at is not null or status in ('sent', 'charged'))", __FILE__ . " linje " . __LINE__))) return true;
+	return false;
+}
+
+/**
+ * Delete a reminder that the automatic flow and the link reminders do not track as sent (reminder_sending_tracked()) with its
+ * lines, the day it was printed or mailed (reminder_dispatch), its draft link reminder row (stripe_reminder_unregister()) and
+ * the automatic flow's job for it. The job's removal is logged as the event 'deleted', so the flow's page lists no job for a
+ * reminder that is gone, and the previous level is not held by a job that has no reminder.
+ * The caller owns the transaction.
+ *
+ * @param int $rykkerId ordrer.id of the reminder (art R1-R3).
+ * @param string $actor Who deleted it, for the flow's event.
+ * @param string $why The event's detail.
+ * @return void
+ */
+function reminder_delete_draft(int $rykkerId, string $actor, string $why): void {
+	db_modify("delete from ordrelinjer where ordre_id in (select id from ordrer where id = " . (int)$rykkerId . " and art like 'R%')", __FILE__ . " linje " . __LINE__);
+	db_modify("delete from ordrer where id = " . (int)$rykkerId . " and art like 'R%'", __FILE__ . " linje " . __LINE__);
+	if (reminder_dispatch_table()) db_modify("delete from reminder_dispatch where order_id = " . (int)$rykkerId . " and not exists (select 1 from ordrer where id = " . (int)$rykkerId . ")", __FILE__ . " linje " . __LINE__);
+	if (function_exists('stripe_reminder_unregister')) stripe_reminder_unregister($rykkerId);
+	if (!tbl_exists('reminder_automation_jobs')) return;
+	if (!db_fetch_array(db_select("select order_id from reminder_automation_jobs where order_id = " . (int)$rykkerId, __FILE__ . " linje " . __LINE__))) return;
+	db_modify("delete from reminder_automation_jobs where order_id = " . (int)$rykkerId, __FILE__ . " linje " . __LINE__);
+	if (tbl_exists('reminder_automation_events')) {
+		db_modify("insert into reminder_automation_events (order_id, action, actor, detail) values (" . (int)$rykkerId . ", 'deleted', '"
+			. db_escape_string($actor) . "', '" . db_escape_string($why) . "')", __FILE__ . " linje " . __LINE__);
+	}
 }
 
 /**
@@ -363,10 +703,131 @@ function reminder_l3_message($level, $sent, $today) {
 }
 
 /**
+ * Renteloven § 9 b across reminder chains: the reminders with a fee made before this one for the invoices it lists.
+ * Closing a chain (Afslut, or "Ryk alle" after the next level) does not pay the invoice, and a new chain can be made for
+ * it, so the fees on at most 3 reminders (L2) and the 10 days (L3) are counted per invoice over every chain. An invoice
+ * is its positive open items with the same number on the account; the fee of an earlier reminder (an open item whose
+ * refnr is a reminder) is not an invoice. An automatic reminder that was not sent does not count, nor does a reminder made
+ * while Saldi records the day reminders go out that was never mailed, printed or booked (reminder_claim_sent_date()); a
+ * reminder made before that counts from its date.
+ * When a reminder is made, and when one that already counts is sent again, only the reminders made before it count. When
+ * it goes out for the first time ($firstDispatch, reminder_claim_first_dispatch()), every other reminder for its invoices
+ * that went out or whose fee was booked counts, also one made after it: an older draft sent after a later chain would
+ * otherwise claim a fee the invoice no longer allows, or come less than 10 days after the newest one.
+ *
+ * @param int $rykkerId ordrer.id of the reminder.
+ * @param bool $firstDispatch The reminder is about to go out for the first time: the other reminders count whatever their id.
+ *   false: only reminders made before it (a lower id) count.
+ * @return array{count: int, invoice: string, last_sent: string, last_invoice: string}
+ *   count: the most of those reminders with a fee for one of its invoices; invoice: that invoice's number;
+ *   last_sent: Y-m-d the newest of those reminders was sent ('' = none); last_invoice: its invoice's number.
+ */
+function reminder_claim_fee_history(int $rykkerId, bool $firstDispatch = false): array {
+	$out = array('count' => 0, 'invoice' => '', 'last_sent' => '', 'last_invoice' => '');
+	$c = reminder_charge_lines($rykkerId);
+	if (!$c) return $out;
+	$kontoId = (int)$c['konto_id'];
+	$firstTracked = reminder_dispatch_first_id();   // 20261126 ASR Review GPT-G-7
+	$sentWithFee = array();   // reminder id => its sending date (with a fee) or null (no fee, or not sent)
+	foreach (reminder_openpost_ids($rykkerId) as $opId) {
+		$op = db_fetch_array(db_select("select konto_id, faktnr, refnr, amount from openpost where id = " . (int)$opId, __FILE__ . " linje " . __LINE__));
+		if (!$op || (float)$op['amount'] <= 0 || (int)$op['konto_id'] !== $kontoId) continue;
+		if ((int)$op['refnr'] > 0 && db_fetch_array(db_select("select id from ordrer where id = " . (int)$op['refnr'] . " and art like 'R%'", __FILE__ . " linje " . __LINE__))) continue;
+		$faktnr = trim((string)$op['faktnr']);
+		$ids = array((string)(int)$opId);
+		if ($faktnr !== '') {
+			$q = db_select("select id from openpost where konto_id = $kontoId and faktnr = '" . db_escape_string($faktnr) . "' and amount > 0", __FILE__ . " linje " . __LINE__);
+			while ($r = db_fetch_array($q)) $ids[] = (string)(int)$r['id'];
+		}
+		$q = db_select("select distinct o.id from ordrer o, ordrelinjer l where l.ordre_id = o.id and coalesce(l.vare_id, 0) = 0
+			and l.enhed in ('" . implode("','", array_unique($ids)) . "') and o.konto_id = $kontoId and o.art like 'R%' and o.id " . ($firstDispatch ? '<>' : '<') . " " . (int)$rykkerId . " order by o.id", __FILE__ . " linje " . __LINE__);   // 20261127 ASR Review GPT-H-1
+		$count = 0;
+		while ($r = db_fetch_array($q)) {
+			$id = (int)$r['id'];
+			if (!array_key_exists($id, $sentWithFee)) {
+				$prior = reminder_charge_lines($id);
+				$sentWithFee[$id] = ($prior && $prior['fee'] > 0.005 && !reminder_automation_unsent($id)) ? reminder_claim_sent_date($id, $firstTracked) : null;
+			}
+			if ($sentWithFee[$id] === null) continue;
+			$count++;
+			if ($sentWithFee[$id] > $out['last_sent']) {
+				$out['last_sent'] = $sentWithFee[$id];
+				$out['last_invoice'] = $faktnr;
+			}
+		}
+		if ($count > $out['count']) {
+			$out['count'] = $count;
+			$out['invoice'] = $faktnr;
+		}
+	}
+	return $out;
+}
+
+/**
+ * Whether sending a reminder now is its first dispatch, for renteloven § 9 b at sending (reminder_legal_check()): it does not
+ * count towards the fees per invoice yet. That is an automatic reminder that was not sent, and a reminder made while Saldi
+ * records the day reminders go out that was neither mailed, printed nor booked (reminder_claim_sent_date() is null).
+ * A reminder that already counts is sent again (a reprint, or a level booked before it went out), and keeps the check
+ * against the reminders made before it. A reminder made before Saldi recorded the day always counts from its date.
+ *
+ * @param int $rykkerId ordrer.id of the reminder.
+ * @return bool
+ */
+function reminder_claim_first_dispatch(int $rykkerId): bool {
+	if (reminder_automation_unsent($rykkerId)) return true;
+	return reminder_claim_sent_date($rykkerId, reminder_dispatch_first_id()) === null;
+}
+
+/**
+ * L2 across chains (reminder_claim_fee_history()).
+ *
+ * @param array{count: int, invoice: string} $history reminder_claim_fee_history().
+ * @return string The staff message when an invoice on the reminder already had fees on 3 reminders, else ''.
+ */
+function reminder_claim_limit_message(array $history): string {
+	if ($history['count'] < 3) return '';
+	return reminder_txt(8215, 'Der er allerede opkrævet rykkergebyr for 3 rykkere for faktura {faktura} (renteloven § 9 b).',
+		array('faktura' => $history['invoice']));
+}
+
+/**
+ * L3 across chains (reminder_claim_fee_history()).
+ *
+ * @param array{last_sent: string, last_invoice: string} $history reminder_claim_fee_history().
+ * @param string $today Y-m-d.
+ * @return string The staff message when the newest reminder with a fee for one of its invoices was sent less than 10 days before $today, else ''.
+ */
+function reminder_claim_spacing_message(array $history, string $today): string {
+	if ($history['last_sent'] === '') return '';
+	$earliest = reminder_date_add($history['last_sent'], 10);
+	if ($today >= $earliest) return '';
+	return reminder_txt(8216, 'Faktura {faktura} fik en rykker med gebyr den {sendt}. En ny rykker med gebyr kan tidligst sendes den {dato} (renteloven § 9 b).',
+		array('faktura' => $history['last_invoice'], 'sendt' => reminder_fmt_date($history['last_sent']), 'dato' => reminder_fmt_date($earliest)));
+}
+
+/**
+ * Whether a reminder that is being made may get a fee, by the reminders made before it for its invoices in any chain
+ * (L2 and L3 across chains). reminder_create_items() leaves the fee off when it may not.
+ *
+ * @param int $rykkerId ordrer.id of the reminder being made, with its invoice lines.
+ * @param string $today Y-m-d of the reminder.
+ * @return string '' when it may, else the staff message.
+ */
+function reminder_claim_fee_refusal(int $rykkerId, string $today): string {
+	$history = reminder_claim_fee_history($rykkerId);
+	$limit = reminder_claim_limit_message($history);
+	return $limit !== '' ? $limit : reminder_claim_spacing_message($history, $today);
+}
+
+/**
  * Renteloven § 9 b for an existing reminder, checked before it is sent (classic and link).
- * L1: the fee lines (not interest - interest is not a fee) at most 100,00 kr.; L2: no fee on a level above 3;
- * L3: a 2nd/3rd reminder WITH a fee at least 10 days after the previous level was sent. A reminder without a
- * fee is never blocked by L3.
+ * L1: the fee lines (not interest - interest is not a fee) at most 100,00 kr.; L2: no fee on a level above 3, nor
+ * when an invoice on it already had fees on 3 reminders in any chain; L3: a 2nd/3rd reminder WITH a fee at least
+ * 10 days after the previous level was sent, and any reminder WITH a fee at least 10 days after the newest reminder
+ * with a fee for one of its invoices was sent. A reminder without a fee is never blocked by L2 or L3.
+ * At a reminder's first dispatch (reminder_claim_first_dispatch()) the invoices' reminders made after it count too, when
+ * they went out or their fee was booked (reminder_claim_fee_history()). The caller that sends it runs this check and the
+ * record of its dispatch under reminder_dispatch_locked().
  *
  * @param int $rykkerId ordrer.id of the reminder.
  * @param string $today Y-m-d; '' = today.
@@ -389,8 +850,14 @@ function reminder_legal_check(int $rykkerId, string $today = ''): string {
 	if ($hasFee && $c['level'] > 3) {
 		return reminder_txt(8105, 'Der må højst opkræves rykkergebyr for 3 rykkere (renteloven § 9 b).');
 	}
-	if ($hasFee && $c['level'] >= 2) {
-		return reminder_l3_message($c['level'], reminder_previous_sent_date($rykkerId), $today);
+	if ($hasFee) {
+		// 20261126 ASR Review GPT-R-3: the invoices' earlier reminders with a fee in any chain count too
+		// 20261127 ASR Review GPT-H-1: at its first dispatch, also the ones made after it that went out or were booked
+		$history = reminder_claim_fee_history($rykkerId, reminder_claim_first_dispatch($rykkerId));
+		$limit = reminder_claim_limit_message($history);
+		if ($limit !== '') return $limit;
+		$l3 = ($c['level'] >= 2) ? reminder_l3_message($c['level'], reminder_previous_sent_date($rykkerId), $today) : '';
+		return $l3 !== '' ? $l3 : reminder_claim_spacing_message($history, $today);
 	}
 	return '';
 }
@@ -435,6 +902,93 @@ function reminder_in_active_year($rykkerId) {
 }
 
 /**
+ * The fiscal year a reminder is posted in (grupper RA kodenr). Its item and debtor groups (grupper.fiscal_year) hold the
+ * posting accounts, as invoice posting reads them for its year (includes/ordrefunc.php). It is the active year ($regnaar),
+ * as both bogfor_rykker() copies post only a reminder dated in it (the automatic run sets it to the reminder's year);
+ * without an active year, the year whose period holds the reminder's date.
+ *
+ * @param int $rykkerId ordrer.id of the reminder.
+ * @return int RA kodenr, 0 when none is known.
+ */
+function reminder_posting_year($rykkerId): int {
+	global $regnaar;
+	if (isset($regnaar) && (int)$regnaar > 0) return (int)$regnaar;
+	$o = db_fetch_array(db_select("select fakturadate, ordredate from ordrer where id = " . (int)$rykkerId, __FILE__ . " linje " . __LINE__));
+	$date = $o ? (trim((string)$o['fakturadate']) ?: trim((string)$o['ordredate'])) : '';
+	if (!preg_match('/^(\d{4})-(\d{2})/', $date, $m)) return 0;
+	$ym = $m[1] . $m[2];
+	$q = db_select("select kodenr, box1, box2, box3, box4 from grupper where art = 'RA' order by kodenr", __FILE__ . " linje " . __LINE__);
+	while ($ra = db_fetch_array($q)) {
+		$start = str_replace(' ', '', trim((string)$ra['box2']) . $ra['box1']);
+		$end = str_replace(' ', '', trim((string)$ra['box4']) . $ra['box3']);
+		if ($ym >= $start && $ym <= $end) return (int)$ra['kodenr'];
+	}
+	return 0;
+}
+
+/**
+ * An item or debtor group's row of one fiscal year (grupper has one row per group and year), as invoice posting reads it
+ * (includes/ordrefunc.php: fiscal_year = $regnaar). Another year's row is never used.
+ *
+ * @param string $art 'VG' (item group) or 'DG' (debtor group).
+ * @param string $kodenr The group number (varer.gruppe or adresser.gruppe).
+ * @param int $year RA kodenr of the fiscal year.
+ * @return array|null The grupper row, or null when the group has no row in that year.
+ */
+function reminder_posting_group(string $art, string $kodenr, int $year): ?array {
+	$kodenr = trim($kodenr);
+	if (!in_array($art, array('VG', 'DG'), true) || $year <= 0 || !ctype_digit($kodenr)) return null;
+	$r = db_fetch_array(db_select("select * from grupper where art = '$art' and kodenr = '" . (int)$kodenr . "' and fiscal_year = " . (int)$year . " order by id", __FILE__ . " linje " . __LINE__));
+	return $r ?: null;
+}
+
+/** @return string A fiscal year's name for staff (grupper RA beskrivelse, e.g. 2026 or 2025/2026), else its number. */
+function reminder_fiscal_year_name(int $year): string {
+	$r = db_fetch_array(db_select("select beskrivelse from grupper where art = 'RA' and kodenr = '" . (int)$year . "'", __FILE__ . " linje " . __LINE__));
+	return ($r && trim((string)$r['beskrivelse']) !== '') ? trim((string)$r['beskrivelse']) : (string)(int)$year;
+}
+
+/**
+ * The groups a reminder's fee is posted with, all of its posting year: the item group of every fee or interest line
+ * (ordrelinjer with an item) and the customer's debtor group. Both bogfor_rykker() copies (Bogfør, "Ryk alle") and the
+ * automatic run (ReminderAutomation::bookPrevious()) check them before anything is written, and post with these rows.
+ * When the year is unknown or one of the groups has no row in it, the reminder is not posted at all: no other year's
+ * accounts are used.
+ *
+ * @param int $rykkerId ordrer.id of the reminder.
+ * @param int $year RA kodenr; 0 = reminder_posting_year().
+ * @return array{year: int, items: array<int, array>, debtor: array|null, refusal: string}
+ *   items: ordrelinjer.id => the line item's grupper VG row; debtor: the customer's grupper DG row;
+ *   refusal: '' when every row is there, else why the fee cannot be posted, as a clause for reminder_txt(8108) and reminder_skip_notice().
+ */
+function reminder_posting_groups(int $rykkerId, int $year = 0): array {
+	$year = $year > 0 ? $year : reminder_posting_year($rykkerId);
+	$out = array('year' => $year, 'items' => array(), 'debtor' => null, 'refusal' => '');
+	if ($year <= 0) {
+		$out['refusal'] = reminder_txt(8111, 'rykkerdatoen ligger uden for det aktive regnskabsår.');
+		return $out;
+	}
+	$missing = array();
+	$q = db_select("select l.id, v.gruppe from ordrelinjer l left join varer v on v.id = l.vare_id
+		where l.ordre_id = " . (int)$rykkerId . " and l.vare_id > 0 order by l.id", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$gruppe = trim((string)$r['gruppe']);
+		$row = reminder_posting_group('VG', $gruppe, $year);
+		if ($row) $out['items'][(int)$r['id']] = $row;
+		else $missing['VG' . $gruppe] = reminder_txt(8228, 'varegruppe {nr}', array('nr' => $gruppe !== '' ? $gruppe : '?'));
+	}
+	$a = db_fetch_array(db_select("select a.gruppe from ordrer o left join adresser a on a.id = o.konto_id where o.id = " . (int)$rykkerId, __FILE__ . " linje " . __LINE__));
+	$gruppe = trim((string)($a['gruppe'] ?? ''));
+	$out['debtor'] = reminder_posting_group('DG', $gruppe, $year);
+	if (!$out['debtor']) $missing['DG' . $gruppe] = reminder_txt(8229, 'debitorgruppe {nr}', array('nr' => $gruppe !== '' ? $gruppe : '?'));
+	if ($missing) {
+		$out['refusal'] = reminder_txt(8227, 'rykkergebyret kan ikke bogføres, da regnskabsår {aar} mangler {grupper}. Opret {grupper} i regnskabsår {aar} under Indstillinger, og bogfør rykkeren igen.',
+			array('aar' => reminder_fiscal_year_name($year), 'grupper' => implode(', ', $missing)));
+	}
+	return $out;
+}
+
+/**
  * Why "Ryk alle" or "Ny rykker" does not make a reminder's next level: its date is outside the active fiscal year
  * (only when "Ryk alle" would book it, as "Bogfør" refuses it; a link reminder whose fee goes on the next invoice posts
  * nothing and is not held), every invoice on it is paid ("Ryk alle" still books it, as the fee of a sent reminder is
@@ -443,10 +997,11 @@ function reminder_in_active_year($rykkerId) {
  * @param int $rykkerId ordrer.id of the reminder that would be escalated.
  * @param bool $book Whether it would be booked first ("Ryk alle").
  * @param string $today Y-m-d; '' = today.
- * @return string '' = go on; 'year' (not booked), 'paid' (booked by "Ryk alle", not escalated) or the L3 message
- *                (worded by reminder_skip_notice()).
+ * @return string '' = go on; 'unsent' (an automatic reminder that was not sent), 'year' (not booked), 'paid' (booked by
+ *                "Ryk alle", not escalated) or the L3 message (worded by reminder_skip_notice()).
  */
 function reminder_escalation_skip($rykkerId, $book, $today = '') {
+	if (reminder_automation_unsent((int)$rykkerId)) return 'unsent'; // 20261126 ASR Review I3
 	$carried = function_exists('stripe_reminder_carried') && stripe_reminder_carried((int)$rykkerId);
 	if ($book && !$carried && !reminder_in_active_year((int)$rykkerId)) return 'year';
 	$payment = reminder_invoice_payment((int)$rykkerId);
@@ -458,12 +1013,15 @@ function reminder_escalation_skip($rykkerId, $book, $today = '') {
  * The staff notice when "Ryk alle" or "Ny rykker" leaves a reminder: "Ingen ny rykker for 17-1: <reason>".
  *
  * @param string $rykkerNr The reminder's number (ordrer.fakturanr).
- * @param string $reason paid (every invoice on it is paid), year (its date is outside the active fiscal year) or a
- *                       ready text (the L3 message).
+ * @param string $reason paid (every invoice on it is paid), year (its date is outside the active fiscal year), unsent (an
+ *                       automatic reminder that was not sent) or a ready text (the L3 message).
+ * @param int $rykkerId ordrer.id of the reminder, for the wording of 'unsent', which follows its job's state; 0 = a draft's.
  * @return string
  */
-function reminder_skip_notice($rykkerNr, $reason) {
-	if ($reason === 'paid') {
+function reminder_skip_notice($rykkerNr, $reason, int $rykkerId = 0) {
+	if ($reason === 'unsent') {
+		$reason = reminder_automation_unsent_text($rykkerId);
+	} elseif ($reason === 'paid') {
 		$reason = reminder_txt(8109, 'alle fakturaer på rykkeren er betalt. Luk den med Afslut.');
 	} elseif ($reason === 'year') {
 		$reason = reminder_txt(8111, 'rykkerdatoen ligger uden for det aktive regnskabsår.');

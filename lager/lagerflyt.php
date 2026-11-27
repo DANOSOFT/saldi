@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ------------------lager/lagerflyt.php-----------patch 5.0.0-------2026-09-23------
+// ------------------lager/lagerflyt.php-----------ver 5.1.1-------2026-11-13------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,20 +22,24 @@
 //
 // Copyright (c) 2014-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20170425 - total omskrivning
 // 20260526 PHR Fixed bug. In rare cases qty was not removed from the giving stock but just added to the recieving stock
 // 20260603 PHR Fixed: $nyt_antal[$x] → $nyt_antal (array-access på scalar gav kun første ciffer → commit fejlede ved antal ≥ 10)
 // 20260923 CDX/PHR List each transfer destination once across fiscal years.
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20261006 Sawaneh WP-5.5: Luk goes to the returside the page was opened with (falls back to varer.php).
+// 20261026 LOE MB-65: assign module 9, refuse a read-only stock move and disable the move form.
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261030 LOE MB-62 a read-only user sees the stock figure but no move form, instead of a disabled one.
+// 20261104 CL/ASR A failed move between warehouses shows the error box (includes/errorReport.php) with a report to Saldi instead of the alert with the phone number.
+// 20261105 CL/LH Opening and posting a move no longer reads request keys the links and the form never send (input, variant_id, batch_kob_id, batch_kob_antal).
+//                $reg starts at 0 for a move of more than the stock too.
 /* 
 Ved flytning af varer fra et lager et andet nedskrives rest for disse i det nødvendige antal batch_kob linjer for 
 det lager der flyttes fra, 
 der oprettes et tilsvarende antal batch_salg linjer uden ordre & linje_id og der oprettes en ny linje i batch_kob 
 uden uden ordre & linje_id, med det flyttede antal som antal & rest, snitprisen for de flyttede varer samt nyt lager.
 */ 
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 
 @session_start();
 $s_id=session_id();
@@ -43,38 +47,50 @@ $s_id=session_id();
 $css="../css/standard.css";
 
 include("../includes/connect.php");
+$modulnr = 9;
 $permission_key = 'lager.varer';
 include("../includes/online.php");
 include("../includes/std_func.php");
+# MB-65 read-only (2) may look at the move page, but posting a move is a write
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $rettigheder !== '' && ($rettigheder[9] === '2' || $rettigheder[9] < '1')) {
+	error_log('MB-65: stock move refused for user ' . $brugernavn . ' (Items right ' . $rettigheder[9] . ')');
+	# MB-62 a refused page offers a way back in the Saldi button look: a left arrow and the Tilbage text,
+	# and the top window, so the SPA shell opens instead of leaving the user inside the frame
+	print "<div style='text-align:center;margin-top:14px;'><a target='_top' title='Tilbage til varelisten'";
+	print " href='../index/main.php#/lager/lister/vareliste.php?inframe=1'";
+	print " style='display:inline-block;padding:8px 18px;border:1px solid #18689b;border-radius:5px;background:#1c7cb9;"
+		. "color:#fff;text-decoration:none;font:14px Arial,Helvetica,sans-serif;'>&#8592; " . findtekst('30|Tilbage', $sprog_id) . "</a></div>\n";
+	exit;
+}
+# MB-65 a read-only user may look, but every move they could post is refused, so the form is not drawn:
+# a field they can only be refused from would leave them guessing why it does nothing
+$mb65_readonly = ($rettigheder !== '' && ($rettigheder[9] === '2' || $rettigheder[9] < '1'));
 include("../includes/db_query.php");
 
-$input=if_isset($_GET['input']);
-$returside = nav_sanitize_returside(if_isset($_GET['returside'])); // WP-5.5: Luk returns to the calling list
-if (!$returside) $returside = 'varer.php';
+$input = $_GET['input'] ?? '';
 if ($input) list($lager, $vare_id)=explode(":", $input);
 else {
-	$lager=if_isset($_GET['lager']);
-	$vare_id=if_isset($_GET['vare_id']);
-  $variant_id = if_isset($_POST['variant_id'],'0');
+	$lager = $_GET['lager'] ?? null;
+	$vare_id = $_GET['vare_id'] ?? null;
 }
+# the move form posts no variant, so the item is moved without one
+$variant_id = $_POST['variant_id'] ?? '0';
 if (!$variant_id) $variant_id = '0';
 
 if (isset($_POST['opdater']) && $_POST['antal']>=1) {
 	$opdater=$_POST['opdater'];
 	$vare_id=$_POST['vare_id'];
-  $lager=$_POST['lager'];
-  $antal=$_POST['antal'];
-  $max_antal=$_POST['max_antal'];
-  $batch_kob_id=$_POST['batch_kob_id'];
-  $batch_kob_antal=$_POST['batch_kob_antal'];
-  $nyt_lager=$_POST['nyt_lager'];
-  $variant_id = if_isset($_POST['variant_id'],'0');
+	$lager=$_POST['lager'];
+	$antal=$_POST['antal'];
+	$max_antal=$_POST['max_antal'];
+	$nyt_lager=$_POST['nyt_lager'];
+	# what the move leaves unbalanced; a move of more than the stock moves nothing and leaves it 0
+	$reg = 0;
 
 transaktion("begin");  		
 	if ($antal<=$max_antal && $antal>0 && $_POST['opdater']){
 		$x=0;
 		$sum=0;
-		$reg = 0;
 		$nyt_antal=$antal;
 		$dd=date("Y-m-d");
 		$qtxt="select * from batch_kob where vare_id = '$vare_id' and lager = '$lager' and rest > '0' order by id";
@@ -176,7 +192,7 @@ transaktion("begin");
 		}
 	}
 	if ($reg) {
-		alert("Der er sket en fejl ved flytning mellem lagre - Ring til Danosoft på tlf 4690 2208 for opklaring");
+		if (!function_exists('saldi_error_box') || saldi_error_box(__FILE__ . " linje " . __LINE__, "lagerflyt: $reg kunne ikke registreres (vare_id $vare_id, variant $variant_id, lager $lager -> $nyt_lager, antal $antal)", '', false, 'app') === 'nosession') alert("Der er sket en fejl ved flytning mellem lagre - Ring til Danosoft på tlf 4690 2208 for opklaring");
 	} elseif ($antal > $max_antal) {
 		alert("Du kan maks flytte ". dkdecimal($max_antal) ."");
 	} else {
@@ -206,6 +222,9 @@ $r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 $max_antal=$r['beholdning'];
 print "<table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" valign = \"top\" align=\"center\"><tbody>";
 print "<tr><td align=center colspan=4><b>Flyt vare $varenr fra lager $lager</td></tr>";
+if ($mb65_readonly) {
+print "<tr><td align=\"center\"><b>Beh.</td><td>&nbsp;</td><td align=\"center\">".dkdecimal($max_antal,2)."</td></tr>";
+} else {
 print "<form name=ordre lagerflyt.php method=post>";
 print "<tr><td align=\"center\"><b>Beh.</td><td>&nbsp;</td><td align=\"center\"><b>Antal</td><td align=\"center\"><b>Til lager</td></tr>";
 print "<tr><td colspan=4><hr></td></tr>";
@@ -222,7 +241,8 @@ print "<input type=hidden name='vare_id' value='$vare_id'>";
 print "<input type=hidden name='lager' value='$lager'>";
 print "<input type=hidden name='max_antal' value='$max_antal'>";
 print "<tr><td colspan='4'><hr></td></tr>";
-print "<tr><td colspan='4' align='center'><input style=\"width:100px;\" type=\"submit\" value=\"Opdater\" name=\"opdater\">&nbsp;&nbsp;<a href='" . htmlspecialchars($returside, ENT_QUOTES) . "'><input  style='width:100px;' type='button' Value='Luk'></a></td></tr>";  #<input type=submit value=\"Luk\" name=\"submit\">
+print "<tr><td colspan='4' align='center'><input style=\"width:100px;\" type=\"submit\" value=\"Opdater\" name=\"opdater\">&nbsp;&nbsp;<a href='varer.php'><input  style='width:100px;' type='button' Value='Luk'></a></td></tr>";  #<input type=submit value=\"Luk\" name=\"submit\">
 print "</form></tr>";
+}
 print "</td></tr></tbody></table>";
 ?>

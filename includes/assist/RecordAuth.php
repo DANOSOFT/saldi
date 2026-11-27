@@ -2,6 +2,9 @@
 // 20260907 CDX/LH Scoped, short-lived access to saved assistant records.
 // 20260908 CDX/LH Read authorization headers across Apache and CGI SAPIs.
 // 20260908 CDX/LH Document grant helper contracts.
+// 20261127 ASR With $allowedLedgers in includes/connect.php the read connection opens only the master database and the listed ledgers (includes/ledgerAllowList.php).
+// 20261127 ASR The master database named by SALDI_ASSIST_DB_MASTER opens too, as the endpoint does not include connect.php.
+// 20261127 ASR The record rights come from the user's role where the installation shares its ledgers ($sharedWithLive), as a page request reads them (saldi_assist_rights()).
 
 final class SaldiAssistFailure extends RuntimeException
 {
@@ -124,6 +127,12 @@ function saldi_assist_read_connection(string $database): PDO
     if (!preg_match('/^[A-Za-z0-9_-]{1,63}$/D', $database)) {
         throw new SaldiAssistFailure('not_configured', 503);
     }
+    require_once __DIR__ . '/../ledgerAllowList.php';
+    // The endpoint names the master database by SALDI_ASSIST_DB_MASTER; every other database follows $allowedLedgers.
+    $assistMaster = (string)(getenv('SALDI_ASSIST_DB_MASTER') ?: '');
+    if (!($assistMaster !== '' && $database === $assistMaster) && !saldi_ledger_connect_allowed($database)) {
+        throw new SaldiAssistFailure('company_unavailable');
+    }
     $host = getenv('SALDI_ASSIST_DB_HOST');
     $user = getenv('SALDI_ASSIST_DB_USER');
     $password = getenv('SALDI_ASSIST_DB_PASSWORD');
@@ -150,6 +159,32 @@ function saldi_assist_one(PDO $pdo, string $sql, array $parameters = []): ?array
     return $query->fetch() ?: null;
 }
 
+/**
+ * The user's rights string as a page request works with it (perm_session_rights()): brugere.rettigheder, or, where
+ * the installation shares its ledgers ($sharedWithLive in includes/connect.php) and the user has a role, the role's own
+ * string, read from the ledger's role_permissions over the read-only connection.
+ *
+ * @param array<string,mixed>|null $user the row of brugere
+ */
+function saldi_assist_rights(PDO $tenant, ?array $user): string
+{
+    $stored = trim((string)($user['rettigheder'] ?? ''));
+    $roleId = (int)($user['role_id'] ?? 0);
+    require_once __DIR__ . '/../permissions.php';
+    if ($roleId <= 0 || !perm_shared_with_live() || !saldi_assist_one($tenant, "SELECT to_regclass('role_permissions') AS name")['name']) {
+        return $stored;
+    }
+    $levels = array_fill_keys(array_keys(permission_registry()), 'none');
+    $query = $tenant->prepare('SELECT permission_key, level FROM role_permissions WHERE role_id = ?');
+    $query->execute([$roleId]);
+    foreach ($query->fetchAll() as $row) {
+        if (isset($levels[$row['permission_key']])) {
+            $levels[$row['permission_key']] = perm_level_valid((string)$row['level']);
+        }
+    }
+    return perm_legacy_string($levels);
+}
+
 /** @param array<string,mixed> $online */
 function saldi_assist_authorize(PDO $master, PDO $tenant, array $online, string $kind): void
 {
@@ -164,10 +199,10 @@ function saldi_assist_authorize(PDO $master, PDO $tenant, array $online, string 
         || (!empty($company['lukkes']) && $company['lukkes'] <= $today)) {
         throw new SaldiAssistFailure('company_unavailable');
     }
-    $user = saldi_assist_one($tenant, 'SELECT rettigheder FROM brugere WHERE brugernavn = ?', [$online['brugernavn']]);
+    $user = saldi_assist_one($tenant, 'SELECT * FROM brugere WHERE brugernavn = ?', [$online['brugernavn']]);
     // The same module positions used by kassekladde.php and debitor/ordre.php.
     $position = $kind === 'journal' ? 2 : 5;
-    $rights = (string)($user['rettigheder'] ?? '');
+    $rights = saldi_assist_rights($tenant, $user);
     if (!preg_match('/^[0-9]+$/D', $rights) || (int)substr($rights, $position, 1) < 1) {
         throw new SaldiAssistFailure('record_forbidden');
     }

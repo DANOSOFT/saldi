@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/posmenuer.php --- ver 5.0.0 -- 2026-10-05 --
+// --- systemdata/posmenuer.php --- ver 5.1.1 -- 2026-11-13 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -50,13 +50,13 @@
 //                back-button style instead of a hardcoded link to
 //                diverse.php?sektion=pos_valg. See MB-23.
 // 20260827 CL/SZ Fixed pos_menu_location cookie write order (was
-// 20261004 Sawaneh Shown inside the settings frame (top.php) with the Kasse tab list and breadcrumb, instead of its own Close header.
 //                menu_id-ret_col-ret_row, callers read it as
 //                menu_id-ret_row-ret_col) and a $bud_id/$but_id typo that
 //                made a re-fetch guard always fire.
 // 20261005 LOE SST-849 Removed the unused input() function, which held its own copy of the
 //                system button list with the same wrong "Sæt" option.
-
+// 20261004 SS Shown inside the settings frame (top.php) with the Kasse tab list and breadcrumb, instead of its own Close header.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 $title = "POS menuer";
@@ -111,7 +111,7 @@ $copyFromCol = if_isset($_POST['copyFromCol']);
 $copyFromRow = if_isset($_POST['copyFromRow']);
 $folgevarer = if_isset($_POST['folgevarer']);
 
-saldi_setcookie("pos_menu_location", "$_GET[menu_id]-$_GET[ret_row]-$_GET[ret_col]", time() + (86400 * 30), "/");
+setcookie("pos_menu_location", "$_GET[menu_id]-$_GET[ret_row]-$_GET[ret_col]", time() + (86400 * 30), "/");
 
 if ($menu_id) {
 	if (!$beskrivelse)
@@ -1166,8 +1166,7 @@ print "</div>";
 					if (isNaN(id) || id === '') {
 						alert('Ikke et validt varenummer.');
 					} else {
-					// WP-5.14: a relative, fully encoded return (encodeURI left & and ? raw, and a full URL is refused by the sanitiser)
-					window.location.href = `../lager/varekort.php?id=${id}&returside=${encodeURIComponent('../systemdata/posmenuer.php' + window.location.search)}`;
+					window.location.href = `../lager/varekort.php?id=${id}&returside=${encodeURI(window.location.href)}`;
 					}
 				})
   }

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/formFuncIncludes/subscriptionLink.php --- 2026.10.26
+// --- includes/formFuncIncludes/subscriptionLink.php --- 2026.11.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,7 +35,10 @@
 // 20260820 CL/LH Added subscriptionLinkHtml(): shared email-safe CTA block for
 //                the HTML invoice mailers (sendMail.php/oldSendMail.php).
 // 20261022 CDX/LH Remove classic mail subscription links when signup is disabled.
+// 20261126 CL/ASR Stripe port (#850): the invoice mail carries no subscription link unless stripe_signup_allowed().
 // 20261026 CL/NTR Multi-ledger: any ledger with signup on can mint links; they carry the ledger (r=).
+// 20261126 CL/ASR Stripe port (#889): the pinned ledger still mints regardless of target_db; another ledger mints once its Stripe settings are saved in it (stripe_ledger_armed()).
+// 20261126 CL/ASR Review round 1 (I18): "already subscribed" counts only rows with a subscription id, as subscribe.php does, and a customer whose invoices are charged to a saved card gets no link (stripe_debtor_card_enrolled()).
 
 include_once(__DIR__ . '/../stripeIncludes/stripeSettings.php');
 include_once(__DIR__ . '/../stripeIncludes/stripeLink.php');
@@ -83,9 +86,10 @@ if (!function_exists('subscriptionLinkUrl')) {
 			$customers_exists[$db] = !empty($r['table_name']);
 		}
 		if ($customers_exists[$db] && (int)$o['konto_id'] > 0) {
-			$s = db_fetch_array(db_select("select stripe_subscription_id from stripe_customers where konto_id = " . (int)$o['konto_id'] . " and status in ('active','trialing','past_due')", __FILE__ . " linje " . __LINE__));
+			$s = db_fetch_array(db_select("select stripe_subscription_id from stripe_customers where konto_id = " . (int)$o['konto_id'] . " and coalesce(stripe_subscription_id, '') <> '' and status in ('active','trialing','past_due')", __FILE__ . " linje " . __LINE__));
 			if ($s) return '';
 		}
+		if (stripe_debtor_card_enrolled((int)$o['konto_id'])) return '';
 		// At least one line must map to an active catalog row - otherwise this
 		// simply is not a subscription customer.
 		$q = db_select("select l.id from ordrelinjer l join stripe_catalog c on c.active = true and c.varenr = l.varenr where l.ordre_id = " . $ordre_id . " limit 1", __FILE__ . " linje " . __LINE__);

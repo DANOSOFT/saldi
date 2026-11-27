@@ -9,6 +9,9 @@ permissions:
 
 jobs:
   assign:
+    # GitHub Apps cannot be issue assignees (addAssignees returns 403), so the
+    # job would fail on every bot-authored PR. Assign human authors only.
+    if: github.event.pull_request.user.type != 'Bot'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/github-script@v7

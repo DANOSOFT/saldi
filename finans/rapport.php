@@ -1,11 +1,10 @@
-
 <?php
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport.php --- lap 5.0.0 --- 2026-03-06 ---
+// --- finans/rapport.php --- ver 5.1.1 --- 2026-11-19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,9 +20,9 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20210110 PHR some minor changes related til 'deferred financial year'
 // 20230611 +20230619 PHR php8
 // 20240403 PHR Changet bankReconcile to $[POST]
@@ -31,11 +30,24 @@
 // 20260227 PHR Moved include("../includes/row-hover-style.js.php") down as it broke saf-t and other using header
 // 20260306 LOE Updated some variables with if_isset() to avoid excessive undefined variable notices in error logs.
 // 20260915 CDX/PHR Keep submitted simulation selection instead of overriding it with the form URL; support older installs.
+// 20260917 CDX/PHR Expand scrollable financial reports and release sticky headers when printing.
+// 20260918 CDX/PHR Expand all report scroll containers and hide pagination in print.
+// 20261103 LOE SST-936 Escape the project-name lookup the report form runs before any report is built.
+// 20261110 CDX/ASR Treat known report-filter submissions as reads for role enforcement.
+// 20261119 CL/ASR A chart without a Sideskift account no longer alerts on the statement reports, as regnskab() now splits it by account type.
+//                 Balance alerts instead when such a chart has no Resultat account, as the year's result is then not in the balance.
+// 20261119 CL/ASR The file starts with <?php and its header has no blank line, so the page no longer prints a newline before its output.
 @session_start();
 $s_id = session_id();
 
 $title = "Finansrapport";
 $modulnr = 4;
+$permission_key = 'finans.rapporter';
+// Only known report filters are read operations; an unknown action keeps the write gate.
+$permission_post_read = empty($_POST['bankReconcile']) && in_array(strtolower(trim((string) ($_POST['rapportart'] ?? ''))), array(
+	'', 'kontokort', 'kontokort_moms', 'kontokort_ubogfort', 'balance', 'resultat', 'regnskab', 'budget', 'lastyear',
+	'momsangivelse', 'moms_transaktioner', 'moms_rubrik', 'moms_afstemning', 'moms_oss', 'saft', 'regnskabbasis', 'emballage',
+), true);
 $css = "../css/standard.css";
 
 include("../includes/var_def.php");
@@ -45,6 +57,7 @@ include("../includes/topline_settings.php");
 include("../includes/std_func.php");
 include_once("../includes/emballage_schema.php");
 $packagingModuleEnabled = (get_settings_value("packagingModuleEnabled", "items", "off") === "on");
+if ($packagingModuleEnabled) ensure_emballage_schema();
 
 $aar_fra = "";
 $maaned_fra = "";
@@ -190,13 +203,19 @@ if ($_POST) {
 			list($projekt_til, $prj_navn_til) = explode(":", $projekt_til);
 			$projekt_til = trim($projekt_til);
 		}
-		if ($projekt_fra && !$prj_navn_fra) {
-			$r = db_fetch_array(db_select("select beskrivelse from grupper where kodenr = '$projekt_fra'", __FILE__ . " linje " . __LINE__));
-			$prj_navn_fra = $r['beskrivelse'];
+		// grupper.kodenr is an integer, so only a numeric project number can be looked up; anything
+		// else is a name the form already carried, and comparing it would fail the query.
+		if ($projekt_fra && !$prj_navn_fra && preg_match('/^\d+$/', (string)$projekt_fra)) {
+			$r = db_fetch_array(db_select("select beskrivelse from grupper where kodenr = '" . db_escape_string($projekt_fra) . "'", __FILE__ . " linje " . __LINE__));
+			if ($r) {
+				$prj_navn_fra = $r['beskrivelse'];
+			}
 		}
-		if ($projekt_til && !$prj_navn_til) {
-			$r = db_fetch_array(db_select("select beskrivelse from grupper where kodenr = '$projekt_til'", __FILE__ . " linje " . __LINE__));
-			$prj_navn_til = $r['beskrivelse'];
+		if ($projekt_til && !$prj_navn_til && preg_match('/^\d+$/', (string)$projekt_til)) {
+			$r = db_fetch_array(db_select("select beskrivelse from grupper where kodenr = '" . db_escape_string($projekt_til) . "'", __FILE__ . " linje " . __LINE__));
+			if ($r) {
+				$prj_navn_til = $r['beskrivelse'];
+			}
 		}
 	}
 	$tmp = str_replace("?", "", $projekt_fra);
@@ -211,14 +230,18 @@ if ($_POST) {
 	 *  - The first part is assigned to the respective variable.
 	 *  - The second part is assigned to `$beskrivelse`.
 	 */
+	// The form sends strings; ?konto_fra[]= would arrive as an array and explode() throws on it.
 	$konto_fra = if_isset($_POST['konto_fra']);
-	if ($konto_fra) list($konto_fra, $beskrivelse) = explode(":", $konto_fra) + [1 => null];
+	if (is_string($konto_fra) && $konto_fra) list($konto_fra, $beskrivelse) = explode(":", $konto_fra) + [1 => null];
 
 	$konto_til = if_isset($_POST['konto_til']);
-	if ($konto_til) list($konto_til, $beskrivelse) = explode(":", $konto_til) + [1 => null];
+	if (is_string($konto_til) && $konto_til) list($konto_til, $beskrivelse) = explode(":", $konto_til) + [1 => null];
 
 	$regnaar = if_isset($_POST['regnaar']);
-	if ($regnaar && !is_numeric($regnaar)) list($regnaar, $beskrivelse) = explode(" - ", $regnaar) + [1 => null];
+	if (is_string($regnaar) && $regnaar && !is_numeric($regnaar)) list($regnaar, $beskrivelse) = explode(" - ", $regnaar) + [1 => null];
+	if ($regnaar !== NULL && !is_string($regnaar)) {
+		$regnaar = NULL;
+	}
 	#+
 }
 
@@ -278,10 +301,19 @@ elseif ($rapportart) {
 					if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) $konto_fra = $r['kontonr'];
 				}
 			}
-		}	else {
-			$txt = 'Sideskiftkonto ikke defineret i kontoplan - Balance & Resultat kan ikke adskilles';
-			alert($txt);
+		} elseif ($rapportart == "balance") {
+			// Without a Sideskift account regnskab() splits the chart by account type (regnskab_kontoside()). The year's
+			// result reaches the balance only through a Resultat account (kontotype R), so without one the balance cannot
+			// balance: say why.
+			$qtxt = "select distinct kontotype from kontoplan where regnskabsaar='$regnaar' and kontotype in ('D','R')";
+			$typer = array();
+			$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+			while ($r = db_fetch_array($q)) $typer[] = $r['kontotype'];
+			if (in_array('D', $typer) && !in_array('R', $typer)) {
+				alert(addslashes(findtekst('report.balance_no_result_account|Kontoplanen har ingen konto af typen Resultat, så årets resultat er ikke med i balancen.', $sprog_id)));
+			}
 		}
+		// Without a Sideskift account regnskab() splits the chart by account type (regnskab_kontoside()).
 		$submit = "regnskab";
 	} else $submit = str2low($rapportart);
 }
@@ -319,8 +351,32 @@ if ($submit == 'saft') {
 	header("Location: bankReconcile.php?regnaar=$regnaar&maaned_fra=$maaned_fra&maaned_til=$maaned_til&aar_fra=$aar_fra&aar_til=$aar_til&dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&rapportart=$rapportart");
 	exit();
 } else {
-	include("../includes/row-hover-style.js.php");
-	include("rapport_includes/$submit.php");
+	include(__DIR__ . "/../includes/row-hover-style.js.php");
+	// Report tables have viewport-limited scroll wrappers on screen. Printing must
+	// allow their full height, including when the document is hosted in an iframe.
+	print <<<'HTML'
+<style>
+@media print {
+    html, body {
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+    div[style*="max-height"], div[style*="overflow-x"], div[style*="overflow-y"] {
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+    [style*="position: sticky"], [style*="position:sticky"] {
+        position: static !important;
+    }
+    .hover-preview-tooltip, .ledger-pagination {
+        display: none !important;
+    }
+}
+</style>
+HTML;
+	include(__DIR__ . "/rapport_includes/$submit.php");
 }
 if (function_exists($submit)) {
 	$submit($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev);

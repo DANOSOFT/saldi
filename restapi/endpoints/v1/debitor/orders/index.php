@@ -1,10 +1,15 @@
 <?php
+// 20261105 CL/LH Needs the Debitorordre right (debitor.ordre), as debitor/ordre.php and ordreliste.php do; without it the request is refused with 403.
+//                A POST creates a sales order (DO) whatever 'type' or 'art' the body sends.
+//                A number field that is not a number (status "0', '987654', ...") is a 400 before anything is stored.
 require_once '../../../../models/orders/OrderModel.php';
 require_once '../../../../services/OrderService.php';
 require_once '../../../../core/BaseEndpoint.php';
 
 class OrderEndpoint extends BaseEndpoint
 {
+    protected $permissionKey = 'debitor.ordre';
+
     public function __construct()
     {
         parent::__construct();
@@ -55,9 +60,9 @@ class OrderEndpoint extends BaseEndpoint
 
     protected function handlePost($data)
     {
-        // Set art to DO for debitor orders
-        $data->art = 'DO';
-        $result = OrderService::createOrder($data);
+        // A debitor order (DO), whatever type the body names
+        $this->validateNumericFields($data, OrderService::DECIMAL_FIELDS, OrderService::INTEGER_FIELDS);
+        $result = OrderService::createOrder($data, 'DO');
         
         if ($result['success']) {
             $this->sendResponse(true, $result['data'], 'Order created successfully', 201);

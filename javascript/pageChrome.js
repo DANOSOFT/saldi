@@ -1,7 +1,8 @@
-// ---- javascript/pageChrome.js --- lap 5.0.0 --- 2026.10.08 ---
+// ---- javascript/pageChrome.js --- ver 5.1.0 --- 2026.10.31 ---
 // 20261008 Sawaneh The breadcrumb script of includes/stdFunc/pageChrome.php as a static file: the page's head only
 //                  carries window.saldiPageChrome, so a page that redirects after online.php stays under the
 //                  output buffer (Goods on ssl12 redirected into a blank page). Same behaviour as the inline script.
+// 20261031 CL/ASR No Alt+L handler: every page keeps master's own Alt+L (its Luk/Tilbage accesskey); the script only feeds the topbar breadcrumb.
 (function () {
 	function send() { if (window.parent && window.parent !== window && window.saldiPageChrome) { window.parent.postMessage(window.saldiPageChrome, window.location.origin); } }
 	if (!window.saldiChromeBound) {
@@ -29,10 +30,6 @@
 				window.docChange = false;
 				window.location.href = viaLuk(e.data.href);
 			}
-		});
-		// Alt+L goes back through the shell (§3.2); a page that still shows its old Luk/Tilbage keeps that accesskey.
-		document.addEventListener('keydown', function (e) {
-			if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'l' || e.key === 'L') && !Array.prototype.some.call(document.querySelectorAll('[accesskey="l"], [accesskey="L"]'), function (c) { return c.offsetParent !== null; })) { e.preventDefault(); window.parent.postMessage({ type: 'saldi:back' }, window.location.origin); }
 		});
 	}
 	send();

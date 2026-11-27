@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --------------- admin/admin_settings.php --- patch 5.0.0 --- 2026.03.26 ---
+// --------------- admin/admin_settings.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20190411 PHR Added alertText
@@ -31,8 +31,8 @@
 // 20260212 PHR pdfmerge replaced by pdftk and some errors
 // 20260320 PHR cleanup (pdftk)
 // 20260326 PHR Fixed error in weasyprint
-// 20261001 Sawaneh Saves look the row up when the form has no id (stale or resubmitted form made duplicates).
-
+// 20261001 SS Saves look the row up when the form has no id (stale or resubmitted form made duplicates).
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 $css="../css/standard.css";
@@ -44,6 +44,7 @@ include("../includes/std_func.php");
 $languages = array();
 
 // 20261018 Sawaneh Review 2 (PR #803): the master-database check runs before any write, the form carries the session's
+// 20261031 CL/ASR The news snippet is escaped here: update_settings_value() follows master again (the caller escapes).
 // token, and the posted ids and values are escaped (the program paths are later run as commands).
 if ($db != $sqdb) {
 	$txt1 = findtekst('1905|Hmm du har vist ikke noget at gøre her! Dit IP nummer, brugernavn og regnskab er registreret!', $sprog_id);
@@ -105,7 +106,7 @@ if (isset($_POST['gem'])) {
 		$qtxt="insert into settings (var_name,var_value,var_description) values ";
 		$qtxt.="('alertText','".db_escape_string($alertText)."','".db_escape_string('Alert text if: unpredicted event')."')";
 	}
-	update_settings_value("nyhed", "dashboard", $newssnippet, "The news snippet showen to all admin accounts on this system");
+	update_settings_value("nyhed", "dashboard", db_escape_string($newssnippet), "The news snippet showen to all admin accounts on this system");
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt="update settings set var_value='$languageId' where var_name='languageId'";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);

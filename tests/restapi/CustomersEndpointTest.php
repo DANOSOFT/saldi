@@ -9,7 +9,13 @@
 //
 // History:
 // 20260904 CL/NTR created.
+// 20261105 CL/LH A customer or creditor that open posts or orders point at is refused with 409 and kept.
+// 20261105 CL/LH A creditor sent twice, or moved onto another creditor's phone, is refused with 400 like a debtor.
+//                A creditor may share a debtor's email and phone.
+// 20261105 CL/LH The create response of a debtor and a creditor carries the kontonr it stored.
+// 20261111 CDX/NTR Give each REST class its own fresh database.
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/support/RestApiEnv.php';
@@ -25,7 +31,7 @@ final class CustomersEndpointTest extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
-        RestApiEnv::bootstrapTenant();
+        RestApiEnv::bootstrapTenant(static::class);
     }
 
     public static function tearDownAfterClass(): void
@@ -157,6 +163,84 @@ final class CustomersEndpointTest extends TestCase
         $this->assertStringContainsString('already in use', $res['json']['message']);
     }
 
+    /** @return array<string, array{0: string, 1: string}> */
+    public static function accountKinds(): array
+    {
+        return [
+            'debtor' => [self::CUSTOMERS, 'D'],
+            'creditor' => [self::CREDITORS, 'K'],
+        ];
+    }
+
+    /** A new account is numbered after its phone; the create answers with that kontonr, as the GET and SQL do. */
+    #[DataProvider('accountKinds')]
+    public function test_create_response_carries_the_kontonr_it_stored(string $path, string $art): void
+    {
+        $body = $this->customerBody('kontonr');
+
+        $create = $this->create($path, $body);
+
+        $this->assertSame(201, $create['status'], $create['body']);
+        $data = $create['json']['data'];
+        $this->assertSame($body['phone'], $data['kontonr'], 'the create response names the kontonr');
+        $this->assertSame($body['phone'], $data['kundenr']);
+        $id = (int)$data['id'];
+        $this->assertSame($data['kontonr'], $this->read($path, $id)['json']['data']['kontonr'], 'the GET agrees');
+        $tenant = RestApiEnv::connect(RestApiEnv::testDb());
+        $rows = RestApiEnv::rows($tenant, 'SELECT kontonr FROM adresser WHERE id = $1 AND art = $2', [$id, $art]);
+        pg_close($tenant);
+        $this->assertSame([['kontonr' => $body['phone']]], $rows, 'SQL agrees');
+    }
+
+    /** The cards refuse a second account with the same number; the API makes the phone the kontonr. */
+    #[DataProvider('accountKinds')]
+    public function test_the_same_body_posted_twice_is_refused_400_and_stored_once(string $path, string $art): void
+    {
+        $body = $this->customerBody('repeat');
+        $first = $this->create($path, $body);
+        $this->assertSame(201, $first['status'], $first['body']);
+
+        $repeat = $this->create($path, $body);
+
+        $this->assertSame(400, $repeat['status'], $repeat['body']);
+        $this->assertFalse($repeat['json']['success']);
+        $this->assertStringContainsString('already in use', $repeat['json']['message']);
+        $tenant = RestApiEnv::connect(RestApiEnv::testDb());
+        $rows = RestApiEnv::rows($tenant, 'SELECT kontonr FROM adresser WHERE art = $1 AND tlf = $2', [$art, $body['phone']]);
+        pg_close($tenant);
+        $this->assertSame([['kontonr' => $body['phone']]], $rows, 'one account with that kontonr');
+    }
+
+    #[DataProvider('accountKinds')]
+    public function test_update_onto_the_phone_of_another_account_of_the_same_art_is_refused_400(string $path, string $art): void
+    {
+        $taken = $this->customerBody('taken');
+        $this->assertSame(201, $this->create($path, $taken)['status']);
+        $create = $this->create($path, $this->customerBody('mover'));
+        $this->assertSame(201, $create['status'], $create['body']);
+        $id = (int)$create['json']['data']['id'];
+
+        $put = RestApiEnv::http('PUT', $path . '?id=' . $id, ['phone' => $taken['phone']], RestApiEnv::authHeaders());
+
+        $this->assertSame(400, $put['status'], $put['body']);
+        $this->assertStringContainsString('already in use', $put['json']['message']);
+        $tenant = RestApiEnv::connect(RestApiEnv::testDb());
+        $rows = RestApiEnv::rows($tenant, 'SELECT count(*) AS n FROM adresser WHERE art = $1 AND tlf = $2', [$art, $taken['phone']]);
+        pg_close($tenant);
+        $this->assertSame([['n' => '1']], $rows, 'the phone, and so the kontonr, stays on one account');
+    }
+
+    /** A supplier that is also a customer: debtor and creditor numbers are kept apart, as on the cards. */
+    public function test_a_creditor_may_share_email_and_phone_with_a_debtor(): void
+    {
+        $body = $this->customerBody('both');
+        $this->assertSame(201, $this->create(self::CUSTOMERS, $body)['status']);
+
+        $creditor = $this->create(self::CREDITORS, $body);
+
+        $this->assertSame(201, $creditor['status'], $creditor['body']);
+    }
+
     public function test_search_finds_the_created_customer_only(): void
     {
         $body = $this->customerBody('search' . random_int(1000, 9999));
@@ -216,6 +300,38 @@ final class CustomersEndpointTest extends TestCase
         $rows = RestApiEnv::rows($tenant, 'SELECT id FROM adresser WHERE id = $1', [$id]);
         pg_close($tenant);
         $this->assertSame([], $rows, 'adresser row removed');
+    }
+
+    /** @return array<string, array{0: string, 1: string}> */
+    public static function accountsWithEntries(): array
+    {
+        return [
+            'debtor with an open post' => [self::CUSTOMERS, 'openpost'],
+            'debtor with an order' => [self::CUSTOMERS, 'ordrer'],
+            'creditor with an open post' => [self::CREDITORS, 'openpost'],
+            'creditor with an order' => [self::CREDITORS, 'ordrer'],
+        ];
+    }
+
+    /** The cards offer no Slet here; deleting the account would orphan its open post or order. */
+    #[DataProvider('accountsWithEntries')]
+    public function test_account_that_an_open_post_or_order_points_at_is_refused_409_and_kept(string $path, string $table): void
+    {
+        $create = $this->create($path, $this->customerBody('entries'));
+        $this->assertSame(201, $create['status'], $create['body']);
+        $id = (int)$create['json']['data']['id'];
+
+        $tenant = RestApiEnv::connect(RestApiEnv::testDb());
+        RestApiEnv::rows($tenant, "INSERT INTO $table (konto_id) VALUES ($1)", [$id]);
+
+        $del = RestApiEnv::http('DELETE', $path . '?id=' . $id, null, RestApiEnv::authHeaders());
+
+        $this->assertSame(409, $del['status'], $del['body']);
+        $this->assertFalse($del['json']['success']);
+        $this->assertSame(200, $this->read($path, $id)['status'], 'the account is still there');
+        $owned = RestApiEnv::rows($tenant, "SELECT count(*) AS n FROM $table t JOIN adresser a ON a.id = t.konto_id WHERE t.konto_id = $1", [$id]);
+        pg_close($tenant);
+        $this->assertSame([['n' => '1']], $owned, "the $table row keeps its owner");
     }
 
     public function test_reading_or_deleting_a_nonexistent_customer_returns_404(): void

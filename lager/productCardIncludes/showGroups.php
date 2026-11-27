@@ -1,4 +1,6 @@
 <?php
+// 20261105 CL/LH Debitorrabatgrp. stops at the last group: $dvrg_nr[0] is the item's own group, so the loops read one past the end (Undefined array key).
+//                The empty option that clears an item's group, which that read printed as value "", is now an explicit value 0 at the end of the list, as for Prisgruppe and Tilbudgruppe.
     print "<tr><td><b>".findtekst(2037,$sprog_id)."</b></td></tr>";
     #varegruppe->
     print "<tr><td width=33%>".findtekst(774,$sprog_id)."</td>";
@@ -14,9 +16,11 @@
     <SELECT class=\"inputbox\" NAME=\"ny_gruppe\" style=\"width: 18em\">";
     print "<option value=\"$gruppe\">$gruppe $r[beskrivelse]</option>";
     if (!$beholdning || !$batchItem) { # batchItem added 20090210 to make groupchange possible if stockItem is set.
-        if ($samlevare=='on') $query = db_select("select * from grupper where art='VG' and kodenr!='$gruppe' and box8!='on' and fiscal_year = '$regnaar' and coalesce(inaktiv, false) = false order by ".nr_cast('kodenr')."",__FILE__ . " linje " . __LINE__);
-        elseif ($beholdning) $query = db_select("select * from grupper where art='VG' and kodenr!='$gruppe' and box8='on' and fiscal_year = '$regnaar' and coalesce(inaktiv, false) = false  order by ".nr_cast('kodenr')."",__FILE__ . " linje " . __LINE__);# tilfoejet 20090210
-        else $query = db_select("select * from grupper where art='VG' and kodenr!='$gruppe' and fiscal_year = '$regnaar' and coalesce(inaktiv, false) = false order by ".nr_cast('kodenr')."",__FILE__ . " linje " . __LINE__);
+        $hasInactive = (bool) db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'grupper' and column_name = 'inaktiv'" . saldi_schema_filter(), __FILE__ . " linje " . __LINE__));
+        $inactiveFilter = $hasInactive ? " and coalesce(inaktiv, false) = false" : '';
+        if ($samlevare=='on') $query = db_select("select * from grupper where art='VG' and kodenr!='$gruppe' and box8!='on' and fiscal_year = '$regnaar'$inactiveFilter order by ".nr_cast('kodenr')."",__FILE__ . " linje " . __LINE__);
+        elseif ($beholdning) $query = db_select("select * from grupper where art='VG' and kodenr!='$gruppe' and box8='on' and fiscal_year = '$regnaar'$inactiveFilter  order by ".nr_cast('kodenr')."",__FILE__ . " linje " . __LINE__);# tilfoejet 20090210
+        else $query = db_select("select * from grupper where art='VG' and kodenr!='$gruppe' and fiscal_year = '$regnaar'$inactiveFilter order by ".nr_cast('kodenr')."",__FILE__ . " linje " . __LINE__);
         while ($row = db_fetch_array($query)) {
             print "<option value=\"$row[kodenr]\">$row[kodenr] $row[beskrivelse]</option>";
         }
@@ -27,12 +31,13 @@
         print "<tr><td>Debitorrabatgrp.</td>";
         print "<td><SELECT class=\"inputbox\" NAME=\"dvrg\" style=\"width: 18em\">";
         if (!$dvrg_nr[0]) print "<option value=\"0\"></option>";
-        for ($x=1;$x<=count($dvrg_nr);$x++) {
+        for ($x=1;$x<count($dvrg_nr);$x++) {
             if ($dvrg_nr[0] && $dvrg_nr[0]==$dvrg_nr[$x]) print "<option value=\"$dvrg_nr[$x]\">$dvrg_nr[$x] $dvrg_navn[$x]</option>";
         }
-        for ($x=1;$x<=count($dvrg_nr);$x++) {
+        for ($x=1;$x<count($dvrg_nr);$x++) {
             if ($dvrg_nr[0]!=$dvrg_nr[$x]) print "<option value=\"$dvrg_nr[$x]\">$dvrg_nr[$x] $dvrg_navn[$x]</option>";
         }
+        if ($dvrg_nr[0]) print "<option value=\"0\"></option>";
     }
     print "</SELECT></td></tr>";
 # Prisgruppe->

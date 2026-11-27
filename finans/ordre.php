@@ -1,5 +1,5 @@
 <?php
-// ----------debitor/ordre.php---------lap 3.0.1------2010-05-20-------
+// ----------finans/ordre.php---------ver 5.1.1------2026-11-05-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -14,7 +14,7 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2010 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260831 CDX/MJ JOB-106 Allow credit-note return dates before the credit-note order date
 // 20260908 SZ SST-755: popup close/beacon now releases the lock properly (was missing
@@ -37,6 +37,9 @@
 // real popup order creation through the actual page instead of re-checking the extracted
 // block in isolation; the isolated check couldn't have caught this since it doesn't reproduce
 // ordreside()'s own scope.
+// 20261105 CL/LH Two users adding lines to one order no longer give lines the same posnr (testlab concurrent-posting DEVY-1, same code as debitor/ordre.php).
+//                The form carries the ids of the lines it was drawn with (order_lines_drawn), and its save puts a new line after the lines it did not show and keeps those off the positions it writes (includes/stdFunc/orderLinePositions.php).
+//                The save locks the order row first, so a second save reads the lines the first one wrote.
 
 @session_start();
 $s_id=session_id();
@@ -74,6 +77,7 @@ include("../includes/std_func.php");
 include("../includes/var2str.php");
 include("../includes/ordrefunc.php");
 require_once __DIR__ . '/../includes/stdFunc/unlockRecord.php';
+require_once __DIR__ . '/../includes/stdFunc/orderLinePositions.php';
 
 print "<script language=\"javascript\" type=\"text/javascript\" src=\"../javascript/confirmclose.js\"></script>";
 $tidspkt=date("U");
@@ -302,6 +306,7 @@ if (isset($_POST['submit'])) {
 	$sum=if_isset($_POST['sum']);
 	$linjeantal = $_POST['linjeantal'];
 	$linje_id = $_POST['linje_id'];
+	$linesDrawn = $_POST['order_lines_drawn'] ?? null; // the ids of the order's lines when the form was drawn
 	$kred_linje_id = if_isset($_POST['kred_linje_id']);
 	$posnr = if_isset($_POST['posnr']);
 	$status = $_POST['status'];
@@ -353,6 +358,9 @@ if (isset($_POST['submit'])) {
 #		else db_modify("update ordrer set nextfakt=NULL where id='$id'",__FILE__ . " linje " . __LINE__);
 #	}
 	transaktion("begin");
+	// First in the transaction: a colleague's save of this order ends before this one reads its lines.
+	// Not for Kopi and Kred: they write a new order.
+	if ($id && !strstr($submit,"Kopi") && !strstr($submit,"Kred")) order_lines_lock($id);
 	for ($x=0; $x<=$linjeantal;$x++) {
 		$y="posn".$x;
 		$posnr_ny[$x]=trim(if_isset($_POST[$y]))*1;
@@ -521,6 +529,8 @@ if (isset($_POST['submit'])) {
 		}
 	}
 	elseif(($firmanavn)&&($status<3)) {
+		// Lines this form did not show (added by a colleague), before this save writes any line.
+		$linesAddedSinceForm = order_lines_added_since($id, $linesDrawn, $linje_id);
 		$sum=0;
 		for($x=1; $x<=$linjeantal; $x++) {
 			$vare_id[$x]=$vare_id[$x]*1;
@@ -641,6 +651,8 @@ if (isset($_POST['submit'])) {
 			}
 #			if (strlen($fakturadate)>5){db_modify("update ordrer set fakturadate='$fakturadate' where id=$id");}
 		}
+		// A new line put after every line the form showed also goes after the lines added since. Pos is posnr here, not x 100.
+		$posnr_ny[0] = order_line_new_position($id, $linesAddedSinceForm, $posnr_ny[0], 1);
 		if (($posnr_ny[0])&&(!strstr($submit,'Opslag'))) {
 			if ($varenr[0]) {
 				if (!$antal[0]) $antal[0]=1;
@@ -648,6 +660,8 @@ if (isset($_POST['submit'])) {
 			}
 		elseif ($beskrivelse[0]) {db_modify("insert into ordrelinjer (ordre_id,posnr,beskrivelse) values ('$id','$posnr_ny[0]','$beskrivelse[0]')",__FILE__ . " linje " . __LINE__);}
 		}
+		// The positions this form wrote may be those of lines it never showed.
+		order_lines_keep_added_apart($id, $linesAddedSinceForm);
 		if ($id) { 
 			$r = db_fetch_array(db_select("select tidspkt,hvem from ordrer where status < 3 and id = $id and hvem != '$brugernavn'",__FILE__ . " linje " . __LINE__));
 			$tidspkt=trim($r['tidspkt']);
@@ -839,6 +853,8 @@ function ordreside($id,$regnskab)
 	
 	if (!$id) $fokus='kontonr';
 	print "<form name=ordre action=ordre.php?id=$id&returside=$returside method=post>";
+	// Read before the lines are drawn, and printed before the fields each line repeats (max_input_vars).
+	if ($id) print "<input type=hidden name=order_lines_drawn value=\"" . order_lines_drawn($id) . "\">";
 	if ($id) {
 		$query = db_select("select * from ordrer where id = '$id'",__FILE__ . " linje " . __LINE__);
 		$row = db_fetch_array($query);

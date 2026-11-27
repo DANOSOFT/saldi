@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| |) | |
 //                        |___/_/ \_|___|___/|_|
 //
-// --- systemdata/ansatte.php --- patch 4.0.8 --- 2023-079-25 ---
+// --- systemdata/ansatte.php --- ver 5.1.1 --- 2023-079-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,15 +21,14 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20160303 PHR indsat manglende '</form>'
 // 20210711 LOE - Translated some texts to Norsk and English from Dansk
 // 20220614 MSC - Implementing new design
 // 20230925 PHR - PHP8
-// 20261005 Sawaneh G7.1: employees live in Indstillinger » Organisation » Ansatte (list + card per employee); this page only
-//                  redirects, to the employee's card when an id is given. ansatte_load/_body/_save.php are no longer used.
-
+// 20261005 SS G7.1: employees live in Indstillinger » Organisation » Ansatte (list + card per employee); this page only redirects, to the employee's card when an id is given. ansatte_load/_body/_save.php are no longer used.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 include("../includes/connect.php");

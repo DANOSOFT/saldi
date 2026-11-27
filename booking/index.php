@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- booking/index.php --- lap 4.0.8 --- 2023-03-23 ---
+// --- booking/index.php --- ver 5.1.1 --- 2026-11-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,9 +20,10 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2023 saldi.dk aps
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261127 ASR With $allowedLedgers in includes/connect.php the ledger must be listed, the master database too, before a session row is written (saldi_ledger_guard()).
 @session_start();
 $s_id=session_id();
 
@@ -44,6 +45,7 @@ include ('../includes/license_func.php');
 $qtxt = "select db from regnskab where id = '$id'";
 if ($r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
 	$db = $r['db'];
+	saldi_ledger_guard($db);
 	
 	// Get db_id for license check
 	$db_id = $id;

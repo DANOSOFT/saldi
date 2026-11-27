@@ -1,5 +1,5 @@
 <?php
-// --- debitor/saetpris.php ---patch 4.0.8 ----2023-08-31----
+// --- debitor/saetpris.php ---ver 5.1.1 ----2026-11-13----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,16 +16,15 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2023 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // -----------------------------------------------------------------------
 // 2015.03.04	PHR Tilføjet mulighed for at slette et sæt
 // 2021.05.01 PHR Added  and box8!='0' as it is now set to 0 where updating 'varegrupper'
 // 20220831 MSC - Implementing new design
 // 20230829 MSC - Copy pasted new design into code
 // 20231002 MSC - Copy pasted new design into code
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
 $css="../css/standard.css";
@@ -85,7 +84,19 @@ if ($id && $forfra && $saet) {
 
 }
 
-print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"1\" cellpadding=\"1\"><tbody>";
+if ($menu=='T') {
+	include_once '../includes/top_header.php';
+	include_once '../includes/top_menu.php';
+	($art=='PO')?$href="pos_ordre.php?id=$id":$href="ordre.php?id=$id";
+	print "<div id=\"header\">"; 
+	print "<div class=\"headerbtnLft headLink\"><a href=$href accesskey=L title='Klik her for at komme tilbage'><i class='fa fa-close fa-lg'></i> &nbsp;".findtekst(30,$sprog_id)."</a></div>";     
+	print "<div class=\"headerTxt\">$title</div>";     
+	print "<div class=\"headerbtnRght headLink\">&nbsp;&nbsp;&nbsp;</div>";     
+	print "</div>";
+	print "<div class='content-noside'><center>";
+} else {
+	print "<table width=\"100%\" height=\"100%\" border=\"0\" cellspacing=\"1\" cellpadding=\"1\"><tbody>";
+}
 
 if ($saet=$_POST['saetvalg']) {
 	if ($saet=='nyt_saet') {
@@ -311,7 +322,11 @@ function tastatur($id,$fokus,$saet) {
 
 print "</tbody></table>";
 
-include_once '../includes/oldDesign/footer.php';
+if ($menu=='T') {
+	include_once '../includes/topmenu/footer.php';
+} else {
+	include_once '../includes/oldDesign/footer.php';
+}
 
 ?>
 <script language="javascript">

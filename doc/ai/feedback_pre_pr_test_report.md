@@ -14,3 +14,5 @@ The report lists functions/files plausibly affected by the change: callers of th
 **Why:** The team wants better testing discipline before deploying PRs. Surfacing likely regression surface area before a PR is marked ready catches problems while context is still fresh, instead of after review or in production.
 
 **How to apply:** Near the end of implementing a change — once the core diff looks stable, and before proposing to move a draft PR to ready — generate this impact report as part of wrapping up, even unprompted. Keep it scoped to things plausibly affected by the actual diff; don't pad it with unrelated code just to seem thorough.
+
+**Enforced by:** the PR template's "How I verified this" section and the `pr-body` check in `.github/workflows/guardrails.yml`, which fails while that section is empty.

@@ -1,5 +1,5 @@
 <?php
-// ---- includes/stdFunc/pageChrome.php --- lap 5.0.0 --- 2026.10.10 ---
+// ---- includes/stdFunc/pageChrome.php --- ver 5.1.1 --- 2026.11.13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,30 +15,19 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261005 Sawaneh Topbar addendum 2026-10-05 §4: the one breadcrumb mechanism for every page in the shell.
-//                  page_help() registers the page's tour, shortcuts and guide for the Assist menu (§7);
-//                  page_breadcrumb() prints a script that posts saldi:breadcrumb to the shell (index/main.php),
-//                  answers the shell's request after each load, and handles saldi:navigate - through
-//                  window.saldiNavigate(href) when the page defines its own close logic, otherwise respecting
-//                  docChange. A "came from" chip (§3.1) is added from the navigation stack when the previous page
-//                  is not one of the page's own levels.
-// 20261006 Sawaneh Breadcrumb on every page (Adam 2026-10-06): online.php prints page_auto_breadcrumb() for each page from
-//                  the central map in pageRoutes.php (folder module + page title when a page is not in it); a page's own
-//                  page_breadcrumb() replaces it. The shell is always answered with the latest message, and a click
-//                  leaves through the page's old luk.php link when it has one, so record locks are still released.
-//                  Step 2: in a module listed under 'migrated' in the map, the shell hides the page's old Luk/Tilbage
-//                  (a link or plain button with accesskey L; never a submit button, and not a link marked
-//                  data-keep-in-shell) - outside the shell the page is unchanged.
-// 20261008 Sawaneh page_title(): the page's heading ("Kundeordre 1234", "Kassekladde 2877") becomes the last breadcrumb
-//                  level and the label the next page's came-from chip shows (addendum §5).
-// 20261008 Sawaneh The breadcrumb handlers moved to javascript/pageChrome.js; the head carries only window.saldiPageChrome
-//                  (and the shell-nav style), so a page that redirects after online.php stays under the output buffer.
-// 20261008 Sawaneh The came-from chip keeps the whole path of a page in a subfolder (lager/lister/vareliste.php gave a 404).
-// 20261009 Sawaneh page_record(): the record as the last breadcrumb level on cards (decision 22 of 2026-10-09).
-// 20261010 Sawaneh systemdata/labels.php prints the settings breadcrumb itself, like settingsSection.php.
-
+// 20261005 SS Topbar addendum 2026-10-05 §4: the one breadcrumb mechanism for every page in the shell. page_help() registers the page's tour, shortcuts and guide for the Assist menu (§7); page_breadcrumb() prints a script that posts saldi:breadcrumb to the shell (index/main.php), answers the shell's request after each load, and handles saldi:navigate - through window.saldiNavigate(href) when the page defines its own close logic, otherwise respecting docChange.
+//             A "came from" chip (§3.1) is added from the navigation stack when the previous page is not one of the page's own levels.
+// 20261006 SS Breadcrumb on every page (Adam 2026-10-06): online.php prints page_auto_breadcrumb() for each page from the central map in pageRoutes.php (folder module + page title when a page is not in it); a page's own page_breadcrumb() replaces it.
+//             The shell is always answered with the latest message, and a click leaves through the page's old luk.php link when it has one, so record locks are still released.
+// 20261008 SS page_title(): the page's heading ("Kundeordre 1234", "Kassekladde 2877") becomes the last breadcrumb level and the label the next page's came-from chip shows (addendum §5).
+// 20261008 SS The breadcrumb handlers moved to javascript/pageChrome.js; the head carries only window.saldiPageChrome (and the shell-nav style), so a page that redirects after online.php stays under the output buffer.
+// 20261008 SS The came-from chip keeps the whole path of a page in a subfolder (lager/lister/vareliste.php gave a 404).
+// 20261009 SS page_record(): the record as the last breadcrumb level on cards (decision 22 of 2026-10-09).
+// 20261010 SS systemdata/labels.php prints the settings breadcrumb itself, like settingsSection.php.
+// 20261031 CL/ASR The breadcrumb only feeds the topbar: no page's Luk/Tilbage is hidden in the shell. javascript/pageChrome.js (v=20261031) has no Alt+L handler.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 if (!function_exists('page_breadcrumb')):
 
 /**
@@ -89,19 +78,11 @@ function page_breadcrumb(array $levels, ?string $tag = null, $back = null, strin
 		$msg['help'] = $GLOBALS['page_help_items'];
 	}
 	$json = json_encode($msg, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
-	// Migrated module (step 2): the breadcrumb replaces the old Luk/Tilbage in the shell; it stays in the page for its luk.php link.
-	$hide = !empty($GLOBALS['page_chrome_hide_close']) ? "if (window.parent && window.parent !== window && !document.getElementById('saldi-shell-nav')) {\n"
-		. "\t\tdocument.documentElement.classList.add('saldi-shell-nav');\n"
-		. "\t\tvar st = document.createElement('style'); st.id = 'saldi-shell-nav';\n"
-		. "\t\tst.textContent = 'html.saldi-shell-nav a[accesskey=\"l\" i]:not([data-keep-in-shell]), html.saldi-shell-nav td:has(> a[accesskey=\"l\" i]:not([data-keep-in-shell])), html.saldi-shell-nav input[type=\"button\" i][accesskey=\"l\" i] { display: none !important; }';\n"
-		. "\t\t(document.head || document.documentElement).appendChild(st);\n"
-		. "\t}\n" : '';
 	// The handlers live in javascript/pageChrome.js so the head only carries the message (a page that redirects
 	// after online.php must stay under PHP's output buffer).
 	$depth = substr_count(page_route_key(), '/');
-	$src = str_repeat('../', $depth) . 'javascript/pageChrome.js?v=20261016';
-	return ($hide !== '' ? '<script>' . "\n" . $hide . '</script>' . "\n" : '')
-		. '<script>window.saldiPageChrome = ' . $json . ';</script>' . "\n"
+	$src = str_repeat('../', $depth) . 'javascript/pageChrome.js?v=20261031';
+	return '<script>window.saldiPageChrome = ' . $json . ';</script>' . "\n"
 		. '<script src="' . htmlspecialchars($src, ENT_QUOTES) . '"></script>';
 }
 
@@ -354,9 +335,9 @@ function page_route_visited(string $parent): string
 }
 
 /**
- * The breadcrumb every page gets from online.php (Adam 2026-10-06: breadcrumbs on every page, replacing the old back
- * buttons): module, the page's parents and the page from the central map; a page not in the map shows its folder's
- * module and its title. Pages that call page_breadcrumb() themselves replace it.
+ * The breadcrumb every page gets from online.php (Adam 2026-10-06: breadcrumbs on every page; the topbar shows it, the
+ * page keeps its own Luk/Tilbage): module, the page's parents and the page from the central map; a page not in the map
+ * shows its folder's module and its title. Pages that call page_breadcrumb() themselves replace it.
  */
 function page_auto_breadcrumb(string $title, int $sprogId, string $charset): string
 {
@@ -418,9 +399,6 @@ function page_auto_breadcrumb(string $title, int $sprogId, string $charset): str
 		$isLanding = $landing !== '' && ltrim((string) parse_url($landing, PHP_URL_PATH), '/') === $first;
 		array_unshift($levels, array('label' => $tx((string) $m['l'])) + (($landing !== '' && !$isLanding) ? array('href' => $landing) : array()));
 	}
-	$migrated = isset($routes['migrated']) ? $routes['migrated'] : array();
-	$GLOBALS['page_chrome_hide_close'] = $module !== '' && in_array($module, isset($migrated['modules']) ? (array) $migrated['modules'] : array(), true)
-		&& !in_array(strtok($here ? $here[0] : $key, '?'), isset($migrated['keep']) ? (array) $migrated['keep'] : array(), true);
 	return page_breadcrumb($levels, null, null, $charset);
 }
 

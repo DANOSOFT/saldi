@@ -1,6 +1,6 @@
 <?php
 
-// --------debitor/grpvisning.php-----lap 2.0.8-------2009.06.04-----------
+// --- debitor/grpvisning.php --- ver 5.1.0 --- 2026.11.10 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -15,10 +15,16 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2009 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 
 	
+// 20261110 CDX/ASR Route legacy CRM history before the debtor module gate.
+if (($_GET['side'] ?? '') === 'historik') {
+	$crmLegacyTab = 'act';
+	require __DIR__ . '/../includes/crmLegacyRoute.php';
+}
+
 @session_start();
 $s_id=session_id();
 

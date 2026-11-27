@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/productLookup.php --- patch 4.1.1 --- 2025-12-11 ---
+// --- kreditor/productLookup.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //  
 // This program is free software. You can redistribute it and / or
@@ -21,11 +21,10 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // 20251210 LOE Moved from ordre.php and improved to use grid.php structure
-// 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
-// 20261008 Sawaneh Settings 4e: the old top-menu ($menu=='T') branches removed; the else legs stay (spec §7.6 R3).
-
+// 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id = session_id();
 
@@ -66,6 +65,10 @@ if (isset($_GET['vare_id'])) {
 }
 
 // Include header based on menu type
+if ($menu == 'T') {
+    include_once '../includes/top_header.php';
+    include_once '../includes/top_menu.php';
+}
 
 
 
@@ -305,21 +308,6 @@ $columns[] = array(
         return "<td align='right'><a href='$url'>Ret</a></td>";
     }
 );
-
-if ($kontonr) {
-    $columns[] = array(
-        "field" => "toggle_view",
-        "headerName" => $vis 
-            ? "<a href='productLookup.php?sort=$sort&id=$id&fokus=$fokus&lager=$lager&konto_id=$konto_id&kontonr=$kontonr'><span title='" . findtekst(1517, $sprog_id) . "'>" . findtekst(565, $sprog_id) . "</span></a>"
-            : "<a href='productLookup.php?sort=$sort&id=$id&fokus=$fokus&vis=1&lager=$lager&konto_id=$konto_id&kontonr=$kontonr'><span title='" . findtekst(1518, $sprog_id) . "'>" . findtekst(1519, $sprog_id) . "</span></a>",
-        "width" => "0.5",
-        "sortable" => false,
-        "searchable" => false,
-        "render" => function ($value, $row, $column) {
-            return "<td></td>";
-        }
-    );
-}
 
 // Build WHERE conditions
 $where_conditions = array();

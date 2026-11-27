@@ -1,5 +1,5 @@
 <?php	
-// ------------- debitor/massefakt.php ----- (modul nr 6)------ lap 2.0.9----2009-09-14-------
+// ------------- debitor/massefakt.php ----- (modul nr 6)------ ver 5.1.1----2026-11-19-------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -14,8 +14,25 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.fundanemt.com/gpl_da.html
 //
-// Copyright (c) 2004-2009 DANOSOFT ApS
+// Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261022 CL/MJ SST-876 Names the items the webshops would not take, at both exits: this page invoices ten orders and then hands over to itself for the next ten, and anything printed after that refresh is never written.
+// ----------------------------------------------------------------------
+// 20261028 CDX/MJ SST-876 Maintain file history metadata for the webshop synchronization review.
+// 20261029 CDX/MJ SST-876 Match the header version to the mass-invoicing warning behavior.
+// 20261105 CL/LH Bulk invoicing of more than ten orders goes on to the next batch instead of dying in explode(): the redirect joins the undeliverable orders with implode() and carries valg, and the next batch reads them back as order ids from index 1.
+//                The ordre_id and ordre_antal URL values are cast to int.
+// 20261117 CL/ASR delfakturer(): the remainder line of a partly delivered order keeps the line's rabatart, procent and omvbet.
+//                 A discount in kr per unit became a percentage on the remainder invoice, and a reverse-charge line was charged VAT.
+// 20261119 CL/ASR delfakturer() passes db_modify() its second argument when it writes the two orders' totals.
+//                 PHP 8 stopped bulk invoicing with Delfakturer at the first order to split (ArgumentCountError), and the split was rolled back.
+//                 The totals count a discount in kr, procent and reverse charge as momsupdat() does, and the remainder's discount is on its own quantity.
+//                 A line's quantity is read as a decimal, so 2,5 units are no longer cut to 2 on the kept order.
+//                 Each line's VAT is at its own rate as momsupdat() takes it, and both totals are rounded to whole øre as the order page writes them.
+//                 With negative stock the order keeps none of the line and the remainder gets what was ordered, so no invoice line gets a negative quantity from the split.
+//                 A negative line is never split.
+//                 The remainder order keeps the order's reverse charge (omvbet), department (afd), PBS, e-mail, phone, extra fields and performed_by, as Del ordre copies them.
+//                 Without omvbet a credit note of the remainder credited VAT the invoice never charged, and a remainder saved or invoiced on the order page was charged VAT.
 
 @session_start();
 $s_id=session_id();
@@ -70,16 +87,17 @@ if ($tmp<$aarstart || $tmp>$aarslut) {
 	exit;
 }
 
-$ordre_id=(if_isset($_GET['ordre_id']));
-$ordre_antal=(if_isset($_GET['ordre_antal']));
-$rest=(if_isset($_GET['rest']));
-$rest_id=array(if_isset($_GET['rest_id']));
+$ordre_id=(int)($_GET['ordre_id'] ?? 0);
+$ordre_antal=(int)($_GET['ordre_antal'] ?? 0);
+# Orders that cannot be delivered, from index 1; each batch passes them on to the next as a comma-separated list.
+$rest_id=array();
+foreach (explode(",",(string)($_GET['rest_id'] ?? '')) as $tmp) {
+	if ((int)$tmp) $rest_id[count($rest_id)+1]=(int)$tmp;
+}
+$rest=count($rest_id);
 $skriv=(if_isset($_GET['skriv']));
 
 if (!$ordre_id) $ordre_id=1;
-if (!$ordre_antal) $ordre_antal=0;
-if (!$rest) $rest=0;
-if (!$rest_id) $rest_id=array();
 
 $x=0;
 while ($ordre_id) {
@@ -106,11 +124,17 @@ while ($ordre_id) {
 		if ($valg=='tilbud') $qtxt="select count(*) as antal from ordrer where status='0' and art='DO'";
 		else $qtxt= "select count(*) as antal from ordrer where (status='1' or status='2') and art='DO'";
 		if ($r=db_fetch_array($q=db_select($qtxt,__FILE__ . " linje " . __LINE__))) echo "Vent - $r[antal] ordrer tilbage<br>"; 
-		$tmp=explode($rest_id);
-		print "<meta http-equiv=\"refresh\" content=\"0;URL=massefakt.php?ordre_id=$ordre_id&ordre_antal=$ordre_antal&rest=$rest&rest_id=$tmp&skriv=$skriv\">";
+		$tmp=implode(",",$rest_id);
+		# SST-876: this request invoiced up to ten orders and each one committed as it went, so
+		# the webshops have been told by now. Reported before the refresh, because the refresh
+		# hands the page over to the next ten orders and anything printed after it is lost.
+		shopSyncAlertFailedItems();
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=massefakt.php?valg=".urlencode($valg)."&ordre_id=$ordre_id&ordre_antal=$ordre_antal&rest=$rest&rest_id=$tmp&skriv=$skriv\">";
 		exit;
 	}
 }
+# SST-876: the end of the run, for the orders invoiced since the last refresh.
+shopSyncAlertFailedItems();
 include("../includes/genberegn.php");
 genberegn($regnaar);
 
@@ -225,9 +249,11 @@ function delfakturer($ordre_id,$valg) {
 					$lagervare[$x]=$r2['lagervare'];
 					$beholdning[$x]=$r2['beholdning'];
 					if ($lagervare[$x] && $beholdning[$x]>0) $fakturer=1; #saa kan der faktureres.
-					if ($lagervare[$x] && $beholdning[$x]<$antal[$x]) { #saa skal der delfaktureres
+					if ($lagervare[$x] && $antal[$x]>0 && $beholdning[$x]<$antal[$x]) { #saa skal der delfaktureres
 						$delfakturer=1;
-						$ny_antal[$x]=$antal[$x]-$beholdning[$x];
+						# 20261119 the order keeps the stock on hand but never less than none: with negative stock the whole line goes to the remainder (it kept a negative quantity).
+						# A negative line adds to the stock and is not split.
+						$ny_antal[$x]=$antal[$x]-max((float)$beholdning[$x],0);
 					}elseif ($lagervare[$x]) $ny_antal[$x]=0; 
 					else $ny_antal[$x]=0;
 				}
@@ -270,9 +296,21 @@ if (!$drop && $fakturer && $delfakturer) {
 	$valuta=db_escape_string($r['valuta']);
 	$projekt=db_escape_string($r['projekt']);
 	$sprog=db_escape_string($r['sprog']);
+	# 20261119 the header fields Del ordre (debitor/ordre.php) also copies to its remainder: reverse charge, department, PBS, e-mail, phone, the extra fields and performed_by.
+	# Without omvbet the order page drew no O/B box for the remainder, so its save and its credit note cleared the lines' reverse charge and charged VAT.
+	# One array of quoted values: the line loop below uses $omvbet[$x] and $momsfri[$x], so a header field must not take such a name.
+	$hovedkopi=array();
+	foreach (array('omvbet','pbs','email','mail_fakt','phone','felt_1','felt_2','felt_3','felt_4','felt_5','performed_by') as $kolonne) {
+		$hovedkopi[$kolonne]="'".db_escape_string((string)($r[$kolonne] ?? ''))."'";
+	}
+	$hovedkopi['afd']=is_numeric($r['afd'])?(int)$r['afd']:'NULL'; # an integer column: no department stays NULL, so levering() still looks it up from the order's ref
 
 	$tidspkt=date("U");
-	db_modify("insert into ordrer (ordrenr, konto_id, kontonr, firmanavn, addr1, addr2, postnr, bynavn, land, kontakt, kundeordnr, betalingsdage, betalingsbet, cvrnr, ean, institution, notes, art, ordredate, momssats, tidspkt, ref, status, lev_navn, lev_addr1, lev_addr2, lev_postnr, lev_bynavn, lev_kontakt, valuta, projekt, sprog) values ('$ordrenr','$konto_id','$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$kontakt','$kundeordnr','$betalingsdage','$betalingsbet','$cvrnr','$ean','$institution','$notes','$art','$ordredate','$momssats','$tidspkt','$ref','$status','$lev_navn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_kontakt','$valuta','$projekt','$sprog')",__FILE__ . " linje " . __LINE__);
+	$qtxt="insert into ordrer (ordrenr, konto_id, kontonr, firmanavn, addr1, addr2, postnr, bynavn, land, kontakt, kundeordnr, betalingsdage, betalingsbet, cvrnr, ean, institution, notes, art, ordredate, momssats, tidspkt, ref, status, lev_navn, lev_addr1, lev_addr2, lev_postnr, lev_bynavn, lev_kontakt, valuta, projekt, sprog, ";
+	$qtxt.=implode(", ",array_keys($hovedkopi)).") ";
+	$qtxt.="values ('$ordrenr','$konto_id','$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$kontakt','$kundeordnr','$betalingsdage','$betalingsbet','$cvrnr','$ean','$institution','$notes','$art','$ordredate','$momssats','$tidspkt','$ref','$status','$lev_navn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_kontakt','$valuta','$projekt','$sprog',";
+	$qtxt.=implode(",",$hovedkopi).")";
+	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$q = db_select("select max(id) as id from ordrer where ordrenr=$ordrenr and art='$art' and tidspkt='$tidspkt'",__FILE__ . " linje " . __LINE__);
 	$r = db_fetch_array($q); 
 	$ny_id=$r['id'];
@@ -289,31 +327,46 @@ if (!$drop && $fakturer && $delfakturer) {
 		$vare_id[$x]=(int)$r['vare_id'];
 		$beskrivelse[$x]=db_escape_string($r['beskrivelse']);
 		$enhed[$x]=$r['enhed'];
-		$antal[$x]=(int)$r['antal'];
+		$antal[$x]=(float)$r['antal']; # 20261119 a quantity of 2,5 (hours, kg) stays 2,5 (it was cut to 2)
 		$pris[$x]=(float)$r['pris'];
 		$rabat[$x]=(float)$r['rabat'];
 		$serienr[$x]=$r['serienr'];
 		$momsfri[$x]=$r['momsfri'];
 		$samlevare[$x]=$r['samlevare'];
 		$kostpris[$x]=(float)$r['kostpris'];
+		$rabatart[$x]=db_escape_string($r['rabatart']);
+		$procent[$x]=is_numeric($r['procent'])?(float)$r['procent']:100; # NULL is invoiced at 100 %
+		$omvbet[$x]=db_escape_string($r['omvbet']);
+		# 20261119 the line's VAT rate as momsupdat() takes it: a lower rate of its own, else the order's rate
+		$linjemomssats=(float)$r['momssats'];
+		if (($linjemomssats<=0 || $linjemomssats>=(float)$momssats) && $vare_id[$x]) $linjemomssats=(float)$momssats;
 			$antal[$x]=$antal[$x]-$ny_antal[$x];
-			$linjesum=round(($antal[$x]*$pris[$x]-$antal[$x]*$pris[$x]*$rabat[$x]/100)+0.0001,3);
+			# 20261119 the unit price after the discount (kr or %) and procent, and VAT except on a reverse-charge line, as momsupdat() counts them
+			if ($rabatart[$x]=='amount') $nettopris=$pris[$x]-$rabat[$x];
+			else $nettopris=$pris[$x]-$pris[$x]*$rabat[$x]/100;
+			$nettopris*=$procent[$x]/100;
+			$linjesum=afrund($antal[$x]*$nettopris,3);
 			$sum=$sum+$linjesum;
-			if (!$momsfri[$x]) $moms=$moms+round($linjesum/100*$momssats+0.0001,3);
+			if (!$momsfri[$x] && !$omvbet[$x]) $moms=$moms+afrund($linjesum*$linjemomssats/100,3);
 		if ($vare_id[$x]){
 			db_modify("update ordrelinjer set antal=$antal[$x] where id = '$linje_id[$x]'",__FILE__ . " linje " . __LINE__); # id fra 1. s�gning.
 			if ($ny_antal[$x]) {
-				$ny_linjesum=round(($ny_antal[$x]*$pris[$x]-$antal[$x]*$pris[$x]*$rabat[$x]/100)+0.0001,3);
+				$ny_linjesum=afrund($ny_antal[$x]*$nettopris,3);
 				$ny_sum=$ny_sum+$ny_linjesum;
-				if (!$momsfri[$x]) $ny_moms=$ny_moms+round($ny_linjesum/100*$momssats+0.0001,3);
-				db_modify("insert into ordrelinjer (ordre_id, posnr, varenr, vare_id, beskrivelse, enhed, antal, pris, rabat, serienr, momsfri, kostpris) values ('$ny_id','$posnr[$x]','$varenr[$x]','$vare_id[$x]','$beskrivelse[$x]','$enhed[$x]', $ny_antal[$x], '$pris[$x]','$rabat[$x]','$serienr[$x]','$momsfri[$x]','$kostpris[$x]')",__FILE__ . " linje " . __LINE__);
+				if (!$momsfri[$x] && !$omvbet[$x]) $ny_moms=$ny_moms+afrund($ny_linjesum*$linjemomssats/100,3);
+				db_modify("insert into ordrelinjer (ordre_id, posnr, varenr, vare_id, beskrivelse, enhed, antal, pris, rabat, rabatart, procent, serienr, momsfri, omvbet, kostpris) values ('$ny_id','$posnr[$x]','$varenr[$x]','$vare_id[$x]','$beskrivelse[$x]','$enhed[$x]', $ny_antal[$x], '$pris[$x]','$rabat[$x]','$rabatart[$x]','$procent[$x]','$serienr[$x]','$momsfri[$x]','$omvbet[$x]','$kostpris[$x]')",__FILE__ . " linje " . __LINE__);
 			}
 		}	else {
 			db_modify("insert into ordrelinjer (ordre_id, posnr, beskrivelse) values ('$ny_id','$posnr[$x]','$beskrivelse[$x]')",__FILE__ . " linje " . __LINE__);
 		}
 	}
-	db_modify("update ordrer set tidspkt = '',hvem = '', moms='$moms', sum='$sum' where id ='$ordre_id'"); 
-	db_modify("update ordrer set tidspkt = '',hvem = '', moms='$ny_moms', sum='$ny_sum' where id ='$ny_id'"); 
+	# 20261119 the totals in whole øre, as the order page writes them: momsupdat() keeps them on an order with mixed VAT, and they are the open item
+	$sum=afrund($sum,2);
+	$moms=afrund($moms,2);
+	$ny_sum=afrund($ny_sum,2);
+	$ny_moms=afrund($ny_moms,2);
+	db_modify("update ordrer set tidspkt = '',hvem = '', moms='$moms', sum='$sum' where id ='$ordre_id'",__FILE__ . " linje " . __LINE__);
+	db_modify("update ordrer set tidspkt = '',hvem = '', moms='$ny_moms', sum='$ny_sum' where id ='$ny_id'",__FILE__ . " linje " . __LINE__);
 
 # exit;	
 	transaktion("commit");

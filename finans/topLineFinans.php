@@ -1,5 +1,6 @@
 <?php
 // 20260907 CDX/LH Quote and HTML-escape return links; encode nested return query values.
+// 20261113 CL/ASR The Hjælp cell is hidden (the top bar has Hjælp); it stays in the page for the tour.
 /**
  * Injected by ../includes/connect.php via the entry page that includes this file:
  * @var string $charset
@@ -62,7 +63,7 @@
 			</div>
 		</td>
 	<?php
-	print "<td id='tutorial-help' width=5% style='$buttonStyle'>";
+	print "<td id='tutorial-help' hidden width=5% style='$buttonStyle'>";
 	print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
 	print $help_icon;
 	print findtekst('2564|Hjælp', $sprog_id)."</button></td>";

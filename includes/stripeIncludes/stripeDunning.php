@@ -5,9 +5,16 @@
 //                 Saved-card authentication is protected for 14 days, no longer forever.
 // 20261109 CL/ASR Review fix: the card-on-file hold applies only while the charge job will really try the invoice: a saved card, no authentication request on it, card payment possible, and the full amount open with no credit on the account.
 // 20261111 CL/ASR Review round 2: the hold loads stripeSettings.php itself, so the ledger check (stripe_ledger_armed()) also runs in ny_rykker.php and the reports.
-//                 A reminder is no longer held for good by an invoice on it that was paid by card while another is still owed (stripe_dunning_reminder_sql()):
-//                 a customer who pays one invoice from a link reminder still gets the next level for the rest; all paid by card still holds it.
+//                 A reminder is no longer held for good by an invoice on it that was paid by card while another is still owed (stripe_dunning_reminder_sql()): a customer who pays one invoice from a link reminder still gets the next level for the rest; all paid by card still holds it.
 //                 The reminder's open items are found by primary key (seconds per reminder before on a ledger with thousands of open items).
+// 20261126 CL/ASR Stripe port (#1098): stripe_dunning_reminder_sql() is 1=1 without stripe_payments, as stripe_dunning_openpost_sql() is.
+//                 Its paid-by-card check named the missing table, so "Ryk alle" and "Ny rykker" stopped with a database error in a ledger without it (MySQL, a test tenant).
+// 20261116 CDX/ASR Release amounts below the DKK card minimum because the charge job cannot collect them.
+// 20261126 ASR Payment review (GPT-P-6): the hold's full-amount check is the charge job's: the invoice's open amount is settled by a payment of its total (half an øre, as finans/bogfor.php openpost()).
+//              An open item one øre off the total was held from reminders, while the job does not collect it.
+// 20261126 ASR Payment review (GPT-P-3): the hold also asks for the charge job's one unsettled open item (stripe_invoice_open_item()), so an invoice split in several is not held.
+// 20261126 ASR Payment review (GPT-G-2): the hold asks whether posting the card payment settles that open item (stripe_open_item_settles_sql(), shared with the charge job).
+//              That is within half an øre only with the order's project (finans/bogfor.php openpost()), else at the exact amount (equalizeMatchingRecords()).
 
 /**
  * Predicate for an openpost row which can enter dunning. This lightweight include does
@@ -54,7 +61,8 @@ function stripe_dunning_openpost_sql($alias = 'openpost') {
  * only for an invoice the charge job (stripe_charge_run()) will really try: the customer has a saved card, no attempt
  * on the invoice asked for authentication (stripe_auto_charge_allowed() stops then; the open authentication itself is
  * protected for 14 days above), card payment is possible (stripe_invoice_uncollectable_reason()) and the full amount
- * is open with no credit on the account (stripe_invoice_payable(): fully_open). Any other invoice can be reminded.
+ * is open with no credit on the account (stripe_invoice_payable(): fully_open), in one open item that posting the card payment
+ * settles (stripe_open_item_settles_sql()). Any other invoice can be reminded.
  *
  * @param string $alias Trusted SQL alias for openpost.
  * @param array<int, string> $columns The stripe_payments columns found (attempt_date, action_required_at).
@@ -89,17 +97,45 @@ function stripe_dunning_card_hold_sql($alias, $columns) {
 		and s_ho.udskriv_til = 'Stripe' and s_ha.stripe = 'on' and s_ha.stripe_date is not null and s_ho.fakturadate >= s_ha.stripe_date
 		and coalesce(s_ha.stripe_pm_id, '') <> ''$neverAsked
 		and upper(coalesce(nullif(trim(s_ho.valuta), ''), 'DKK')) = 'DKK'
+		and round((coalesce(s_ho.sum, 0) + coalesce(s_ho.moms, 0)) * 100) >= 250
 		and lower(trim(coalesce(s_ho.betalingsbet, ''))) not in ('kontant', 'kreditkort')
 		and upper(trim(coalesce(s_ho.pbs, ''))) <> 'BS' and trim(coalesce(s_ha.pbs_nr, '')) in ('', '0')
 		and lower(trim(coalesce(s_ha.stripe_fravalg, ''))) not in ('on', 't', '1', 'true')$subscriber
 		and not exists (select 1 from openpost s_hk where s_hk.konto_id = s_ho.konto_id and coalesce(s_hk.udlignet, '0') <> '1' and s_hk.amount < 0)
 		and not exists (select 1 from ordrer s_hn where s_hn.art = 'DK' and s_hn.kred_ord_id = s_ho.id)
-		and abs((select coalesce(sum(s_hr.amount), 0) from openpost s_hr where s_hr.konto_id = s_ho.konto_id and s_hr.faktnr = s_ho.fakturanr
-			and coalesce(s_hr.udlignet, '0') <> '1') - (coalesce(s_ho.sum, 0) + coalesce(s_ho.moms, 0))) <= 0.01
+		and exists (select 1 from openpost s_hs where s_hs.konto_id = s_ho.konto_id and s_hs.faktnr = s_ho.fakturanr
+			and coalesce(s_hs.udlignet, '0') <> '1' and " . stripe_open_item_settles_sql('s_hs',
+				'round((coalesce(s_ho.sum, 0) + coalesce(s_ho.moms, 0)) * 100) / 100', "trim(coalesce(s_ho.projekt, ''))") . ")
+		and (select count(*) from openpost s_hr where s_hr.konto_id = s_ho.konto_id and s_hr.faktnr = s_ho.fakturanr
+			and coalesce(s_hr.udlignet, '0') <> '1') = 1
 		and (select count(*) from stripe_payments s_hp where s_hp.ordre_id = s_ho.id and s_hp.source = 'auto'$noAction
 			and (s_hp.status = 'failed' or (s_hp.status = 'canceled' and coalesce(s_hp.last_error, '') <> ''
 				and s_hp.last_error not in ('authentication_required', 'technical_error', 'api_error', 'network', 'rate_limit')))
 			and $day <= '$released') < 3)";
+}
+
+/**
+ * Whether posting the Stripe journal line of a card payment settles the open item $alias, as an SQL condition. The line credits
+ * the customer with the invoice number, the invoice total and the order's project, and finans/bogfor.php settles one open
+ * item in one of two ways:
+ * - openpost() takes an open item (udlignet not '1') with the payment's project ('', '0' and NULL all mean none) whose amount
+ *   is at least the payment less half an øre and below the payment plus half an øre;
+ * - right after the posting, equalizeMatchingRecords() (includes/genberegn.php) takes one (udlignet '0') with exactly the
+ *   payment's amount, whatever its project.
+ * An amount within half an øre but not exact, on an open item with another project, is settled by neither: the payment and
+ * the open item would both stay open, so the invoice is not collected by card. The caller restricts $alias to the invoice's
+ * one unsettled open item of the customer and invoice number. Shared by the charge job (stripe_invoice_open_item()) and the
+ * card-on-file hold, so both ask the same.
+ *
+ * @param string $alias Trusted SQL alias for openpost.
+ * @param string $amountSql Trusted SQL expression for the payment in kroner (the invoice total).
+ * @param string $projectSql Trusted SQL expression for the payment's project, trimmed as openpost() trims it.
+ * @return string SQL condition.
+ */
+function stripe_open_item_settles_sql($alias, $amountSql, $projectSql) {
+	return "(($alias.udlignet <> '1' and $alias.amount - ($amountSql) >= -0.005 and $alias.amount - ($amountSql) < 0.005
+		and (case when $projectSql in ('', '0') then coalesce($alias.projekt, '') in ('', '0') else $alias.projekt = $projectSql end))
+		or ($alias.udlignet = '0' and $alias.amount = $amountSql))";
 }
 
 /**
@@ -114,6 +150,9 @@ function stripe_dunning_card_hold_sql($alias, $columns) {
 function stripe_dunning_reminder_sql($alias = 'ordrer') {
 	if (!preg_match('/^[a-z_][a-z0-9_]*$/i', $alias)) throw new InvalidArgumentException('Invalid reminder alias');
 	$eligible = stripe_dunning_openpost_sql('s_op');
+	// 20261126 CL/ASR without stripe_payments nothing holds a reminder (the predicate below is then always true), and the paid
+	// check would name the missing table
+	if ($eligible === '1=1') return '1=1';
 	// 20261111 CL/ASR the open item by its primary key from the line's text (only digits are cast), not the id cast to text: that
 	// made the database test every open item of the ledger against the card-on-file hold (seconds per reminder on a real ledger)
 	$opId = in_array($GLOBALS['db_type'], array('mysql', 'mysqli'), true)

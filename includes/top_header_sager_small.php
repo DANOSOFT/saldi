@@ -15,13 +15,17 @@
 		<script type="text/javascript" src="../javascript/confirmclose.js"></script>
 		<script type="text/javascript" src="../javascript/jquery-1.8.0.min.js"></script>
 		<script type="text/javascript" src="../javascript/jquery-ui-1.9.2.custom.min.js"></script>
-		<script type="text/javascript" src="../javascript/ui.datepicker-da.js"></script>
+		<?php
+		include_once(__DIR__ . '/../sager/sagerIncludes/sagerTxt.php');
+		print sager_datepicker_locale();
+		?>
 		<script type="text/javascript" src='../javascript/jquery.autosize.js'></script>
 		<script type="text/javascript" src="../javascript/jquery.tablednd.js"></script>
 		<script type="text/javascript" src="../javascript/jquery.autocomplete.js"></script>
 		<script type="text/javascript" src="../javascript/jquery.printElement.js"></script>
 		<!--<script type="text/javascript" src="../javascript/jquery.print-preview.js"></script>-->
-		<script type="text/javascript" src="../javascript/jquery.sager.js"></script>
+		<?php print sager_js_sagertekst(); ?>
+		<script type="text/javascript" src="../javascript/jquery.sager.js?v=20261103"></script>
 		<!--[if lt IE 9]>
 		<script src="http://ie7-js.googlecode.com/svn/version/2.1(beta4)/IE9.js"></script>
 		<![endif]-->

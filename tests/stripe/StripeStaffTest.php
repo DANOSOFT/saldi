@@ -1,7 +1,9 @@
 <?php
 // 20261022 CDX/LH Preserve Stripe order selection, validate Afmeld tokens and identify the current saved card.
+// 20261126 CL/ASR Review round 1 (I10): Stripe is offered only where saved cards are charged; a stored Stripe that cannot be charged says it goes out as e-mail; the card row only where invoice payments are used.
+// 20261126 ASR Review CARD2-2: a credit note is not offered Stripe, also for a customer whose invoices are charged; a stored Stripe on one says it is printed as PDF; ordre.php passes the order's art.
 
-require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/support/bootstrap.php';
 require_once __DIR__ . '/../../debitor/orderIncludes/orderDelivery.php';
 require_once __DIR__ . '/../../includes/stripeIncludes/stripeStaff.php';
 
@@ -22,7 +24,7 @@ final class StripeStaffTest extends StripeDatabaseTestCase
         // Both layouts execute this production branch before checking the printer cookie.
         $source = file_get_contents(__DIR__ . '/../../debitor/ordre.php');
         // 20261025: a stored Link sits between Stripe and the local printer preference (it wins over it too).
-        $this->assertSame(2, preg_match_all('/if \(\$udskriv_til === \x27Stripe\x27\) \{\s*print orderStripeDeliveryOption\(\$udskriv_til, \$konto_id\);\s*\} elseif \(\$udskriv_til === \x27Link\x27\) \{[^}]*\} elseif \(\$showLocalPrint && \$localPrint == \x27on\x27\)/', $source));
+        $this->assertSame(2, preg_match_all('/if \(\$udskriv_til === \x27Stripe\x27\) \{\s*print orderStripeDeliveryOption\(\$udskriv_til, \$konto_id, \(string\)\$art\);\s*\} elseif \(\$udskriv_til === \x27Link\x27\) \{[^}]*\} elseif \(\$showLocalPrint && \$localPrint == \x27on\x27\)/', $source));
         // A stored Stripe order remains visible even if its debtor is no longer enrolled.
         $this->assertStringContainsString("value='Stripe' selected", orderStripeDeliveryOption('Stripe', 0));
         $this->assertSame('email', orderDeliveryValue('PDF', true, false, false));
@@ -122,8 +124,33 @@ final class StripeStaffTest extends StripeDatabaseTestCase
         $this->assertSame('Link', $copy($enrolled));
         StripeTestEnvironment::setting('stripe', 'enrolment', 'on');
         $genfakt = file_get_contents(__DIR__ . '/../../debitor/genfakturer.php');
-        $this->assertStringContainsString('$udskriv_til = stripe_enrolled_copy_delivery($r);', $genfakt);
-        $this->assertLessThan(strpos($genfakt, "\$qtxt.= \"lev_postnr,lev_bynavn,levdate,fakturadate,nextfakt"), strpos($genfakt, 'stripe_enrolled_copy_delivery($r)'));
+        $this->assertStringContainsString('$udskriv_til = stripe_enrolled_copy_delivery($r, $fakturadate);', $genfakt);
+        $call = strpos($genfakt, 'stripe_enrolled_copy_delivery($r, $fakturadate)');
+        $this->assertLessThan(strpos($genfakt, "\$qtxt.= \"lev_postnr,lev_bynavn,levdate,fakturadate,nextfakt"), $call);
+        // The copy's date is known before it is asked for, and a Stripe template is asked too.
+        $this->assertLessThan($call, strpos($genfakt, 'if (!$fakturadate) $fakturadate=date("Y-m-d");'));
+        $this->assertStringContainsString("\$udskriv_til == 'Stripe') && is_file(", $genfakt);
+    }
+
+    public function testGenfaktKeepsLinkOrEmailForACopyDatedBeforeTheEnrolment(): void
+    {
+        // Enrolled on 26 November; a series copy preset to 25 November is never charged, so it must not become Stripe.
+        require_once __DIR__ . '/../../includes/stripeIncludes/stripeEnrol.php';
+        $enrolled = StripeFixtures::debtor(['stripe' => 'on', 'stripe_pm_id' => 'pm_saved', 'stripe_customer_id' => 'cus_saved', 'stripe_date' => '2026-11-26']);
+        $copy = fn(string $delivery, string $date) => stripe_enrolled_copy_delivery(
+            StripeFixtures::row('ordrer', StripeFixtures::invoice($enrolled, ['udskriv_til' => $delivery, 'nextfakt' => '2026-11-25'])), $date);
+        $this->assertSame('Link', $copy('Link', '2026-11-25'));
+        $this->assertSame('email', $copy('email', '2026-11-25'));
+        // Enrolment set the template to Stripe: the earlier copy goes as E-mail med link (classic e-mail without the payment page).
+        $this->assertSame('Link', $copy('Stripe', '2026-11-25'));
+        StripeTestEnvironment::setting('stripe', 'invoice_payments', 'off');
+        $this->assertSame('email', $copy('Stripe', '2026-11-25'));
+        StripeTestEnvironment::setting('stripe', 'invoice_payments', 'on');
+        // On or after the enrolment date the copy is charged.
+        foreach (['Link', 'email', 'Stripe'] as $delivery) {
+            $this->assertSame('Stripe', $copy($delivery, '2026-11-26'), $delivery);
+            $this->assertSame('Stripe', $copy($delivery, '2026-12-25'), $delivery);
+        }
     }
 
     public function testExistingEmailCustomersAndRecurringOrdersSwitchToLinkOnce(): void
@@ -226,13 +253,16 @@ final class StripeStaffTest extends StripeDatabaseTestCase
     {
         $source = file_get_contents(__DIR__ . '/../../debitor/debitorkort.php');
         $this->assertStringContainsString('$stripe_saved_card = stripe_staff_saved_card($r);', $source);
-        $start = strpos($source, "if (isset(\$r['stripe']) || isset(\$stripe_status))");
+        $this->assertStringContainsString('$stripe_row_visible = stripe_staff_card_row_visible($r);', $source);
+        $start = strpos($source, "if (!empty(\$stripe_row_visible)) {");
+        $this->assertNotFalse($start);
         $end = strpos($source, '##################### LUKKET', $start);
         $block = substr($source, $start, $end - $start);
         $r = ['stripe' => 'on'];
         $stripe_status = 'on';
         $stripe_date = '2026-10-22';
         $stripe_saved_card = 'Visa •••• 4242 <card>';
+        $stripe_row_visible = true;
         $bg = $bgcolor = '#fff';
         $bgcolor5 = '#eee';
         ob_start();
@@ -247,11 +277,107 @@ final class StripeStaffTest extends StripeDatabaseTestCase
         $this->assertStringContainsString('name=stripe_afmeld', $html);
     }
 
+    public function testStripeIsOfferedOnlyWhereSavedCardsAreChargedAndAStoredOneSaysItGoesAsEmail(): void
+    {
+        $saved = $_SESSION ?? [];
+        foreach (file(__DIR__ . '/../../importfiler/tekster.csv', FILE_IGNORE_NEW_LINES) as $line) {
+            $cells = explode("\t", $line);
+            if (count($cells) >= 4) {
+                $_SESSION['text_' . $cells[0] . '_1'] = $cells[1];
+            }
+        }
+        $db = $GLOBALS['db'];
+        try {
+            $enrolled = StripeFixtures::debtor(['stripe' => 'on', 'stripe_pm_id' => 'pm_saved', 'stripe_date' => '2026-01-01']);
+            $noCard = StripeFixtures::debtor(['stripe' => 'on']);
+            $this->assertStringContainsString("value='Stripe'", orderStripeDeliveryOption('email', $enrolled));
+            // A customer marked as signed up but without a saved card cannot be charged.
+            $this->assertSame('', orderStripeDeliveryOption('email', $noCard));
+            $stored = orderStripeDeliveryOption('Stripe', $noCard);
+            $this->assertStringContainsString("value='Stripe' selected", $stored);
+            $this->assertStringContainsString('Stripe (sendes som e-mail)', $stored);
+            $this->assertStringContainsString('Fakturaen sendes som almindelig e-mail.', $stored);
+            $order = StripeFixtures::invoice($noCard, ['udskriv_til' => 'Stripe']);
+            $this->assertSame('pdf', stripe_invoice_delivery($order));
+            // Automatic card payment, invoice payments or Stripe switched off, or a copied ledger: not offered, and a stored one goes as e-mail.
+            foreach ([['enrolment', 'off'], ['invoice_payments', 'off'], ['enabled', 'off']] as [$name, $value]) {
+                StripeTestEnvironment::setting('stripe', $name, $value);
+                $this->assertSame('', orderStripeDeliveryOption('email', $enrolled), $name);
+                $this->assertStringContainsString('Stripe (sendes som e-mail)', orderStripeDeliveryOption('Stripe', $enrolled), $name);
+                $this->assertSame('pdf', stripe_invoice_delivery(StripeFixtures::invoice($enrolled, ['udskriv_til' => 'Stripe'])), $name);
+                StripeTestEnvironment::setting('stripe', $name, 'on');
+            }
+            $GLOBALS['db'] = 'other_ledger';
+            stripe_settings_flush();
+            $this->assertFalse(stripe_card_charging_on());
+            $this->assertSame('', orderStripeDeliveryOption('email', $enrolled));
+            $this->assertStringContainsString('Stripe (sendes som e-mail)', orderStripeDeliveryOption('Stripe', $enrolled));
+        } finally {
+            $GLOBALS['db'] = $db;
+            stripe_settings_flush();
+            $_SESSION = $saved;
+        }
+        $this->assertTrue(stripe_card_charging_on());
+        $option = orderStripeDeliveryOption('Stripe', $enrolled);
+        $this->assertStringContainsString("value='Stripe' selected", $option);
+        $this->assertStringNotContainsString('sendes som e-mail', $option);
+    }
+
+    public function testTheCustomerCardShowsTheStripeRowOnlyWhereInvoicePaymentsAreUsedOrForASignedUpCustomer(): void
+    {
+        $plain = StripeFixtures::row('adresser', StripeFixtures::debtor());
+        $enrolled = StripeFixtures::row('adresser', StripeFixtures::debtor(['stripe' => 'on', 'stripe_pm_id' => 'pm_saved']));
+        $this->assertTrue(stripe_staff_card_row_visible($plain));
+        $this->assertTrue(stripe_staff_card_row_visible($enrolled));
+        StripeTestEnvironment::setting('stripe', 'invoice_payments', 'off');
+        $this->assertFalse(stripe_staff_card_row_visible($plain));
+        // A signed-up customer keeps the row, so Afmeld can still be used.
+        $this->assertTrue(stripe_staff_card_row_visible($enrolled));
+        StripeTestEnvironment::setting('stripe', 'invoice_payments', 'on');
+        StripeTestEnvironment::setting('stripe', 'enabled', 'off');
+        $this->assertFalse(stripe_staff_card_row_visible($plain));
+        StripeTestEnvironment::setting('stripe', 'enabled', 'on');
+        // A ledger without the Stripe columns (MySQL) never shows it.
+        unset($plain['stripe']);
+        $this->assertFalse(stripe_staff_card_row_visible($plain));
+    }
+
     private function payment(int $order, string $pm, string $customer, string $brand, string $last4): void
     {
         $row = StripeFixtures::row('ordrer', $order);
         StripeFixtures::insert('stripe_payments', ['ordre_id' => $order, 'fakturanr' => $row['fakturanr'],
             'payment_intent_id' => 'pi_staff_' . bin2hex(random_bytes(8)), 'status' => 'failed',
             'amount_ore' => 34000, 'pm_id' => $pm, 'pm_brand' => $brand, 'pm_last4' => $last4, 'stripe_customer_id' => $customer]);
+    }
+
+    /** Review CARD2-2: nothing charges or refunds a card from a credit note, so Udskriv til does not offer Stripe on one. */
+    public function testACreditNoteIsNotOfferedStripeAndAStoredOneSaysItIsPrintedAsPdf(): void
+    {
+        $saved = $_SESSION ?? [];
+        foreach (file(__DIR__ . '/../../importfiler/tekster.csv', FILE_IGNORE_NEW_LINES) as $line) {
+            $cells = explode("\t", $line);
+            if (count($cells) >= 4) {
+                $_SESSION['text_' . $cells[0] . '_1'] = $cells[1];
+            }
+        }
+        try {
+            $enrolled = StripeFixtures::debtor(['stripe' => 'on', 'stripe_pm_id' => 'pm_saved', 'stripe_date' => '2026-01-01']);
+            $this->assertTrue(stripe_card_charging_on());
+            // The customer's invoices are charged: an invoice offers Stripe, a credit note does not.
+            $this->assertStringContainsString("<option value='Stripe' title=", orderStripeDeliveryOption('email', $enrolled, 'DO'));
+            $this->assertStringContainsString("<option value='Stripe' title=", orderStripeDeliveryOption('email', $enrolled));
+            $this->assertSame('', orderStripeDeliveryOption('PDF', $enrolled, 'DK'));
+            $this->assertSame('', orderStripeDeliveryOption('email', 0, 'DK'));
+            // A stored Stripe on a credit note stays selected and says what happens: it is printed as PDF.
+            $stored = orderStripeDeliveryOption('Stripe', $enrolled, 'DK');
+            $this->assertSame("<option value='Stripe' selected title='Kreditnotaer trækkes ikke på kort. Kreditnotaen udskrives som PDF; vælg E-mail for at sende den til kunden.'>Stripe (udskrives som PDF)</option>\n", $stored);
+            $this->assertStringNotContainsString('Trækkes automatisk', $stored);
+        } finally {
+            $_SESSION = $saved;
+        }
+        // Every Udskriv til list on the order page passes the order's art.
+        $source = file_get_contents(__DIR__ . '/../../debitor/ordre.php');
+        $this->assertSame(4, substr_count($source, 'print orderStripeDeliveryOption($udskriv_til, $konto_id, (string)$art);'));
+        $this->assertSame(0, substr_count($source, 'print orderStripeDeliveryOption($udskriv_til, $konto_id);'));
     }
 }

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/userFunctions.php --- lap 5.0.0 --- 2026.09.29 ---
+// ---- includes/userFunctions.php --- ver 5.1.1 --- 2026.11.27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,22 +20,24 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260929 Sawaneh Roles stage 2 (Requirements_roles_stage2_EN.md §8, §8.2, §8.5): the user
-//                  operations of "Brugere & roller" in one place, so the page, onboarding and
-//                  the API share them: create, close instead of delete, reopen, the
-//                  last-administrator rule.
-// 20260929 Sawaneh Invitation flow (§8.4): user_invite, resend, welcome mail, first password.
-// 20260930 Sawaneh Close, reopen and role change report 'already'/'unchanged' instead of success when nothing changes.
-// 20260930 Sawaneh Reset password by mail (§8.2), shared mail sender, last active from live sessions (§8.1).
-// 20260930 Sawaneh Confirming a migrated role (§6.3); any role change counts as the confirmation.
-// 20261001 Sawaneh Review fixes: only users within the actor's own access can be changed (R5); a user the
-//                  audit log did not see being created counts as having logged in; booleans as true/false.
-// 20261006 Sawaneh Onboarding step 5: user_invite_error() checks a new invitation (name, role, e-mail, duplicate name,
-//                  R5) for the welcome guide; user_send_mail() takes an optional attachment (the guide's test invoice).
-
+// 20260929 SS Roles stage 2 (Requirements_roles_stage2_EN.md §8, §8.2, §8.5): the user operations of "Brugere & roller" in one place, so the page, onboarding and the API share them: create, close instead of delete, reopen, the last-administrator rule.
+// 20260929 SS Invitation flow (§8.4): user_invite, resend, welcome mail, first password.
+// 20260930 SS Close, reopen and role change report 'already'/'unchanged' instead of success when nothing changes.
+// 20260930 SS Reset password by mail (§8.2), shared mail sender, last active from live sessions (§8.1).
+// 20260930 SS Confirming a migrated role (§6.3); any role change counts as the confirmation.
+// 20261001 SS Review fixes: only users within the actor's own access can be changed (R5); a user the audit log did not see being created counts as having logged in; booleans as true/false.
+// 20261006 SS Onboarding step 5: user_invite_error() checks a new invitation (name, role, e-mail, duplicate name, R5) for the welcome guide; user_send_mail() takes an optional attachment (the guide's test invoice).
+// 20261103 CL/ASR QA: keeping a migrated role (Behold nuværende) has the same checks as a role change: not one's own role and only users within the actor's own access.
+//                 The last login from the audit log is read on PHP's clock (st_local_time()), like the rest of Indstillinger.
+// 20261105 CL/LH user_send_mail() takes server, login and sender from stamdata_smtp(), as Glemt adgangskode does.
+//                Saldi's own mail server on localhost no longer gets a login left in felt_2/felt_3, and the regnskab's own server gets the stamdata e-mail as sender, not kan_ikke_besvares@saldi.dk.
+// 20261110 CDX/ASR Serialize role assignments and admin removal; audit exact capability changes atomically.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261127 ASR brugere.tmp_kode follows includes/tmpCode.php: an invitation is recognised in both its forms (tmp_code_is_invite()), and the temporary password user_reset_password() mails is made by tmp_code_new_password().
 include_once(__DIR__ . '/permissions.php');
+include_once(__DIR__ . '/tmpCode.php');
 
 /**
  * brugere.status: true/null = active, false = closed.
@@ -128,30 +130,35 @@ function user_may_manage(array $row): bool
  */
 function user_create(array $data, string $kilde = 'ui'): int
 {
-	$navnSql = db_escape_string((string) $data['brugernavn']);
-	$roleId = isset($data['role_id']) ? (int) $data['role_id'] : 0;
-	$ansatId = isset($data['ansat_id']) ? (int) $data['ansat_id'] : 0;
-	$regnaar = !empty($data['regnskabsaar']) ? (int) $data['regnskabsaar'] : 1;
-	$twofactor = !empty($data['twofactor']) ? 't' : 'f';
+	return perm_atomic(function () use ($data, $kilde) {
+		$roles = perm_lock_roles();
+		$target = (int) ($data['role_id'] ?? 0);
+		if (!perm_can('settings.users.manage', 'write') || !isset($roles[$target]) || !perm_within_own(perm_levels_from_role($target))) {
+			throw new RuntimeException('User role cannot be assigned');
+		}
+		$navnSql = db_escape_string((string) $data['brugernavn']);
+		$roleId = isset($data['role_id']) ? (int) $data['role_id'] : 0;
+		$ansatId = isset($data['ansat_id']) ? (int) $data['ansat_id'] : 0;
+		$regnaar = !empty($data['regnskabsaar']) ? (int) $data['regnskabsaar'] : 1;
+		$twofactor = !empty($data['twofactor']) ? 't' : 'f';
 
-	transaktion('begin');
-	$qtxt = "insert into brugere (brugernavn, kode, rettigheder, regnskabsaar, ansat_id, ip_address, tlf, twofactor, email, role_id, status) values (";
-	$qtxt .= "'$navnSql', '', '0000000000000000', '$regnaar', $ansatId, ";
-	$qtxt .= "'" . db_escape_string(mb_substr((string) (isset($data['ip_address']) ? $data['ip_address'] : ''), 0, 45)) . "', ";
-	$qtxt .= "'" . db_escape_string(mb_substr((string) (isset($data['tlf']) ? $data['tlf'] : ''), 0, 16)) . "', ";
-	$qtxt .= "'$twofactor', '" . db_escape_string((string) (isset($data['email']) ? $data['email'] : '')) . "', ";
-	$qtxt .= ($roleId > 0 ? (string) $roleId : 'null') . ", true)";
-	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	$r = db_fetch_array(db_select("select id from brugere where brugernavn = '$navnSql' order by id desc limit 1", __FILE__ . " linje " . __LINE__));
-	$id = (int) $r['id'];
-	if ((string) $data['kode'] !== '') {
-		db_modify("update brugere set kode = '" . db_escape_string(saldikrypt($id, (string) $data['kode'])) . "' where id = $id", __FILE__ . " linje " . __LINE__);
-	}
-	transaktion('commit');
+		$qtxt = "insert into brugere (brugernavn, kode, rettigheder, regnskabsaar, ansat_id, ip_address, tlf, twofactor, email, role_id, status) values (";
+		$qtxt .= "'$navnSql', '', '0000000000000000', '$regnaar', $ansatId, ";
+		$qtxt .= "'" . db_escape_string(mb_substr((string) (isset($data['ip_address']) ? $data['ip_address'] : ''), 0, 45)) . "', ";
+		$qtxt .= "'" . db_escape_string(mb_substr((string) (isset($data['tlf']) ? $data['tlf'] : ''), 0, 16)) . "', ";
+		$qtxt .= "'$twofactor', '" . db_escape_string((string) (isset($data['email']) ? $data['email'] : '')) . "', ";
+		$qtxt .= ($roleId > 0 ? (string) $roleId : 'null') . ", true)";
+		perm_write($qtxt);
+		$r = db_fetch_array(db_select("select id from brugere where brugernavn = '$navnSql' order by id desc limit 1", __FILE__ . " linje " . __LINE__));
+		$id = (int) $r['id'];
+		if ((string) $data['kode'] !== '') {
+			db_modify("update brugere set kode = '" . db_escape_string(saldikrypt($id, (string) $data['kode'])) . "' where id = $id", __FILE__ . " linje " . __LINE__);
+		}
 
-	perm_sync_user($id);
-	audit_log('user.created', (string) $data['brugernavn'] . ' (rolle ' . $roleId . ')', 'bruger', (string) $id, $kilde);
-	return $id;
+		perm_sync_user($id);
+		audit_log('user.created', perm_change_details((string) $data['brugernavn'] . ' (rolle ' . $roleId . ')', array(), perm_levels_from_role($roleId)), 'bruger', (string) $id, $kilde);
+		return $id;
+	});
 }
 
 /**
@@ -161,6 +168,18 @@ function user_create(array $data, string $kilde = 'ui'): int
  * @return string '' on success, else the reason: 'self', 'lastadmin', 'missing', 'already'
  */
 function user_close(int $id, int $selfId, string $kilde = 'ui'): string
+{
+	return perm_atomic(function () use ($id, $selfId, $kilde) {
+		perm_lock_roles();
+		if (!perm_can('settings.users.manage', 'write')) {
+			return 'noaccess';
+		}
+		return user_close_locked($id, $selfId, $kilde);
+	});
+}
+
+/** Internal operation; its caller holds the role transaction locks. */
+function user_close_locked(int $id, int $selfId, string $kilde = 'ui'): string
 {
 	if ($id === $selfId) {
 		return 'self';
@@ -192,6 +211,18 @@ function user_close(int $id, int $selfId, string $kilde = 'ui'): string
  */
 function user_reopen(int $id, string $kilde = 'ui'): string
 {
+	return perm_atomic(function () use ($id, $kilde) {
+		perm_lock_roles();
+		if (!perm_can('settings.users.manage', 'write')) {
+			return 'noaccess';
+		}
+		return user_reopen_locked($id, $kilde);
+	});
+}
+
+/** Internal operation; its caller holds the role transaction locks. */
+function user_reopen_locked(int $id, string $kilde = 'ui'): string
+{
 	$r = db_fetch_array(db_select("select * from brugere where id = $id", __FILE__ . " linje " . __LINE__));
 	if (!$r) {
 		return 'missing';
@@ -216,6 +247,18 @@ function user_reopen(int $id, string $kilde = 'ui'): string
  * @return string '' on success, else 'self', 'lastadmin', 'missing', 'hasloggedin'
  */
 function user_delete(int $id, int $selfId, string $kilde = 'ui'): string
+{
+	return perm_atomic(function () use ($id, $selfId, $kilde) {
+		perm_lock_roles();
+		if (!perm_can('settings.users.manage', 'write')) {
+			return 'noaccess';
+		}
+		return user_delete_locked($id, $selfId, $kilde);
+	});
+}
+
+/** Internal operation; its caller holds the role transaction locks. */
+function user_delete_locked(int $id, int $selfId, string $kilde = 'ui'): string
 {
 	if ($id === $selfId) {
 		return 'self';
@@ -245,30 +288,53 @@ function user_delete(int $id, int $selfId, string $kilde = 'ui'): string
  */
 function user_set_role(int $id, int $roleId, int $selfId, string $kilde = 'ui'): string
 {
-	$r = db_fetch_array(db_select("select * from brugere where id = $id", __FILE__ . " linje " . __LINE__));
-	if (!$r) {
-		return 'missing';
-	}
-	$current = (int) $r['role_id'];
-	if ($current === $roleId) {
+	return perm_atomic(function () use ($id, $roleId, $selfId, $kilde) {
+		$roles = perm_lock_roles();
+		if (!perm_can($kilde === 'role_delete' ? 'settings.roles.manage' : 'settings.users.manage', 'write')) {
+			return 'noaccess';
+		}
+		$r = db_fetch_array(db_select("select * from brugere where id = $id for update", __FILE__ . " linje " . __LINE__));
+		if (!$r) {
+			return 'missing';
+		}
+		$error = user_role_change_error($r, $roleId, $selfId, $roles);
+		if ($error !== '') {
+			return $error;
+		}
+		$current = (int) $r['role_id'];
+		$before = $current > 0 ? perm_levels_from_role($current) : perm_levels_from_legacy((string) $r['rettigheder']);
+		$after = perm_levels_from_role($roleId);
+		perm_write("update brugere set role_id = $roleId where id = $id");
+		perm_sync_user($id);
+		perm_write("delete from settings where var_grp = 'permissions' and var_name = 'review' and user_id = $id");
+		$subject = (string) $r['brugernavn'] . ': ' . user_role_label($current) . ' -> ' . user_role_label($roleId);
+		audit_log('user.role_changed', perm_change_details($subject, $before, $after), 'bruger', (string) $id, $kilde);
+		return '';
+	});
+}
+
+/** @return string Empty when a locked user's assignment can safely change. */
+function user_role_change_error(array $row, int $roleId, int $selfId, array $roles): string
+{
+	$id = (int) $row['id'];
+	if ((int) $row['role_id'] === $roleId) {
 		return 'unchanged';
 	}
 	if ($id === $selfId) {
 		return 'ownrole';
 	}
-	if (!user_may_manage($r)) {
+	if (!user_may_manage($row)) {
 		return 'above';
 	}
-	if ($roleId > 0 && !perm_within_own(perm_levels_from_role($roleId))) {
+	if ($roleId <= 0 || !isset($roles[$roleId])) {
+		return 'norole';
+	}
+	if (!perm_within_own(perm_levels_from_role($roleId))) {
 		return 'escalation';
 	}
 	if (user_is_last_admin($id)) {
 		return 'lastadmin';
 	}
-	db_modify("update brugere set role_id = " . ($roleId > 0 ? $roleId : 'null') . " where id = $id", __FILE__ . " linje " . __LINE__);
-	perm_sync_user($id);
-	perm_review_done($id);
-	audit_log('user.role_changed', (string) $r['brugernavn'] . ': ' . user_role_label($current) . ' -> ' . user_role_label($roleId), 'bruger', (string) $id, $kilde);
 	return '';
 }
 
@@ -292,6 +358,12 @@ function user_confirm_role(int $id, bool $useSuggestion, int $selfId, string $ki
 		if ($suggestion && $suggestion['id'] !== (int) $r['role_id']) {
 			return user_set_role($id, $suggestion['id'], $selfId, $kilde);
 		}
+	}
+	if ($id === $selfId) {
+		return 'ownrole';
+	}
+	if (!user_may_manage($r)) {
+		return 'above';
 	}
 	perm_review_done($id);
 	audit_log('user.role_confirmed', (string) $r['brugernavn'] . ': ' . user_role_label((int) $r['role_id']), 'bruger', (string) $id, $kilde);
@@ -318,7 +390,7 @@ function user_role_label(int $roleId): string
  */
 function user_row_invited(array $row): bool
 {
-	return (string) ifset($row, 'kode', '') === '' && strpos((string) ifset($row, 'tmp_kode', ''), 'invite|') === 0 && user_row_active($row);
+	return (string) ifset($row, 'kode', '') === '' && tmp_code_is_invite(ifset($row, 'tmp_kode', '')) && user_row_active($row);
 }
 
 /**
@@ -449,7 +521,7 @@ function user_reset_password(int $id, int $sprogId, string $kilde = 'ui'): strin
 	if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
 		return 'noemail';
 	}
-	$code = substr(str_replace(array('+', '/', '='), '', base64_encode(random_bytes(12))), 0, 10);
+	$code = tmp_code_new_password();
 	$expire = time() + 3600;
 	$h = 'user_mail_h';
 	$login = user_company_login_name();
@@ -508,6 +580,7 @@ function user_send_mail(string $to, string $subject, string $body, string $attac
 		return false;
 	}
 	require_once $autoload;
+	require_once __DIR__ . '/stdFunc/stamdataSmtp.php';
 	$firm = db_fetch_array(db_select("select * from adresser where art = 'S'", __FILE__ . " linje " . __LINE__));
 	$firmName = user_company_name();
 	$firmMail = $firm ? trim((string) $firm['email']) : '';
@@ -517,19 +590,8 @@ function user_send_mail(string $to, string $subject, string $body, string $attac
 		$mail->SMTPOptions = array('ssl' => array('verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true));
 		$mail->IsSMTP();
 		$mail->CharSet = $enc;
-		$mail->Host = ($firm && $firm['felt_1']) ? (string) $firm['felt_1'] : 'localhost';
-		if ($firm && $firm['felt_2']) {
-			$mail->SMTPAuth = true;
-			$mail->Username = (string) $firm['felt_2'];
-			$mail->Password = (string) $firm['felt_3'];
-			if (!empty($firm['felt_4'])) {
-				$mail->SMTPSecure = strtolower((string) $firm['felt_4']);
-			}
-		} else {
-			$mail->SMTPAuth = false;
-		}
+		stamdata_smtp($mail, $firm, 'kan_ikke_besvares@saldi.dk');
 		$mail->Timeout = 10;
-		$mail->From = 'kan_ikke_besvares@saldi.dk';
 		$mail->FromName = $firmName;
 		if ($firmMail !== '' && filter_var($firmMail, FILTER_VALIDATE_EMAIL)) {
 			$mail->AddReplyTo($firmMail, $firmName);
@@ -561,7 +623,8 @@ function user_last_active(): array
 	if (audit_ready()) {
 		$q = db_select("select brugernavn, max(tidspunkt) as sidst from audit_log where handling in ('login', 'login.success') group by brugernavn", __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
-			$t = strtotime((string) $r['sidst']);
+			// The database may run in another time zone than PHP (st_local_time(), loaded by the settings pages).
+			$t = strtotime(function_exists('st_local_time') ? st_local_time((string) $r['sidst'], 'Y-m-d H:i:s') : (string) $r['sidst']);
 			if ($t) {
 				$last[mb_strtolower((string) $r['brugernavn'])] = $t;
 			}

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/stripe/faktura.php --- 2026.11.11
+// --- api/stripe/faktura.php --- 2026.11.27
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,12 +23,8 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20261019 CL/ASR Created: the public invoice & payment page (Requirements par. 5; design
-//                 design_betalingsside_desktop.png; prototype prototype_betalingsside.html).
-//                 Left: the invoice rendered from order data. Right: the payment panel per
-//                 state (open / open_recurring / enrolled / pending / paid / paidbank /
-//                 overdue / failed / nocard / credited) with Stripe's Payment Element
-//                 (deferred intent: the PaymentIntent is created on submit by faktura_pay.php).
+// 20261019 CL/ASR Created: the public invoice & payment page (Requirements par. 5; design design_betalingsside_desktop.png; prototype prototype_betalingsside.html).
+//                 Left: the invoice rendered from order data. Right: the payment panel per state (open / open_recurring / enrolled / pending / paid / paidbank / overdue / failed / nocard / credited) with Stripe's Payment Element (deferred intent: the PaymentIntent is created on submit by faktura_pay.php).
 //                 No card data touches Saldi. Public, signed link, no session.
 // 20261022 CDX/LH Gate save-card controls and defaults with the enrolment switch.
 // 20261022 CDX/LH Render manual amount, bank and contact panel without card controls.
@@ -38,19 +34,25 @@
 // 20261022 CDX/LH Wait for Payment Element readiness and usage updates; prevent concurrent submits and keep consent date accurate.
 // 20261022 CDX/LH Enforce card payment methods in Elements and remove the unavailable Saldi menu hint.
 // 20261022 CDX/LH Place whole-row, keyboard-accessible consent above the resizing Payment Element.
-// 20261025 CL/ASR Left: the invoice exactly as its PDF (page images via faktura_side.php); the HTML
-//                 summary is only shown if the images cannot be made. Stripe Link is hidden in the
-//                 Payment Element (wallets.link = never): card only, shorter panel.
-// 20261025 CL/ASR Recurring invoices of customers without automatic payment: the main button pays and turns on
-//                 automatic payment (consent text above it), "Betal kun denne faktura" is the visible alternative.
+// 20261025 CL/ASR Left: the invoice exactly as its PDF (page images via faktura_side.php); the HTML summary is only shown if the images cannot be made. Stripe Link is hidden in the Payment Element (wallets.link = never): card only, shorter panel.
+// 20261025 CL/ASR Recurring invoices of customers without automatic payment: the main button pays and turns on automatic payment (consent text above it), "Betal kun denne faktura" is the visible alternative.
 //                 With the fee for manual payment on, the page says the fee goes on the next invoice.
 // 20261025 CL/ASR Saldi logo in the top bar for Saldi's own invoices.
 // 20261025 CL/ASR Contact e-mail/phone from the Stripe settings (no phone unless set).
 // 20261109 CL/ASR Link reminders: after a reminder the overdue/failed lead says when it was sent, and a note under the pay buttons says where the fee goes.
 //                 Before a reminder the overdue lead mentions the fee when a reminder fee is set up.
 //                 An enrolled customer on an overdue Link invoice pays with the saved card in one click (#paynow), bank as alternative.
-
+//
 // 20261111 CDX/ASR Allow the invoice header to wrap on narrow screens.
+// 20261116 CDX/ASR Show bank payment instead of unusable card controls below the DKK minimum.
+//
+// 20261116 CDX/ASR Use the supplied dark Saldi logo and matching payment-button and card-form colours.
+// 20261126 ASR Review PAY-R2-1: an invoice settled by bank (every open item udlignet) shows "Fakturaen er betalt", one settled by its credit notes the new state invoice_credited, with no amount and no bank box; both before a waiting 3-D Secure intent.
+//              Coming back from Stripe on such an invoice syncs the intent too, so a capture made after the settlement shows at once.
+// 20261126 ASR Review LR2-1: without card payment (manual, nocard, below_minimum) a partly settled invoice shows what is still owed as "At betale" with the earliest due date of its unsettled open items, the invoice total apart, and later installments (stripe_invoice_owed()).
+//              Nothing owed by the open items: no amount and no bank box.
+// 20261126 ASR Review PAY-R2-2: after an overpaid capture (last_error 'overpaid': the invoice was already paid or credited) the page promises no receipt and no saved card; it says the payment is received and that the company will contact the customer about the amount.
+// 20261127 ASR Review GPT-H-2: when what is still owed is unknown (stripe_invoice_owed(): an open item in another currency without a usable rate), the page shows the manual state, Kontakt os om betalingen, without an amount or a bank box.
 
 include(__DIR__ . '/faktura_common.php');
 include_once(__DIR__ . '/../../includes/stripeIncludes/stripeManualFee.php');
@@ -60,7 +62,7 @@ $o = $inv['o']; $f = $inv['firma']; $d = $inv['debtor'];
 $brand = $inv['brand'];
 $pk = (string)stripe_setting('publishable_key');
 $returned = isset($_GET['redirect_status']) || isset($_GET['payment_intent']);
-if ($returned && in_array($state, array('open', 'open_recurring', 'overdue', 'failed', 'enrolled', 'requires_action', 'pending')) && !empty($_GET['payment_intent'])) {
+if ($returned && in_array($state, array('open', 'open_recurring', 'overdue', 'failed', 'enrolled', 'requires_action', 'pending', 'paidbank', 'invoice_credited')) && !empty($_GET['payment_intent'])) {
 	// browser came back from Stripe before the webhook: sync once (only an intent of THIS invoice), then render
 	$piq = db_fetch_array(db_select("select payment_intent_id from stripe_payments where ordre_id = " . (int)$faktura_o . " and payment_intent_id = '" . db_escape_string(substr((string)$_GET['payment_intent'], 0, 255)) . "'", __FILE__ . " linje " . __LINE__));
 	if ($piq) stripe_payment_sync((string)$piq['payment_intent_id']);
@@ -87,8 +89,26 @@ $contact = stripe_contact_phrase($inv);
 function fak_pill($inv, $state) {
 	if (in_array($state, array('paid', 'paidbank'))) { $when = $inv['paid'] ? substr((string)$inv['paid']['succeeded_at'], 0, 10) : ''; return '<span class="pill good">' . stripe_h(stripe_txt('paid_pill', array('date' => $when ? stripe_fmt_date($when) : ''))) . '</span>'; }
 	if ($state === 'credited') return '<span class="pill grey">' . stripe_h(stripe_txt('credited_pill', array('date' => stripe_fmt_date($inv['o']['fakturadate'])))) . '</span>';
+	if ($state === 'invoice_credited') { $cn = end($inv['credit_notes']); return '<span class="pill grey">' . stripe_h(stripe_txt('credited_pill', array('date' => stripe_fmt_date($cn['date'] ?? '')))) . '</span>'; }
 	if (in_array($state, array('overdue', 'failed')) && $inv['due'] < date('Y-m-d')) return '<span class="pill bad">' . stripe_h(stripe_txt('overdue_pill', array('date' => stripe_fmt_date($inv['due'])))) . '</span>';
 	return '<span class="pill">' . stripe_h(stripe_txt('due_pill', array('date' => stripe_fmt_date($inv['due'])))) . '</span>';
+}
+/**
+ * 20261126 ASR Review LR2-1: the amount box of a state without card payment for an invoice that is not owed in full at one
+ * date (stripe_invoice_owed()): what is due now and since when, the later installments and the invoice total.
+ *
+ * @return string HTML; '' when the open items owe nothing.
+ */
+function fak_owed_box($owed, $inv) {
+	if ($owed['owed_ore'] <= 0) return '';
+	$cur = $inv['currency'] === 'DKK' ? ' kr.' : ' ' . $inv['currency'];
+	$since = $owed['now_due'] === '' ? '' : stripe_txt($owed['now_due'] < stripe_today() ? 'overdue_pill' : 'due_pill', array('date' => stripe_fmt_date($owed['now_due'])));
+	$html = '<div class="amt"><div class="l"><span>' . stripe_h(stripe_txt($owed['later'] ? 'to_pay_now' : 'to_pay')) . '</span>'
+		. ($since !== '' ? '<span>' . stripe_h($since) . '</span>' : '') . '</div><b class="num">' . stripe_h(stripe_fmt_kr($owed['now_ore']) . $cur) . '</b></div><div class="owed">';
+	foreach ($owed['later'] as $later) {
+		$html .= '<div class="kv"><span>' . stripe_h(stripe_txt('later_installment', array('date' => stripe_fmt_date($later['due'])))) . '</span><b class="num">' . stripe_h(stripe_fmt_kr($later['ore']) . $cur) . '</b></div>';
+	}
+	return $html . '<div class="kv"><span>' . stripe_h(stripe_txt('invoice_amount')) . '</span><b class="num">' . stripe_h(stripe_fmt_kr($inv['total_ore']) . $cur) . '</b></div></div>';
 }
 function fak_status($kind, $icon, $title, $sub) {
 	$icons = array('ok' => '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>',
@@ -105,6 +125,21 @@ if ($contactMail !== '') $foot = '<div class="foot">' . str_replace(array('%emai
 $bankBox = $hasBank ? '<div class="bank"><b>' . $h(stripe_txt('bank_box_title')) . '</b>Reg. ' . $h($bankReg) . ' · konto ' . $h($bankKonto) . '<br>' . $h(stripe_txt('bank_box_ref', array('nr' => $nr))) . '<br><span style="color:var(--ink-3)">' . $h(stripe_txt('bank_box_note')) . '</span></div>' : '';
 $elementBlock = '<div id="payment-element" class="pe"></div><div id="pay-error" class="perr" role="alert"></div>';
 $panel = '';
+// 20261126 ASR Review LR2-1: without card payment, what the unsettled open items still owe instead of the invoice total
+$owedBox = $amountBox;
+$owedBank = $bankBox;
+if (in_array($state, array('manual', 'below_minimum', 'nocard'), true)) {
+	$owed = stripe_invoice_owed($inv);
+	if (!empty($owed['unknown'])) {
+		// 20261127 ASR Review GPT-H-2: an amount in another currency that cannot be converted: contact us, without an amount
+		$state = 'manual';
+		$owedBox = '';
+		$owedBank = '';
+	} elseif (!$owed['plain']) {
+		$owedBox = fak_owed_box($owed, $inv);
+		if ($owed['owed_ore'] <= 0) $owedBank = '';
+	}
+}
 // 20261025 CL/ASR two pay buttons (automatic payment / this invoice only) and the fee note
 $feeOre = $inv['enrolled'] ? 0 : stripe_manual_fee_ore((float)$o['momssats'], (string)$o['fakturadate']);
 $feeNote = $feeOre > 0 ? '<p class="fee">' . $h(stripe_txt('fee_note', array('fee' => stripe_fmt_kr($feeOre) . ' kr.'))) . '</p>' : '';
@@ -171,9 +206,11 @@ switch ($state) {
 		break;
 	case 'paid':
 		$p = $inv['paid']; $card = stripe_card_label($p['pm_brand'], $p['pm_last4']);
-		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt('h_paid')) . '</h2><p class="lead">' . $h(stripe_txt('lead_paid', array('email' => $inv['email']))) . '</p>';
+		// An overpaid capture gets no receipt and its card is not saved (stripe_payment_apply_succeeded()); whether a receipt is sent later is the owner's decision (Q24).
+		$overpaid = (string)($p['last_error'] ?? '') === 'overpaid';
+		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt($overpaid ? 'h_paid_overpaid' : 'h_paid')) . '</h2><p class="lead">' . $h($overpaid ? stripe_txt('lead_paid_overpaid') : stripe_txt('lead_paid', array('email' => $inv['email']))) . '</p>';
 		$panel .= fak_status('good', 'ok', stripe_txt('paid_box', array('date' => stripe_fmt_date_long(substr((string)$p['succeeded_at'], 0, 10)))), $totalKr . ' · ' . $card);
-		if (stripe_bool($p['save_card'])) $panel .= '<div class="card-row"><span class="brand">' . $h(strtoupper(substr((string)$p['pm_brand'], 0, 4))) . '</span><span>' . $h(stripe_txt('card_saved_row')) . '</span></div>';
+		if (!$overpaid && stripe_bool($p['save_card'])) $panel .= '<div class="card-row"><span class="brand">' . $h(strtoupper(substr((string)$p['pm_brand'], 0, 4))) . '</span><span>' . $h(stripe_txt('card_saved_row')) . '</span></div>';
 		$panel .= $foot;
 		break;
 	case 'paidbank':
@@ -181,14 +218,23 @@ switch ($state) {
 		$panel .= fak_status('good', 'ok', stripe_txt('paid_pill', array('date' => '')), $totalKr . ' · ' . stripe_txt('bank_transfer')) . $foot;
 		break;
 	case 'manual':
-		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt('h_manual')) . '</h2><p class="lead">' . $h(stripe_txt('lead_manual')) . '</p>' . $amountBox . $bankBox . $foot;
+		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt('h_manual')) . '</h2><p class="lead">' . $h(stripe_txt('lead_manual')) . '</p>' . $owedBox . $owedBank . $foot;
+		break;
+	case 'below_minimum':
+		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt('h_below_minimum')) . '</h2><p class="lead">' . $h(stripe_txt('pay_amount_too_small')) . '</p>' . $owedBox . $owedBank . $foot;
 		break;
 	case 'nocard':
-		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt('h_nocard')) . '</h2><p class="lead">' . $h(stripe_txt('lead_nocard')) . '</p>' . $amountBox . $bankBox . $foot;
+		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt('h_nocard')) . '</h2><p class="lead">' . $h(stripe_txt('lead_nocard')) . '</p>' . $owedBox . $owedBank . $foot;
 		break;
 	case 'credited':
 		$panel .= '<div class="lab">' . $h(stripe_txt('creditnote')) . '</div><h2>' . $h(stripe_txt('h_credited')) . '</h2><p class="lead">' . $h(stripe_txt('lead_credited')) . '</p>';
 		$panel .= fak_status('grey', 'ok', stripe_txt('credited_pill', array('date' => stripe_fmt_date_long(substr((string)$o['fakturadate'], 0, 10)))), $totalKr) . $foot;
+		break;
+	case 'invoice_credited':
+		// 20261126 ASR Review PAY-R2-1: the invoice is settled by its credit notes: nothing to pay, so no amount and no bank box.
+		$cn = end($inv['credit_notes']);
+		$panel .= '<div class="lab">' . $h(stripe_txt('lab_payment')) . '</div><h2>' . $h(stripe_txt('h_invoice_credited')) . '</h2><p class="lead">' . $h(stripe_txt('lead_invoice_credited')) . '</p>';
+		$panel .= fak_status('grey', 'ok', stripe_txt('credited_pill', array('date' => stripe_fmt_date_long((string)($cn['date'] ?? '')))), stripe_txt('credit_note_ref', array('nr' => (string)($cn['nr'] ?? '')))) . $foot;
 		break;
 }
 
@@ -214,12 +260,12 @@ header('Content-Type: text/html; charset=utf-8');
 <meta name="robots" content="noindex,nofollow">
 <title><?= $h(stripe_txt('page_title', array('nr' => $nr, 'firma' => $f['firmanavn'] ?? ''))) ?></title>
 <style>
-:root{--bg:#f7f5f0;--surface:#fff;--ink:#111318;--ink-2:#4b5563;--ink-3:#6b7280;--line:#e6e2da;--line-2:#efece6;--label:#9a5b1a;--soft:#f3eee6;--tint:#f1eefb;--tint-line:#e2dbf6;--blue:#1b68bd;--purple:#8b33d4;--purple-pill:#efe6fb;--purple-ink:#5b21a6;--good:#15803d;--good-bg:#e9f7ee;--bad:#c2410c;--bad-bg:#fdeee8;--warn:#a15c07;--warn-bg:#fdf3e2;--sans:Inter,"Segoe UI",system-ui,sans-serif;--r:16px;--shadow:0 1px 2px rgba(17,19,24,.04),0 8px 24px rgba(17,19,24,.06)}
+:root{--bg:#f7f5f0;--surface:#fff;--ink:#111318;--ink-2:#4b5563;--ink-3:#6b7280;--line:#e6e2da;--line-2:#efece6;--label:#9a5b1a;--soft:#f3eee6;--tint:#f1eefb;--tint-line:#e2dbf6;--blue:#183d78;--purple:#4c1d86;--brand-mid:#29295c;--purple-pill:#efe6fb;--purple-ink:#5b21a6;--good:#15803d;--good-bg:#e9f7ee;--bad:#c2410c;--bad-bg:#fdeee8;--warn:#a15c07;--warn-bg:#fdf3e2;--sans:Inter,"Segoe UI",system-ui,sans-serif;--r:16px;--shadow:0 1px 2px rgba(17,19,24,.04),0 8px 24px rgba(17,19,24,.06)}
 *{box-sizing:border-box;margin:0;padding:0}html{background:var(--bg)}body{font:15px/1.55 var(--sans);color:var(--ink);-webkit-font-smoothing:antialiased;min-height:100vh}
 h1,h2{letter-spacing:-.01em}a{color:var(--blue)}.num{font-variant-numeric:tabular-nums}
 .top{display:flex;align-items:center;gap:16px;height:72px;padding:0 32px;background:var(--surface);border-bottom:1px solid var(--line)}.top .logo{font-weight:700;font-size:26px;letter-spacing:-.02em}.top .logo img{display:block;height:32px;width:auto}.top .sep{width:1px;height:28px;background:var(--line)}.top .ttl{font-size:17px;font-weight:500}.top .ttl span{color:var(--ink-3);font-size:14px;margin-left:10px;font-weight:400}.top .grow{flex:1}
 .btn{height:44px;display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:0 18px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font:500 15px var(--sans);color:var(--ink);cursor:pointer;text-decoration:none;white-space:nowrap}.btn:hover{background:var(--soft)}
-.btn.primary{border:0;background:linear-gradient(90deg,var(--blue),var(--purple));color:#fff;font-weight:600;height:52px;width:100%;font-size:16px;box-shadow:0 8px 20px rgba(139,51,212,.18);margin-top:8px}.btn.primary:hover{filter:brightness(1.06)}.btn.primary[disabled]{opacity:.55;cursor:default;filter:none}
+.btn.primary{border:0;background:linear-gradient(90deg,var(--blue),var(--brand-mid) 50%,var(--purple));color:#fff;font-weight:600;height:52px;width:100%;font-size:16px;box-shadow:0 8px 20px rgba(76,29,134,.18);margin-top:8px}.btn.primary:hover{filter:brightness(1.06)}.btn.primary[disabled]{opacity:.55;cursor:default;filter:none}
 .wrap{display:grid;grid-template-columns:minmax(0,1fr) 440px;min-height:calc(100vh - 72px)}.left{padding:48px 56px 64px;display:flex;justify-content:center}.right{background:var(--surface);border-left:1px solid var(--line);padding:48px 40px;min-width:0}
 @media(max-width:980px){.wrap{grid-template-columns:1fr}.right{border-left:0;border-top:1px solid var(--line);order:-1;padding:28px 20px}.left{padding:24px 16px 48px}.top{padding:0 16px}.top .ttl span{display:none}}
 @media(max-width:600px){.top{height:auto;min-height:72px;flex-wrap:wrap;gap:8px 12px;padding:12px 16px}.top .ttl{min-width:0;flex:1;overflow-wrap:anywhere}.top .sep,.top .grow{display:none}.top>.btn{margin-left:auto;max-width:100%}}
@@ -234,7 +280,7 @@ table.lines{width:100%;border-collapse:collapse;margin-bottom:28px}table.lines t
 .totals{margin-left:auto;width:min(100%,360px)}.totals .kv{border:0;padding:6px 0}.totals .sum{border-top:2px solid var(--ink);margin-top:8px;padding-top:14px;display:flex;justify-content:space-between;align-items:baseline}.totals .sum b{font-size:30px;font-weight:700}
 .inv .terms{margin-top:40px;padding-top:24px;border-top:1px solid var(--line-2);color:var(--ink-2);font-size:14.5px}.inv .terms b{color:var(--ink);font-weight:600}.inv .terms p+p{margin-top:8px}
 .right .lab{color:var(--label);margin-bottom:14px}.right h2{font-size:30px;line-height:1.15;font-weight:700;margin-bottom:12px}.right .lead{color:var(--ink-2);font-size:15px;margin-bottom:24px}
-.amt{display:flex;justify-content:space-between;align-items:center;gap:16px;background:var(--soft);border-radius:12px;padding:20px 22px;margin-bottom:22px}.amt .l span{display:block;color:var(--ink-2);font-size:14px}.amt .l span+span{margin-top:6px}.amt b{font-size:34px;font-weight:700;white-space:nowrap}
+.amt{display:flex;justify-content:space-between;align-items:center;gap:16px;background:var(--soft);border-radius:12px;padding:20px 22px;margin-bottom:22px}.owed{margin:-10px 0 22px}.owed .kv{font-size:14px}.amt .l span{display:block;color:var(--ink-2);font-size:14px}.amt .l span+span{margin-top:6px}.amt b{font-size:34px;font-weight:700;white-space:nowrap}
 .btn.once{width:100%;height:46px;margin-top:10px;color:var(--ink-2)}.fee{margin-top:10px;color:var(--ink-3);font-size:13.5px;line-height:1.45}
 .auto{background:var(--tint);border:1px solid var(--tint-line);border-radius:12px;padding:16px 18px;margin:12px 0 20px}.auto b{display:block;font-weight:600;margin-bottom:4px}.auto span{display:block;color:var(--ink-2);font-size:14px}
 .pe{margin:4px 0 8px;min-height:40px}.perr{color:var(--bad);font-size:14px;min-height:0;margin:6px 0}
@@ -250,7 +296,7 @@ table.lines{width:100%;border-collapse:collapse;margin-bottom:28px}table.lines t
 </head>
 <body>
 <header class="top">
-  <div class="logo"><?php if ($brand === 'Saldi'): ?><img src="../../img/SaldiMainLogo.png" alt="Saldi"><?php else: ?><?= $h($brand) ?><?php endif; ?></div>
+  <div class="logo"><?php if ($brand === 'Saldi'): ?><img src="../../img/saldi-moerk-logo-lys-baggrund.svg" alt="Saldi"><?php else: ?><?= $h($brand) ?><?php endif; ?></div>
   <div class="sep"></div>
   <div class="ttl"><?= $h($docName . ' ' . $nr) ?> <span>fra <?= $h($f['firmanavn'] ?? '') ?></span></div>
   <div class="grow"></div>
@@ -375,7 +421,7 @@ table.lines{width:100%;border-collapse:collapse;margin-bottom:28px}table.lines t
   updBtn();
   var stripe = Stripe(cfg.pk, {locale:'da'});
   var elements = stripe.elements({mode:'payment', amount: cfg.amount, currency: cfg.currency, paymentMethodTypes:['card'], setupFutureUsage: saveCard ? 'off_session' : null, paymentMethodCreation:'manual',
-    appearance:{theme:'stripe', variables:{colorPrimary:'#1b68bd', colorText:'#111318', colorDanger:'#c2410c', fontFamily:'Inter, "Segoe UI", system-ui, sans-serif', borderRadius:'10px', fontSizeBase:'16px'}}});
+    appearance:{theme:'stripe', variables:{colorPrimary:'#183d78', colorText:'#111318', colorDanger:'#c2410c', fontFamily:'Inter, "Segoe UI", system-ui, sans-serif', borderRadius:'10px', fontSizeBase:'16px'}}});
   elements.on('update-end', function(){
     if (usageResolve) { var resolve = usageResolve; usageResolve = null; resolve(); }
   });

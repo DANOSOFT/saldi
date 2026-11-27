@@ -1,5 +1,6 @@
 <?php
 // 20260716 CL/LH Added Stripe paid-invoice import endpoint.
+// 20261105 CL/LH Needs the Debitorordre right (debitor.ordre), which invoicing on debitor/ordre.php needs; without it the request is refused with 403.
 
 require_once __DIR__ . '/../../../../core/BaseEndpoint.php';
 require_once __DIR__ . '/../../../../services/ExternalPaidInvoiceImportService.php';
@@ -7,6 +8,8 @@ include_once __DIR__ . '/../../../../../includes/ordrefunc.php';
 
 class ExternalPaidInvoicesEndpoint extends BaseEndpoint
 {
+    protected $permissionKey = 'debitor.ordre';
+
     private $service;
 
     public function __construct()

@@ -4,11 +4,13 @@
 // Integration tests for /restapi/endpoints/v1/debitor/orderlines/ against
 // the local docker stack's self-provisioned tenant: auth enforcement,
 // parameter validation, adding a free-text line to a freshly created order,
-// listing/reading it back, refusing lines on a posted order, and the
-// disabled PUT/DELETE.
+// listing/reading it back, refusing lines on a posted order, the order totals
+// a product line stores, and the disabled PUT/DELETE.
 //
 // History:
 // 20260904 CL/NTR created.
+// 20261105 CL/LH A product line stores the order's sum, VAT and cost price, and GET orders/?id and SQL read them back.
+// 20261111 CDX/NTR Give each REST class its own fresh database.
 
 use PHPUnit\Framework\TestCase;
 
@@ -25,7 +27,7 @@ final class OrderLinesEndpointTest extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
-        RestApiEnv::bootstrapTenant();
+        RestApiEnv::bootstrapTenant(static::class);
     }
 
     public static function tearDownAfterClass(): void
@@ -142,6 +144,37 @@ final class OrderLinesEndpointTest extends TestCase
         $this->assertSame(200, $list['status'], $list['body']);
         $this->assertSame(['one', 'two'], array_column($list['json']['data'], 'description'));
         $this->assertSame([1, 2], array_map('intval', array_column($list['json']['data'], 'posNo')));
+    }
+
+    /**
+     * The testlab's api-bookkeeper steps: POST an order, POST a product line (3 x 125.67, cost price 39.12), GET the
+     * order. The header stayed at sum 0 / VAT 0 until someone opened the order in debitor/ordre.php.
+     */
+    public function test_a_product_line_stores_the_order_totals_that_get_reads_back(): void
+    {
+        $orderId = $this->createOrder('totals');
+        $product = RestApiEnv::http('POST', '/restapi/endpoints/v1/products/', [
+            'sku' => 'APITEST-TOT-' . random_int(100000, 999999),
+            'description' => 'Apitest totals item',
+            'salesPrice' => 125.67,
+            'costPrice' => 39.12,
+            'group' => 1,
+        ], RestApiEnv::authHeaders());
+        $this->assertSame(201, $product['status'], $product['body']);
+
+        $line = $this->addLine(['orderId' => $orderId, 'productId' => (int)$product['json']['data']['id'], 'quantity' => 3, 'price' => 125.67]);
+        $this->assertSame(201, $line['status'], $line['body']);
+
+        $order = RestApiEnv::http('GET', self::ORDERS . '?id=' . $orderId, null, RestApiEnv::authHeaders());
+        $this->assertSame(200, $order['status'], $order['body']);
+        $economic = $order['json']['data']['economic'];
+        $this->assertEqualsWithDelta(377.01, (float)$economic['sum'], 0.0001, 'sum');
+        $this->assertEqualsWithDelta(94.25, (float)$economic['vat'], 0.0001, 'vat');
+        $this->assertEqualsWithDelta(117.36, (float)$economic['costPrice'], 0.0001, 'costPrice');
+        $tenant = RestApiEnv::connect(RestApiEnv::testDb());
+        $rows = RestApiEnv::rows($tenant, 'SELECT sum, moms, kostpris FROM ordrer WHERE id = $1', [$orderId]);
+        pg_close($tenant);
+        $this->assertSame([['sum' => '377.010', 'moms' => '94.250', 'kostpris' => '117.360']], $rows);
     }
 
     public function test_lines_cannot_be_added_to_a_posted_order(): void

@@ -1,5 +1,5 @@
 <?php
-// -------- shop/pbs_tilmelding.php----------lap 3.8.4 ----- 2019.10.10----------
+// -------- shop/pbs_tilmelding.php----------ver 5.1.1 ----- 2026.11.27----------
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -18,8 +18,9 @@
 // En dansk oversaettelse af licensen kan laeses her:
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2019 saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
+// 20261127 ASR logon(): with $allowedLedgers in includes/connect.php the ledger must be listed, the master database too, before it is connected (saldi_ledger_allowed()).
 
 @session_start();
 $s_id=session_id();
@@ -374,6 +375,7 @@ function logon($s_id,$regnskab,$brugernavn,$password,$sqhost,$squser,$sqpass,$sq
     $qtxt="select * from regnskab where regnskab = '". db_escape_string($regnskab) ."'";
     if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
         if ($db = trim($r['db'])) {
+            if (!saldi_ledger_allowed($db)) return "1".chr(9).saldi_ledger_refusal_text(); // $allowedLedgers in includes/connect.php
             $connection = db_connect ($sqhost,$squser,$sqpass,$db);
             if ($connection) {
                 $r=db_fetch_array(db_select("select id from brugere where brugernavn='PBS_TILMELDING'",__FILE__ . " linje " . __LINE__));

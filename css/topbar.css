@@ -33,6 +33,11 @@
     color: var(--topbar-txt);
 }
 
+/* 20261031 CL/ASR sidebar_style.css sets Segoe UI on '*', which beats inheritance: everything inside the bar uses the
+   design font. :where() keeps this at the specificity of one class, so the display-font rules below still win, and
+   boxicons (.bx) keep their icon font. */
+.topbar :where(:not(.bx)) { font-family: var(--font-ui, Inter, "Segoe UI", system-ui, sans-serif); }
+
 .topbar-spacer { flex: 1; }
 
 /* Breadcrumb on every page that posts saldi:breadcrumb (topbar addendum 2026-10-05 §3). Truncates from the left:
@@ -47,6 +52,9 @@
 .topbar-crumb b { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; padding: 5px 7px; color: var(--topbar-txt); font-weight: 600; }
 .topbar-crumb .topbar-from { margin-right: 6px; padding: 4px 9px; border: 1px solid var(--topbar-line); border-radius: 999px; font-size: 0.7812rem; color: var(--topbar-txt); }
 .topbar-crumb .topbar-crumb-tag { margin-left: 2px; padding: 2px 8px; border-radius: 999px; background: var(--topbar-accent-soft); color: var(--topbar-accent); font-size: 0.7188rem; font-weight: 600; }
+.topbar-gear { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; margin-left: 4px; border-radius: 10px; color: inherit; font-size: 1.125rem; opacity: .75; text-decoration: none; }
+.topbar-gear:hover, .topbar-gear:focus-visible { opacity: 1; background: rgba(0, 0, 0, .06); }
+.topbar-gear[hidden] { display: none; }
 .topbar-item { position: relative; }
 .topbar-mobile { display: none; }
 
@@ -89,6 +97,10 @@
 .topbar-chip:focus-visible,
 .topbar-lang:focus-visible { outline: 2px solid var(--topbar-accent); outline-offset: 2px; }
 .topbar-assist { color: var(--topbar-accent); }
+/* 20261114 CL/ASR The PoS shortcut says Kassesystem next to its icon, with the label rules of .topbar-help (css/saldi-help.css). */
+.topbar-pos { width: auto; min-width: 34px; gap: 6px; }
+.topbar-pos-lbl { display: none; font-family: var(--font-display); font-weight: 500; font-size: .8125rem; line-height: 1; color: var(--topbar-txt); white-space: nowrap; }
+@media (min-width: 1240px) { .topbar-pos { padding: 0 11px 0 8px; } .topbar-pos-lbl { display: inline; } }
 
 .topbar-badge {
     position: absolute;
@@ -275,6 +287,8 @@
 .topbar-pop-out i { color: var(--topbar-red); }
 
 .topbar-pop-sep { height: 1px; background: var(--topbar-line); margin: 6px 0; }
+/* 20261113 CL/ASR The version and database number, quiet at the bottom of the user menu (was the sidebar's #desc-line). */
+.topbar-pop-ver { padding: 4px 12px 2px; font-size: .6875rem; line-height: 1.3; color: var(--topbar-mut); user-select: text; }
 
 .topbar-pop-sub {
     display: none;
@@ -368,7 +382,6 @@ html.topbar-tall { --topbar-h: 48px; }
 .topbar.topbar-narrow .topbar-chip .topbar-chev { display: none; }
 .topbar.topbar-narrow .topbar-chip { padding: 4px; }
 
-.sidebar.closed #desc-line { display: none; }
 
 
 /* ---- notification panel (spec §3.1) ---- */
@@ -387,11 +400,12 @@ html.topbar-tall { --topbar-h: 48px; }
 .topbar-notif-warning { background: #fdf1d8; color: #e8a013; }
 .topbar-notif-system { background: #fde5e0; color: var(--topbar-red); }
 .topbar-notif-news { background: #e2f5ea; color: var(--topbar-green); }
+.topbar-notif-crm { background: #e6f0fb; color: #1b68bd; }
 .topbar-notif-t { font-size: 0.8438rem; font-weight: 600; line-height: 1.35; color: var(--topbar-txt); }
 .topbar-notif-b { font-size: 0.7812rem; color: var(--topbar-mut); line-height: 1.4; margin-top: 2px; }
 .topbar-notif-time { font-size: 0.6875rem; color: var(--topbar-mut); margin-top: 4px; }
 
-/* The Assist widget's own sidebar entry is replaced by the cluster button (spec 6). */
+/* 20261101 CL/ASR The Assist widget's own sidebar entry is collapsed; the topbar's Assist button replaces it. */
 .sidebar li.topbar-assist-hidden { height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; visibility: hidden; }
 
 /* 20260930 Sawaneh Dashboard items hidden away from the dashboard. */
@@ -431,17 +445,101 @@ html.topbar-tall { --topbar-h: 48px; }
 .topbar.topbar-tight .topbar-hello-line { display: none; }
 .topbar.topbar-xtight .topbar-hello { display: none; }
 
-/* 20261008 Sawaneh Tema segment in the chip menu (prototype_dashboard_tema v5 .seg). */
-.topbar-pop-row { display: flex; flex-direction: column; gap: 7px; padding: 6px 12px 8px; font-size: 0.8125rem; color: var(--topbar-txt); }
-.topbar-pop-lab { display: flex; align-items: center; gap: 10px; }
-.topbar-pop-lab .bx { font-size: 16px; color: var(--topbar-mut); }
-.topbar-seg { display: flex; background: var(--topbar-hover); border: 1px solid var(--topbar-line); border-radius: 10px; padding: 3px; }
-.topbar-seg button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; border: 0; background: transparent; color: var(--topbar-mut); font: inherit; font-size: 0.7812rem; padding: 5px 8px; border-radius: 7px; cursor: pointer; transition: color .2s, background .2s; }
-.topbar-seg button .bx { font-size: 14px; }
-.topbar-seg button:hover { color: var(--topbar-txt); }
-.topbar-seg button[aria-pressed="true"] { background: var(--user-primary, var(--topbar-accent)); color: var(--user-primary-text, #fff); box-shadow: 0 1px 3px rgba(0,0,0,.2); }
-
 /* 20261008 Sawaneh Popups follow the shell's text colour, so the dark theme stays readable (fixed greys replaced by variables above). */
 .topbar-pop, .guide-modal, .topbar-search-res { color: var(--topbar-txt); }
 .topbar-pop-item, .topbar-pop form .topbar-year, .topbar-online-user { color: var(--topbar-txt); }
 
+
+/* 20261103 CL/ASR QA: [hidden] hides in the top bar too (.topbar-pop-item's display:flex showed unavailable Assist actions). */
+.topbar [hidden],
+.topbar-pop [hidden] {
+    display: none !important;
+}
+
+/* 20261108 ASR "+ Ny chat" next to Hjælp (doc/hjaelp_saldi_ai.md §23): Saldi Assist's loader binds it and removes [hidden];
+   it always starts a new conversation. Mirrors .topbar-help (css/saldi-help.css): no new colours, fonts or measures.
+   [data-saldi-help-dead]: the chat did not connect and Saldi's own help panel took over (javascript/saldi-help.js).
+   Below 1240 px, without its label, it shows a chat bubble with a plus: a bare "+" in the top bar reads as "create new". */
+.topbar-assist-new { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 34px; min-width: 34px; padding: 0; border: 0; border-radius: 10px; background: transparent; color: var(--topbar-txt); cursor: pointer; }
+.topbar-assist-new i { font-size: 18px; }
+.topbar-assist-new:hover { background: var(--topbar-hover); }
+.topbar-assist-new:focus-visible { outline: 2px solid var(--topbar-accent); outline-offset: 2px; }
+.topbar-assist-new-lbl { display: none; font-family: var(--font-display); font-weight: 500; font-size: .8125rem; line-height: 1; white-space: nowrap; }
+.topbar-assist-new .topbar-assist-new-plus { display: none; }
+@media (min-width: 1240px) { .topbar-assist-new { padding: 0 11px 0 8px; } .topbar-assist-new-lbl { display: inline; } .topbar-assist-new .topbar-assist-new-ic { display: none; } .topbar-assist-new .topbar-assist-new-plus { display: inline-block; } }
+.topbar-assist-new[data-saldi-help-dead] { display: none !important; }
+/* 20261113 CL/ASR The chat loader's own round button (bottom left) is hidden in the shell: the top bar's Hjælp and
+   "+ Ny chat" open the chat. Hidden, not removed: topbarOpenAssist() and saldi-help.js still click it / look for it. */
+html.saldi-shell #saldi-chat-launcher { display: none !important; }
+/* 20261113 CL/ASR The chat loader paints its container light (oklch(.976 .006 85)) with a 1 px light left border: a
+   white line beside the frame's top corner when the chat is docked, and a light panel for a moment before the chat has
+   drawn. In the shell the container carries the frame's navy instead, the same column as .home-section
+   (sidebar_style.css): the container starts under the bar, so its layers are moved up by the bar's height to line up
+   with the frame and the bar (background-attachment: fixed is not painted on it). */
+html.saldi-shell #saldi-chat-container {
+    background:
+        linear-gradient(180deg, rgba(54,104,160,.30), rgba(54,104,160,0) 12%) 0 calc(-1 * var(--topbar-h, 44px)) / 100% 100vh no-repeat border-box,
+        linear-gradient(180deg, rgba(106,42,184,0) 71.2%, rgba(106,42,184,.14)) 0 calc(-1 * var(--topbar-h, 44px)) / 100% 100vh no-repeat border-box,
+        #17253f linear-gradient(180deg, var(--shell-sidebar-stops)) 0 calc(-1 * var(--topbar-h, 44px) - 190px * .176327) / 100% calc(100vh + 190px * .176327) no-repeat border-box !important;
+    border-left-color: transparent !important;
+}
+html.saldi-shell #saldi-chat-container > iframe { background: transparent !important; }
+
+/* 20261112 ASR The navy bar (the owner's choice 12 Nov 2026 after the prototypes: sidebar 1 "Blødere", topbar 2
+   "Indrammet", Saldi Assist's Mørk frame). Brand, not surface: the same in every theme.
+   White text, muted white at 72 % (5.9:1 at the lightest point), icons at 86 %, a white veil on hover, white focus.
+   The popovers keep the theme's own values (light, or dark in the dark theme): --topbar-pop-* read them on <html>
+   before .topbar redefines --topbar-*. The user menu alone follows the bar (the owner, 11 Nov 2026), below. */
+html.saldi-shell {
+    --topbar-pop-bg: var(--topbar-bg, #ffffff); --topbar-pop-line: var(--topbar-line, #e2e6ee);
+    --topbar-pop-txt: var(--topbar-txt, #1c2431); --topbar-pop-txt-2: var(--topbar-txt-2, #49546b);
+    --topbar-pop-mut: var(--topbar-mut, #68738a); --topbar-pop-hover: var(--topbar-hover, #edf0f6);
+    --topbar-pop-accent: var(--topbar-accent, #114691); --topbar-pop-accent-soft: var(--topbar-accent-soft, #e8f0fe);
+}
+html.saldi-shell .topbar {
+    --topbar-bg: #1f4373; --topbar-line: rgba(255,255,255,.08); --topbar-txt: #ffffff; --topbar-txt-2: rgba(255,255,255,.86);
+    --topbar-mut: rgba(255,255,255,.72); --topbar-hover: rgba(255,255,255,.1); --topbar-accent: #ffffff;
+    --topbar-accent-soft: rgba(255,255,255,.14);
+    /* 20261113 CDX/ASR Let the frame's full-height sidebar gradient show through the bar, including its border. */
+    background: transparent;
+    border-bottom-color: transparent;
+}
+@media screen and (max-width: 780px) {
+    /* The fixed search overlay covers the other controls, so it needs an opaque copy of the same background. */
+    html.saldi-shell .topbar-search.open { background: var(--shell-edge-background); }
+}
+html.saldi-shell .topbar .topbar-pop {
+    --topbar-bg: var(--topbar-pop-bg); --topbar-line: var(--topbar-pop-line); --topbar-txt: var(--topbar-pop-txt);
+    --topbar-txt-2: var(--topbar-pop-txt-2); --topbar-mut: var(--topbar-pop-mut); --topbar-hover: var(--topbar-pop-hover);
+    --topbar-accent: var(--topbar-pop-accent); --topbar-accent-soft: var(--topbar-pop-accent-soft);
+}
+/* the back pill and the separator: their own edge, not the bar's (now invisible) bottom line */
+html.saldi-shell .topbar-crumb .topbar-from { border-color: rgba(255,255,255,.32); }
+html.saldi-shell .topbar-crumb .topbar-from:hover { border-color: rgba(255,255,255,.5); }
+html.saldi-shell .topbar-sep { background: rgba(255,255,255,.2); }
+/* the gear dims itself with opacity and darkens on hover; on navy: muted white, white veil, white ring */
+html.saldi-shell .topbar-gear { opacity: 1; color: rgba(255,255,255,.86); }
+html.saldi-shell .topbar-gear:hover, html.saldi-shell .topbar-gear:focus-visible { background: var(--topbar-hover); color: #fff; }
+html.saldi-shell .topbar-gear:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+/* the greeting's dot on Oversigt: the bar's green #1d9e57 is below 3:1 on navy; the chat's green on dark (4.5+:1).
+   The dot only: the bell popover reads --topbar-green too. */
+html.saldi-shell .topbar-hello-dot { background: #57c995; }
+/* the unread badge: its red #e0442c is 2.3:1 on navy; a white ring gives its edge 9+:1 (the red itself unchanged, as the
+   bell popover reads --topbar-red) */
+html.saldi-shell .topbar .topbar-badge { box-shadow: 0 0 0 1.5px #fff; }
+/* the open search field: the browser's grey placeholder is 3.9:1 on the veil; white caret */
+html.saldi-shell .topbar-search-in::placeholder { color: rgba(255,255,255,.72); opacity: 1; }
+html.saldi-shell .topbar-search-in { caret-color: #fff; }
+
+/* The user menu (the chip's dropdown) in the bar's colours (the owner, 11 Nov 2026). css/topbar.css draws it from the
+   --topbar-* variables only, so it is a token swap: the ground is the chat's menu colour (Mørk's --surface-overlay, a
+   step lighter than the bar), the chat's light inks, a light blue accent (role badge, the current year, Opret nyt år,
+   focus) and a light red for Log ud's icon. The avatar keeps the user's own colours (inline). A deeper shadow, so it
+   lifts off both the light page and the dark chat under it. Contrast: text 12+:1, muted 6+:1, accent on its tint 4.6+:1,
+   #ffb8ad 4.8+:1 also on hover. The language, bell, Hjælp and search popovers stay as they are. */
+html.saldi-shell .topbar .topbar-pop.topbar-pop-user {
+    --topbar-bg: #1f4275; --topbar-line: rgba(255,255,255,.14); --topbar-txt: #f2f5fa; --topbar-txt-2: rgba(242,245,250,.86);
+    --topbar-mut: #ccd6e3; --topbar-hover: rgba(255,255,255,.08); --topbar-accent: #b0d6fa; --topbar-accent-soft: rgba(79,160,238,.2);
+    --topbar-red: #ffb8ad; --topbar-green: #57c995; --topbar-shadow: 0 12px 36px rgba(4,10,26,.42);
+    color-scheme: dark;
+}

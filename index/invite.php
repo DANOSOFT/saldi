@@ -1,5 +1,5 @@
 <?php
-// ---- index/invite.php --- lap 5.0.0 --- 2026.09.29 ---
+// ---- index/invite.php --- ver 5.1.1 --- 2026.11.27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -15,13 +15,15 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026 saldi.dk aps
+// Copyright (c) 2026-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-// 20260929 Sawaneh Roles stage 2 (Requirements_roles_stage2_EN.md §8.4): the page an invitation link
-//                  opens. The invited user chooses a password and is then logged in the normal way.
-// 20261001 Sawaneh MySQL: select the company database after connecting (as online.php).
-// 20261014 Sawaneh Review: the auto-login after an invitation keeps the password in the session for one minute, not in the HTML.
-
+// 20260929 SS Roles stage 2 (Requirements_roles_stage2_EN.md §8.4): the page an invitation link opens.
+//             The invited user chooses a password and is then logged in the normal way.
+// 20261001 SS MySQL: select the company database after connecting (as online.php).
+// 20261014 SS Review: the auto-login after an invitation keeps the password in the session for one minute, not in the HTML.
+// 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261127 ASR The invitation is found in both forms of brugere.tmp_kode (includes/tmpCode.php): "0|0|invite|<expire>|<hash>" and "invite|<expire>|<hash>".
+// 20261127 ASR With $allowedLedgers in includes/connect.php an invitation to any other ledger is not valid here (includes/ledgerAllowList.php); its ledger is not opened.
 @session_start();
 if (empty($_SESSION['nonce'])) {
 	$_SESSION['nonce'] = bin2hex(random_bytes(16));
@@ -85,6 +87,10 @@ function invite_lookup(string $token): array
 	if (!$r || !trim((string) $r['db']) || trim((string) $r['db']) === $sqdb || trim((string) ifset($r, 'lukket', ''))) {
 		return $none;
 	}
+	include_once(__DIR__ . '/../includes/ledgerAllowList.php');
+	if (!saldi_ledger_allowed(trim((string) $r['db']))) {
+		return $none; // this installation opens only the ledgers in $allowedLedgers (includes/connect.php)
+	}
 	$connection = db_connect("'$sqhost'", "'$squser'", "'$sqpass'", "'" . trim((string) $r['db']) . "'");
 	// MySQL connects to the server only; the company database is selected separately (as in online.php).
 	if ($connection && ($db_type === 'mysqli' || $db_type === 'mysql') && !mysqli_select_db($connection, trim((string) $r['db']))) {
@@ -95,7 +101,7 @@ function invite_lookup(string $token): array
 		return $none;
 	}
 	$hash = hash('sha256', $m[2]);
-	$u = db_fetch_array(db_select("select * from brugere where tmp_kode like 'invite|%|$hash'", __FILE__ . " linje " . __LINE__));
+	$u = db_fetch_array(db_select("select * from brugere where tmp_kode like '0|0|invite|%|$hash' or tmp_kode like 'invite|%|$hash'", __FILE__ . " linje " . __LINE__));
 	if (!$u || (string) ifset($u, 'kode', '') !== '') {
 		return $none;
 	}

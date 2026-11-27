@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//------------index/install.php----lap 5.0.0---2026-03-20---
+//------------index/install.php----ver 5.1.1---2026-11-27---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY.
 // See GNU General Public License for more details.
 //
-// Copyright (c) 2003-2026 saldi.dk aps
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 //
 // 20140701 Tilføjet bilag til create regnskab
@@ -46,6 +46,12 @@
 // 20260904 CL/NTR Pre-flight check of the OAuth key and JWT secret directories, trying chmod first, so a
 //                   missing write access stops the wizard with a message instead of an exception after the DB is created.
 // 20260908 CL/NTR Reject an administrator username over 80 characters (is_input_too_long), matching login.php
+// 20261023 CL/LH regnskab gets global_id: only opdat_4.0 added it, so a fresh install failed the first tenant login.
+// 20261023 CL/NTR Added tekst_key to tekster table, and added an index on (sprog_id, tekst_key) for faster lookups. This is needed for the new translation system to work properly.
+// 20261110 CDX/NTR Release 5.1.1: include the signup schema and trial columns on fresh installs.
+// 20261127 ASR The connect.php it writes names the optional $allowedLedgers, commented out (doc/installation_settings.md).
+// 20261127 ASR It names the optional $sharedWithLive too.
+// 20261127 ASR The connect.php note on $sharedWithLive says what the setting is for: another installation serves the ledgers too.
 
 session_start();
 ob_start(); //Starter output buffering
@@ -84,7 +90,7 @@ print "</tbody></table></td></tr><tr><td align=\"center\" valign=\"center\">\n";
 // Handle language setting (from POST or COOKIE)
 if (isset($_POST['language'])) {
     $sprog_id = $_POST['language'];
-    saldi_setcookie('sprog_id', $sprog_id, time() + (86400 * 30), "/");
+    setcookie('sprog_id', $sprog_id, time() + (86400 * 30), "/");
     $_SESSION['language'] = $sprog_id;
 } elseif (isset($_COOKIE['sprog_id'])) {
     $sprog_id = $_COOKIE['sprog_id'];
@@ -293,7 +299,7 @@ if (isset($_POST['opret'])){
 	$qtxt = "CREATE TABLE regnskab (id serial NOT NULL,	regnskab varchar(60), dbhost varchar(25), dbuser varchar(25), ";
 	$qtxt.= "db varchar(25), version varchar(10), sidst varchar(16), brugerantal numeric(5,0), posteringer numeric(10,0), ";
 	$qtxt.= "posteret numeric(10,0), mysale numeric(1,0), lukket varchar(2),administrator varchar(2),lukkes date, ";
-	$qtxt.= "betalt_til date,logintekst text,email varchar(60),bilag numeric(1,0),sms INT, PRIMARY KEY (id))";
+	$qtxt.= "betalt_til date,logintekst text,email varchar(60),bilag numeric(1,0),sms INT,global_id int default 0, trial_start date, trial_end date, pakke varchar(20), lukkes_kommentar text, PRIMARY KEY (id))";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "INSERT INTO regnskab (regnskab, dbhost, dbuser, db, version,bilag) values ";
 	$qtxt.= "('$db_navn' ,'$db_host', '$db_bruger', '$db_navn', '$version','0')";
@@ -306,7 +312,9 @@ if (isset($_POST['opret'])){
 	$qtxt.= "kodeord text, kontrol_id text, aktiv int, logtime text,slettet varchar(2),tlf text,affiliate text, ";
 	$qtxt.= "referer text, PRIMARY KEY (id))";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
-	$qtxt = "CREATE TABLE tekster (id serial NOT NULL, sprog_id integer, tekst_id integer, tekst text, PRIMARY KEY (id))";
+	$qtxt = "CREATE TABLE tekster (id serial NOT NULL, sprog_id integer, tekst_id integer, tekst_key varchar(190), tekst text, PRIMARY KEY (id))";
+	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+	$qtxt = "CREATE INDEX idx_tekster_sprog_key ON tekster(sprog_id, tekst_key)";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt = "CREATE TABLE revisor";
 	$qtxt.= "(id serial NOT NULL,regnskabsaar integer,bruger_id integer,brugernavn text,db_id integer,PRIMARY KEY (id))";
@@ -316,6 +324,21 @@ if (isset($_POST['opret'])){
 	$qtxt = "CREATE TABLE settings ";
 	$qtxt.= "(id serial NOT NULL, var_name text, var_grp text, var_value text, var_description text, user_id integer, PRIMARY KEY (id))";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+	// 5.1.1 signup schema: new installations already start at the released version.
+	$signupId = $db_type == 'mysqli' ? 'id INT AUTO_INCREMENT NOT NULL' : 'id SERIAL NOT NULL';
+	$signupNow = 'CURRENT_TIMESTAMP';
+	$qtxt = "CREATE TABLE signup_pending ($signupId, created TIMESTAMP NOT NULL DEFAULT $signupNow, status VARCHAR(20) NOT NULL DEFAULT 'pending', ";
+	$qtxt.= "pakke VARCHAR(20) NOT NULL, source VARCHAR(40), navn VARCHAR(80) NOT NULL, email VARCHAR(120) NOT NULL, tlf VARCHAR(40), ";
+	$qtxt.= "cvrnr VARCHAR(20), firmanavn VARCHAR(90) NOT NULL, addr1 VARCHAR(60), addr2 VARCHAR(60), postnr VARCHAR(10), bynavn VARCHAR(60), ";
+	$qtxt.= "regnskab VARCHAR(60) NOT NULL, token_hash VARCHAR(64), token_expires TIMESTAMP NULL, old_token_hash VARCHAR(64), resend_hash VARCHAR(64), ";
+	$qtxt.= "mails_sent INTEGER NOT NULL DEFAULT 0, last_mail TIMESTAMP NULL, ip VARCHAR(45), activated TIMESTAMP NULL, regnskab_id INTEGER, fejl TEXT, ";
+	$qtxt.= "navn_fra_cvr SMALLINT, PRIMARY KEY (id))";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	db_modify("CREATE INDEX signup_pending_token_hash_idx ON signup_pending (token_hash)", __FILE__ . " linje " . __LINE__);
+	db_modify("CREATE INDEX signup_pending_email_idx ON signup_pending (email)", __FILE__ . " linje " . __LINE__);
+	$qtxt = "INSERT INTO settings (var_name, var_grp, var_value, var_description) VALUES ('signup_schema', 'system', '1', 'Self-service signup tables created at installation')";
+	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+	// End of 5.1.1 signup schema.
 	$qtxt = "insert into settings(var_name,var_grp,var_value,var_description,user_id) values ";
 	$qtxt.= "('timezone','globals','Europe/Copenhagen','Global Timezone','0')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
@@ -499,6 +522,10 @@ function skriv_connect($fp,$db_host,$db_bruger,$db_password,$db_navn,$db_encode,
 	fwrite($fp,"\$revisorregnskab = \"1\";\n");
 	fwrite($fp,"\n");
 	fwrite($fp,"# \$brug_timestamp=\"y\";\n");
+	fwrite($fp,"\n");
+	fwrite($fp,"# Optional settings of this installation (doc/installation_settings.md):\n");
+	fwrite($fp,"# \$allowedLedgers = array('saldi_2');	# only these databases open as a ledger here (the master too only when listed)\n");
+	fwrite($fp,"# \$sharedWithLive = true;	# another installation serves these ledgers too: read rights are stored as no access\n");
 	fwrite($fp,"\n");
 	fwrite($fp,"\$font = \"<font face='Arial, Helvetica, sans-serif'>\";\n");
 	fwrite($fp,"\n");

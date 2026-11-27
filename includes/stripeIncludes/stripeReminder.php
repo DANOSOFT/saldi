@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stripeIncludes/stripeReminder.php --- ver 5.0.0 --- 2026.11.09 ---
+// --- includes/stripeIncludes/stripeReminder.php --- ver 5.1.1 --- 2026.11.11 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,8 +29,7 @@
 // 20261109 CL/ASR Review fixes: the fee of an earlier classic level of the chain is a prior fee, not unmapped (D1); a booked draft is never made classic again; a re-send keeps the first mailed_at (D2); the card-saved waiver compares Copenhagen days.
 //                 The fee and interest charged on the next invoice are at most those of the reminder's current lines (a deleted line is not charged, nothing left = waived); never on a cash or card sale.
 //                 New: stripe_reminder_refresh_amounts(), stripe_reminder_carried_rows() (payment page), stripe_reminder_waivable() and stripe_reminder_waive_request() ("Frafald rykkergebyr" in rykker.php).
-// 20261111 CL/ASR Review round 2: with the waiver on, a carried fee waits until the reminder's "Betal senest" has passed, so the customer can still take the mail's offer
-//                 (stripe_reminder_deadline() moved here from stripeReminderMail.php); a prior fee says whether that reminder's open item includes interest.
+// 20261111 CL/ASR Review round 2: with the waiver on, a carried fee waits until the reminder's "Betal senest" has passed, so the customer can still take the mail's offer (stripe_reminder_deadline() moved here from stripeReminderMail.php); a prior fee says whether that reminder's open item includes interest.
 
 include_once(__DIR__ . '/../reminderLegal.php');
 

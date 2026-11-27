@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/stripeIncludes/stripeSettings.php --- 2026.10.26
+// --- includes/stripeIncludes/stripeSettings.php --- 2026.11.26
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,11 +29,13 @@
 //                for var_grp='stripe' directly. Contract: doc/stripe/INTERFACE_CONTRACT.md
 // 20261022 CDX/LH Add independent invoice, enrolment and signup rollout switch defaults.
 // 20261022 CDX/LH Default all new rollout switches off, including subscription signup.
-// 20261026 CL/NTR Multi-ledger: stripe_ledger_db() validates a ledger name against the master locator and
-//                 stripe_request_db() takes the ledger from a public request (?r=), falling back to stripeConfigDb()
-//                 for links and webhook endpoints from before the ledger was carried in the URL.
-//                 stripe_ledger_armed() keeps a ledger restored from a copy (same keys) from collecting until
-//                 its Stripe settings are saved in that ledger.
+// 20261126 CL/ASR Stripe port (#850): stripe_feature_on() reads the switches invoice_payments, enrolment and signup_enabled (all off by default).
+// 20261026 CL/NTR Multi-ledger: stripe_ledger_db() validates a ledger name against the master locator and stripe_request_db() takes the ledger from a public request (?r=), falling back to stripeConfigDb() for links and webhook endpoints from before the ledger was carried in the URL.
+//                 stripe_ledger_armed() keeps a ledger restored from a copy (same keys) from collecting until its Stripe settings are saved in that ledger.
+// 20261126 CL/ASR Stripe port (#889): stripeConfigDb() stays the pinned ledger (environment or .ht_stripe_db) and now validates through stripe_ledger_db(), which also refuses closed ledgers.
+// 20261126 CL/ASR Review round 1 (I15): arming is bound to the server. Saving the Stripe settings stores armed_for = stripe_arming_key() (host, master database host and name, ledger), and stripe_ledger_armed() requires it in every ledger but the pinned one.
+//                 A ledger restored under the same name on another server, or against another master database, neither mints links nor collects until its settings are saved there.
+// 20261126 CL/ASR Review round 1 (I10): stripe_card_charging_on() is the one check for automatic card payment in this ledger (armed, enabled, invoice payments and enrolment), shared by the order page and the invoice delivery.
 
 if (!function_exists('stripe_setting')) {
 	// Returns the value of a settings row (var_grp='stripe') or $default when the
@@ -120,19 +122,64 @@ if (!function_exists('stripe_ledger_db')) {
 	}
 }
 
+if (!function_exists('stripe_arming_key')) {
+	/**
+	 * The server binding saved as armed_for with a ledger's Stripe settings: this host, the master database's host and
+	 * name, and the ledger. The installation folder is left out on purpose: folders on the same database share the
+	 * ledger's stripe_payments, so they must arm and disarm together.
+	 *
+	 * @param string $ledger The ledger db.
+	 * @return string sha256 hex.
+	 */
+	function stripe_arming_key($ledger) {
+		global $sqhost, $sqdb;
+		return hash('sha256', (string)gethostname() . '|' . (string)$sqhost . '|' . (string)$sqdb . '|' . (string)$ledger);
+	}
+}
+
+if (!function_exists('stripe_ledger_set_up_here')) {
+	/**
+	 * Whether a ledger's Stripe settings were saved in that ledger on this server.
+	 *
+	 * @param string $ledger The ledger db.
+	 * @param string $targetDb Its target_db setting (the ledger the settings were saved in).
+	 * @param string $armedFor Its armed_for setting (stripe_arming_key() where they were saved).
+	 * @return bool
+	 */
+	function stripe_ledger_set_up_here($ledger, $targetDb, $armedFor) {
+		return $ledger !== '' && (string)$targetDb === (string)$ledger && hash_equals(stripe_arming_key($ledger), (string)$armedFor);
+	}
+}
+
 if (!function_exists('stripe_ledger_armed')) {
 	/**
 	 * Whether the current ledger may mint links and collect. Settings are copied along with a ledger
 	 * (a test ledger restored from production keeps the live keys), so a ledger only counts as set up
-	 * when its Stripe settings were saved in it: target_db holds the ledger they were saved in. The
-	 * pinned ledger is armed regardless (it predates target_db being the ledger's own name).
+	 * when its Stripe settings were saved in it on this server: target_db holds the ledger they were saved in
+	 * and armed_for the server binding (stripe_arming_key()). The pinned ledger is armed regardless (it predates
+	 * target_db being the ledger's own name).
 	 *
 	 * @return bool Stripe in this ledger is its own, not a copy's.
 	 */
 	function stripe_ledger_armed() {
 		global $db;
 		if (!is_string($db) || $db === '') return false;
-		return stripe_setting('target_db') === $db || $db === stripeConfigDb();
+		if ($db === stripeConfigDb()) return true;
+		return stripe_ledger_set_up_here($db, (string)stripe_setting('target_db'), (string)stripe_setting('armed_for'));
+	}
+}
+
+if (!function_exists('stripe_card_charging_on')) {
+	/**
+	 * Whether this ledger charges saved cards: it is armed here (stripe_ledger_armed()) and Stripe, invoice payments and
+	 * automatic card payment (enrolment) are all switched on. The order page offers "Stripe" and an invoice goes out as
+	 * the pre-charge notice only then; the charge job checks the same switches.
+	 *
+	 * @return bool
+	 */
+	function stripe_card_charging_on() {
+		return stripe_ledger_armed() && stripe_setting('enabled', 'off') === 'on'
+			&& stripe_feature_on('invoice_payments') && stripe_feature_on('enrolment');
 	}
 }
 

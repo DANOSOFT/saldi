@@ -1,8 +1,14 @@
 <?php
 // 20261022 CDX/LH Purpose isolation, due-date and signup gates, private atomic PDFs, index repair and discount totals.
 // 20261026 CL/NTR Multi-ledger: links carry and bind the ledger, legacy v2 links only in the pinned ledger, copied ledgers stay off.
+// 20261116 CDX/ASR Expect the new Saldi logo in outstanding-invoice mail after card unenrolment.
+// 20261117 CDX/ASR Cover PDF compositor fallback and explicit administrator tool settings.
+// 20261126 CL/ASR Review round 1 (I15): a ledger other than the pinned one is armed only by settings saved in it on this server (armed_for).
+// 20261126 CL/ASR Review round 1 (I18): only a real subscription counts as already subscribed; a customer charged by card for its invoices is told so and gets no link.
+// 20261126 CL/ASR Review round 1 (SM-3): the port's information_schema checks look only in this database's schema.
+// 20261126 ASR Payment review (GPT-P-7): an invalid, unsigned or rate-limited link gets the same page footer as an unknown ledger; only a valid link shows the company.
 
-require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/support/bootstrap.php';
 require_once __DIR__ . '/../../includes/formFuncIncludes/subscriptionLink.php';
 
 final class StripeSecurityTest extends StripeDatabaseTestCase
@@ -55,6 +61,8 @@ final class StripeSecurityTest extends StripeDatabaseTestCase
             $this->assertNotSame($v3, stripe_link_sign($id, 'invoice'));
             $this->assertSame('', stripe_invoice_url($id), 'a copied ledger mints nothing');
             StripeTestEnvironment::setting('stripe', 'target_db', 'other_ledger');
+            $this->assertFalse(stripe_ledger_armed(), 'saved in that ledger, but not on this server');
+            StripeTestEnvironment::setting('stripe', 'armed_for', stripe_arming_key('other_ledger'));
             $this->assertTrue(stripe_ledger_armed());
             parse_str((string)parse_url(stripe_invoice_url($id), PHP_URL_QUERY), $other);
             $this->assertSame('other_ledger', $other['r']);
@@ -64,6 +72,40 @@ final class StripeSecurityTest extends StripeDatabaseTestCase
             stripe_settings_flush();
         }
         $this->assertFalse(stripe_link_verify($id, $other['s'], 'invoice'));
+    }
+
+    public function testArmingOutsideThePinnedLedgerIsBoundToThisServerAndMasterDatabase(): void
+    {
+        $pinned = $GLOBALS['db'];
+        $saved = [$GLOBALS['sqhost'] ?? null, $GLOBALS['sqdb'] ?? null];
+        $this->assertSame(hash('sha256', gethostname() . '|' . $GLOBALS['sqhost'] . '|' . $GLOBALS['sqdb'] . '|other_ledger'), stripe_arming_key('other_ledger'),
+            'host, master database host and name, and ledger; not the installation folder');
+        StripeTestEnvironment::setting('stripe', 'armed_for', 'saved-on-another-server');
+        $this->assertTrue(stripe_ledger_armed(), 'the pinned ledger is armed regardless');
+        try {
+            $GLOBALS['db'] = 'other_ledger';
+            StripeTestEnvironment::setting('stripe', 'target_db', 'other_ledger');
+            $this->assertFalse(stripe_ledger_armed(), 'armed for another server');
+            StripeTestEnvironment::setting('stripe', 'armed_for', null);
+            $this->assertFalse(stripe_ledger_armed(), 'saved before armed_for existed');
+            StripeTestEnvironment::setting('stripe', 'armed_for', stripe_arming_key('other_ledger'));
+            $this->assertTrue(stripe_ledger_armed(), 'saved in this ledger on this server');
+            $this->assertNotSame('', stripe_invoice_url(StripeFixtures::invoice()), 'an armed ledger mints links');
+            $GLOBALS['sqdb'] = 'another_master';
+            $this->assertFalse(stripe_ledger_armed(), 'restored against another master database');
+            $GLOBALS['sqdb'] = $saved[1];
+            $GLOBALS['sqhost'] = 'another-db-host';
+            $this->assertFalse(stripe_ledger_armed(), 'restored against another database server');
+            $GLOBALS['sqhost'] = $saved[0];
+            StripeTestEnvironment::setting('stripe', 'target_db', 'third_ledger');
+            $this->assertFalse(stripe_ledger_armed(), 'settings saved in another ledger');
+            $this->assertFalse(stripe_ledger_set_up_here('third_ledger', 'third_ledger', stripe_arming_key('other_ledger')));
+            $this->assertTrue(stripe_ledger_set_up_here('third_ledger', 'third_ledger', stripe_arming_key('third_ledger')));
+        } finally {
+            $GLOBALS['db'] = $pinned;
+            [$GLOBALS['sqhost'], $GLOBALS['sqdb']] = $saved;
+            stripe_settings_flush();
+        }
     }
 
     public function testPublicEntryPointsResolveTheLedgerFromTheLinkOnly(): void
@@ -108,6 +150,110 @@ final class StripeSecurityTest extends StripeDatabaseTestCase
         $this->assertFalse(stripe_link_verify($id, $query['s'], 'remove-card'));
         $common = file_get_contents(__DIR__ . '/../../api/stripe/faktura_common.php');
         $this->assertStringContainsString("stripe_link_verify(\$faktura_o, \$faktura_s, 'invoice')", $common);
+    }
+
+    public function testAnInvalidInvoiceLinkShowsNoCompanyLikeAnUnknownLedger(): void
+    {
+        StripeTestEnvironment::query("UPDATE adresser SET firmanavn = 'Fakturafirma ApS', email = 'kontor@example.invalid' WHERE art = 'S'");
+        $company = ['name' => 'Fakturafirma ApS', 'email' => 'kontor@example.invalid'];
+        $none = ['name' => '', 'email' => ''];
+        $order = StripeFixtures::invoice();
+        $signed = stripe_link_sign($order, 'invoice');
+        $source = file_get_contents(__DIR__ . '/../../api/stripe/faktura_common.php');
+        $start = strpos($source, "\$GLOBALS['stripe_page_identity'] = array('name' => '', 'email' => '');");
+        $this->assertNotFalse($start);
+        // The bootstrap's request handling as faktura.php, faktura_pdf.php and faktura_side.php run it, with only its
+        // terminating page call and the rate limiter replaced.
+        $request = str_replace(['faktura_fail(', 'stripe_rate_limit('], ['$fail(', '$allow('], substr($source, $start));
+        $run = function (string $targetDb, array $get, bool $limited = false) use ($request): array {
+            $result = null;
+            $fail = function ($status, $headline, $text, $code = 'error') use (&$result): void {
+                $result = [$status, $code, $GLOBALS['stripe_page_identity']];
+                throw new RuntimeException('faktura_fail');
+            };
+            $allow = static fn(string $key): bool => !($limited && strpos($key, 'fak_ip_') === 0);
+            $stripe_target_db = $targetDb;
+            $stripe_boot_ok = true;
+            $db = $GLOBALS['db'];
+            $_GET = $get;
+            $_SERVER['REMOTE_ADDR'] = '192.0.2.10';
+            unset($GLOBALS['stripe_page_identity']);
+            try {
+                eval($request);
+            } catch (RuntimeException $finished) {
+                if ($finished->getMessage() !== 'faktura_fail') throw $finished;
+                return $result;
+            } finally {
+                $_GET = [];
+            }
+            return [200, 'ok', $GLOBALS['stripe_page_identity']];
+        };
+        try {
+            $unknown = $run('', ['r' => 'no_such_ledger', 'o' => $order, 's' => $signed]);
+            $this->assertSame([403, 'bad_link', $none], $unknown, 'an unknown ledger');
+            $this->assertSame($unknown, $run($GLOBALS['db'], ['o' => $order, 's' => str_repeat('0', 64)]), 'a wrong signature');
+            $this->assertSame($unknown, $run($GLOBALS['db'], ['o' => $order]), 'no signature');
+            $this->assertSame($unknown, $run($GLOBALS['db'], ['o' => $order, 's' => stripe_link_sign($order, 'subscribe')]), 'a link for another purpose');
+            $this->assertSame([429, 'rate', $none], $run($GLOBALS['db'], ['o' => $order, 's' => $signed], true), 'rate-limited before the signature');
+            $this->assertSame([200, 'ok', $company], $run($GLOBALS['db'], ['o' => $order, 's' => $signed]), 'a valid link');
+            StripeTestEnvironment::setting('stripe', 'enabled', 'off');
+            $this->assertSame([503, 'disabled', $company], $run($GLOBALS['db'], ['o' => $order, 's' => $signed]), 'a valid link learns that Stripe is off');
+        } finally {
+            unset($GLOBALS['stripe_page_identity']);
+        }
+    }
+
+    public function testAnInvalidSubscriptionLinkToAnotherLedgerShowsTheDefaultFooter(): void
+    {
+        StripeTestEnvironment::query("UPDATE adresser SET firmanavn = 'Abonnementsfirma ApS', email = 'abonnement@example.invalid' WHERE art = 'S'");
+        StripeTestEnvironment::setting('stripe', 'signup_enabled', 'on');
+        $order = StripeFixtures::order(StripeFixtures::debtor());
+        $source = file_get_contents(__DIR__ . '/../../api/stripe/subscribe.php');
+        $start = strpos($source, '// ---------- request handling ----------');
+        $end = strpos($source, '// Subscription guards do not use nextfakt.', (int)$start);
+        $this->assertNotFalse($start);
+        $this->assertNotFalse($end);
+        $request = str_replace(['stripe_fail_page(', 'stripe_rate_limit('], ['$fail(', '$allow('], substr($source, $start, $end - $start));
+        $run = function (string $targetDb, array $get) use ($request): array {
+            $result = null;
+            $fail = function ($status, $headline, $text) use (&$result): void {
+                $result = [$status, $GLOBALS['stripe_page_identity'] ?? null];
+                throw new RuntimeException('stripe_fail_page');
+            };
+            $allow = static fn(string $key): bool => true;
+            $stripe_target_db = $targetDb;
+            $stripe_boot_ok = true;
+            $db = $GLOBALS['db'];
+            $_GET = $get;
+            $_SERVER['REQUEST_METHOD'] = 'GET';
+            $_SERVER['REMOTE_ADDR'] = '192.0.2.11';
+            unset($GLOBALS['stripe_page_identity']);
+            try {
+                eval($request);
+            } catch (RuntimeException $finished) {
+                if ($finished->getMessage() !== 'stripe_fail_page') throw $finished;
+                return $result;
+            } finally {
+                $_GET = [];
+            }
+            return [200, $GLOBALS['stripe_page_identity'] ?? null];
+        };
+        $pinned = $GLOBALS['db'];
+        // A ledger other than the pinned one, on the same test tenant connection.
+        $GLOBALS['db'] = 'other_ledger_b';
+        stripe_settings_flush();
+        try {
+            $unknown = $run('', ['r' => 'no_such_ledger', 'id' => $order, 'sig' => stripe_link_sign($order)]);
+            $this->assertSame([403, null], $unknown, 'an unknown ledger: the default footer');
+            $this->assertSame($unknown, $run('other_ledger_b', ['id' => $order, 'sig' => str_repeat('0', 64)]), 'a wrong signature');
+            $this->assertSame($unknown, $run('other_ledger_b', ['id' => $order]), 'no signature');
+            $this->assertSame([200, ['name' => 'Abonnementsfirma ApS', 'email' => 'abonnement@example.invalid']],
+                $run('other_ledger_b', ['id' => $order, 'sig' => stripe_link_sign($order)]), 'a valid link shows the ledger\'s company');
+        } finally {
+            $GLOBALS['db'] = $pinned;
+            stripe_settings_flush();
+            unset($GLOBALS['stripe_page_identity']);
+        }
     }
 
     public function testPublicPostOriginUsesConfiguredOriginAndNeverTheHostHeader(): void
@@ -213,6 +359,105 @@ final class StripeSecurityTest extends StripeDatabaseTestCase
         $this->assertSame([], StripeTestTransport::$requests);
     }
 
+    public function testOnlyARealSubscriptionCountsAsAlreadySubscribed(): void
+    {
+        StripeTestEnvironment::query('CREATE TABLE IF NOT EXISTS stripe_catalog (
+            id SERIAL PRIMARY KEY, varenr text, active boolean NOT NULL DEFAULT true)');
+        StripeFixtures::insert('stripe_catalog', ['varenr' => 'TEST-A', 'active' => true]);
+        StripeTestEnvironment::setting('stripe', 'signup_enabled', 'on');
+        $source = file_get_contents(__DIR__ . '/../../api/stripe/subscribe.php');
+        $this->assertSame(1, preg_match('/\/\/ Already subscribed\?\nif \(!\$parkReason\) \{.*?\n\}\n/s', $source, $block));
+        $page = static function ($status, $kind, $headline): void {
+            throw new RuntimeException($headline, $status);
+        };
+        // subscribe.php's guard, with only its terminating page call replaced.
+        $subscribed = function (int $order) use ($block, $page): string {
+            $order = StripeFixtures::row('ordrer', $order);
+            $parkReason = '';
+            try {
+                eval(str_replace('stripe_status_page(', '$page(', $block[0]));
+            } catch (RuntimeException $exception) {
+                return $exception->getMessage();
+            }
+            return '';
+        };
+        // Paid one invoice on the payment page: a customer row without a subscription.
+        $paidOnce = StripeFixtures::debtor();
+        StripeFixtures::insert('stripe_customers', ['konto_id' => $paidOnce, 'stripe_customer_id' => 'cus_paid_once', 'status' => 'active']);
+        $order = StripeFixtures::order($paidOnce);
+        $this->assertNotSame('', subscriptionLinkUrl($order), 'an invoice payer is offered the subscription link');
+        $this->assertSame('', $subscribed($order), 'an invoice payer may subscribe');
+        // A real subscription.
+        $subscriber = StripeFixtures::debtor();
+        StripeFixtures::insert('stripe_customers', ['konto_id' => $subscriber, 'stripe_customer_id' => 'cus_sub', 'stripe_subscription_id' => 'sub_real', 'status' => 'active']);
+        $order = StripeFixtures::order($subscriber);
+        $this->assertSame('', subscriptionLinkUrl($order));
+        $this->assertSame('Du har allerede et aktivt abonnement', $subscribed($order));
+        // Invoices charged to a saved card: no subscription on top, and the page says why.
+        $enrolled = StripeFixtures::debtor(['stripe' => 'on', 'stripe_pm_id' => 'pm_saved', 'stripe_customer_id' => 'cus_card']);
+        StripeFixtures::insert('stripe_customers', ['konto_id' => $enrolled, 'stripe_customer_id' => 'cus_card', 'status' => 'active']);
+        $order = StripeFixtures::order($enrolled);
+        $this->assertTrue(stripe_debtor_card_enrolled($enrolled));
+        $this->assertSame('', subscriptionLinkUrl($order));
+        $this->assertSame('Jeres fakturaer betales allerede automatisk', $subscribed($order));
+        $this->assertFalse(stripe_debtor_card_enrolled($paidOnce));
+        $this->assertSame([], StripeTestTransport::$requests);
+    }
+
+    public function testSchemaChecksLookOnlyInThisDatabase(): void
+    {
+        // On MySQL information_schema spans every database the user can see; on PostgreSQL every schema. A ledger
+        // whose own schema has no stripe_payments must not be taken for one that has it.
+        $schema = 'sm3_' . bin2hex(random_bytes(6));
+        StripeTestEnvironment::query("CREATE SCHEMA $schema");
+        StripeTestEnvironment::query("SET LOCAL search_path TO $schema");
+        try {
+            stripe_charge_schema_ensure();
+            $this->assertSame('0', pg_fetch_result(StripeTestEnvironment::query(
+                'SELECT count(*) FROM information_schema.tables WHERE table_schema = $1', [$schema]), 0, 0),
+                'stripe_charge_schema_ensure() found public.stripe_payments and created its tables in another schema');
+            $this->assertFalse(stripe_debtor_card_enrolled(1));
+        } finally {
+            StripeTestEnvironment::query('RESET search_path');
+        }
+        // Every information_schema check the port added names the schema.
+        $files = ['includes/stripeIncludes/stripeChargeSchema.php', 'includes/stripeIncludes/stripeInvoiceWebhook.php',
+            'includes/stripeIncludes/stripeStaff.php', 'includes/stripeIncludes/stripeLink.php', 'debitor/orderIncludes/orderDelivery.php'];
+        foreach ($files as $file) {
+            $source = file_get_contents(__DIR__ . '/../../' . $file);
+            $this->assertSame(substr_count($source, 'from information_schema.'), substr_count($source, '. saldi_schema_filter()'), $file);
+        }
+        $invoice = file_get_contents(__DIR__ . '/../../includes/stripeIncludes/stripeInvoice.php');
+        $this->assertSame(2, preg_match_all("/FROM information_schema\.columns WHERE table_name='(stripe_payments|adresser)' AND column_name='[^']+'\" \. saldi_schema_filter\(\)/", $invoice));
+        $updates = file_get_contents(__DIR__ . '/../../includes/betweenUpdates.php');
+        $port = substr($updates, strpos($updates, '// 20261019 CL/ASR "Saldi invoices, Stripe collects"'));
+        $this->assertSame(substr_count($port, 'FROM information_schema.'), substr_count($port, '" . opdat_schema_filter($db_type)'));
+        $this->assertSame(4, substr_count($port, '" . opdat_schema_filter($db_type)'));
+    }
+
+    public function testPdfBackgroundToolWorksWithoutAnExplicitLedgerSetting(): void
+    {
+        StripeTestEnvironment::query("DELETE FROM settings WHERE var_name='pdftk'");
+        $dir = sys_get_temp_dir() . '/saldi-pdftk-' . bin2hex(random_bytes(8));
+        mkdir($dir, 0700);
+        $tool = $dir . '/pdftk';
+        file_put_contents($tool, '#!/bin/sh');
+        try {
+            chmod($tool, 0600);
+            $this->assertSame('', stripe_invoice_pdf_pdftk([$tool]));
+            chmod($tool, 0700);
+            clearstatcache(true, $tool);
+            $this->assertSame($tool, stripe_invoice_pdf_pdftk(['relative/pdftk', $dir, $tool]));
+            StripeTestEnvironment::setting('programs', 'pdftk', '/opt/saldi/pdftk');
+            $this->assertSame('/opt/saldi/pdftk', stripe_invoice_pdf_pdftk([$tool]));
+            StripeTestEnvironment::setting('programs', 'pdftk', '');
+            $this->assertSame($tool, stripe_invoice_pdf_pdftk([$tool]));
+        } finally {
+            unlink($tool);
+            rmdir($dir);
+        }
+    }
+
     public function testAtomicPublicationKeepsExistingReadersAndRefusesBrokenSource(): void
     {
         $id = StripeFixtures::invoice();
@@ -309,7 +554,7 @@ final class StripeSecurityTest extends StripeDatabaseTestCase
             $before = count(StripeTestTransport::$mails);
             $this->assertTrue(stripe_mail_invoice_classic($inv));
             $mail = StripeTestTransport::$mails[$before];
-            $this->assertStringContainsString('/img/SaldiMainLogo.png" width="128" alt="Saldi"', $mail['html']);
+            $this->assertStringContainsString('/img/saldi-moerk-logo-lys-baggrund.png" width="128" alt="Saldi"', $mail['html']);
             $this->assertStringContainsString('Automatisk kortbetaling er stoppet', $mail['html']);
             $this->assertCount(1, $mail['attachments']);
             $this->assertSame(stripe_invoice_pdf_path($id, false), $mail['attachments'][0]);
