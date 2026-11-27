@@ -9,6 +9,7 @@
 // 20261114 CL/MJ SD-760 (CI): orderMove.php loads logging.php, so it is required when the class starts.
 //                Collecting the files no longer loads it, and ClientRetryTest keeps a client without a redactor.
 // 20261126 CL/MJ SD-760: a move the client stops at the deadline yields, and a line that can't be planned is never unresolved.
+// 20261127 CL/MJ SD-760: a read the client stops at the deadline yields too.
 
 use PHPUnit\Framework\TestCase;
 
@@ -170,6 +171,22 @@ final class OrderMoveTest extends TestCase
             ['graphql' => $fake->opts(), 'deadline' => microtime(true) + 300, 'held' => fn(): bool => true]);
         $this->assertSame(['status' => 'yield', 'moved' => 0, 'errors' => []], $result);
         $this->assertCount(1, $fake->calls, 'the read only; the move was never sent');
+    }
+
+    /** The client stopped the second page of the read at the pass deadline: out of time, not a failed attempt. */
+    public function testRunMovesYieldsWhenTheClientStopsAReadAtTheDeadline(): void
+    {
+        $firstPage = function (FakeShopify $fake): array {
+            $fake->now += 290;
+            return FakeShopify::ok(['order' => ['fulfillmentOrders' => ['pageInfo' => ['hasNextPage' => true, 'endCursor' => 'c1'],
+                'nodes' => [self::fo('F1', self::L1, ['L11' => 1])]]]]);
+        };
+        $fake = new FakeShopify([$firstPage]);
+        $fake->requestSeconds = 9.5;
+        $result = shopify_run_moves(FakeShopify::shop(), 'gid://shopify/Order/1', ['lines' => [self::line('L11', [2 => 1000])]], self::LOCATIONS,
+            ['graphql' => $fake->opts(), 'deadline' => microtime(true) + 300, 'held' => fn(): bool => true]);
+        $this->assertSame(['status' => 'yield', 'moved' => 0, 'errors' => []], $result);
+        $this->assertCount(1, $fake->calls, 'the first page only; the second was never sent');
     }
 
     /** A hold that ends before a move sent now could be answered: nothing is sent, and the job abandons at once. */

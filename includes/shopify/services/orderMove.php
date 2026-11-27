@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/orderMove.php --- ver 5.1.1 --- 2026.11.26
+// --- includes/shopify/services/orderMove.php --- ver 5.1.1 --- 2026.11.27
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -37,6 +37,7 @@
 //
 // 20261113 CL/MJ SD-760: created (WP10-2).
 // 20261126 CL/MJ SD-760 (review): the sweep abandons the order.move of an order whose move job died, so saldi-behandlet is not held back for good.
+// 20261127 CL/MJ SD-760 (review): a read the client stops at the pass deadline yields like a move does, so a throttled read no longer uses up an attempt.
 //                Any exception or error in the move is a failed attempt, and a move the client stops at the deadline yields.
 //                An expired barrier with nothing left to move is done without an alarm, and a line that can't be planned is never unresolved.
 // 20261126 CL/MJ SD-760 (Sol): the sweep abandons a pending order.move only once no order.move job is left to run it.
@@ -203,6 +204,9 @@ function shopify_run_moves(array $shop, string $orderGid, array $alloc, array $l
 			return array('status' => 'yield', 'moved' => $moved, 'errors' => array());
 		}
 		$read = shopify_move_read($shop, $orderGid, $rt);
+		if (!empty($read['deadline'])) {
+			return array('status' => 'yield', 'moved' => $moved, 'errors' => array());
+		}
 		if ($read['errors']) {
 			return array('status' => 'failed', 'moved' => $moved, 'errors' => $read['errors']);
 		}
@@ -246,7 +250,8 @@ function shopify_run_moves(array $shop, string $orderGid, array $alloc, array $l
  *
  * @param array<string, string|null> $shop
  * @param array{deadline?: float, graphql?: array<string, mixed>} $rt
- * @return array{fulfillment_orders: list<array<string, mixed>>, errors: list<string>}
+ * @return array{fulfillment_orders: list<array<string, mixed>>, errors: list<string>, deadline?: true} deadline: the
+ *   client stopped a read at the pass deadline (a throttle wait that would overrun it, too); nothing failed
  */
 function shopify_move_read(array $shop, string $orderGid, array $rt): array {
 	$nodes = array();
@@ -254,6 +259,9 @@ function shopify_move_read(array $shop, string $orderGid, array $rt): array {
 	for ($page = 0; $page < SHOPIFY_MOVE_MAX_FULFILLMENT_ORDERS; $page++) {
 		$res = shopify_graphql($shop, 'orderMoveRead', SHOPIFY_MOVE_READ, array('id' => $orderGid, 'after' => $after),
 			shopify_writeback_opts($rt, array('retry_mode' => 'read', 'correlation' => array('order_gid' => $orderGid))));
+		if (!$res['ok'] && ($res['error'] ?? null) === 'deadline') {
+			return array('fulfillment_orders' => array(), 'errors' => array("out of time reading the fulfillment orders of $orderGid"), 'deadline' => true);
+		}
 		$fos = $res['data']['order']['fulfillmentOrders'] ?? null;
 		if (!$res['ok'] || !is_array($fos)) {
 			return array('fulfillment_orders' => array(), 'errors' => shopify_graphql_messages($res) ?: array("the fulfillment orders of $orderGid could not be read"));
