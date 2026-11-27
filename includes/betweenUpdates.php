@@ -460,7 +460,8 @@ if (isset($GLOBALS['db'], $GLOBALS['sqdb'])) {
 if (!opdat_is_mysql($db_type) && !empty($GLOBALS['connection']) && function_exists('moms_periode_luk_ensure_schema')) {
 	$momsLukStatus = moms_periode_luk_ensure_schema();
 	if (!empty($momsLukStatus['table'])) {
-		if (!@pg_query($GLOBALS['connection'], "ALTER TABLE moms_periode_luk ADD COLUMN IF NOT EXISTS note TEXT")) {
+		$noteCol = @pg_query($GLOBALS['connection'], "SELECT 1 FROM pg_attribute WHERE attrelid = to_regclass('moms_periode_luk') AND attname = 'note' AND NOT attisdropped");
+		if ($noteCol && pg_num_rows($noteCol) === 0 && !@pg_query($GLOBALS['connection'], "ALTER TABLE moms_periode_luk ADD COLUMN IF NOT EXISTS note TEXT")) {
 			error_log("P1: moms_periode_luk note column ensure failed for db=" . ($GLOBALS['db'] ?? '') . ": " . pg_last_error($GLOBALS['connection']));
 		}
 	}
