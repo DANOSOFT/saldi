@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-25 ---
+// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -227,7 +227,12 @@
 //                 "0+2" keeps voucher 0 for the line and the two new lines, and the rest of the lookup return block uses ifset() too.
 // 20261110 CDX/NTR Document how the gear-box save encodes opt-in and opt-out preferences.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261125 LOE SST-906 A proposal follows the line's own date: every proposal site is handed it, and each proposal posts the date it was drawn for, so a number kept while the line is dated in another fiscal year is saved under that year's series.
+//              The save hands the replacements it has already made to the year's allocator, so two lines cannot end up on one number.
+//              A replaced number reaches only the line that still carries its proposal, and a line whose own year has no number left is refused instead of stored under another year's number.
+//              A taken-proposal replacement the year pass overrides is not announced, and its number is not held back from the year's own series.
 // 20261125 CDX/NTR Display the grid's prepared account text and use raw row values for escaped SQL and card links.
+// 20261127 LOE SST-906 (review) A taken-proposal replacement is only kept out of the series while a line still stores under it, and its notice is suppressed exactly when the year pass freed it.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
@@ -1184,6 +1189,9 @@ if ($_POST) {
 		$bilag[$x] = bilagFromInput(if_isset($_POST[$y], ''));
 		// MB-81 The number the page proposed on this line, so opdater() can tell a kept proposal from a typed number
 		$bilagForslag[$x] = (int)ifset($_POST, "bilf$x", 0);
+		# SST-906 (review) and the date that proposal was drawn for, so the save can tell a proposal from another
+		# fiscal year than the one the line is now dated in
+		$bilagForslagDato[$x] = trim((string)ifset($_POST, "bilfd$x", ''));
 		$y = "dato" . $x;
 		$dato[$x] = trim(if_isset($_POST[$y], ''));
 		if (substr($dato[$x], 4, 1) == '-' && substr($dato[$x], 7, 1) == '-') {
@@ -1953,7 +1961,7 @@ if (!$fejl && $kladde_id) {
 	if (empty($kk_replay)) {
 		// Only lines this request staged and checked (kontroller()). What a refused save left in tmpkassekl must not
 		// reach the journal when the page is opened again: that saved e.g. an unknown account without the check.
-		if (!empty($kkStaged)) opdater($kladde_id, $bilagForslag ?? array());
+		if (!empty($kkStaged)) opdater($kladde_id, $bilagForslag ?? array(), $bilagForslagDato ?? array());
 		# SST-888 (review) opdater() can refuse a single line and still commit the rest: the refused
 		# rows stay staged, so the error re-render shows them and pressing Gem again saves them.
 		if ($fejl) {
@@ -3491,6 +3499,8 @@ if ($kladde_id) {
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	$bilagssum = 0;
 	$x = 0;
+	# SST-906 (review) a page opened without a POST has no proposals to carry a date for
+	$bilagForslagDato = isset($bilagForslagDato) ? $bilagForslagDato : array();
 	while ($row = db_fetch_array($q)) {
 		$x++;
 		$id[$x] = $row['id'];
@@ -3499,6 +3509,9 @@ if ($kladde_id) {
 		if ($fejl) {
 			// MB-81 A refused new line is shown again with the proposal it was posted with
 			$kkForslag[$x] = $bilagForslag[(int)$row['lobenr']] ?? 0;
+			# SST-906 (review) and the date that proposal was drawn for, so a save made after the date was
+			# changed into another fiscal year still knows which year the number came from
+			$kkForslagDato[$x] = $bilagForslagDato[(int)$row['lobenr']] ?? '';
 			$transdate[$x] = usdate($row['transdate']);
 			$dato[$x] = dkdato($transdate[$x]);
 			#echo __line__." $row[transdate] | transdate[$x] $transdate[$x] | dato[$x] $dato[$x]<br>";
@@ -3807,11 +3820,19 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		// holds - and at 2147483647 to the column maximum itself. Offer the next number instead, and
 		// nothing at all when the column cannot hold it.
 		if (!$kk_has_saved_lines && $y == 1 && !$bilag[$y]) {
-			$kk_last_bilag_next = bilagNextNumberForJournal($kladde_id, $regnstart, $regnslut);
+			# SST-906 the placeholder line follows its own date: a staged line keeps the date it was typed with,
+			# and a line without one is dated today (usdate('') is today)
+			$kk_last_bilag_dato = usdate($dato[$y] ?? '');
+			$kk_last_bilag_next = bilagNextNumberForJournal($kladde_id, $regnstart, $regnslut, $kk_last_bilag_dato);
 			if (!bilagNumberFits((string)$kk_last_bilag_next)) {
 				$kk_last_bilag_next = '';
 			}
 			$bilag[$y] = $kk_last_bilag_next;
+			# the number and the date it was drawn for travel together, so the save reads the pair and not a stale number
+			if ($bilag[$y] !== '') {
+				$kkForslag[$y] = $bilag[$y];
+				$kkForslagDato[$y] = $kk_last_bilag_dato;
+			}
 		}
 		# SST-888 (review) a line without a number shows an empty voucher field, not a 0 the user reads as a number;
 		# anything else is escaped and printed as it was typed, so a rejected value ("abc", or one carrying a quote)
@@ -3820,6 +3841,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		$kk_bila_vaerdi = isset($bilag[$y]) ? htmlspecialchars(bilagFieldValue($bilag[$y], !$kk_rows_staged), ENT_QUOTES) : '';
 		print "<td><input class='inputbox' $title type='text' style='text-align:right;width:80px;$color' name='bila$y' $de_fok value =\"$kk_bila_vaerdi\" onchange='javascript:docChange = true;'>";
 		if (!$id[$y] && !empty($kkForslag[$y])) print "<input type='hidden' name='bilf$y' value='" . (int)$kkForslag[$y] . "'>";
+		# SST-906 (review) the date the proposal was drawn for: the save replaces the number when the line's
+		# date has been changed into another fiscal year since
+		if (!$id[$y] && !empty($kkForslag[$y]) && !empty($kkForslagDato[$y])) print "<input type='hidden' name='bilfd$y' value='" . htmlspecialchars($kkForslagDato[$y], ENT_QUOTES) . "'>";
 		print "</td>";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:85px;' name='dato$y' $de_fok value =\"$dato[$y]\" onchange='javascript:docChange = true;'></td>";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:300px;' name='besk$y' $de_fok value =\"$beskrivelse[$y]\" onchange='javascript:docChange = true;'></td>";
@@ -3988,20 +4012,29 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		&& !$debet[$y] && !$kredit[$y] && !$faktura[$y] && !$amount[$x])) && ($x == 1)) || (!$kladde_id)) {
 		# 20260928 LOE SST-817 Same allocation as the line rendered below: the journal's highest used
 		# number + 1, or the fiscal year's when this journal has no numbered row yet.
-		$bilag[$x] = bilagNextNumberForJournal($kladde_id, $regnstart, $regnslut);
+		# SST-906 the blank line is dated today unless the line above it carries a date, and the number
+		# follows that date - so the number offered and the date shown next to it name the same fiscal year
+		$kk_next_date = (isset($dato[$x]) && $dato[$x] != '') ? $dato[$x]
+			: ((isset($dato[$x - 1]) && $dato[$x - 1] != '') ? $dato[$x - 1] : dkdato(date("Y-m-d")));
+		$bilag[$x] = bilagNextNumberForJournal($kladde_id, $regnstart, $regnslut, usdate($kk_next_date));
 		# SST-888 (review) never offer a number the column cannot hold: at 2147483647 the next number
 		# is 2147483648, and offering it only earns a refusal after the operator has typed it
 		if (!bilagNumberFits((string)$bilag[$x])) {
 			$bilag[$x] = '';
 		}
 	}
+	if (!isset($kk_next_date)) {
+		$kk_next_date = (isset($dato[$x]) && $dato[$x] != '') ? $dato[$x]
+			: ((isset($dato[$x - 1]) && $dato[$x - 1] != '') ? $dato[$x - 1] : dkdato(date("Y-m-d")));
+	}
 	if (!isset($debet[$x - 1]))       $debet[$x - 1] = NULL;
 	if (!isset($kredit[$x - 1]))      $kredit[$x - 1] = NULL;
-	if (($bilag[$x]) && (!$dato[$x])) $dato[$x] = (isset($dato[$x - 1]) && $dato[$x - 1] != '') ? $dato[$x - 1] : dkdato(date("Y-m-d"));
+	if (($bilag[$x]) && (!$dato[$x])) $dato[$x] = $kk_next_date;
 	# 20260928 LOE SST-817 The number the next line carries comes from the journal itself (highest used
 	# number + 1), not from the row above it. A journal whose last row is an empty row used to offer no
 	# number at all there, the line typed on it was stored as bilag 0, and the series restarted at 1.
-	$kk_next_bilag = bilagNextNumberForJournal($kladde_id, $regnstart, $regnslut);
+	# SST-906 the next line takes the series of its own date, which is the date shown on it
+	$kk_next_bilag = bilagNextNumberForJournal($kladde_id, $regnstart, $regnslut, usdate($kk_next_date));
 	# SST-888 (review) no proposal for a number the column cannot hold either
 	if (!bilagNumberFits((string)$kk_next_bilag)) {
 		$kk_next_bilag = 0;
@@ -4083,7 +4116,10 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		$kk_next_vaerdi = ((int)$next > 0) ? (int)$next : ($kk_nul_tastet ? '0' : '');
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:80px;'
 		name='bila$x' $de_fok value =\"$kk_next_vaerdi\" onchange='javascript:docChange = true;'>";
-		print "<input type='hidden' name='bilf$x' value='" . (int)$kk_next_bilag . "'></td>\n";
+		print "<input type='hidden' name='bilf$x' value='" . (int)$kk_next_bilag . "'>";
+		# SST-906 (review) the date that proposal was drawn for, so a save that finds the line dated in
+		# another fiscal year takes the number from that year's series instead
+		print "<input type='hidden' name='bilfd$x' value='" . htmlspecialchars(usdate($kk_next_date), ENT_QUOTES) . "'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:85px;'
 		name='dato$x' $de_fok value =\"$dato[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:300px;'
@@ -4799,8 +4835,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	 *
 	 * @param int             $kladde_id
 	 * @param array<int, int> $bilagForslag Line number => the voucher number the page proposed on that line.
+	 * @param array<int, string> $bilagForslagDato Line number => the date that proposal was drawn for (SST-906).
 	 */
-	function opdater($kladde_id, $bilagForslag = array())
+	function opdater($kladde_id, $bilagForslag = array(), $bilagForslagDato = array())
 	{
 		global $baseCurrency, $egen_kto_id, $sprog_id, $fejl;
 
@@ -4818,12 +4855,37 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		# MB-126 the "<bilag>+N" lines this save inserted never take a proposal back, so they are passed along
 		$kk_egne_linjer = isset($GLOBALS['kk_plus_line_ids']) ? array_merge(array(), ...array_values($GLOBALS['kk_plus_line_ids'])) : array();
 		$bilagErstat = bilagReplaceTakenProposals($kladde_id, $bilagForslag, $kk_bilag_fra, $kk_egne_linjer);
+		# SST-906 (review) a proposal the page drew for a date in another fiscal year is replaced by the series
+		# of the year the line is dated in now, so changing only the date cannot carry one year's numbers into
+		# the other. The replacements made above are handed over, because their numbers are this save's already:
+		# the year's allocator must not pick one of them for a line of its own
+		$kk_aar_frigivet = array();
+		$kk_aar_erstat = bilagReplaceForeignYearProposals($kladde_id, $bilagForslag, $bilagForslagDato, $kk_bilag_fra, $bilagErstat, $kk_aar_frigivet);
+		# the numbers those lines move onto are this save's as well, so a line without a number walks past them;
+		# a taken replacement no line stores any more is free, so it is dropped instead of being skipped
+		$kk_erstat_brugt = $bilagErstat;
+		foreach (array_keys($kk_aar_frigivet) as $kk_aar_fri) {
+			unset($kk_erstat_brugt[(int)$kk_aar_fri]);
+		}
+		foreach ($kk_aar_erstat as $kk_aar_lobenr => $kk_aar_svar) {
+			if ((int)$kk_aar_svar['to'] > 0) {
+				$kk_erstat_brugt["aar$kk_aar_lobenr"] = (int)$kk_aar_svar['to'];
+			}
+		}
 
 		$forfaldsdate = NULL;
 		$valutakode = '0';
 		$qtxt = "select * from tmpkassekl where kladde_id = $kladde_id order by lobenr";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
+			# SST-906 (review) the year this line is dated in has no number left to give: refuse it here, the same
+			# way an exhausted series is refused below, instead of storing the number offered for another year
+			if (isset($kk_aar_erstat[(int)$r['lobenr']]) && (int)$kk_aar_erstat[(int)$r['lobenr']]['to'] <= 0) {
+				$fejl = 1;
+				$GLOBALS['kk_refused_lobenr'][] = (int)$r['lobenr'];
+				alert(addslashes(findtekst("7636|Bilagsnummeret kan ikke gemmes: bilagsserien for regnskabsåret er brugt op (maks 2147483647). Sænk det højeste nummer, og gem igen.", $sprog_id)));
+				continue;
+			}
 			if (($r['bilag'] != "-") && ($r['transdate'] || $r['debet'] || $r['kredit'])) {
 				if ($r['transdate'])
 					$transdate = usdate($r['transdate']);
@@ -4887,7 +4949,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						# SST-888 (review) the replacement comes from the same allocator as every other site, so it
 						# skips this save's own numbers and cannot pick one the column cannot hold
 						$bilag_for_stort = $bilag;
-						$bilag = bilagNextNumberReserved($kladde_id, $bilagErstat, $kk_bilag_fra, $kk_bilag_givet);
+						$bilag = bilagNextNumberReserved($kladde_id, $kk_erstat_brugt, $kk_bilag_fra, $kk_bilag_givet);
 						if ($bilag > 0) {
 							$kk_bilag_givet[] = (int)$bilag;
 							alert("Bilagsnummer $bilag_for_stort er for stort (maks 2147483647) og er erstattet med $bilag.");
@@ -4897,7 +4959,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 					# writing the 0 back; a positive number the user entered is kept as it is.
 					# SST-934 only a line whose field was left empty: a typed or saved 0 is kept
 					if ($bilag <= 0 && !$kk_nul_tastet) {
-						$bilag = bilagNextNumberReserved($kladde_id, $bilagErstat, $kk_bilag_fra, $kk_bilag_givet);
+						$bilag = bilagNextNumberReserved($kladde_id, $kk_erstat_brugt, $kk_bilag_fra, $kk_bilag_givet);
 						if ($bilag > 0) {
 							$kk_bilag_givet[] = (int)$bilag;
 						}
@@ -4936,7 +4998,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 							# SST-888 (review) same rule in the insert branch: the allocator hands out the replacement,
 							# so it skips this save's own numbers and never picks one the column cannot hold
 							$insert_for_stort = $insert_bilag;
-							$insert_bilag = bilagNextNumberReserved($kladde_id, $bilagErstat, $kk_bilag_fra, $kk_bilag_givet);
+							$insert_bilag = bilagNextNumberReserved($kladde_id, $kk_erstat_brugt, $kk_bilag_fra, $kk_bilag_givet);
 							if ($insert_bilag > 0) {
 								$kk_bilag_givet[] = (int)$insert_bilag;
 								alert("Bilagsnummer $insert_for_stort er for stort (maks 2147483647) og er erstattet med $insert_bilag.");
@@ -4946,7 +5008,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						# next one instead of 0, so a balanced line advances the series and no number is
 						# reused while the journal is open.
 						if ($insert_bilag <= 0 && !$kk_nul_tastet) {
-							$insert_bilag = bilagNextNumberReserved($kladde_id, $bilagErstat, $kk_bilag_fra, $kk_bilag_givet);
+							$insert_bilag = bilagNextNumberReserved($kladde_id, $kk_erstat_brugt, $kk_bilag_fra, $kk_bilag_givet);
 							if ($insert_bilag > 0) {
 								$kk_bilag_givet[] = (int)$insert_bilag;
 							}
@@ -4960,6 +5022,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 							}
 						}
 						$insert_bilag = $bilagErstat[$insert_bilag] ?? $insert_bilag;
+						# SST-906 (review) a number this save moves to another year belongs to the line that still
+						# carries the proposal: the same number typed on another line is the operator's own
+						if (isset($kk_aar_erstat[(int)$r['lobenr']]) && (int)$kk_aar_erstat[(int)$r['lobenr']]['to'] > 0) {
+							$insert_bilag = (int)$kk_aar_erstat[(int)$r['lobenr']]['to'];
+						}
 						// Insert at the correct bilag/transdate position instead of always at the end.
 						// Find the highest pos of entries that should come before the new entry.
 						$ins_pos_q = db_select("SELECT COALESCE(MAX(pos), 0) as max_pos FROM kassekladde WHERE kladde_id = '$kladde_id' AND (bilag < '$insert_bilag' OR (bilag = '$insert_bilag' AND transdate <= '$transdate'))", __FILE__ . " linje " . __LINE__);
@@ -4988,7 +5055,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						} elseif ($bilag_tjek['replaced']) {
 							# reserve the replacement through the same allocator a line without a number uses,
 							# so it cannot take a number a staged line already proposes
-							$bilag_tjek['bilag'] = bilagNextNumberReserved($kladde_id, $bilagErstat + $bilag_erstat, $kk_bilag_fra, $kk_bilag_givet);
+							$bilag_tjek['bilag'] = bilagNextNumberReserved($kladde_id, $kk_erstat_brugt + $bilag_erstat, $kk_bilag_fra, $kk_bilag_givet);
 							if ($bilag_tjek['bilag'] > 0) {
 								$kk_bilag_givet[] = (int)$bilag_tjek['bilag'];
 							}
@@ -5012,7 +5079,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 						# 20260928 LOE SST-817 Same allocation as above: a line saved without a voucher
 						# number gets the journal's next one instead of 0.
 						if ($insert_bilag <= 0 && !$kk_nul_tastet) {
-							$insert_bilag = bilagNextNumberReserved($kladde_id, $bilagErstat, $kk_bilag_fra, $kk_bilag_givet);
+							$insert_bilag = bilagNextNumberReserved($kladde_id, $kk_erstat_brugt, $kk_bilag_fra, $kk_bilag_givet);
 							if ($insert_bilag > 0) {
 								$kk_bilag_givet[] = (int)$insert_bilag;
 							}
@@ -5026,6 +5093,11 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 							}
 						}
 						$insert_bilag = $bilagErstat[$insert_bilag] ?? $insert_bilag;
+						# SST-906 (review) a number this save moves to another year belongs to the line that still
+						# carries the proposal: the same number typed on another line is the operator's own
+						if (isset($kk_aar_erstat[(int)$r['lobenr']]) && (int)$kk_aar_erstat[(int)$r['lobenr']]['to'] > 0) {
+							$insert_bilag = (int)$kk_aar_erstat[(int)$r['lobenr']]['to'];
+						}
 						// Insert at the correct bilag/transdate position instead of always at the end.
 						$ins_pos_q = db_select("SELECT COALESCE(MAX(pos), 0) as max_pos FROM kassekladde WHERE kladde_id = '$kladde_id' AND (bilag < '$insert_bilag' OR (bilag = '$insert_bilag' AND transdate <= '$transdate'))", __FILE__ . " linje " . __LINE__);
 						$ins_pos_r = db_fetch_array($ins_pos_q);
@@ -5058,7 +5130,17 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		}
 		transaktion('commit');
 		foreach ($bilagErstat as $taget => $ny) {
+			if (isset($kk_aar_frigivet[(int)$taget])) {
+				continue;   # no line of this save stores under that number any more: the year pass says where it went
+			}
 			alert(addslashes(sprintf(findtekst('5439|Bilagsnummer %s blev brugt af en anden bruger, mens du skrev. Linjen er gemt som bilag %s.', $sprog_id), $taget, $ny)));
+		}
+		foreach ($kk_aar_erstat as $kk_aar_lobenr => $kk_aar_svar) {
+			if ((int)$kk_aar_svar['to'] <= 0) {
+				continue;   # refused above, and the operator has already been told
+			}
+			# SST-906 (review) the number came from another fiscal year, not from another user's save
+			alert(addslashes(sprintf(findtekst('kassekladde.bilag.renumbered_other_year|Bilagsnummer %s hører til et andet regnskabsår end linjens dato. Linjen er gemt som bilag %s.', $sprog_id), (int)$kk_aar_svar['from'], (int)$kk_aar_svar['to'])));
 		}
 	}
 	######################################################################################################################################
