@@ -1,4 +1,8 @@
 <?php
+// 20261124 CDX/NTR Name the save permission with the documented Sager enum.
+// 20261124 CDX/NTR Use documented integer permission constants directly.
+
+require_once(__DIR__ . '/../../includes/constants/SagerPermission.php');
 
 function satser() {
 	global $charset;
@@ -6,6 +10,14 @@ function satser() {
 	global $db_encode;
 	$visLønninger='checked';
 	global $sprog_id;
+	global $sag_rettigheder;
+	global $brugernavn;
+	# SST-969 the form below saves for whoever posts it, so the save asks for the approver right itself.
+	# loen.php refuses the page, and this keeps the include safe if it is ever reached another way.
+	if (isset($_POST['gruppe_id']) && !substr((string)$sag_rettigheder, SagerPermission::APPROVE_PIECEWORK, 1)) {
+		error_log('SST-969: rate save refused for user ' . $brugernavn . ' (SagerPermission::APPROVE_PIECEWORK is not set)');
+		return;
+	}
 	# 20261106 SD-813 currency unit after the amounts
 	# 20261107 SD-813 escaped once here, so a custom translation cannot add markup in the eleven places it is printed (Saul, CodeRabbit)
 	# 20261107 SD-813 loen.php skips the charset of online.php ($header 'nix'), so it is taken from the database encoding here (CodeRabbit)
@@ -58,6 +70,12 @@ function satser() {
 		$qtxt.= "box5='".$traineemdr.chr(9).$traineepct."',box6='".$km_sats.chr(9).$km_fra."',box7='$plads',";
 		$qtxt.= "box8='".$overtid_50pct.chr(9).$overtid_100pct."' where id='$gruppe_id'";
 		db_modify($qtxt,__FILE__ . " linje " . __LINE__);
+		// Wage lines point at an hour type by its name, so a new one never reuses the name of an existing one.
+		$nextHourType = 0;
+		$q = db_select("select var_name from settings where var_grp = 'casePayment' and var_name like 'hourTypes%'", __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$nextHourType = max($nextHourType, (int) substr($r['var_name'], 9) + 1);
+		}
 		for ($x=0;$x<count($hourValue);$x++) {
 			$qtxt=NULL;
 			$hourValue[$x]=usdecimal($hourValue[$x]);
@@ -68,7 +86,8 @@ function satser() {
 				$qtxt.= "where id = '$hourId[$x]'";
 			} elseif ($hourDescription[$x] && $hourValue[$x]) {
 				$qtxt = "insert into settings (var_name,var_grp,var_value,var_description,user_id) values ";
-				$qtxt.= "('hourTypes$x','casePayment','$hourValue[$x]','$hourDescription[$x]','0')";
+				$qtxt.= "('hourTypes$nextHourType','casePayment','$hourValue[$x]','$hourDescription[$x]','0')";
+				$nextHourType++;
 			}
 			if ($qtxt) db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 		}

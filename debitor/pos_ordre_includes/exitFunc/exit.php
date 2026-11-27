@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre_includes/exitFunc/exit.php --- ver 5.1.0 --- 2026.10.29---
+// --- debitor/pos_ordre_includes/exitFunc/exit.php --- ver 5.1.1 --- 2026.11.26---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -36,6 +36,15 @@
 // 20261006 CL/LH SST-846: Route the Move3500 terminal type to payments/lane3000.php; payments/move3500.php only existed as a server alias.
 // 20261027 CDX/MJ SST-876 Drain webshop retry updates after POS settlement commits.
 // 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
+// 20261112 CL/SS MB-49 afslut(): a card payment of 0 on a 0-kr sale is refused before anything is written.
+//                A posting error from settlePOS.php is rolled back and returned, instead of printing the receipt as if the sale was settled.
+// 20261117 CL/SS MB-49 afslut(): an exchange whose lines cancel out (+100 and -100) is not refused; its lines still post.
+// 20261120 CL/MJ SD-844 K61: a pickup or delivery sale without the customer's email or phone is refused before any payment is taken.
+// 20261124 CL/SS MB-49 afslut(): a card of 0 in the second payment slot is refused too.
+// 20261125 CL/SS MB-49 afslut(): which payment is a card comes from pos_payment_is_card(), shared with bogfor_nu().
+// 20261126 CDX/NTR Print an automatic receipt once and end checkout if its renderer returns, avoiding the completed-order alert (#1183).
+
+include_once(__DIR__ . "/../deliveryContact.php");
 
 /**
  * True for a print server on the shop's own network: a private or reserved IP (10/8,
@@ -104,12 +113,34 @@ print "\n<!-- Function afslut (start)-->\n";
 	global $momssats;
 	global $pobelob;
 	global $regnaar,$retur;
+	global $sprog_id;
 	global $tracelog;
+
+	// 20261120 CL/MJ SD-844 K61: checked before voucherPay, betaling or a card terminal moves any money; a card returning approved (OK) is not stopped
+	if ($godkendt != 'OK' && !$indbetaling) {
+		$check = pos_validate_checkout_sale($id);
+		if (!$check['ok']) return $check['message'];
+	}
 
 	list($modtaget,$valmodt,$betvaluta,$betvalkurs)=explode(chr(9),posvaluta($modtaget));
 
 	$modtaget  = (float)$modtaget;
 	$modtaget2 = (float)$modtaget2;
+
+	$zeroCard = '';
+	foreach (array($betaling, $betaling2) as $paymentType) {
+		if (pos_payment_is_card($paymentType)) {
+			$zeroCard = $paymentType;
+			break;
+		}
+	}
+	if ($id && $betaling && $zeroCard && !$indbetaling && !afrund($modtaget, 2) && !afrund($modtaget2, 2)) {
+		$r = db_fetch_array(db_select("select sum, moms from ordrer where id = '" . (int)$id . "'", __FILE__ . " linje " . __LINE__));
+		$paid = db_fetch_array(db_select("select sum(amount) as paid from pos_betalinger where ordre_id = '" . (int)$id . "' and betalingstype != '!'", __FILE__ . " linje " . __LINE__));
+		if ($r && !afrund((float)$r['sum'] + (float)$r['moms'], 2) && !afrund((float)$paid['paid'], 2) && !afrund(pos_lines_amount((int)$id), 2)) {
+			return sprintf(findtekst('pos.payment.card_amount_missing|Indtast beløbet, før du betaler med %s. En betaling på 0 kr. kan ikke bogføres.', $sprog_id), $zeroCard);
+		}
+	}
 
 	if ($id && $betaling) {
 		include('../debitor/pos_ordre_includes/voucherFunc/voucherPay.php');
@@ -323,6 +354,10 @@ print "\n<!-- Function afslut (start)-->\n";
 
 
 	include("settlePOS.php"); #20190510
+	if (isset($svar) && $svar !== 'OK') {
+		transaktion('rollback');
+		return $svar;
+	}
 	if ($svar=='OK') { #20150213
 		transaktion("commit");
 		shopSyncDrainQueue();
@@ -334,14 +369,6 @@ print "\n<!-- Function afslut (start)-->\n";
 		$qtxt.= "values ";
 		$qtxt.= "('13004','". date('U') ."','$kasse','$bruger_id','$id','".__file__."','".__line__."')";
 		db_modify ($qtxt,__FILE__ . " linje " . __LINE__);
-
-		$qtxt = "select id from grupper where art = 'POS' and kodenr = '1' and box10 = 'on' and fiscal_year = '$regnaar'";
-		if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-			if ($tracelog) {
-				fwrite ($tracelog, __file__." ".__line__." Calls: pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling)\n");
-			}
-			pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling);
-		}
 	}
 	$qtxt = "select id from grupper where art = 'POS' and kodenr = '1' and box10='on' and fiscal_year = '$regnaar'"; # Box10 = Print Receipt
 	$retur = ($modtaget+$modtaget2) - ($sum+$moms);
@@ -350,6 +377,8 @@ print "\n<!-- Function afslut (start)-->\n";
 			fwrite ($tracelog, __file__." ".__line__." Calls: pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling)\n");
 		}
 		pos_txt_print($id,$betaling,$betaling2,$modtaget,$modtaget2,$indbetaling);
+		print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?id=$id\">\n";
+		exit;
 	} elseif ( !$konto_id && ($betaling == 'Kontant' || $betaling2 == 'Kontant' || abs($retur) > 0.01 )) {
 		file_put_contents("../temp/skuffe.log",__file__." $konto_id && ($betaling == 'Kontant' || $betaling2 == 'Kontant' || $modtaget+$modtaget2 != $sum+$moms", FILE_APPEND);
 		#20160211+20211203

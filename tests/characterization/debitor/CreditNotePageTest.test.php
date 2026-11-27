@@ -11,6 +11,8 @@
 // History:
 // 20261118 CL/SS SD-833 Created.
 // 20261120 CL/SS SD-833 review: once a credit line is delivered, its restock and dekort choices are locked.
+// 20261121 CL/SS SD-833 review: the alert that a draft was held to what is left is a JavaScript string literal.
+// 20261123 CDX/NTR Use the test class-owned database and session.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -30,7 +32,7 @@ final class CreditNotePageTest extends CharacterizationTestCase
         $req = tempnam($dir, 'ordreq');
         $out = tempnam($dir, 'ordout');
         file_put_contents($req, json_encode(['get' => $get, 'post' => $post]));
-        $res = self::runChild('../support/run_ordre_page.php', [CharacterizationEnv::SESSION_ID, $req, $out]);
+        $res = self::runChild('../support/run_ordre_page.php', [CharacterizationEnv::sessionId(), $req, $out]);
         $html = (string)file_get_contents($out);
         @unlink($req);
         @unlink($out);
@@ -207,6 +209,25 @@ final class CreditNotePageTest extends CharacterizationTestCase
         $this->page(['id' => $draft], $fields);
 
         $this->assertSame('of', trim((string)self::itemLines($draft)[0]['retur_lager']));
+    }
+
+    public function test_a_draft_held_to_what_is_left_says_so_in_a_safe_alert(): void
+    {
+        $item = self::$fx->item(['beholdning' => 10.0]);
+        $invoice = $this->invoicedChairs($item);
+        $this->pressCredit($invoice['id']);
+        $first = (int)self::creditNotes($invoice['id'])[0]['id'];
+        self::rows('UPDATE ordrelinjer SET antal = -1 WHERE ordre_id = $1 AND vare_id > 0', [$first]);
+        $this->runChildJson('run_order_invoice.php', ['invoice', $first, CharacterizationEnv::testDb()]);
+        $this->pressCredit($invoice['id']);
+        $draft = (int)self::creditNotes($invoice['id'])[1]['id'];
+        $fields = self::formFields($this->page(['id' => $draft]));
+        $fields['dkan1'] = strpos((string)$fields['dkan1'], '-') !== false ? '-2' : '2';
+        $fields['save'] = 'Gem';
+        $html = $this->page(['id' => $draft], $fields);
+
+        $this->assertEqualsWithDelta(-1.0, (float)self::itemLines($draft)[0]['antal'], 0.001, 'one chair is already credited');
+        $this->assertStringContainsString('alert("Reguleret til det, der er tilbage at kreditere: ' . $item['varenr'] . '")', $html);
     }
 
     public function test_once_a_credit_line_is_delivered_its_restock_and_dekort_are_locked(): void

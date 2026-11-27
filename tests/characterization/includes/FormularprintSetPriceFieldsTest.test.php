@@ -11,6 +11,8 @@
 //
 // History:
 // 20261103 CL/SZ SD-797: created.
+// 20261111 CDX/NTR Isolate the test class database and session.
+// 20261123 CDX/NTR Port the reviewed test fixture repairs to hml/shopify.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -30,7 +32,7 @@ final class FormularprintSetPriceFieldsTest extends TestCase
         if ($reason !== null) {
             self::markTestSkipped($reason);
         }
-        CharacterizationEnv::bootstrapTenant();
+        CharacterizationEnv::bootstrapTenant(static::class);
         self::$tenant = CharacterizationEnv::connect(CharacterizationEnv::testDb());
         // A new tenant has no POS rows; the print reads box12 from POS 2 of the current fiscal year.
         CharacterizationEnv::rows(

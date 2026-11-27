@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/shopify/services/storeOrders.php --- ver 5.1.0 --- 2026.11.23
+// --- includes/shopify/services/storeOrders.php --- ver 5.1.1 --- 2026.11.23
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -32,6 +32,7 @@
 // 20261112 CL/SS SD-804: created (WP13-2).
 // 20261118 CL/SS SD-804: the date key is Delivery Date, and pickup and delivery orders carry Leveringstype (DTAILS).
 // 20261123 LH SD-804: store orders write the web orders' metafield names (saldi.ordre_nr, faktura_nr, faktura_link); fakturanr, kassebon and faktura_url are gone.
+// 20261123 CL/LH SD-804: the delivery date is formatted YYYY-MM-DD by the database, whatever the session's DateStyle.
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../links.php';
@@ -47,7 +48,6 @@ const SHOPIFY_STORE_ORDER_RECOVER_DAYS = 7;
 const SHOPIFY_STORE_ORDER_ATTR_METHOD = 'Leveringsmaade';
 const SHOPIFY_STORE_ORDER_ATTR_TYPE = 'Leveringstype';
 const SHOPIFY_STORE_ORDER_ATTR_DATE = 'Delivery Date';
-const SHOPIFY_STORE_ORDER_DATE_FORMAT = 'Y-m-d';
 const SHOPIFY_STORE_ORDER_UNDATED_NOTE = 'Leveringsdato aftales med kunden';
 const SHOPIFY_STORE_ORDER_LINE_LAGER = 'Lager';
 const SHOPIFY_STORE_ORDER_METAFIELD_NS = 'saldi';
@@ -111,7 +111,8 @@ function shopify_store_orders_tag(string $db, int $ordreId): string {
  * @return array<string, mixed>|null
  */
 function shopify_store_orders_snapshot(int $ordreId): ?array {
-	$order = shopify_db_rows("SELECT o.*, current_database() AS db, v.type AS lev_type, v.navn AS lev_valg, v.shopify_vaerdi
+	$order = shopify_db_rows("SELECT o.*, current_database() AS db, v.type AS lev_type, v.navn AS lev_valg, v.shopify_vaerdi,
+		to_char(o.oensket_levdato, 'YYYY-MM-DD') AS levdato_ymd
 		FROM ordrer o LEFT JOIN pos_leveringsvalg v ON v.id = o.leveringsvalg_id WHERE o.id = $1 AND o.art = 'PO'", array($ordreId))[0] ?? null;
 	if ($order === null) {
 		return null;
@@ -416,8 +417,9 @@ function shopify_store_orders_build_payload(array $snap, array $customer, array 
 	}
 	if ($mode === 'levering') {
 		$order['shippingAddress'] = shopify_store_orders_address($o, $phone);
-		if (trim((string)$o['oensket_levdato']) !== '') {
-			$order['customAttributes'][] = array('key' => SHOPIFY_STORE_ORDER_ATTR_DATE, 'value' => (new DateTimeImmutable($o['oensket_levdato']))->format(SHOPIFY_STORE_ORDER_DATE_FORMAT));
+		// levdato_ymd is the snapshot's oensket_levdato as YYYY-MM-DD (to_char), so the session's DateStyle never reaches the key
+		if (trim((string)($o['levdato_ymd'] ?? '')) !== '') {
+			$order['customAttributes'][] = array('key' => SHOPIFY_STORE_ORDER_ATTR_DATE, 'value' => trim((string)$o['levdato_ymd']));
 		} else {
 			$order['note'] = SHOPIFY_STORE_ORDER_UNDATED_NOTE;
 		}

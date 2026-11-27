@@ -18,6 +18,8 @@
 //
 // History:
 // 20261027 CL/LH SST-887 Created; the array-valued id cases were raised by CodeRabbit on PR #851.
+// 20261111 CDX/NTR Isolate the test class database and session.
+// 20261123 CDX/NTR Port the reviewed test fixture repairs to hml/shopify.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
 
@@ -26,7 +28,7 @@ final class SyncStamkortTest extends CharacterizationTestCase
     /** @return array{redirect_id:int|null, warnings:list<string>} */
     private function sync(string $query): array
     {
-        return $this->runChildJson('run_sync_stamkort_page.php', [$query, CharacterizationEnv::SESSION_ID]);
+        return $this->runChildJson('run_sync_stamkort_page.php', [$query, CharacterizationEnv::sessionId()]);
     }
 
     /** @return array<string,string|null> the card columns the sync writes, plus the name split */
