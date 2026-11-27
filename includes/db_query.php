@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---ver 5.1.1 ----2026-11-24--------------
+// --- includes/db_query.php ---ver 5.1.1 ----2026-11-26--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -68,6 +68,7 @@
 //                 Logging, the automatic mail to fejl@saldi.dk with its rate limit, the webservice return value and exit/continue are unchanged; the mail now carries the box's reference (F-...).
 //                 Without a browser session (CLI, cron, API, webservice) the old alert stays.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261116 CL/ASR db_query_connection() selects the master database on the cached global connection, since db_connect() selects none on MySQL/MariaDB; a $global query from a ledger's context failed there with "No database selected" (SD-731, review #785).
 // 20261118 CDX/NTR Allow bound write parameters without changing legacy query handling.
 // 20261118 CDX/NTR Normalize LIKE outside literals, quoted identifiers and comments in both query paths.
 // 20261118 CDX/NTR Explain dollar-quote and SQL identifier matching in the LIKE normalizer.
@@ -82,6 +83,7 @@
 // 20261124 CL/SZ db_error_mail_last_sent(): a stamp the web user can read but not rewrite also counts as mailed just now (MB-142 review).
 //                Before, the stamp never updated and every failed query sent a mail.
 // 20261124 CL/SZ db_error_mail_last_sent(): repair a stamp this account owns first (sharedFilePermissions(), as the stamp write did), and log when a stamp turns the mail off (MB-142 review).
+// 20261126 CDX/NTR Allow bound SELECT parameters on the existing read path, preserving connection-encoded bytes.
 require_once __DIR__ . '/sharedFile.php';
 
 if (!function_exists('get_relative')) {
@@ -306,6 +308,7 @@ if (!function_exists('db_query_connection')) {
 				$current_connection = $connection;
 				$global_connection = db_connect($sqhost, $squser, $sqpass, $sqdb);
 				$connection = $current_connection;
+				if ($global_connection) db_select_database($global_connection, $sqdb); # a no-op on PostgreSQL
 			}
 			return $global_connection;
 		}
@@ -560,12 +563,13 @@ if (!function_exists('db_select')) {
 	/**
 	 * Execute a SELECT against the tenant or master connection and log query errors.
 	 *
-	 * @param string $qtext SQL whose external values have already been escaped.
+	 * @param string $qtext SQL with escaped external values or placeholders for bound parameters.
 	 * @param string $spor Caller context recorded in error logs.
 	 * @param bool $global Whether to use the master connection.
+	 * @param array|null $params Optional driver-bound parameters, in the connection's encoding.
 	 * @return mysqli_result|\PgSql\Result|bool Database result or failure.
 	 */
-	function db_select($qtext, $spor, $global = false) {
+	function db_select($qtext, $spor, $global = false, ?array $params = null) {
 		global $brugernavn;
 		global $connection,$customAlertText;
 		global $db,$db_type;
@@ -588,11 +592,15 @@ if (!function_exists('db_select')) {
 		}
 		if ($db_type == "mysql" || $db_type == "mysqli") {
 			// Use mysqli for MySQL as mysql_query() is deprecated
-			$query = mysqli_query($use_connection, $qtext);
+			$query = $params === null
+				? mysqli_query($use_connection, $qtext)
+				: mysqli_execute_query($use_connection, $qtext, $params);
 			$errtxt = mysqli_error($use_connection);  // Use mysqli_error for both MySQL and MySQLi
 		} else {
 			$qtext = db_normalize_like_operators($qtext, pg_parameter_status($use_connection, 'standard_conforming_strings') !== 'off');
-			$query = pg_query($use_connection, $qtext);
+			$query = $params === null
+				? pg_query($use_connection, $qtext)
+				: pg_query_params($use_connection, $qtext, $params);
 			$errtxt = pg_last_error($use_connection);
 			if ($errtxt) {
 				error_log("db_select failed: $qtext");

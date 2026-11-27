@@ -1,4 +1,5 @@
 // 20261118 CL/LH Created: a UI change needs a screen recording in the PR description.
+// 20261126 CDX/NTR Cover an explicit, expiring reviewer waiver of the recording.
 import test from "node:test";
 import assert from "node:assert/strict";
 import check, { recordingState, uiChanges } from "../checks/pr-recording.mjs";
@@ -33,6 +34,25 @@ test("a dropped video, a video link or <video> counts; an image does not", () =>
 test("Ingen UI-ændring with a reason opts out; without one it does not", () => {
   assert.equal(recordingState("Ingen UI-ændring: only the SQL behind the list changes"), "opted-out");
   assert.equal(recordingState("Ingen UI-ændring:"), "missing");
+});
+
+test("an explicit reviewer waiver uses the existing dated exception format", () => {
+  const body = "guardrails-allow pr-recording until 2026-12-31 by NTR: reviewer explicitly waived the recording for this PR";
+  const files = [file("rental/index.js")];
+  assert.equal(recordingState(body, "2026-11-26"), "waived");
+  assert.deepEqual(check.run(body, files, { today: "2026-12-31" }), []);
+  assert.equal(check.run(body, files, { today: "2027-01-01" }).length, 1);
+  for (const invalid of [
+    body.replace("by NTR: reviewer explicitly waived the recording for this PR", "by NTR:"),
+    body.replace("by NTR:", "by:"),
+    body.replace("pr-recording", "migrations"),
+    `<!-- ${body} -->`,
+    `<!-- ${body}`,
+    `<!--\n${body}`,
+    "The reviewer waived it.",
+  ]) {
+    assert.equal(recordingState(invalid, "2026-11-26"), "missing", invalid);
+  }
 });
 
 test("the check fails a UI change without a recording, and names the files", () => {
