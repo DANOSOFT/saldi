@@ -10,6 +10,7 @@
 // Usage: php tools/ci/check-skips.php <phpunit --log-junit file>
 //
 // 20261119 CL/MMR SST-1017 Allow the Kassespor MySQL/MariaDB test to skip in CI, which has no MySQL server.
+// 20261124 CL/SZ MB-142 Allow the four DbReadFirstLineTest permission tests to skip in CI, where root reads and writes any file.
 //
 // Entries are Class::method for one test, or Class for a class skipped as a whole.
 $allowed = [
@@ -19,6 +20,11 @@ $allowed = [
 	'JournalDocumentsDeleteRegressionTest::testDocumentInAFolderThatCanNotBeWrittenKeepsItsRow',
 	// CI has no MySQL/MariaDB server; the test runs where SALDI_TEST_MYSQL_SOCKET points at one (SST-1017).
 	'KassesporSetCostTest::testSetHeadIsMatchedAsPhpDoesOnMysqlPadSpace',
+	// The container runs as root, and root reads and writes any file; the directory cases in the same test run in CI (MB-142).
+	'DbReadFirstLineTest::testUnreadableStampGivesZeroInsteadOfTypeError',
+	'DbReadFirstLineTest::testUnreadableFileGivesTheCallersDefault',
+	'DbReadFirstLineTest::testMailStampUnreadableCountsAsMailedNow',
+	'DbReadFirstLineTest::testMailStampReadOnlyCountsAsMailedNow',
 ];
 
 $file = $argv[1] ?? '';

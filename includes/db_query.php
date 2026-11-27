@@ -75,6 +75,14 @@
 // 20261118 CDX/NTR Preserve escape-string continuations and normalize LIKE after qualified AS columns.
 // 20261118 CDX/NTR Optionally report affected write rows while preserving legacy status returns.
 // 20261118 CDX/NTR Track expression operands so LIKE function calls retain their original names.
+// 20261124 CL/SZ Added db_read_first_line() for the error-mail stamps and lasterror.txt (MB-142).
+//                A file the web user can't read (made by cron or CLI) no longer stops a failed query's request with a TypeError from fgets().
+// 20261124 CL/SZ db_read_first_line(): a directory where the file should be reads like a missing file, without an fgets() notice (MB-142 review).
+// 20261124 CL/SZ Added db_error_mail_last_sent() for the three error-mail stamps (MB-142 review).
+//                A stamp that exists but can't be read counts as mailed just now, so it sends no mail instead of one per failed query.
+// 20261124 CL/SZ db_error_mail_last_sent(): a stamp the web user can read but not rewrite also counts as mailed just now (MB-142 review).
+//                Before, the stamp never updated and every failed query sent a mail.
+// 20261124 CL/SZ db_error_mail_last_sent(): repair a stamp this account owns first (sharedFilePermissions(), as the stamp write did), and log when a stamp turns the mail off (MB-142 review).
 // 20261126 CDX/NTR Allow bound SELECT parameters on the existing read path, preserving connection-encoded bytes.
 require_once __DIR__ . '/sharedFile.php';
 
@@ -127,6 +135,59 @@ if (!function_exists('db_log_append')) {
         } finally {
             fclose($fp);
         }
+    }
+}
+
+if (!function_exists('db_read_first_line')) {
+    /**
+     * Read the first line of a small runtime file in the tenant's temp folder: the error-mail
+     * rate-limit stamps (opdatfejl.txt, modifyfejl.txt, selectfejl.txt) and lasterror.txt.
+     *
+     * A file another account created (cron, CLI) can be unreadable for the web user.
+     * That must not stop the request, so it reads like a missing file, and so does a directory at that path.
+     *
+     * @param string $path File path.
+     * @param int|string $default Returned when the file is missing, unreadable, empty or not a regular file.
+     * @return int|string The first line, trimmed, or $default.
+     */
+    function db_read_first_line($path, $default = 0) {
+        if (!is_file($path) || !is_readable($path)) {
+            return $default;
+        }
+        $fp = fopen($path, 'r');
+        if ($fp === false) {
+            return $default;
+        }
+        $line = fgets($fp);
+        fclose($fp);
+        return $line === false ? $default : trim($line);
+    }
+}
+
+if (!function_exists('db_error_mail_last_sent')) {
+    /**
+     * When the last error mail went out, from a rate-limit stamp (opdatfejl.txt, modifyfejl.txt,
+     * selectfejl.txt), so a failed query mails fejl@saldi.dk at most once per second.
+     *
+     * A stamp that exists but can't be read or can't be rewritten (made by cron or CLI) can't limit the mail.
+     * One this account owns in a trusted temp folder is repaired first, as the stamp write did before.
+     * Otherwise it counts as "mailed just now", no mail goes out and the server log says why;
+     * the error is still logged and the error box still shows.
+     *
+     * @param string $path Stamp file path.
+     * @return int|string The stamp's first line, trimmed; 0 when there is no stamp yet;
+     *                    the current time when the stamp exists but can't be read or rewritten.
+     */
+    function db_error_mail_last_sent($path) {
+        if (is_file($path) && !(is_readable($path) && is_writable($path))) {
+            sharedFilePermissions($path);
+            clearstatcache(true, $path);
+        }
+        if (file_exists($path) && !(is_file($path) && is_readable($path) && is_writable($path))) {
+            sharedFileWarning("Error-mail stamp can't be read or rewritten, so no error mail is sent: $path; follow doc/runtime-permissions.md");
+            return date("U");
+        }
+        return db_read_first_line($path);
     }
 }
 
@@ -449,11 +510,7 @@ if (!function_exists('db_modify')) {
 			]);
 			$message=$db." | ".$qtext." | ".$spor." | ".$brugernavn." ".date("Y-m-d H:i:s")." | $errtxt";
 			if (strstr($spor,"includes/opdat")) {
-				if (file_exists("$temp/opdatfejl.txt")) {
-					$ff=fopen("$temp/opdatfejl.txt","r");
-					$lastmail=trim(fgets($ff));
-					fclose($ff);
-				} else $lastmail=0; 
+				$lastmail = db_error_mail_last_sent("$temp/opdatfejl.txt"); #20261124 MB-142 an unreadable stamp no longer stops the request and sends no mail
 				if($lastmail!=date("U")) {
 					if ($sqdb == 'develop') echo "$message<br>";
 					else {
@@ -465,11 +522,7 @@ if (!function_exists('db_modify')) {
 			} else {
 				if (!function_exists('saldi_error_box')) include_once(__DIR__ . '/errorReport.php');
 				$message .= " | ".saldi_error_ref(); #20261104 the error box's reference, so a customer's report can be matched to this mail
-				if (file_exists("$temp/modifyfejl.txt")) {
-					$ff=fopen("$temp/modifyfejl.txt","r");
-					$lastmail=trim(fgets($ff));
-					fclose($ff);
-				} else $lastmail=0; 
+				$lastmail = db_error_mail_last_sent("$temp/modifyfejl.txt"); #20261124 MB-142 an unreadable stamp no longer stops the request and sends no mail
 				if($lastmail!=date("U")) { 
 					if ($sqdb == 'develop') echo "$message<br>";
 					else {
@@ -561,12 +614,7 @@ if (!function_exists('db_select')) {
 
 		if ($errtxt)	{		
 			$db=trim($db);
-			$linje="";
-			if (file_exists("$temp/lasterror.txt")) {
-				$fp=fopen("$temp/lasterror.txt","r");
-				$linje=trim(fgets($fp));
-				fclose($fp);
-			}
+			$linje = db_read_first_line("$temp/lasterror.txt", ''); #20261124 MB-142 an unreadable file no longer stops the request
 			#list($tmp,$tmp2)=explode("\n",$errtxt);
 
 			$lines = explode("\n", $errtxt);
@@ -582,11 +630,7 @@ if (!function_exists('db_select')) {
 				]);
 				// if (!strpos($errtxt,'current transaction is aborted, commands ignored until end of transaction block')) {
 				if (!function_exists('saldi_error_box')) include_once(__DIR__ . '/errorReport.php');
-				if (file_exists("$temp/selectfejl.txt")) {
-					$ff=fopen("$temp/selectfejl.txt","r");
-					$lastmail=trim(fgets($ff));
-					fclose($ff);
-				} else $lastmail=0; 
+				$lastmail = db_error_mail_last_sent("$temp/selectfejl.txt"); #20261124 MB-142 an unreadable stamp no longer stops the request and sends no mail
 				if($lastmail!=date("U")) {
 					$message=$db." | ".$qtext." | ".$spor." | ".$brugernavn." ".date("Y-m-d H:i:s")." | $errtxt | ".saldi_error_ref(); #20261104 + the error box's reference
 					if ($sqdb == 'develop') echo "$message<br>";
