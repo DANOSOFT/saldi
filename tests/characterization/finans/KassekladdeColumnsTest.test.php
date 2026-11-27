@@ -1,6 +1,7 @@
 <?php
 // 20261127 CDX/NTR Check actual journal cell rendering against its header across row types.
 // 20261127 CDX/NTR Load the real null-safe lookup helpers in rendering regressions.
+// 20261127 CDX/NTR Exercise the proposed row without stored VAT codes and fail on rendering warnings.
 
 declare(strict_types=1);
 
@@ -118,6 +119,20 @@ final class KassekladdeColumnsTest extends TestCase
         }
     }
 
+    public function testNewRowWithoutVatCodesRendersWithoutWarnings(): void
+    {
+        set_error_handler(function ($severity, $message, $file, $line) {
+            throw new \ErrorException($message, 0, $severity, $file, $line);
+        });
+        try {
+            $html = $this->render(false, false, false, false, 0);
+        } finally {
+            restore_error_handler();
+        }
+        self::assertStringContainsString("name='dvat2'", $html);
+        self::assertStringContainsString("name='kvat2'", $html);
+    }
+
     /** Render the real header, existing row, proposed row and an extra blank row without a database. */
     public function render(bool $dimensions, bool $payments, bool $error, bool $customer, int $balanceMode): string
     {
@@ -169,6 +184,7 @@ final class KassekladdeColumnsTest extends TestCase
         $y = 1;
         $x = 2;
         $z = 3;
+        unset($debetvat[$x], $kreditvat[$x]);
         $fragments = [];
         $start = strpos($source, '$_next_dir');
         $start = strpos($source, 'print "<tr>";', $start);
