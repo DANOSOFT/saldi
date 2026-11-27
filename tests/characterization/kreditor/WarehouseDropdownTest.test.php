@@ -14,7 +14,7 @@ use PHPUnit\Framework\TestCase;
 //                  with art != 'RA' into the new year, so each year added another LG row
 //                  per warehouse and kreditor/ordre.php listed them all.
 //
-//                  kreditor/orderIncludes/openOrderData.php and selectOrder.php print one
+//                  kreditor/orderIncludes/openOrderData.php prints one
 //                  <option> per entry of $lager_nr/$lager_navn, so the de-duplication is
 //                  pinned where those arrays are built. The loop is lifted out of the
 //                  source and run against stub db functions, in this file's own namespace
@@ -83,7 +83,7 @@ final class WarehouseDropdownTest extends TestCase
 
         eval('namespace ' . __NAMESPACE__ . '; ' . substr($src, $start, $end - $start));
 
-        // What openOrderData.php / selectOrder.php then print, one per entry.
+        // What openOrderData.php then prints, one per entry.
         $options = [];
         for ($i = 0; $i < count($lager_nr); $i++) {
             $options[] = $lager_nr[$i] . ': ' . $lager_navn[$i];

@@ -10,6 +10,7 @@
 // 20261103 CL/MJ Lager > Varer > Indkøb builds the same box as Ordrevisning.
 // 20261111 CDX/NTR Run TEMP-table SQL in the explicitly shared owned fixture database.
 // 20261111 CDX/NTR Attach the shared SQL database identity to this class's test results.
+// 20261127 CL/LH The purchase-order label checks no longer read the deleted kreditor/orderIncludes/selectOrder.php.
 
 namespace OrdrestatusFixture {
 
@@ -340,7 +341,7 @@ namespace {
                 $html = $this->render(array('buy_order_orders_id' => '77', 'buy_order_orders' => '934',
                     'buy_order_qty' => '1.000', 'buy_order_date' => '2026-12-15'), '1,00', $header[1]);
                 self::assertSame('Forventet lev. dato', $this->dateHeader($html));
-                foreach (array('openOrderData.php', 'selectOrder.php') as $file) {
+                foreach (array('openOrderData.php') as $file) {
                     $source = file_get_contents(__DIR__ . '/../../../kreditor/orderIncludes/' . $file);
                     preg_match("/findtekst\\('([0-9]+\\|Forventet lev\\. dato)'/", $source, $label);
                     self::assertNotEmpty($label);
@@ -374,7 +375,7 @@ namespace {
         /** Text 886 is shared with sales orders, so the purchase order must have stopped using it. */
         public function testThePurchaseOrderNoLongerSharesText886(): void
         {
-            foreach (array('openOrderData.php', 'selectOrder.php') as $file) {
+            foreach (array('openOrderData.php') as $file) {
                 $src = file_get_contents(__DIR__ . '/../../../kreditor/orderIncludes/' . $file);
                 self::assertNotFalse($src, "could not read kreditor/orderIncludes/$file");
                 self::assertStringNotContainsString('findtekst(886', $src,
