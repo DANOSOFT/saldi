@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---ver 5.1.1 ----2026-11-26--------------
+// --- includes/db_query.php ---ver 5.1.1 ----2026-11-27--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -64,8 +64,10 @@
 // 20261103 CDX/NTR Attempt every database log line even when an earlier write is incomplete.
 // 20261103 CDX/NTR Report incomplete database log writes through non-throwing server diagnostics.
 // 20261126 CDX/NTR db_modify(): optional bound parameters and affected-row count; legacy calls unchanged.
+// 20261127 CDX/NTR Move database logs and error markers to private application log storage.
 
 require_once __DIR__ . '/sharedFile.php';
+require_once __DIR__ . '/applicationLog.php';
 
 if (!function_exists('get_relative')) {
     /**
@@ -98,6 +100,9 @@ if (!function_exists('db_log_append')) {
      * @return bool Whether all lines were written successfully.
      */
     function db_log_append($path, $lines, $mode = 'a') {
+        if (str_starts_with($path, applicationLogDirectory() . '/') && !applicationLogTrustedPath($path)) {
+            return false;
+        }
         $fp = sharedFileOpen($path, $mode);
         if ($fp === false) {
             return false;
@@ -279,7 +284,7 @@ if (!function_exists('db_modify')) {
 		global $sqdb,$sqhost,$squser,$sqpass;
 		global $webservice;
 
-		$temp = get_relative() . 'temp/' . $db;
+		$temp = applicationLogDirectory((string)$db);
 
 		$qtext=injecttjek($qtext);
 
@@ -404,13 +409,13 @@ if (!function_exists('db_select')) {
 		// When $global=true, run the query against the global database instead of the user's database.
 		$use_connection = db_query_connection($global);
 
-		$temp = get_relative() . 'temp/' . $db;
+		$temp = applicationLogDirectory((string)$db);
 
-		if (!file_exists($temp)) {
-			sharedDirectory($temp);
-			$onlineLog = get_relative() . 'temp/.ht_online.log';
+		$runtimeTemp = get_relative() . 'temp/' . $db;
+		if (!file_exists($runtimeTemp)) {
+			sharedDirectory($runtimeTemp);
 			$onlineTxt = date("Y-m-d")." ".date("H:i:s")." ".$_SERVER['REMOTE_ADDR']." ".$s_id." ".$db." ".$brugernavn."\n";
-			sharedFilePutContents($onlineLog, $onlineTxt, true);
+			applicationLogPutContents('.ht_online.log', $onlineTxt);
 		}
 		if ($db_type == "mysql" || $db_type == "mysqli") {
 			// Use mysqli for MySQL as mysql_query() is deprecated
@@ -569,7 +574,7 @@ if (!function_exists('transaktion')) {
 		global $db_modify_fejl; #20260729 SZ (SD-595)
 		global $db_transaktion_depth; #20260804 SZ track nesting so an inner begin() (e.g. bogfor() calling transaktion('begin') again inside an already-open outer transaction) doesn't wipe out an earlier failure recorded by the outer transaction (SD-595)
 
-		$temp = get_relative() . 'temp/' . $db;
+		$temp = applicationLogDirectory((string)$db);
 		db_log_append("$temp/.ht_modify.log", [
 			"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$qtext."\n",
 			$qtext.";\n",
@@ -703,7 +708,7 @@ if (!function_exists('db_create')) {
 if (!function_exists('injecttjek')) {
 	function injecttjek($qtext) {
 		global $brugernavn,$db;
-		$temp = get_relative() . 'temp/' . $db;
+		$temp = applicationLogDirectory((string)$db);
 		if (strpos($qtext,';')) {
 			$tjek=1;
 			for ($x=0;$x<strlen($qtext);$x++) {

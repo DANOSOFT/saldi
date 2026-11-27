@@ -20,4 +20,6 @@ When testing or debugging, the goal is to *see* what your change does — includ
 3. **Exercise the path with warnings visible.** When you touch a code path, run it once with warnings on and clear any new ones your change caused before opening the PR.
 4. **CI enforcement is a future goal, currently off on purpose.** `phpunit.xml` sets `failOnWarning="false"` deliberately, because full `E_ALL` would flood on pre-existing legacy warnings. Do **not** flip it globally as a quick win; when it is eventually turned on, scope it to new/changed code so it catches regressions without drowning in legacy noise.
 
+**Application log storage (user feedback, 2026-11-27):** Route database and login logs through `includes/applicationLog.php` to a private directory outside the web tree. Do not loosen filesystem permissions to silence shared-file diagnostics. Provision the log root under trusted ancestors; keep attachments and other temporary files in their existing locations. Setup and migration are documented in [runtime permissions](../runtime-permissions.md#application-logs).
+
 Related: [Global variable provenance](convention_global_variable_provenance.md) (the Intelephense-editor side of the same topic) and [Controller/view separation](convention_controller_view_separation.md).

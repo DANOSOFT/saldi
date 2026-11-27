@@ -1,6 +1,7 @@
 # Shared runtime files
 
-Online/login and database logs use `includes/sharedFile.php`. Files use `0660`;
+Login and database logs use `includes/applicationLog.php`, backed by
+`includes/sharedFile.php`. Files use `0660`;
 directories use `02770` (setgid), so new entries inherit the shared group. The
 group is `balances` when that group exists and `www-data` is a member of it (the
 setup in `INSTALLATION.md`), and `www-data` otherwise. Set
@@ -30,6 +31,38 @@ to its parent directories as well.
 Relative paths such as `../temp/log` also traverse the page's directory before
 stepping up. A group-writable `finans`, `index`, `admin` or `debitor` directory
 must therefore use the shared group; migrating `temp` alone does not repair it.
+
+## Application logs
+
+Database and login logs belong outside the web tree. Their default root is
+`/var/log/saldi/<installation-directory-name>`. Set `SALDI_LOG_DIR` to an
+absolute private directory to override it, consistently for PHP workers and
+CLI jobs. Tenant SQL logs and error notification markers live in
+`tenant-<encoded-database-name>` directories under that root; installation-wide
+login/online logs live directly in the root. Attachments and other temporary
+files keep their existing locations.
+
+An administrator must create the root under trusted ancestors before enabling
+these writers. With `www-data` as the shared group, for example:
+
+```sh
+sudo install -d -o root -g www-data -m 2770 /var/log/saldi/INSTALLATION
+```
+
+Use the configured shared group instead of `www-data` when applicable. The
+application creates new tenant log directories with the shared runtime modes,
+but does not change existing log-root or tenant-directory permissions. Missing
+or unsafe log storage produces a server diagnostic and the write fails; logs
+are not redirected back into the web tree. Do not loosen application or parent
+directory permissions to silence a logging diagnostic.
+
+Existing log history is not moved automatically. With writers stopped, an
+administrator can transfer installation-wide `.ht_*.log` and `online.log` to
+the root, and each tenant's `.ht_modify.log`, `.ht_select.log`, `lasterror.txt`,
+`opdatfejl.txt`, `modifyfejl.txt` and `selectfejl.txt` to its new tenant log
+directory, preserving contents and restricting access to the shared group.
+Do not move attachments, exports or unrelated temporary files. Error markers
+are read from the same private location where they are written.
 
 ## One-time setup and migration
 
