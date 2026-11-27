@@ -10,6 +10,7 @@
 // 20261119 CL/SS SST-895: created.
 // 20261126 CL/SS SST-895 review: a currency voucher that balances in its own currency is balanced only as posting allows it (base difference under 0.10).
 //                The date is the voucher's latest whatever the sort, and a voucher number that does not fit is ignored.
+// 20261127 CL/SS SST-895 review: the own-currency case keeps the base difference under 0.10, so it fails without the own-currency check.
 
 use PHPUnit\Framework\TestCase;
 
@@ -62,8 +63,8 @@ final class BilagOpenVoucherTest extends TestCase
         $this->assertSame(8, bilagOpenVoucher($noAccount)['bilag'], 'no difference account: posting cannot book the 0.05, so it stays open');
         $large = array(self::line(8, '58000', '', 745.00, '01-11-2026', 100.00, '3690'), self::line(8, '', '1010', 746.20, '03-11-2026', 100.00, '3690'));
         $this->assertSame(8, bilagOpenVoucher($large)['bilag'], 'DKK 1.20 apart: posting refuses it (bogfor.php:1063 books under 0.10 only), so it stays open');
-        $small[] = self::line(8, '', '1020', 0.05, '03-11-2026', 0.01, '3690');
-        $this->assertSame(8, bilagOpenVoucher($small)['bilag'], 'off in its own currency: open, whatever the base difference');
+        $small[] = self::line(8, '', '1020', 0.01, '03-11-2026', 0.01, '3690');
+        $this->assertSame(8, bilagOpenVoucher($small)['bilag'], 'off by EUR 0.01 in its own currency with the base still under 0.10: open');
     }
 
     public function testTheDateIsTheVouchersLatestWhateverTheSort(): void
