@@ -1,5 +1,6 @@
 <?php
 // 20261127 CDX/NTR Check actual journal cell rendering against its header across row types.
+// 20261127 CDX/NTR Load the real null-safe lookup helpers in rendering regressions.
 
 declare(strict_types=1);
 
@@ -8,13 +9,14 @@ namespace JournalColumnsFixture;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
+require_once __DIR__ . '/../../../includes/std_func.php';
+
 // Only unrelated lookups/formatting are replaced; column gates and HTML come from production.
 function dkdecimal($value, $decimals = 2) { return number_format((float)$value, $decimals, ',', '.'); }
 function afrund($value, $decimals) { return round((float)$value, $decimals); }
 function findtekst($text, $language) { return explode('|', $text, 2)[1] ?? $text; }
 function db_select($sql, $context) { return $sql; }
 function db_fetch_array($sql) { return false; }
-function if_isset($value, $default) { return $value ?? $default; }
 function render_vat_select($name, ...$unused) { return "<select name='$name'></select>"; }
 function lookup_account_vat_code(...$unused) { return ''; }
 function bilagFieldValue($value, $saved) { return (string)$value; }
