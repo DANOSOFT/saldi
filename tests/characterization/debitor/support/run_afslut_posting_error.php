@@ -13,6 +13,8 @@
 // 20261112 CL/SS MB-49: created.
 // 20261117 CL/SS MB-49: the order lines' total ('lines' in the case) stands in for pos_lines_amount().
 // 20261125 CL/SS MB-49: the real pos_payment_is_card() is loaded, not stood in for.
+// 20261126 CL/MJ SD-844 K61: no Shopify schema here, so afslut()'s delivery contact check lets the sale through.
+// 20261126 CDX/NTR Reproduce the completed-order alert when automatic receipt printing returns to checkout (#1183).
 
 $case = json_decode($argv[1], true, 512, JSON_THROW_ON_ERROR);
 chdir($argv[2] . '/debitor');
@@ -46,14 +48,19 @@ require_once __DIR__ . '/../../../../includes/orderFuncIncludes/posPaymentType.p
 /** @return float */
 function pos_lines_amount(int $ordreId): float { return (float)($GLOBALS['case']['lines'] ?? 0); }
 /** @return string */
-function findtekst($id, $language) { return (string)(explode('|', (string)$id, 2)[1] ?? $id); }
+function findtekst($id, $language) {
+	return $id == 1865 ? 'Ordren er allerede afsluttet af' : (string)(explode('|', (string)$id, 2)[1] ?? $id);
+}
 /** @return ArrayIterator */
 function db_select($sql, ...$args) {
 	$case = $GLOBALS['case'];
 	if (str_contains($sql, 'from ordrer')) {
 		return new ArrayIterator([[
-			'sum' => $case['sum'] ?? 0, 'moms' => $case['moms'] ?? 0, 'konto_id' => 0,
-			'status' => 0, 'fakturanr' => 0, 'momssats' => 25, 'betalingsbet' => 'Kontant',
+			'sum' => $case['sum'] ?? 0, 'moms' => $case['moms'] ?? 0, 'konto_id' => $case['account'] ?? 0,
+			'status' => in_array('commit', $GLOBALS['events'], true) ? 3 : 0,
+			'fakturanr' => 0, 'momssats' => 25, 'betalingsbet' => 'Kontant',
+			'kontonr' => '100', 'firmanavn' => 'Test customer', 'addr1' => '', 'postnr' => '',
+			'bynavn' => '', 'kundeordnr' => '', 'ref' => 'ntr', 'email' => '', 'phone' => '',
 		]]);
 	}
 	if (str_contains($sql, 'sum(amount) as paid from pos_betalinger')) {
@@ -68,8 +75,11 @@ function db_select($sql, ...$args) {
 	if (str_contains($sql, "art='POSBUT'")) {
 		return new ArrayIterator([['box9' => '']]);
 	}
-	if (str_contains($sql, 'box10')) {
+	if (str_contains($sql, "var_name = 'schema_version'")) {
 		return new ArrayIterator([]);
+	}
+	if (str_contains($sql, 'box10')) {
+		return new ArrayIterator(!empty($case['autoPrint']) ? [['id' => 1]] : []);
 	}
 	throw new RuntimeException('Unexpected query: ' . $sql);
 }
@@ -95,12 +105,36 @@ function shopSyncDrainQueue() {}
 /** @return void */
 function pos_txt_print(...$args) {
 	$GLOBALS['events'][] = 'receipt';
-	exit;
+	if (empty($GLOBALS['case']['receiptReturns'])) {
+		exit;
+	}
+}
+
+$alerts = [];
+/** Stop the payment view at its actual completed-order alert. */
+function alert($message) {
+	$GLOBALS['alerts'][] = $message;
+	throw new RuntimeException($message);
 }
 
 ob_start();
 register_shutdown_function(function () {
-	echo json_encode(['returned' => $GLOBALS['returned'], 'events' => $GLOBALS['events'], 'html' => ob_get_clean()], JSON_THROW_ON_ERROR), "\n";
+	echo json_encode(['returned' => $GLOBALS['returned'], 'events' => $GLOBALS['events'], 'alerts' => $GLOBALS['alerts'], 'html' => ob_get_clean()], JSON_THROW_ON_ERROR), "\n";
 });
 require __DIR__ . '/../../../../debitor/pos_ordre_includes/exitFunc/exit.php';
 $returned = afslut(42, $case['payment'], $case['payment2'] ?? '', $case['received'], $case['received2'] ?? 0, 0, '', '');
+if (!empty($case['receiptReturns']) && !$returned) {
+	// pos_ordre.php continues to betaling() after afslut() returns. Run that real view,
+	// in its own namespace so the earlier payment-boundary stand-in can stay in place.
+	require_once __DIR__ . '/pos_lift.php';
+	require_once __DIR__ . '/../../../../includes/stdFunc/navStack.php';
+	$paymentView = pos_lift(__DIR__ . '/../../../../debitor/pos_ordre.php', ['betaling']);
+	eval('namespace Saldi\\Tests\\CheckoutReceipt; ' . $paymentView);
+	try {
+		\Saldi\Tests\CheckoutReceipt\betaling(42, 25, $case['payment'], '', $case['received'], 0, 1);
+	} catch (RuntimeException $error) {
+		if ($alerts === []) {
+			throw $error;
+		}
+	}
+}

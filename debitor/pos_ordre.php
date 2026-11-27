@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- ver 5.1.1 --- 2026.11.25 ---
+// --- debitor/pos_ordre.php --- ver 5.1.1 --- 2026.11.26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -134,8 +134,12 @@
 // 20261112 CL/SS MB-49: The card terminal's return shows afslut()'s error, as the other afslut() callers do.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261120 CL/LH K33/K34: the sale's delivery choice and wished delivery date are saved from the sale form (pos_save_sale_delivery() in pos_ordre_includes/saleDeliveryFields.php), and Forfra, a reused abandoned sale or a table emptied by a move starts again as "taget med".
+// 20261123 CL/MJ SD-844 K61: Forfra also clears the phone number, so the previous customer's phone can't satisfy the contact rule for pickup or delivery.
 // 20261124 CL/LH K33 A refused delivery also clears the tendered amount, so a c, g or k suffix cannot pay the sale; a sale moved onto a table's sale takes its delivery along (pos_move_sale_delivery()).
+// 20261124 CL/MJ SD-844 K61: a "på beløb" payment is skipped once the contact refusal was shown in the request, so a refused gift card on amount shows one alert, not two.
 // 20261125 CL/SS MB-49: The terminal and day-end refusal alerts go through jsString(), so a LATIN9 text with æøå is not blank.
+// 20261126 CL/MJ SD-844 K61: a table's sale emptied by a move and reused clears the email and phone too, so the previous customer's contact can't satisfy the contact rule.
+// 20261126 CDX/NTR Return a contact-refused payment to the editable sale, preserving its customer, items and delivery choice (#1183).
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -510,7 +514,8 @@ if (isset($_GET['flyt_til']) && $id) { #20140508
 			# 20261120 CL/LH K33/K34 The emptied sale is reused for the table's next customer, so it starts as
 			# "taget med" - unless the table was moved onto itself and kept its lines.
 			pos_move_sale_delivery((int) $id, (int) $r['id']); # 20261124 CL/LH K33 the delivery goes along with the lines
-			$tom_reset = ((int) $r['id'] !== (int) $id) ? pos_reset_sale_delivery_sql() : '';
+			// 20261126 CL/MJ SD-844 K61: the reused sale also loses the previous customer's email and phone, as Forfra does
+			$tom_reset = ((int) $r['id'] !== (int) $id) ? pos_reset_sale_delivery_sql() . ",email='',phone=''" : '';
 			db_modify("update ordrer set hvem=''" . $tom_reset . " where id='$id'", __FILE__ . " linje " . __LINE__);
 			$id = $r['id'];
 		} else {
@@ -1339,7 +1344,7 @@ if ($vare_id) {
 			#$nr*=1;
 			$dd = date("Y-m-d");
 			$qtxt = "update ordrer set konto_id='0', kontonr='0',firmanavn='',addr1='',addr2='',postnr='',bynavn='',land='',betalingsdage='0',";
-			$qtxt .= "betalingsbet='Kontant',cvrnr='',ean='',institution='',email='',kontakt='',art='PO',";
+			$qtxt .= "betalingsbet='Kontant',cvrnr='',ean='',institution='',email='',kontakt='',phone='',art='PO',";
 			$qtxt .= "valuta='$baseCurrency',valutakurs='100',kundeordnr='',ordredate='$dd',hvem='',";
 			# 20261120 CL/LH K33/K34 Forfra starts the sale again as "taget med", without a wished date.
 			$qtxt .= "momssats='$momssats',ref=''" . pos_reset_sale_delivery_sql() . " where id = '$id'";
@@ -1783,9 +1788,24 @@ print "<table width=\"100%\" border=\"0\"><tbody>\n"; # Tabel 1.2 ->
 if ($id && isset($_GET['betaling']) && $_GET['betaling'] == 'ukendt') $betaling = 'ukendt';
 # if ($id && $betaling) $sum=betaling($id,$momssats,$betaling,$betaling2,$modtaget,$modtaget2, $kasse);
 #/*
-if ($id && $betaling) {
-	include('../debitor/pos_ordre_includes/voucherFunc/voucherPay.php');
+if ($id && $betaling && empty($GLOBALS['pos_delivery_contact_refused'])) {
+	include_once(__DIR__ . '/pos_ordre_includes/voucherFunc/voucherPay.php');
 	voucherPay($id, $betaling, $modtaget);
+}
+// Payments on amount are completed below; refuse them before drawing the payment screen.
+if ($id && $betaling && strpos($betaling, onAmount()) && !$indbetaling && $godkendt != 'OK' && empty($GLOBALS['pos_delivery_contact_refused'])) {
+	$contactCheck = pos_validate_checkout_sale($id);
+	if (!$contactCheck['ok']) {
+		alert($contactCheck['message']);
+	}
+}
+if (!empty($GLOBALS['pos_delivery_contact_refused'])) {
+	$betaling = $betaling2 = NULL;
+	$modtaget = $modtaget2 = '';
+	$afslut = $delbetaling = NULL;
+	$fokus = 'varenr_ny';
+}
+if ($id && $betaling) {
 	if (isset($_COOKIE['giftcard']) && $_COOKIE['giftcard'] == true) {
 		if ($tracelog)
 			fwrite($tracelog, __FILE__ . " " . __LINE__ . " Calls betaling($id,$momssats,$betaling,$betaling2,$modtaget,$modtaget2, $kasse)\n");
@@ -1824,7 +1844,8 @@ if ($id && $betaling) {
 	$betaling = (float) $betaling;
 	indbetaling($id, $indbetaling, $modtaget, $modtaget2, $betaling);
 }
-if (strpos($betaling, onAmount())) {
+// 20261124 CL/MJ SD-844 K61: a sale whose contact refusal was already shown in this request is not paid "på beløb" (it would be refused and shown again)
+if (strpos($betaling, onAmount()) && empty($GLOBALS['pos_delivery_contact_refused'])) {
 	if (substr($betaling, 0, 7) == "Kontant" || substr($betaling, 0, 7) == "Cash")
 		$betaling = 'Kontant';
 	elseif (substr($betaling, 0, 13) == "Betalingskort")

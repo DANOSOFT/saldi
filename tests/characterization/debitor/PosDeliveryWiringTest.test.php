@@ -4,6 +4,7 @@
 // 20261124 CL/LH K33 The PoS-valg page is retired (#1191): the choices are kept on systemdata/posDeliveryChoices.php, linked from the till settings.
 // 20261124 CL/LH K33 Codex review: the endpoint checks pos.kasse and the token, a refusal clears the tender, a table move takes the delivery along, the settings page always redirects.
 // 20261126 CDX/NTR Keep endpoint guards before the shared response handler.
+// 20261126 CL/MJ SD-844 K61 A table emptied by a move also clears the email and phone.
 
 namespace Saldi\Tests\PosDeliveryWiring;
 
@@ -42,7 +43,7 @@ final class PosDeliveryWiringTest extends TestCase
             'the reused abandoned sale, Forfra and an emptied table all clear the delivery choice and wished date');
         self::assertStringContainsString("sprog='\$genbrug_brand'\" . pos_reset_sale_delivery_sql()", $page);
         self::assertStringContainsString("ref=''\" . pos_reset_sale_delivery_sql() . \" where id = '\$id'", $page);
-        self::assertStringContainsString("\$tom_reset = ((int) \$r['id'] !== (int) \$id) ? pos_reset_sale_delivery_sql() : '';", $page);
+        self::assertStringContainsString("\$tom_reset = ((int) \$r['id'] !== (int) \$id) ? pos_reset_sale_delivery_sql() . \",email='',phone=''\" : '';", $page);
         // The moved sale's delivery goes along to the table's sale before the emptied one is reset.
         $move = strpos($page, "pos_move_sale_delivery((int) \$id, (int) \$r['id']);");
         self::assertNotFalse($move);

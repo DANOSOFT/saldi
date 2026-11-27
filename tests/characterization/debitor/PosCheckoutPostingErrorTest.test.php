@@ -5,6 +5,7 @@
 // 20261117 CL/SS MB-49: an exchange whose lines cancel out is not refused.
 // 20261124 CL/SS MB-49: a card of 0 in the second payment slot is refused too.
 // 20261125 CL/SS MB-49: the refusal alerts are not blank on a LATIN9 company.
+// 20261126 CDX/NTR Automatic receipts that return must not print twice or resume a completed payment (#1183).
 
 declare(strict_types=1);
 
@@ -39,7 +40,7 @@ final class PosCheckoutPostingErrorTest extends TestCase
      * Runs afslut() for one case.
      *
      * @param array<string, mixed> $case
-     * @return array{returned: mixed, events: list<string>, html: string}
+     * @return array{returned: mixed, events: list<string>, alerts: list<string>, html: string}
      */
     private static function checkout(array $case): array
     {
@@ -104,6 +105,19 @@ final class PosCheckoutPostingErrorTest extends TestCase
         self::assertSame('Betalingen med Visa kan ikke bogføres', $result['returned']);
         self::assertSame(['voucher', 'settled', 'rollback'], $result['events']);
         self::assertStringNotContainsString('http-equiv="refresh"', $result['html'], 'no redirect or cash drawer after a refused posting');
+    }
+
+    public function testAReturningReceiptDoesNotReopenTheCompletedPaymentScreen(): void
+    {
+        $result = self::checkout(['payment' => 'Kontant', 'received' => 125, 'sum' => 100,
+            'moms' => 25, 'account' => 9, 'autoPrint' => true, 'receiptReturns' => true]);
+
+        self::assertSame([], $result['alerts'], 'a successful cash sale must not report that it was already completed');
+        self::assertSame(['voucher', 'settled', 'commit', 'receipt'], $result['events'],
+            'settle once and print one receipt, even when the receipt renderer returns');
+        self::assertStringContainsString('content="0;URL=pos_ordre.php?id=42"', $result['html'],
+            'a returning receipt renderer must still leave checkout through a GET');
+        self::assertStringNotContainsString('Function betaling', $result['html'], 'checkout must end before the payment screen resumes');
     }
 
     /**
