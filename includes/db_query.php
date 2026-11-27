@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/db_query.php ---ver 5.1.1 ----2026-11-26--------------
+// --- includes/db_query.php ---ver 5.1.1 ----2026-11-27--------------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -76,6 +76,7 @@
 // 20261118 CDX/NTR Optionally report affected write rows while preserving legacy status returns.
 // 20261118 CDX/NTR Track expression operands so LIKE function calls retain their original names.
 // 20261126 CDX/NTR Allow bound SELECT parameters on the existing read path, preserving connection-encoded bytes.
+// 20261127 CL/HUG transaktion(): nest depth > 1 via SAVEPOINT/RELEASE/ROLLBACK TO SAVEPOINT on PostgreSQL and MySQL/MariaDB, flag $db_modify_fejl on inner rollback, and return bool (MB-195).
 require_once __DIR__ . '/sharedFile.php';
 
 if (!function_exists('get_relative')) {
@@ -694,6 +695,18 @@ if (!function_exists('db_num_fields')) {
 }
 
 if (!function_exists('transaktion')) {
+	/**
+	 * Execute a transaction control statement with savepoint-based nesting on PostgreSQL and MySQL/MariaDB.
+	 *
+	 * Outermost begin/commit/rollback sends the raw statement; nested calls (depth > 1) use
+	 * SAVEPOINT sp_<depth>, RELEASE SAVEPOINT sp_<depth>, and ROLLBACK TO SAVEPOINT sp_<depth>
+	 * (followed by RELEASE SAVEPOINT sp_<depth>). An inner rollback also marks $db_modify_fejl
+	 * true so outer callers' existing failure checks see it. Explicit SAVEPOINT statements pass
+	 * through verbatim without altering $db_transaktion_depth.
+	 *
+	 * @param string $qtext Transaction command ('begin', 'commit', 'rollback', or explicit savepoint SQL).
+	 * @return bool True if the executed statement(s) succeeded, false otherwise.
+	 */
 	function transaktion($qtext){
 		global $brugernavn;
 		global $db_type;
@@ -702,24 +715,121 @@ if (!function_exists('transaktion')) {
 		global $db_modify_fejl; #20260729 SZ (SD-595)
 		global $db_transaktion_depth; #20260804 SZ track nesting so an inner begin() (e.g. bogfor() calling transaktion('begin') again inside an already-open outer transaction) doesn't wipe out an earlier failure recorded by the outer transaction (SD-595)
 
+		static $failedSavepoints = array();
+
+		$isMysql = in_array(strtolower((string)$db_type), array('mysql', 'mysqli'), true);
 		$temp = get_relative() . 'temp/' . $db;
-		db_log_append("$temp/.ht_modify.log", [
-			"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$qtext."\n",
-			$qtext.";\n",
-		]);
-		$qtext_trim = strtolower(trim($qtext));
-		if ($qtext_trim == 'begin') {
-			if (!$db_transaktion_depth) $db_modify_fejl = false; #20260729 SZ reset the write-failure flag only when opening the outermost transaction (SD-595)
-			$db_transaktion_depth = ($db_transaktion_depth ?: 0) + 1;
-		} elseif (($qtext_trim == 'commit' || $qtext_trim == 'rollback') && $db_transaktion_depth) {
-			$db_transaktion_depth--;
+		$execSql = function ($sql) use ($isMysql, $connection, $brugernavn, $temp) {
+			db_log_append("$temp/.ht_modify.log", [
+				"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$sql."\n",
+				$sql.";\n",
+			]);
+			if ($isMysql) {
+				return (bool)mysqli_query($connection, $sql);
+			}
+			return (bool)pg_query($connection, $sql);
+		};
+
+		$depth = max(0, (int)($db_transaktion_depth ?? 0));
+		if ($depth === 0) {
+			$failedSavepoints = array();
 		}
-		if ($db_type == "mysql" || $db_type == "mysqli") {
-			$query = mysqli_query($connection, $qtext);
-		} else {
-			$query = pg_query($connection, $qtext);
+		$qtext_trim = strtolower(trim((string)$qtext, " \t\n\r\0\x0B;"));
+
+		if ($qtext_trim == 'begin' || $qtext_trim == 'start transaction') {
+			if ($depth === 0) {
+				$db_modify_fejl = false; #20260729 SZ reset the write-failure flag only when opening the outermost transaction (SD-595)
+				$ok = $execSql($qtext);
+				if ($ok) {
+					$db_transaktion_depth = 1;
+				}
+				return $ok;
+			}
+			$nextDepth = $depth + 1;
+			$ok = $execSql('SAVEPOINT sp_' . $nextDepth);
+			$db_transaktion_depth = $nextDepth;
+			if (!$ok) {
+				$failedSavepoints[$nextDepth] = true;
+				$db_modify_fejl = true;
+			}
+			return $ok;
 		}
 
+		if ($qtext_trim == 'commit') {
+			if ($depth > 1) {
+				if (!empty($failedSavepoints[$depth])) {
+					unset($failedSavepoints[$depth]);
+					$db_transaktion_depth = $depth - 1;
+					$db_modify_fejl = true;
+					return false;
+				}
+				$sp = 'sp_' . $depth;
+				$wasAborted = !$isMysql && function_exists('pg_transaction_status') && pg_transaction_status($connection) === PGSQL_TRANSACTION_INERROR;
+				if ($wasAborted) {
+					if ($execSql('ROLLBACK TO SAVEPOINT ' . $sp)) {
+						$execSql('RELEASE SAVEPOINT ' . $sp);
+					}
+					$db_transaktion_depth = $depth - 1;
+					$db_modify_fejl = true;
+					return false;
+				}
+				try {
+					$ok = $execSql('RELEASE SAVEPOINT ' . $sp);
+				} catch (Throwable $e) {
+					$db_modify_fejl = true;
+					throw $e;
+				}
+				if (!$ok) {
+					if ($execSql('ROLLBACK TO SAVEPOINT ' . $sp)) {
+						$execSql('RELEASE SAVEPOINT ' . $sp);
+					}
+					$db_transaktion_depth = $depth - 1;
+					$db_modify_fejl = true;
+					return false;
+				}
+				$db_transaktion_depth = $depth - 1;
+				return true;
+			}
+			$wasAborted = !$isMysql && function_exists('pg_transaction_status') && pg_transaction_status($connection) === PGSQL_TRANSACTION_INERROR;
+			try {
+				$ok = $execSql($qtext);
+			} catch (Throwable $e) {
+				$db_transaktion_depth = 0;
+				$failedSavepoints = array();
+				$db_modify_fejl = true;
+				throw $e;
+			}
+			$db_transaktion_depth = 0;
+			$failedSavepoints = array();
+			if ($wasAborted || !$ok) {
+				$db_modify_fejl = true;
+				return false;
+			}
+			return true;
+		}
+
+		if ($qtext_trim == 'rollback') {
+			if ($depth > 1) {
+				$db_transaktion_depth = $depth - 1;
+				$db_modify_fejl = true;
+				if (!empty($failedSavepoints[$depth])) {
+					unset($failedSavepoints[$depth]);
+					return false;
+				}
+				$sp = 'sp_' . $depth;
+				$ok = $execSql('ROLLBACK TO SAVEPOINT ' . $sp);
+				if ($ok) {
+					$ok = $execSql('RELEASE SAVEPOINT ' . $sp);
+				}
+				return $ok;
+			}
+			$ok = $execSql($qtext);
+			$db_transaktion_depth = 0;
+			$failedSavepoints = array();
+			return $ok;
+		}
+
+		return $execSql($qtext);
 	}
 }
 
