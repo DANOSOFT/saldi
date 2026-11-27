@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/hub.php --- ver 5.1.1 --- 2026.11.13 ---
+// ---- includes/settings/hub.php --- ver 5.1.1 --- 2026.11.27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -44,6 +44,7 @@
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261123 CL/SZ Sync of master into hml/shopify: the Shopify entry (SD-761) has a row under Integrationer & fragt,
 //                which the hub shows only on a tenant with a Shopify shop; before, top.php had a button for it.
+// 20261127 CL/MJ SD-760: the move list (lager/flytteliste.php) has a row under Integrationer & fragt too, shown by the same Shopify rule.
 if (!function_exists('getSettingsHub')):
 
 /**
@@ -109,6 +110,8 @@ function getSettingsHub(): array
 				// 20261123 CL/SZ SD-761 on the hub: shown only on a tenant with a Shopify shop (the entry's 'shopify' rule).
 				array('label' => array('da' => 'Shopify', 'en' => 'Shopify', 'no' => 'Shopify'), 'maps' => array('shopify'),
 					'hint' => $h('Shops, lagre og synkronisering', 'Shops, warehouses and synchronisation', 'Nettbutikker, lagre og synkronisering')),
+				array('label' => array('da' => 'Flytteliste', 'en' => 'Move list', 'no' => 'Flytteliste'), 'maps' => array('shopify_flytteliste'),
+					'hint' => $h('Dagens weblinjer der hentes fra et andet lager, til udskrift i butikkerne', 'Today\'s web-order lines drawn from another warehouse, to print for the stores', 'Dagens nettlinjer som hentes fra et annet lager, til utskrift i butikkene')),
 			)),
 		)),
 		'finans' => array('label' => '600|Finans', 'description' => '7705|Kontoplan, regnskabsår, moms, kassekladde, bilag og sikkerhedskopi', 'subs' => array(

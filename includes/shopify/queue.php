@@ -36,6 +36,7 @@
 // 20261103 CL/MJ SD-790: shop.uninstalled runs first after the alarm mail.
 // 20261112 CL/SZ SD-822: the stock.activate job type.
 // 20261112 CL/SS SD-804: store.recover, the hourly scan for posted sales that were never sent.
+// 20261113 CL/MJ SD-760: barrier.sweep, next to order.move.
 // 20261123 CL/MJ SD-865: locations.fetch, the shop's locations for the lager mapping.
 
 require_once __DIR__ . '/db.php';
@@ -49,7 +50,7 @@ const SHOPIFY_QUEUE_PRIORITY = array(
 	'mail.alert' => 5,
 	'shop.uninstalled' => 8,
 	'order.import' => 10, 'order.tags' => 10,
-	'order.move' => 15,
+	'order.move' => 15, 'barrier.sweep' => 15,
 	'store.export' => 20, 'customer.export' => 20, 'order.references' => 20, 'order.document' => 20,
 	'customer.upsert' => 25, 'fulfillment.upsert' => 25, 'order.status' => 25, 'order.cancelled' => 25,
 	'refund.upsert' => 25, 'credit.publish' => 25, 'order.note' => 25, 'order.processed' => 25,
