@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-25 ---
+//--- includes/ordrefunc.php ---ver 5.1.1 ----2026-11-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -180,6 +180,8 @@
 // 20261113 CDX/NTR SD-599: Extract GLS labels into their dedicated module.
 // 20261119 CDX/NTR Merge master while preserving the SD-599 extraction and both file histories.
 // 20261125 CL/SS MB-49 bogfor_nu(): which payment is a card comes from pos_payment_is_card(), so cash under its Swiss name ('Cash', 'Cash on amount') and a pending terminal row ('!') are not refused.
+// 20261127 CL/HUG bogfor_nu(): remove the unconditional $webservice = 'webservice' override so non-webservice callers check accounts against the active fiscal year.
+//                 Forward truthy $webservice from bogfor() as 'webservice', preserve card-account lookup and error returns for non-webservice callers, guard bfweb.log, and drop the in-transaction genberegn() call.
 
 include_once(__DIR__ . '/stdFunc/fefo.php'); # fefo_order_clause() - used by batch()
 require_once __DIR__ . '/sharedFile.php';
@@ -1825,8 +1827,9 @@ function bogfor($id, $webservice=false, $genfakt=false, $callerOwnsTransaction=f
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		if ($dan_kn)
 			db_modify("update ordrer set art = 'DK' where id = '$id'", __FILE__ . " linje " . __LINE__);
-		if ($straksbogfor)
-			$svar = bogfor_nu($id, $webservice);
+		if ($straksbogfor) {
+			$svar = bogfor_nu($id, $webservice ? 'webservice' : '');
+		}
 		if ($svar != "OK") {
 			if (!$callerOwnsTransaction) transaktion('rollback');
 			return ($svar);
@@ -2571,7 +2574,6 @@ function bogfor_nu($id, $kilde) {
 	}
 
 	($kilde == 'webservice') ? $webservice = 'webservice' : $webservice = NULL;
-	$webservice = 'webservice';
 	$amount = $lineVatTotal = 0;
 	$indbetaling = $konto_id = $kontonr = $no_faktbill = NULL;
 	$svar = "OK";
@@ -2581,6 +2583,7 @@ function bogfor_nu($id, $kilde) {
 
 	#20130820 -->
 	$x = 0;
+	$kontoplan = array();
 	if ($webservice)
 		$qtxt = "select distinct(kontonr) as kontonr from kontoplan where (kontotype='D' or kontotype='S')";
 	else
@@ -2846,6 +2849,13 @@ function bogfor_nu($id, $kilde) {
 		$id *= 1;
 	fwrite($hmlog, __LINE__ . " $kontonr && $konto_id && $openpost && " . is_integer($id) . "\n");
 	if ($kontonr && $konto_id && $openpost && is_integer($id)) { #20161211
+		$rDg = db_fetch_array(db_select("select gruppe from adresser where id='$konto_id'", __FILE__ . " linje " . __LINE__));
+		$rDg = db_fetch_array(db_select("select beskrivelse, box2 from grupper where art = 'DG' and kodenr='$rDg[gruppe]' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
+		$dgKontonr = $rDg['box2'];
+		if (!$dgKontonr) {
+			$tekst = "Kontonummer for Debitorgruppe `$rDg[beskrivelse]` er ikke gyldigt";
+			return ($tekst);
+		}
 		$tmp = $sum;
 		$qtxt = "select id from openpost where konto_id='$konto_id' and konto_nr='$kontonr' and faktnr='$fakturanr' and amount='$tmp' ";
 		$qtxt .= "and beskrivelse='$beskrivelse' and udlignet='$udlign' and transdate='$transdate' and kladde_id='$udlign' and refnr='$id' ";
@@ -2870,46 +2880,44 @@ function bogfor_nu($id, $kilde) {
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		$r = db_fetch_array(db_select("select max(id) as id from openpost where konto_id = '$konto_id' and faktnr = '$fakturanr' and refnr='$id'", __FILE__ . " linje " . __LINE__));
 		$openpost_id = $r['id'];
-		$r = db_fetch_array(db_select("select gruppe from adresser where id='$konto_id'", __FILE__ . " linje " . __LINE__));
-		$r = db_fetch_array(db_select("select beskrivelse, box2 from grupper where art = 'DG' and kodenr='$r[gruppe]' and fiscal_year = '$regnaar'", __FILE__ . " linje " . __LINE__));
-		$kontonr = $r['box2']; # Kontonr aendres fra at vaere leverandoerkontonr til finanskontonr
-
-		$tekst = "Kontonummer for Debitorgruppe `$r[beskrivelse]` er ikke gyldigt";
-		if (!$kontonr && $webservice)
-			return ($tekst);
-		elseif (!$kontonr)
-			print "<BODY onLoad=\"javascript:alert('$tekst')\">";
+		$kontonr = $dgKontonr; # Kontonr aendres fra at vaere leverandoerkontonr til finanskontonr
 	}
 	#	fwrite($log, __line__." if ($webservice)\n");
-	if ($webservice) { # 20181128
-		$log = fopen("../temp/$db/bfweb.log", "a");
+	$log = $webservice ? fopen("../temp/$db/bfweb.log", "a") : false;
+	if ($log) {
 		fwrite($log, "\n" . date("H:s:i") . "\n");
-		$qtxt = "select * from grupper where art = 'POS' and kodenr = '1' and fiscal_year = '$regnaar'";
+	}
+	$qtxt = "select * from grupper where art = 'POS' and kodenr = '1' and fiscal_year = '$regnaar'";
+	if ($log) {
 		fwrite($log, __LINE__ . " $qtxt\n");
-		$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
-		if ($r['box5'])
-			$korttyper = explode(chr(9), $r['box5']);
-		if ($r['box6'])
-			$kortkonti = explode(chr(9), $r['box6']);
-		$txt = "if (";
-		$txt .= count($korttyper);
-		$txt .= " && ";
-		$txt .= $felt_2;
-		$txt .= " == ";
-		$txt .= $sum;
-		$txt .= ")";
+	}
+	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+	if ($r && $r['box5']) {
+		$korttyper = explode(chr(9), $r['box5']);
+	}
+	if ($r && $r['box6']) {
+		$kortkonti = explode(chr(9), $r['box6']);
+	}
+	if ($log) {
+		$txt = "if (" . count($korttyper) . " && " . $felt_2 . " == " . $sum . ")";
 		fwrite($log, __LINE__ . " $txt\n");
-		if (count($korttyper) && $felt_2 == $sum) { # 20181128
-			for ($b = 0; $b < count($korttyper); $b++) {
+	}
+	if (count($korttyper) && $felt_2 == $sum) { # 20181128
+		for ($b = 0; $b < count($korttyper); $b++) {
+			if ($log) {
 				fwrite($log, __LINE__ . " if ($korttyper[$b]==$felt_1)\n");
-				if (strtolower($korttyper[$b]) == strtolower($felt_1)) {
-					$kontonr = $kortkonti[$b];
+			}
+			if (strtolower($korttyper[$b]) == strtolower($felt_1)) {
+				$kontonr = $kortkonti[$b];
+				if ($log) {
 					fwrite($log, __LINE__ . " $kontonr=$kortkonti[$b]\n");
 				}
 			}
 		}
 	}
-	fclose($log);
+	if ($log) {
+		fclose($log);
+	}
 
 	if (!in_array($kontonr, $kontoplan) && $art != 'PO' && !$webservice) {
 		$tekst = "Kontonummer $kontonr findes ikke i kontoplanen for regnskabsaar $regnaar";
@@ -3258,11 +3266,7 @@ function bogfor_nu($id, $kilde) {
 					}
 				} elseif ($pris[$y]) {
 					$svar = "Fejl i kontoopsætning";
-					if (!$webservice)
-						print "<BODY onLoad=\"javascript:alert('$svar')\">";
-					else
-						return ("$svar");
-					exit;
+					return ("$svar");
 				}
 			}
 		}
@@ -3663,8 +3667,9 @@ function bogfor_nu($id, $kilde) {
 		$saldo = $r['amount'] * 1;
 		db_modify("update adresser set saldo='$saldo' where id='$konto_id'", __FILE__ . " linje " . __LINE__);
 	}
-	if ($title != "Massefakturering" && !$webservice && $art != 'PO')
-		genberegn($regnaar);
+	// Do not run full-year genberegn() inside a per-invoice transaction: bogfor_nu() updates
+	// kontoplan.saldo incrementally above, and resetting all balances mid-transaction causes
+	// deadlocks and loses concurrent commits under InnoDB REPEATABLE READ.
 	#xit;
 	return ($svar);
 } # endfunc bogfor_nu
