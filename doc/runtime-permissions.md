@@ -42,18 +42,23 @@ CLI jobs. Tenant SQL logs and error notification markers live in
 login/online logs live directly in the root. Attachments and other temporary
 files keep their existing locations.
 
-An administrator must create the root under trusted ancestors before enabling
-these writers. With `www-data` as the shared group, for example:
+The worker can create a missing root with private modes when its immediate
+parent already exists, is trusted and is writable. Existing roots keep their
+permissions. No ancestors are created recursively. Otherwise an administrator
+provisions the root under trusted ancestors. With `www-data` as the shared
+group, for example:
 
 ```sh
 sudo install -d -o root -g www-data -m 2770 /var/log/saldi/INSTALLATION
 ```
 
 Use the configured shared group instead of `www-data` when applicable. The
-application creates new tenant log directories with the shared runtime modes,
-but does not change existing log-root or tenant-directory permissions. Missing
-or unsafe log storage produces a server diagnostic and the write fails; logs
-are not redirected back into the web tree. Do not loosen application or parent
+application creates new log-root and tenant directories with the shared runtime
+modes, but does not change existing directory permissions. Missing parents or
+unsafe log storage produce a server diagnostic and the write fails; logs
+are not redirected back into the web tree. Configured roots inside the
+installation or the known document root are refused, including symlink aliases.
+Do not loosen application or parent
 directory permissions to silence a logging diagnostic.
 
 Existing log history is not moved automatically. With writers stopped, an

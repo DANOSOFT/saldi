@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php --- ver 5.1.0 --- 2026-11-05 ---
+// --- index/login.php --- ver 5.1.1 --- 2026-11-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,7 +23,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20220118 PHR - Added 'if ($db != $sqdb && $dbver > '4.0.4')'
 // 20200222 PHR - Added call to locator and added global_id;
 // 20200225 PHR - Added call to 'includes/betewwnUpdates';
@@ -68,6 +68,7 @@
 // 20261102 CL/ASR The message for a closed account is plain text, so sanitize_input() in login() no longer empties or garbles it.
 // 20261105 CL/MMR SD-807 The login messages and the max users and already logged in screens use the language chosen on the login page (languageId cookie, 1-3).
 //                 A message that names the account is kept within 80 characters (loginFejltxt()), so a long account name no longer makes it disappear.
+// 20261127 CDX/NTR Route both main-login logs through private application storage.
 
 ob_start(); //Starter output buffering 
 @session_start();
@@ -87,6 +88,7 @@ include("../includes/tjek4opdat.php");
 include("../includes/std_func.php");
 require_once(__DIR__ . '/../includes/locatorClient.php');
 require_once __DIR__ . '/../includes/sharedFile.php';
+require_once __DIR__ . '/../includes/applicationLog.php';
 
 // Nobody is logged in yet, so the messages on this page use the language chosen on the login page.
 $languageId = (int) ifset($_COOKIE, 'languageId', 1);
@@ -401,9 +403,14 @@ if (isset($_POST['force_logout']) && isset($_POST['user_to_logout'])) {
 #($r['var_value'])? $languageId = $r['var_value'] : $languageId = 1;
 $spor = null; 
 db_modify("delete from online where session_id = '$s_id'",__FILE__ . " linje " . __LINE__);
-if ($db && !file_exists("../temp/.ht_$db.log")) {
-	sharedFilePutContents(__DIR__ . "/../temp/.ht_$db.log",
-		"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n" . "\\connect $db;\n", true);
+$loginLogName = '.ht_' . rawurlencode((string)$db) . '.log';
+$loginLogPath = applicationLogDirectory() . '/' . $loginLogName;
+if ($db && applicationLogTrustedPath($loginLogPath) && !file_exists($loginLogPath)) {
+	applicationLogPutContents(
+		$loginLogName,
+		"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n" . "\\connect $db;\n",
+		true
+	);
 }
 if ($db) {
 	$qtxt = "delete from online where (brugernavn='$asIs' or lower(brugernavn)='$low' or upper(brugernavn)='$up') ";
@@ -900,8 +907,11 @@ if(!isset($afbryd)){
 	$db_skriv_id = NULL;
 	$dbLocation = loginLocatorInstallation($_SERVER);
 	
-	sharedFilePutContents(__DIR__ . "/../temp/.ht_online.log",
-		date("Y-m-d")." ".date("H:i:s")." ".getenv("remote_addr")." ".$s_id." ".$regnskab." ".$brugernavn."\n", true);
+	applicationLogPutContents(
+		'.ht_online.log',
+		date("Y-m-d")." ".date("H:i:s")." ".getenv("remote_addr")." ".$s_id." ".$regnskab." ".$brugernavn."\n",
+		true
+	);
 	if ($regnskab==$sqdb) {
 		if ($dbver<$version) tjek4opdat($dbver,$version); #20130919
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=admin_menu.php\">";

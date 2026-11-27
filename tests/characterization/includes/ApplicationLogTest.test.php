@@ -1,5 +1,6 @@
 <?php
 // 20261127 CDX/NTR Keep database/login logs outside writable application ancestors.
+// 20261127 CDX/NTR Cover login entry points, canonical web-tree boundaries and creation under trusted parents.
 
 declare(strict_types=1);
 
@@ -14,6 +15,7 @@ final class ApplicationLogTest extends TestCase
     private string|false $originalGroup;
     private string $originalErrorLog;
     private ?string $originalRequestUri;
+    private ?string $originalDocumentRoot;
 
     protected function setUp(): void
     {
@@ -26,6 +28,7 @@ final class ApplicationLogTest extends TestCase
         $this->originalErrorLog = ini_get('error_log');
         ini_set('error_log', $this->directory . '/diagnostics.log');
         $this->originalRequestUri = $_SERVER['REQUEST_URI'] ?? null;
+        $this->originalDocumentRoot = $_SERVER['DOCUMENT_ROOT'] ?? null;
     }
 
     protected function tearDown(): void
@@ -37,6 +40,11 @@ final class ApplicationLogTest extends TestCase
             unset($_SERVER['REQUEST_URI']);
         } else {
             $_SERVER['REQUEST_URI'] = $this->originalRequestUri;
+        }
+        if ($this->originalDocumentRoot === null) {
+            unset($_SERVER['DOCUMENT_ROOT']);
+        } else {
+            $_SERVER['DOCUMENT_ROOT'] = $this->originalDocumentRoot;
         }
         $entries = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($this->directory, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
         foreach ($entries as $entry) {
@@ -99,10 +107,69 @@ final class ApplicationLogTest extends TestCase
         self::assertFalse(applicationLogTrustedPath($this->directory . '/../outside.log'));
     }
 
-    public function testMissingRootIsNotCreatedByTheWebWorker(): void
+    public function testMissingRootIsCreatedOnlyUnderTrustedExistingParent(): void
     {
-        putenv('SALDI_LOG_DIR=' . $this->directory . '/not-provisioned');
+        $root = $this->directory . '/new-root';
+        putenv('SALDI_LOG_DIR=' . $root);
+        self::assertSame(7, applicationLogPutContents('online.log', 'private'));
+        clearstatcache(true, $root);
+        self::assertSame(02770, fileperms($root) & 07777);
+        self::assertSame(0700, fileperms($this->directory) & 0777);
+    }
+
+    public function testMissingAncestorsAreNotCreated(): void
+    {
+        putenv('SALDI_LOG_DIR=' . $this->directory . '/missing-parent/logs');
         self::assertFalse(applicationLogPutContents('online.log', 'private'));
-        self::assertFalse(file_exists($this->directory . '/not-provisioned'));
+        self::assertFalse(file_exists($this->directory . '/missing-parent'));
+    }
+
+    public function testUnsafeParentPreventsCreatingLogRoot(): void
+    {
+        mkdir($this->directory . '/unsafe', 0777);
+        chmod($this->directory . '/unsafe', 0777);
+        putenv('SALDI_LOG_DIR=' . $this->directory . '/unsafe/logs');
+        self::assertFalse(applicationLogPutContents('online.log', 'private'));
+        self::assertFalse(is_dir($this->directory . '/unsafe/logs'));
+        self::assertSame(0777, fileperms($this->directory . '/unsafe') & 0777);
+    }
+
+    public function testInstallationAndSymlinkAliasesAreNotLogStorage(): void
+    {
+        $installation = realpath(__DIR__ . '/../../..');
+        foreach ([$installation, $installation . '/includes'] as $root) {
+            putenv('SALDI_LOG_DIR=' . $root);
+            self::assertFalse(applicationLogTrustedPath($root . '/online.log'));
+        }
+        symlink($installation . '/includes', $this->directory . '/alias');
+        putenv('SALDI_LOG_DIR=' . $this->directory . '/alias');
+        self::assertFalse(applicationLogPutContents('online.log', 'private'));
+    }
+
+    public function testMissingDirectoryBelowDocumentRootIsRejected(): void
+    {
+        mkdir($this->directory . '/public', 0700);
+        $_SERVER['DOCUMENT_ROOT'] = $this->directory . '/public';
+        putenv('SALDI_LOG_DIR=' . $this->directory . '/public/new-logs');
+        self::assertFalse(applicationLogPutContents('online.log', 'private'));
+        self::assertFalse(is_dir($this->directory . '/public/new-logs'));
+    }
+
+    public function testAllLoginEntryPointsWriteOutsideTheWebTree(): void
+    {
+        $db = $regnskab = $brugernavn = $spor = 'fixture';
+        $s_id = 'fixture-session';
+        $loginLogName = '.ht_fixture.log';
+        foreach (['index/login.php', 'includes/login.php', 'soapserver/logon.php'] as $file) {
+            $source = file_get_contents(__DIR__ . '/../../../' . $file);
+            preg_match_all('/\bapplicationLogPutContents\(.*?\);/s', $source, $calls);
+            self::assertCount($file === 'soapserver/logon.php' ? 1 : 2, $calls[0]);
+            foreach ($calls[0] as $call) {
+                eval($call);
+            }
+        }
+        self::assertStringContainsString('fixture', file_get_contents($this->directory . '/.ht_fixture.log'));
+        self::assertStringContainsString('fixture', file_get_contents($this->directory . '/.ht_online.log'));
+        self::assertStringContainsString('fixture', file_get_contents($this->directory . '/online.log'));
     }
 }

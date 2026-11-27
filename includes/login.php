@@ -142,8 +142,11 @@ db_modify("delete from online where session_id = '$s_id'",__FILE__ . " linje " .
 $loginLogName = '.ht_' . rawurlencode((string)$db) . '.log';
 $loginLogPath = applicationLogDirectory() . '/' . $loginLogName;
 if ($db && applicationLogTrustedPath($loginLogPath) && !file_exists($loginLogPath)) {
-	applicationLogPutContents($loginLogName,
-		"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n" . "\\connect $db;\n", true);
+	applicationLogPutContents(
+		$loginLogName,
+		"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n" . "\\connect $db;\n",
+		true
+	);
 }
 if ((isset($regnskabsaar))&&($db)){
 	db_modify("insert into online (session_id, brugernavn, db, dbuser, regnskabsaar, logtime) values ('$s_id', '".db_escape_string($brugernavn)."', '$db', '$dbuser', '$regnskabsaar', '$unixtime')",__FILE__ . " linje " . __LINE__);
@@ -236,8 +239,11 @@ ob_end_flush();	//Sender det "bufferede" output afsted...
 
 if(!isset($afbryd)){
 	$db_skriv_id=NULL;
-	applicationLogPutContents('online.log',
-		date("Y-m-d")." ".date("H:i:s")." ".getenv("remote_addr")." ".$s_id." ".$brugernavn."\n", true);
+	applicationLogPutContents(
+		'online.log',
+		date("Y-m-d")." ".date("H:i:s")." ".getenv("remote_addr")." ".$s_id." ".$brugernavn."\n",
+		true
+	);
 	if ($regnskab==$sqdb) {
 		if ($dbver<$version) tjek4opdat($dbver,$version); #20130919
 		print "<meta http-equiv=\"refresh\" content=\"0;URL=admin_menu.php\">";
