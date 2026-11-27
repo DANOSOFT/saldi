@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-18 ---
+// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -233,7 +233,9 @@
 // 20261118 CL/LH The bank button's title and label are escaped (htmlspecialchars ENT_QUOTES), so a translation with an apostrophe cannot end the attribute.
 //                Back from the feed, what was put into the journal shows once as a notice under the balance instead of an alert().
 //                The empty contra field of lines from the bank (active bank_import_links rows) is pale yellow until filled, and after an import the first one has the focus.
+// 20261127 CDX/NTR Use the displayed journal's column gates for the header and every row type.
 
+require_once __DIR__ . '/kassekladde_includes/columnLayout.php';
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
 require_once __DIR__ . '/kassekladde_includes/saveReplay.php';
@@ -3281,62 +3283,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		})();
 		</script>";
 
-		$kk_editable_view = true;
-		print "<div class='kassekladde-scroll-container'>";
-		print "<center><table cellpadding='0' cellspacing='0' border='0' align = 'center' class='formnavi dataTableForm'>";
-
-		print "<thead class='kassekladde-thead'>"; # Tabel 1.3 -> kladdelinjer
-		print "<tr class='table-krow'><td colspan='24' style='padding: 10px 0;'></td></tr>";
-		$_next_dir   = ($kkdir == 'asc') ? 'desc' : 'asc';
-		$_bilag_dir  = $_next_dir;
-		$_date_dir   = $_next_dir;
-		$_amount_dir = $_next_dir;
-		print "<tr>";
-		if ($vis_bilag && !$fejl && !$udskriv)
-			print "<td></td>";
-		print "<td align = center><b><span title= '" . findtekst('1562|Skriv - (minus) for at slette en linje', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=bilag,transdate&kkdir=$_bilag_dir&tjek=$kladde_id>" . findtekst('671|Bilag', $sprog_id) . "</a></b></td>";
-		print "<td align = center><b> <span title= '" . findtekst('1563|Angiv dato som ddmmyy (f.eks 241205)', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=transdate,bilag&kkdir=$_date_dir&tjek=$kladde_id>" . findtekst('635|Dato', $sprog_id) . "</a></b></td>";
-		print "<td align = center><b> " . findtekst('1068|Bilagstekst', $sprog_id) . "</b></td>";
-		print "<td align = center><b> <span title= '" . findtekst('1564|Angiv D for debitor, K for kreditor eller F for finanspostering', $sprog_id) . "'>D/K</b></td>";
-		print "<td align = center><b> <span title= '" . findtekst('1565|Skriv D eller K og klik på [Opslag] for opslag i hhv, debitor- eller kreditorkartotek', $sprog_id) . "'>" . ucfirst(findtekst('1000|Debet', $sprog_id)) . "</b></td>";
-		print "<td align = center class='kk-col-vat_d'><b>" . findtekst('770|Moms', $sprog_id) . "</b></td>";
-		print "<td align = center><b> <span title= '" . findtekst('1564|Angiv D for debitor, K for kreditor eller F for finanspostering', $sprog_id) . "'>D/K</b></td>";
-		print "<td align = center><b> <span title= '" . findtekst('1565|Skriv D eller K og klik på [Opslag] for opslag i hhv, debitor- eller kreditorkartotek', $sprog_id) . "'>" . ucfirst(findtekst('1001|Kredit', $sprog_id)) . "</b></td>";
-		print "<td align = center class='kk-col-vat_k'><b>" . findtekst('770|Moms', $sprog_id) . "</b></td>";
-		print "<td align = center><b> <span title= '" . findtekst('1566|Angiv fakturanummer - klik på opslag for at slå op i åbne poster. Skriv et minus her for at undertrykke automatisk udligning', $sprog_id) . ".'>" . findtekst('828|Fakturanr.', $sprog_id) . "</b></td>";
-		print "<td align = center><b> <span title= '" . findtekst('1543|Angiv beløb - klik på opslag for at slå op i åbne poster', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=amount&kkdir=$_amount_dir&tjek=$kladde_id>" . findtekst('934|Beløb', $sprog_id) . "</a></b></td>"; #20210720
-
-		if ($vis_afd)
-			print "<td align = left class='kk-col-afd'><b> <span title= '" . findtekst('1567|Angiv hvilken afdeling posteringen hører under', $sprog_id) . "'>".findtekst('2464|Afd.', $sprog_id)."</b></td>";
-		if ($vis_ansat)
-			print "<td align = left  class='kk-col-ansat'><b> <span title= '" . findtekst('1568|Angiv hvilken ansat posteringen hører under', $sprog_id) . "'>" . findtekst('589|Ansat', $sprog_id) . "</b></td>";
-		if ($vis_projekt)
-			print "<td align = left><b> <span title= '" . findtekst('1569|Angiv hvilket projekt posteringen hører under', $sprog_id) . "'>Proj.</b></td>";
-		if ($vis_valuta)
-			print "<td align = left><b> <span title= '" . findtekst('1570|Angiv valuta for posteringen', $sprog_id) . "'>" . findtekst('1069|Valuta', $sprog_id) . "</b></td>";
-		if (db_fetch_array(db_select("select id from kassekladde where kladde_id = '$kladde_id' and (k_type = 'K' or d_type = 'D')", __FILE__ . " linje " . __LINE__))) {
-			print "<td  align='center'><b> <span title= '" . findtekst('1571|Betalingsdato for debitor- eller kreditorfaktura', $sprog_id) . "'>" . findtekst('1070|Forfald', $sprog_id) . "</b></td>";
-			if ($vis_bet_id)
-				print "<td  align='center'><b> <span title= '" . findtekst('1572|Betalings-ID fra girokort - kun nummeret skal skrives', $sprog_id) . "'>" . findtekst('2534|Betalings-ID', $sprog_id) . "</b></td>";
-		}
-		if ($kontrolkonto) {
-			print "<td align='center' width='30px'><b>".findtekst('1073|Saldo', $sprog_id)."<br>".findtekst('2595|Regnskab', $sprog_id)."</b></td>"; #<span title='".findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id)."'>
-			$qtxt = "select id from kassekladde where saldo != 0 and kladde_id = '$kladde_id'";
-			if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-				print "<td style = 'width:20px'></td>";
-				print "<td align='center' width='30px'><b>".findtekst('1073|Saldo', $sprog_id)."<br>Bank</b></td>"; #<span title='".findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id)."'>
-			}
-			print "<td align='right' width='30px'><b><span></b></td>";
-			print "<td align='center' width='30px'><b><span>Balance Diff</span></b></td>"; // Need FindText
-		}
-		print "<td align='center' width='30px'><b> <span title= '" . findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id) . "'>".findtekst('2589|u/m', $sprog_id)."</b></td>";
-		print "<td align='center' width='60px'><b>Position</b></td>";
-		print "<td align='right' width='30px'><b> <span></b></td>";
-		#print "<td align='right' width='30px'><b> <span title= 'Afm&aelig;rk her, hvis der ikke skal tr&aelig;kkes moms'></b></td>";
-		print "</tr>\n";
-
-		print "</thead>";
-		print "<tbody id='kassekladde-tbody'>"; # Tabel 1.3 -> kladdelinjer
 
 
     }
@@ -3640,6 +3586,84 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	#now uses grid
 } else { ################################ Kladden er ikke bogfort ########################################
 
+	$kk_columns = kkJournalColumns(
+		array(
+			'attachments' => (bool)($vis_bilag && !$fejl && !$udskriv),
+			'department' => (bool)$vis_afd,
+			'employee' => (bool)$vis_ansat,
+			'project' => (bool)$vis_projekt,
+			'currency' => (bool)$vis_valuta,
+			'payment' => (bool)$vis_bet_id
+		),
+		$d_type ?? array(),
+		$k_type ?? array(),
+		$saldo ?? array(),
+		(bool)$kontrolkonto
+	);
+
+	$kk_editable_view = true;
+	print "<div class='kassekladde-scroll-container'>";
+	print "<center><table cellpadding='0' cellspacing='0' border='0' align = 'center' class='formnavi dataTableForm'>";
+
+	print "<thead class='kassekladde-thead'>"; # Tabel 1.3 -> kladdelinjer
+	$kk_column_count = 14 + count(array_filter($kk_columns)) + (int)$kk_columns['bank'] + (int)$kk_columns['difference'];
+	print "<tr class='table-krow'><td colspan='$kk_column_count' style='padding: 10px 0;'></td></tr>";
+	$_next_dir   = ($kkdir == 'asc') ? 'desc' : 'asc';
+	$_bilag_dir  = $_next_dir;
+	$_date_dir   = $_next_dir;
+	$_amount_dir = $_next_dir;
+	print "<tr>";
+	if ($kk_columns['attachments']) {
+		print "<td></td>";
+	}
+	print "<td align = center><b><span title= '" . findtekst('1562|Skriv - (minus) for at slette en linje', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=bilag,transdate&kkdir=$_bilag_dir&tjek=$kladde_id>" . findtekst('671|Bilag', $sprog_id) . "</a></b></td>";
+	print "<td align = center><b> <span title= '" . findtekst('1563|Angiv dato som ddmmåå (f.eks 241205)', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=transdate,bilag&kkdir=$_date_dir&tjek=$kladde_id>" . findtekst('635|Dato', $sprog_id) . "</a></b></td>";
+	print "<td align = center><b> " . findtekst('1068|Bilagstekst', $sprog_id) . "</b></td>";
+	print "<td align = center><b> <span title= '" . findtekst('1564|Angiv D for debitor, K for kreditor eller F for finanspostering', $sprog_id) . "'>D/K</b></td>";
+	print "<td align = center><b> <span title= '" . findtekst('1565|Skriv D eller K, og klik på [Opslag] for opslag i hhv. debitor- eller kreditorkartotek', $sprog_id) . "'>" . ucfirst(findtekst('1000|Debet', $sprog_id)) . "</b></td>";
+	print "<td align = center class='kk-col-vat_d'><b>" . findtekst('770|Moms', $sprog_id) . "</b></td>";
+	print "<td align = center><b> <span title= '" . findtekst('1564|Angiv D for debitor, K for kreditor eller F for finanspostering', $sprog_id) . "'>D/K</b></td>";
+	print "<td align = center><b> <span title= '" . findtekst('1565|Skriv D eller K, og klik på [Opslag] for opslag i hhv. debitor- eller kreditorkartotek', $sprog_id) . "'>" . ucfirst(findtekst('1001|Kredit', $sprog_id)) . "</b></td>";
+	print "<td align = center class='kk-col-vat_k'><b>" . findtekst('770|Moms', $sprog_id) . "</b></td>";
+	print "<td align = center><b> <span title= '" . findtekst('1566|Angiv fakturanummer - klik på [Opslag] for at slå op i åbne poster. Skriv et minus her for at undertrykke automatisk udligning', $sprog_id) . ".'>" . findtekst('828|Fakturanr.', $sprog_id) . "</b></td>";
+	print "<td align = center><b> <span title= '" . findtekst('1543|Angiv beløb - klik på opslag for at slå op i åbne poster', $sprog_id) . "'><a href=../finans/kassekladde.php?kladde_id=$kladde_id&kksort=amount&kkdir=$_amount_dir&tjek=$kladde_id>" . findtekst('934|Beløb', $sprog_id) . "</a></b></td>"; #20210720
+
+	if ($kk_columns['department']) {
+		print "<td align = left class='kk-col-afd'><b> <span title= '" . findtekst('1567|Angiv hvilken afdeling posteringen hører under', $sprog_id) . "'>".findtekst('2464|Afd.', $sprog_id)."</b></td>";
+	}
+	if ($kk_columns['employee']) {
+		print "<td align = left  class='kk-col-ansat'><b> <span title= '" . findtekst('1568|Angiv hvilken ansat posteringen hører under', $sprog_id) . "'>" . findtekst('589|Ansat', $sprog_id) . "</b></td>";
+	}
+	if ($kk_columns['project']) {
+		print "<td align = left><b> <span title= '" . findtekst('1569|Angiv hvilket projekt posteringen hører under', $sprog_id) . "'>Proj.</b></td>";
+	}
+	if ($kk_columns['currency']) {
+		print "<td align = left><b> <span title= '" . findtekst('1570|Angiv valuta for posteringen', $sprog_id) . "'>" . findtekst('1069|Valuta', $sprog_id) . "</b></td>";
+	}
+	if ($kk_columns['due']) {
+		print "<td  align='center'><b> <span title= '" . findtekst('1571|Betalingsdato for debitor- eller kreditorfaktura', $sprog_id) . "'>" . findtekst('1070|Forfald', $sprog_id) . "</b></td>";
+		if ($kk_columns['payment']) {
+			print "<td  align='center'><b> <span title= '" . findtekst('1572|Betalings-ID fra girokort - kun nummeret skal skrives', $sprog_id) . "'>" . findtekst('2534|Betalings-ID', $sprog_id) . "</b></td>";
+		}
+	}
+	if ($kk_columns['ledger']) {
+		print "<td align='center' width='30px'><b>".findtekst('1073|Saldo', $sprog_id)."<br>".findtekst('2595|Regnskab', $sprog_id)."</b></td>"; #<span title='".findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id)."'>
+		if ($kk_columns['bank']) {
+			print "<td style = 'width:20px'></td>";
+			print "<td align='center' width='30px'><b>".findtekst('1073|Saldo', $sprog_id)."<br>Bank</b></td>"; #<span title='".findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id)."'>
+		}
+		print "<td align='right' width='30px'><b><span></b></td>";
+		print "<td align='center' width='30px'><b><span>Balance Diff</span></b></td>"; // Need FindText
+	}
+	print "<td align='center' width='30px'><b> <span title= '" . findtekst('1573|Afmærk her, hvis der ikke skal trækkes moms', $sprog_id) . "'>".findtekst('2589|u/m', $sprog_id)."</b></td>";
+	print "<td align='center' width='60px'><b>Position</b></td>";
+	print "<td align='right' width='30px'><b> <span></b></td>";
+	#print "<td align='right' width='30px'><b> <span title= 'Afm&aelig;rk her, hvis der ikke skal tr&aelig;kkes moms'></b></td>";
+	print "</tr>\n";
+
+	print "</thead>";
+	print "<tbody id='kassekladde-tbody'>"; # Tabel 1.3 -> kladdelinjer
+
 	$kontrolmoms = $kontrolsaldo = 0;
 	$kladde_debetsum = $kladde_kreditsum = 0; # samlet debet/kredit (basisvaluta) til balance-status
 	include_once("../includes/stdFunc/fiscalYear.php");
@@ -3764,7 +3788,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			));
 		}
 		print "<tr>";
-		if ($vis_bilag && !$fejl && isset($id[$y])) { #### use
+		if ($kk_columns['attachments']) { #### use
 			$hasDoc = (($dokument[$y] ?? null) || isset($kk_doc_source_ids[(int)$id[$y]])) ? true : false;
 			if ($hasDoc) {
 				$clip = 'paper.png';
@@ -3860,49 +3884,37 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		}
 		print "<td title='$title'><input class='inputbox' type='text' style='text-align:right;width:100px;' name='belo$y'
 		$de_fok value ='$belobVis' onchange='javascript:docChange = true;'></td>\n";
-		if ($vis_afd) {
+		if ($kk_columns['department']) {
 			print "<td class='kk-col-afd'><input class='inputbox' type='text' style='text-align:right;width:50px;' name='afd_$y' 
 			$de_fok value =\"$afd[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		}
-		if ($vis_ansat) {
+		if ($kk_columns['employee']) {
 			print "<td class='kk-col-ansat'><input class='inputbox' type='text' style='text-align:right;width:50px;' name='meda$y' 
 			$de_fok value =\"$ansat[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		}
-		if ($vis_projekt) {
+		if ($kk_columns['project']) {
 			print "<td><input class='inputbox' type='text' style='text-align:right;width:50px;' name='proj$y'
 			$de_fok value =\"$projekt[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		}
-		if ($vis_valuta) {
+		if ($kk_columns['currency']) {
 			print "<td><input class='inputbox' type='text' style='text-align:left;width:40px;' name='valu$y' $de_fok value =\"$valuta[$y]\" onchange='javascript:docChange = true;'></td>\n";
 		}
-		if ($k_type[$y] == 'K' || $d_type[$y] == 'D') {
-			print "<td><input class='inputbox' type='text' style='text-align:left;width:85px;' name='forf$y' $de_fok value =\"$forfaldsdato[$y]\" onchange='javascript:docChange = true;'></td>\n";
-			if ($vis_bet_id) {
-				print "<td><input class='inputbox' type='text' style='text-align:left;width:100px;' name='b_id$y' $de_fok value =\"$betal_id[$y]\" onchange='javascript:docChange = true;'></td>\n";
-			}
-		} elseif ($vis_forfald) {
-			print "<td><input class='inputbox' style='text-align:left;width:85px;' readonly='readonly'></td>\n";
-			if ($vis_bet_id) {
-				print "<td><input class='inputbox' style='text-align:left;width:100px;' readonly='readonly'></td>\n";
-			}
-		}
+		print kkJournalPaymentCells(
+			$kk_columns,
+			$y,
+			$k_type[$y] == 'K' || $d_type[$y] == 'D',
+			(string)$forfaldsdato[$y],
+			(string)$betal_id[$y],
+			$de_fok,
+			$charset
+		);
+		$controlTitle = '';
 		if ($control_bal_fetched) {
-			$titletxt = findtekst("Kontrolsaldo er nu beregnet fra ", $sprog_id); # "The control balance is calculated from "
-			$titletxt .= $control_record_date;
-			$titletxt .= findtekst(", fordi der blev bogført på kontrolkontoen denne dato!", $sprog_id); # " because there was transactions on the control account this date!"
-			print "<td style='text-align:right;font-weight:bold' title='" . $titletxt . "'>" . dkdecimal($kontrolsaldo, 2) . "</td>\n";
-			//$control_bal_fetched = FALSE;
-		} elseif ($kontrolkonto && $kontrolsaldo) {
-			print "<td align=right>" . dkdecimal($kontrolsaldo, 2) . "</td>\n";
+			$controlTitle = findtekst("Kontrolsaldo er nu beregnet fra ", $sprog_id) . $control_record_date;
+			$controlTitle .= findtekst(", fordi der blev bogført på kontrolkontoen denne dato!", $sprog_id);
 		}
-		if ($kontrolkonto && abs((float)$saldo[$y]) > 0) {
-			$saldoDiff = afrund($saldo[$y], 2) - afrund($kontrolsaldo, 2);
-			($saldoDiff) ? $color = "style='color:red'" : $color = "style='color:black'";
-			print "<td>&nbsp;</td><td align='right'><div $color>" . dkdecimal($saldo[$y]) . "</div></td>\n";
-			if ($saldoDiff) {
-				print "<td>&nbsp;</td><td align='right'><div $color>(" . dkdecimal($saldoDiff) . ")</div></td>\n";
-			}
-		}
+		$bankBalance = abs((float)$saldo[$y]) > 0 ? (float)$saldo[$y] : null;
+		print kkJournalBalanceCells($kk_columns, (float)$kontrolsaldo, $bankBalance, htmlspecialchars($controlTitle, ENT_QUOTES, $charset));
 
 		if ($momsfri[$y] == 'on') {
 			print "<td align='center'><input class='inputbox' type=checkbox name=moms$y checked onchange='handleVatExempt(this);' ></td>\n";
@@ -3979,7 +3991,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	if ($submit == 'save' && !$fejl && preg_match('/^[a-z_]{3,4}\d+$/', $kkNavFocus)) {
 		$fokus = $kkNavFocus;
 	}
-	print "</tr>\n";
 
 	if (!isset($dato[$y]))         $dato[$y]        = NULL;
 	if (!isset($beskrivelse[$y]))  $beskrivelse[$y] = NULL;
@@ -4043,7 +4054,7 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 
 		#################
 
-		if ($vis_bilag && !$fejl) { #20140425
+		if ($kk_columns['attachments']) { #20140425
 			#if ($kladde_id && $intern_bilag) print "<td title='".findtekst('1455|klik her for at vedhæfte et bilag', $sprog_id)."'><a href='../includes/bilag.php?kilde=kassekladde&bilag_id=$id[$x]&bilag=$bilag[$x]&ny=ja&kilde_id=$kladde_id&fokus=bila$x'><img  style='border: 0px solid' src='../ikoner/clip.png'></a></td>\n";
 			if ($intern_bilag) {
 				$id[$y]        = (int)($id[$y] ?? 0);
@@ -4105,51 +4116,40 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		name='fakt$x' $de_fok value=\"$faktura[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:100px;'
 		name='belo$x' $de_fok value=\"$belob\" onchange='javascript:docChange = true;'></td>\n";
-		if ($vis_afd) {
+		if ($kk_columns['department']) {
 			print "<td class='kk-col-afd'><input class='inputbox' type='text' style='text-align:right;width:50px;'
 			name='afd_$x' $de_fok value=\"$afd[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		}
-		if ($vis_ansat) {
+		if ($kk_columns['employee']) {
 			print "<td class='kk-col-ansat'><input class='inputbox' type='text' style='text-align:right;width:50px;'
 			name='meda$x' $de_fok value =\"$ansat[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		}
-		if ($vis_projekt) {
+		if ($kk_columns['project']) {
 			print "<td><input class='inputbox' type='text' style='text-align:right;width:50px;'
 			name='proj$x' $de_fok value =\"$projekt[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		}
-		if ($vis_valuta) {
+		if ($kk_columns['currency']) {
 			print "<td><input class='inputbox' type='text' style='text-align:left;width:40px;'
 			name='valu$x' $de_fok value =\"$valuta[$x]\" onchange='javascript:docChange = true;'></td>\n";
 		}
-		if (!isset($k_type[$y])) $k_type[$y] = NULL;
-		if (!isset($d_type[$y])) $d_type[$y] = NULL;
-		if ($k_type[$y] == 'K' || $d_type[$y] == 'D') {
-			print "<td><input class='inputbox' type='text' style='text-align:left;width:85px;'
-			name='forf$x' $de_fok value =\"$forfaldsdato[$x]\" onchange='javascript:docChange = true;'></td>\n";
-			print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;'
-			name='b_id$x' $de_fok value =\"$betal_id[$x]\" onchange='javascript:docChange = true;'></td>\n";
-		} elseif ($vis_forfald) {
-			print "<td><input  class='inputbox' style='text-align:left;width:85px;' readonly='readonly'></td>\n";
-			if ($vis_bet_id)
-				print "<td><input  class='inputbox' style='text-align:left;width:100px;' readonly='readonly'></td>\n";
-		}
-		if ($control_bal_fetched || ($kontrolkonto && $kontrolsaldo)) {
-			print "<td></td>\n";
-		}
-		if ($kontrolkonto) {
-			print "<td></td>\n";
-			print "<td></td>\n";
-			if ($saldoDiff){
-				print "<td></td>\n";
-				print "<td></td>\n";
-			}
-		}
+		print kkJournalPaymentCells(
+			$kk_columns,
+			$x,
+			$k_type[$x] == 'K' || $d_type[$x] == 'D',
+			(string)($forfaldsdato[$x] ?? ''),
+			(string)($betal_id[$x] ?? ''),
+			$de_fok,
+			$charset
+		);
+		print kkJournalBalanceCells($kk_columns, null, null);
 		if ($momsfri[$x] == 'on') {
 			print "<td align='center'><input class='inputbox' type='checkbox' name='moms$x' checked onchange='handleVatExempt(this);'></td>\n";
 		} else {
 			print "<td align='center'><input class='inputbox' type='checkbox' name='moms$x' onchange='handleVatExempt(this);'></td>\n";
 		}
+		print "<td></td><td></td></tr>\n";
 	}
+
 	#cho __line__." X $x<br>";
 	if ($x != 1 || $bilag[$x])
 		$bilagsnr = $bilag[$x];
@@ -4182,8 +4182,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 	for ($z = $x; $z <= $y; $z++) {
 		print "<tr>";
 
-		if ($vis_bilag && !$fejl)
+		if ($kk_columns['attachments']) {
 			print "<td><br></td>\n";
+		}
 
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:80px;' name='bila$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:left;width:85px;' name='dato$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
@@ -4196,34 +4197,23 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		print "<td class='kk-col-vat_k'>" . render_vat_select("kvat$z", '', $vat_codes, $charset) . "</td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:75px;' name='fakt$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
 		print "<td><input class='inputbox' type='text' style='text-align:right;width:100px;' name='belo$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
-		if ($vis_afd)
+		if ($kk_columns['department']) {
 			print "<td class='kk-col-afd'><input class='inputbox' type='text' style='text-align:right;width:50px;' name='afd_$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
-		if ($vis_ansat)
+		}
+		if ($kk_columns['employee']) {
 			print "<td class='kk-col-ansat'><input class='inputbox' type='text' style='text-align:right;width:50px;' name='meda$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
-		if ($vis_projekt)
+		}
+		if ($kk_columns['project']) {
 			print "<td><input class='inputbox' type='text' style='text-align:right;width:50px;' name='proj$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
-		if ($vis_valuta)
+		}
+		if ($kk_columns['currency']) {
 			print "<td><input class='inputbox' type='text' style='text-align:left;width:40px;' name='valu$z' $de_fok onchange='javascript:docChange = true;'></td>\n";
-		#print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' name=forf$z $de_fok onchange='javascript:docChange = true;'></td>\n";
-		#print "<td><input class='inputbox' type='text' style='text-align:left;width:75px;' name=b_id$z $de_fok onchange='javascript:docChange = true;'></td>\n";
-		if ($vis_forfald) {
-			print "<td><input  class='inputbox' style='text-align:left;width:85px;' readonly='readonly'></td>\n";
-			if ($vis_bet_id)
-				print "<td><input  class='inputbox' style='text-align:left;width:100px;' readonly='readonly'></td>\n";
 		}
-		if ($control_bal_fetched || ($kontrolkonto && $kontrolsaldo)) {
-			print "<td></td>\n";
-		}
-		if ($kontrolkonto) {
-			print "<td></td>\n";
-			print "<td></td>\n";
-			if ($saldoDiff){
-				print "<td></td>\n";
-				print "<td></td>\n";
-			}
-		}
+		print kkJournalPaymentCells($kk_columns, $z, false, '', '', $de_fok, $charset);
+		print kkJournalBalanceCells($kk_columns, null, null);
 		print "<td align='center'><input class='inputbox' type='checkbox' name='moms$z' onchange='handleVatExempt(this);'></td>\n";
 
+		print "<td></td><td></td>\n";
 		print "</tr>\n";
 	}
 	#	if (count($bilag)<10) print "<tr><td align='center' colspan='8'>".findtekst('598|-', $sprog_id)."</td></tr>";
