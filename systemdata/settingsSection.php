@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- systemdata/settingsSection.php --- ver 5.1.1 --- 2026.11.13 ---
+// ---- systemdata/settingsSection.php --- ver 5.1.1 --- 2026.11.16 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -62,6 +62,7 @@
 //                 A row error no longer saves the page's fields (dry run, spec §7.3).
 // 20261108 CL/ASR css/saldi-theme.css linked as ?v=8, css/saldi-kit.css and css/unified-components.css as ?v=20261108: the page ground is Saldi's classic page colour #eeeef0, the panels and fields stay white (owner, 8 Nov 2026).
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261116 CL/MMR SST-1005 Regnskabsår shows, above the list, why a later year's opening balances could not be updated automatically, until a later update gets past it.
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
  * @var int    $sprog_id
@@ -563,6 +564,14 @@ function settings_section_view(string $sectionId, array $section, array $defs, a
 	if (!empty($_SESSION['settings_error'])) {
 		$flash[] = array('err', (string) $_SESSION['settings_error']);
 		unset($_SESSION['settings_error']);
+	}
+	if ($sectionId === 'company.fiscal_years') {
+		// SST-1005: a transfer into a later year's opening balances that could not be made (the old year list's red line).
+		include_once(__DIR__ . '/../includes/updateFollowingOpeningBalances.php');
+		$openingStop = followingOpeningBalanceStop();
+		if ($openingStop) {
+			$flash[] = array('err', html_entity_decode(followingOpeningBalanceStopText($openingStop, $sprogId), ENT_QUOTES | ENT_HTML5, $charset));
+		}
 	}
 	if (!$canWrite) {
 		$flash[] = array('info', st_txt(5755));
