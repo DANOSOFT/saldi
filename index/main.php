@@ -44,6 +44,7 @@
 // 20260930 LOE SST-836 Added the expiry report to the Lager menu where batch/expiry handling is in use.
 // 20261012 CL/LH SALDI Assist Guide: SALDI_ASSIST_GUIDE loads the v2 widget (help and navigation, no access to the books).
 // 20261028 CL/LH SALDI Assist Guide is the default widget; SALDI_ASSIST_GUIDE=off brings back v1.
+// 20261127 LH Operations notice: a driftsbesked.txt next to the installations shows as a popup (includes/driftsbesked.php).
 // 20261030 LOE MB-62 Read-only (2) counts as access in the menu, as it already does on the pages.
 // 20261104 LOE SST-922 The Print button loads a page's autoprint view when the page offers one.
 // 20261110 CL/MMR SST-991 The System menu shows only "Sikkerhedskopi" (text 521, as the other menus use), so it is no longer cut off as "Sikkerhedskopi/Genda".
@@ -745,4 +746,8 @@ $assistWidgetUrl = saldi_assist_widget_url((string)getenv('SALDI_ASSIST_WIDGET_U
   window.SaldiAssist.highlightRows = window.SaldiAssistRecords.highlightRows;
 </script>
 <?php } ?>
+<?php
+require_once __DIR__ . '/../includes/driftsbesked.php';
+echo driftsbeskedHtml(driftsbeskedText());
+?>
 </html>
