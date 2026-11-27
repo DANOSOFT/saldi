@@ -20,9 +20,23 @@ final class selectOrderRemoved extends TestCase
 
     private const INCLUDE_TOKENS = [T_INCLUDE, T_INCLUDE_ONCE, T_REQUIRE, T_REQUIRE_ONCE];
 
+    /** The deleted file as the last path segment, and nothing longer such as preselectOrder.php. */
+    private const TARGET = '#(^|[/\\\\])selectOrder\.php$#';
+
+    /** The value of a quoted string literal token. */
+    private static function literal(string $text): string
+    {
+        $body = substr($text, 1, -1);
+        if ($text[0] === "'") {
+            return str_replace(["\\'", '\\\\'], ["'", '\\'], $body);
+        }
+        return stripcslashes($body);
+    }
+
     /**
-     * The target expression of every include/include_once/require/require_once in a PHP source,
-     * with comments and whitespace dropped.
+     * The static path of every include/include_once/require/require_once in a PHP source: the
+     * string literals of its target expression joined in order, so 'selectOrder' . '.php' reads
+     * as selectOrder.php. Comments, constants such as __DIR__ and variables add nothing.
      *
      * @return array<int, string>
      */
@@ -46,12 +60,11 @@ final class selectOrderRemoved extends TestCase
             if ($text === ';' || $id === T_CLOSE_TAG) {
                 $targets[] = $current;
                 $current = null;
-                continue;
+            } elseif ($id === T_CONSTANT_ENCAPSED_STRING) {
+                $current .= self::literal($text);
+            } elseif ($id === T_ENCAPSED_AND_WHITESPACE) {
+                $current .= stripcslashes($text);
             }
-            if ($id === T_COMMENT || $id === T_DOC_COMMENT || $id === T_WHITESPACE) {
-                continue;
-            }
-            $current .= $text;
         }
         if ($current !== null) {
             $targets[] = $current;
@@ -62,7 +75,7 @@ final class selectOrderRemoved extends TestCase
     private static function includesSelectOrder(string $src): bool
     {
         foreach (self::includeTargets($src) as $target) {
-            if (stripos($target, 'selectOrder.php') !== false) {
+            if (preg_match(self::TARGET, $target) === 1) {
                 return true;
             }
         }
@@ -77,17 +90,22 @@ final class selectOrderRemoved extends TestCase
             'selectOrder.php is back; it prints the order header unescaped (MB-139)');
     }
 
-    /** The scan below must catch a real include and must not trip on a comment. */
-    public function testTheCheckTellsAnIncludeFromAComment(): void
+    /** The scan below must catch a real include, however the path is spelled, and nothing else. */
+    public function testTheCheckTellsAnIncludeFromAnythingElse(): void
     {
         $this->assertTrue(self::includesSelectOrder("<?php\ninclude('orderIncludes/selectOrder.php');\n"));
         $this->assertTrue(self::includesSelectOrder("<?php\nif (\$x) include_once __DIR__ . \"/orderIncludes/selectOrder.php\";\n"));
         $this->assertTrue(self::includesSelectOrder("<?php\nrequire(__DIR__ . /* header */ '/orderIncludes/' . 'selectOrder.php');\n"));
         $this->assertTrue(self::includesSelectOrder("<?php require_once 'kreditor/orderIncludes/selectOrder.php' ?>"));
+        $this->assertTrue(self::includesSelectOrder("<?php\ninclude 'orderIncludes/' . 'selectOrder' . '.php';\n"));
+        $this->assertTrue(self::includesSelectOrder("<?php\ninclude \"\$dir/selectOrder.php\";\n"));
+        $this->assertTrue(self::includesSelectOrder("<?php\ninclude('selectOrder.php');\n"));
 
         $this->assertFalse(self::includesSelectOrder("<?php\n// selectOrder.php used to print this header\ninclude('orderIncludes/openOrderData.php');\n"));
         $this->assertFalse(self::includesSelectOrder("<?php\n/* include('orderIncludes/selectOrder.php'); */\n"));
         $this->assertFalse(self::includesSelectOrder("<?php\n\$note = 'selectOrder.php';\n"));
+        $this->assertFalse(self::includesSelectOrder("<?php\ninclude('orderIncludes/preselectOrder.php');\n"));
+        $this->assertFalse(self::includesSelectOrder("<?php\ninclude('orderIncludes/selectOrder.php.bak');\n"));
     }
 
     public function testNoPhpFileOutsideTestsIncludesIt(): void
