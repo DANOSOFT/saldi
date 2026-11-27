@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/purchaseInvoicePosting.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- includes/purchaseInvoicePosting.php --- ver 5.1.1 --- 2026-11-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,7 @@
 // Copyright (c) 2003-2026 Danosoft ApS
 // -------------------------------------------------------------------------
 // 20261113 CDX/NTR Extract supplier invoice posting from kreditor/bogfor.php (SD-599).
+// 20261127 CL/HUG Fix EU supplier VAT tautology ($box1 != 'E' && $box1 != 'Y') so ordrer.moms is not added to the payable sum for EU suppliers.
 
 /**
  * Post an eligible supplier invoice or credit note using the caller's transaction.
@@ -91,7 +92,7 @@ function post_purchase_invoice($id) {
 		$r = db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 		$kontonr=$r['box2'];
 		$box1=substr(trim($r['box1']),0,1);
-		if ($box1 && ($box1!='E' || $box1!='Y')) $sum=$sum+$moms;	#moms tillaegges summen der ikke er eu moms.
+		if ($box1 && $box1 != 'E' && $box1 != 'Y') $sum = $sum + $moms;	#moms tillaegges summen der ikke er eu moms.
 ########### OPENPOST	->
 		if (substr($art,1,1)=='K') $beskrivelse ="Lev. kn.nr: ".$fakturanr.", modt. nr ".$modtagelse;
 		else $beskrivelse ="Lev. fakt.nr:".$fakturanr.", modt.nr: ".$modtagelse;

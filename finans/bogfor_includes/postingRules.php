@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/bogfor_includes/postingRules.php --- ver 5.0.0 --- 2026-10-14 ---
+// --- finans/bogfor_includes/postingRules.php --- ver 5.1.1 --- 2026-11-27 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,7 @@
 //                  posting and the "Kontokort med u-bogført" report use the same code.
 //                  momsberegning() takes a $preview flag so the report lists a VAT split error instead of exiting.
 // 20261014 CL/NTR postingLineEntries(): replaced the "* 1" string-to-number conversion of d_moms/k_moms with (float) casts.
+// 20261127 CL/HUG momsberegning(): fix EU VAT tautology ($a != 'E' && $a != 'Y') so valid EU finance accounts keep their own VAT code while falling back if the group is missing, and fix substr($kontrol, 1.1) float typo.
 
 /**
  * Posting rules shared by the cash-journal posting and the kontokort report.
@@ -117,14 +118,30 @@ function momsberegning($konto,$amount,$momsart,$kontrol,$lineVat=NULL,$allowBlan
 			$b=substr($effectiveVat,1);
 #Hvis en momspligtig vare koebes i EU beregnes der EU moms. $kontrol er kun sat hvis der er tale om en kreditor
 # og nedenst&aring;ende tr&aelig;der s&aring;ledes ikke i kraft naar der er tale om en finanskonto med EU moms.
-			if ($a && ($a!='E' || $a!='Y') && (substr($kontrol,0,1)=='E' || substr($kontrol,0,1)=='Y')) {
-				$a=substr($kontrol,0,1);
-				$b=substr($kontrol,1.1);
+			$kontrolTrim = trim((string)$kontrol);
+			$kontrolPrefix = substr($kontrolTrim, 0, 1);
+			$r = false;
+			if ($a && ($a == 'E' || $a == 'Y') && ctype_digit($b)) {
+				$c = $a . 'M';
+				$kodenr = (int)$b;
+				$qtxt = "select box1,box2,box3 from grupper where kode='$a' and kodenr='$kodenr' and art='$c' and fiscal_year = '$regnaar'";
+				$rowCheck = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+				if ($rowCheck && $rowCheck['box1'] && $rowCheck['box2'] && $rowCheck['box3']) {
+					$r = $rowCheck;
+				}
 			}
-			$c=$a.'M';
-			$qtxt = "select box1,box2,box3 from grupper where kode='$a' and kodenr='$b' and art='$c' and fiscal_year = '$regnaar'";
-			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
-			if($r =	db_fetch_array($q)) { # Saa er der moms paa kontoen
+			if ($a && ($kontrolPrefix == 'E' || $kontrolPrefix == 'Y') && (($a != 'E' && $a != 'Y') || !$r)) {
+				$a = $kontrolPrefix;
+				$b = substr($kontrolTrim, 1);
+				$r = false;
+			}
+			if (!$r) {
+				$c = $a . 'M';
+				$qtxt = "select box1,box2,box3 from grupper where kode='$a' and kodenr='$b' and art='$c' and fiscal_year = '$regnaar'";
+				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+				$r = db_fetch_array($q);
+			}
+			if($r) { # Saa er der moms paa kontoen
 				if (($a=='E' || $a=='Y') && (!$r['box1'] || !$r['box2'] || !$r['box3'])) alert("Fejl i kontoopsætning for EU moms");
 				$qtxt="select box1,box2,box3 from grupper where kode='$a' and kodenr='$b' and art='$c' and fiscal_year = '$regnaar'";
 				$q2 = db_select($qtxt,__FILE__ . " linje " . __LINE__);
