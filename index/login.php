@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- index/login.php --- ver 5.1.0 --- 2026-11-05 ---
+// --- index/login.php --- ver 5.1.1 --- 2026-11-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,7 +23,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20220118 PHR - Added 'if ($db != $sqdb && $dbver > '4.0.4')'
 // 20200222 PHR - Added call to locator and added global_id;
 // 20200225 PHR - Added call to 'includes/betewwnUpdates';
@@ -68,6 +68,8 @@
 // 20261102 CL/ASR The message for a closed account is plain text, so sanitize_input() in login() no longer empties or garbles it.
 // 20261105 CL/MMR SD-807 The login messages and the max users and already logged in screens use the language chosen on the login page (languageId cookie, 1-3).
 //                 A message that names the account is kept within 80 characters (loginFejltxt()), so a long account name no longer makes it disappear.
+// 20261127 CL/LH A user with two-factor login has no session until the code is verified: the online row is written under a key no browser can send and gets the session id only after the code.
+//                Two-factor login also holds where the database returns 1 (MySQL/MariaDB), and a user without phone number and e-mail is refused.
 
 ob_start(); //Starter output buffering 
 @session_start();
@@ -510,6 +512,12 @@ if (!$dbMail && $db != $sqdb) {
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 	$mainMail = $r['email'];
 } else $mainMail = $dbMail;
+// Two-factor login is decided here, before the login writes to online. An unreadable user row counts as two-factor.
+$twoFactorRequired = false;
+if ($userId && (int)$db_id !== 1) {
+	$tfRow = db_fetch_array(db_select("select * from brugere where id = '" . (int) $userId . "'", __FILE__ . " linje " . __LINE__));
+	$twoFactorRequired = !$tfRow || (isset($tfRow['twofactor']) && in_array($tfRow['twofactor'], array('t', true, '1', 1), true)); // MySQL/MariaDB return 1
+}
 # Check whether the user exsists
 
 if ($userId) {
@@ -741,6 +749,13 @@ if ($userId) {
 			}
 		}
 	}
+	// Every page accepts a session by its row in online. For a two-factor user the row is written under a key no browser
+	// can send (session ids have no ':') until the code is verified; send_sms() and online.php below still find it by $s_id.
+	$browserSessionId = $s_id;
+	if ($twoFactorRequired) {
+		$s_id = '2fa:' . bin2hex(random_bytes(14));
+		register_shutdown_function('login_drop_unverified_session', $s_id);
+	}
 	$qtxt = "insert into online (session_id, brugernavn, db, dbuser, logtime,language_id) values ";
 	$qtxt.= "('$s_id', '".db_escape_string($brugernavn)."', '$db', '$dbuser', '$unixtime','$languageId')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
@@ -786,7 +801,7 @@ if ($userId) {
 	} else {
 		$r = array("twofactor" => FALSE);
 	}
-	if (isset($r["twofactor"]) && $r["twofactor"] == 't') {
+	if ($twoFactorRequired) {
 		$json_data = file_get_contents('php://input');
 		$decoded_data = json_decode($json_data, true);
 							       
@@ -837,12 +852,12 @@ if ($userId) {
 				
 				db_modify("UPDATE brugere SET tmp_kode='$random_integer|$expire' WHERE id=$bruger_id", __FILE__ . "linje" . __LINE__);
 
-				include("tofaktor.php");
+				$showTwoFactorForm = true;
 			}
-			exit;
+			$twoFactorPending = true;
 		} else if ($status !== "success") {
-			include("tofaktor.php");
-			exit;
+			$showTwoFactorForm = true;
+			$twoFactorPending = true;
 		}
 	}elseif($bruger_id && $email) {
 		# The code has expired and a new one needs sent
@@ -863,13 +878,23 @@ if ($userId) {
 				$current_time = time();
 				$expire = $current_time + 180; // Expires in 3 minutes
 				db_modify("UPDATE brugere SET tmp_kode='$random_integer|$expire' WHERE id=$bruger_id", __FILE__ . "linje" . __LINE__);
-				include("tofaktor.php");
+				$showTwoFactorForm = true;
 			}
-			exit;
+			$twoFactorPending = true;
 		} else if ($status !== "success") {
-			include("tofaktor.php");
-			exit;
+			$showTwoFactorForm = true;
+			$twoFactorPending = true;
 		}
+	} elseif ($status !== "success") {
+		// Two-factor login is on, but there is no phone number or e-mail to send the code to.
+		$fejltxt = "Tofaktor-login er slået til, men brugeren har hverken telefonnummer eller e-mail. Kontakt din administrator. / Two-factor login is on, but the user has no phone number or e-mail. Contact your administrator.";
+		echo "<script type='text/javascript'>alert(" . json_encode($fejltxt) . "); window.location.href = 'index.php';</script>";
+		$twoFactorPending = true;
+	}
+	if (!empty($twoFactorPending)) {
+		// login_drop_unverified_session() removes the pending row; the code form posts the login again.
+		if (!empty($showTwoFactorForm)) include("tofaktor.php");
+		exit;
 	}
 	echo "2fa done";
 	# ###################################################
@@ -877,6 +902,13 @@ if ($userId) {
 	# 2FA SETUP DONE
 	#
 	# ###################################################
+	}
+	if ($s_id !== $browserSessionId) {
+		// The code is verified: the row now gets the browser's session id, which makes the session usable.
+		include("../includes/connect.php");
+		db_modify("update online set session_id = '" . db_escape_string($browserSessionId) . "' where session_id = '" . db_escape_string($s_id) . "'", __FILE__ . " linje " . __LINE__);
+		$s_id = $browserSessionId;
+		include("../includes/online.php");
 	}
 	if ($post_max && $db!=$sqdb) {
 		$r=db_fetch_array(db_select("select box6 from grupper where art = 'RA' and kodenr = '".(int)$regnskabsaar."'",__FILE__ . " linje " . __LINE__));
@@ -980,6 +1012,23 @@ if (!$sag_rettigheder&&$rettigheder) {
 	login($regnskab,$brugernavn,$fejltxt);
 #	print "<meta http-equiv=\"refresh\" content=\"0;URL=index.php?regnskab=".htmlentities($regnskab,ENT_COMPAT,$charset)."&navn=".htmlentities($brugernavn,ENT_COMPAT,$charset)."\">";
 	exit;
+}
+
+/**
+ * Removes the row a two-factor login wrote under its pending key (see $browserSessionId). Registered as a shutdown
+ * function, so the row goes when the request ends on the code form, a failed send or an error. After a verified
+ * code the row has the browser's session id and nothing matches. No browser can send the key, so a row this
+ * misses is only removed later by the cleanup of old rows at the top of this file.
+ *
+ * @param string $pendingKey Key the row was written under.
+ *
+ * @return void
+ */
+function login_drop_unverified_session($pendingKey) {
+	global $connection, $sqhost, $squser, $sqpass, $sqdb;
+	db_connect($sqhost, $squser, $sqpass, $sqdb, __FILE__ . " linje " . __LINE__);
+	db_select_database($connection, $sqdb);
+	db_modify("delete from online where session_id = '" . db_escape_string($pendingKey) . "'", __FILE__ . " linje " . __LINE__);
 }
 
 /**
