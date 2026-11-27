@@ -51,12 +51,31 @@ final class StoreOrdersTest extends TestCase
 		$o = shopify_store_orders_build_payload($snap, ['gid' => null, 'contact' => true], shopify_store_orders_project_lines($snap, $snap['links']),
 			shopify_store_orders_project_payments($snap), 'https://ssl3.saldi.dk/pos/api/dokument.php?t=abc')['order'];
 		$this->assertSame([
-			['saldi', 'ordre_nr', 'single_line_text_field', '4711'],
-			['saldi', 'faktura_nr', 'single_line_text_field', '5001'],
-			['saldi', 'faktura_link', 'url', 'https://ssl3.saldi.dk/pos/api/dokument.php?t=abc'],
-		], array_map(fn(array $m): array => [$m['namespace'], $m['key'], $m['type'], $m['value']], $o['metafields']));
+			['namespace' => 'saldi', 'key' => 'ordre_nr', 'type' => 'single_line_text_field', 'value' => '4711'],
+			['namespace' => 'saldi', 'key' => 'faktura_nr', 'type' => 'single_line_text_field', 'value' => '5001'],
+			['namespace' => 'saldi', 'key' => 'faktura_link', 'type' => 'url', 'value' => 'https://ssl3.saldi.dk/pos/api/dokument.php?t=abc'],
+		], $o['metafields'], 'orderCreate metafields have no ownerId');
 		$o = self::payload(self::snap(['ordrenr' => '']))['order'];
 		$this->assertSame(['faktura_nr'], array_column($o['metafields'], 'key'), 'no empty ordre_nr is written');
+	}
+
+	public static function metafieldValues(): array
+	{
+		return [
+			'null' => [null, null, null, []],
+			'empty' => ['', '', '', []],
+			'whitespace' => [" \t ", "\n", '  ', []],
+			'trimmed' => [' 4711 ', ' 5001 ', ' https://example.com/invoice ', ['4711', '5001', 'https://example.com/invoice']],
+			'zero is a value' => [0, '0', null, ['0', '0']],
+		];
+	}
+
+	#[DataProvider('metafieldValues')]
+	public function testStoreOrderMetafieldsUseTheSharedEmptyValueRule($orderNumber, $invoiceNumber, ?string $url, array $expected): void
+	{
+		$snap = self::snap(['ordrenr' => $orderNumber, 'fakturanr' => $invoiceNumber]);
+		$payload = shopify_store_orders_build_payload($snap, ['gid' => null, 'contact' => false], [], [], $url);
+		$this->assertSame($expected, array_column($payload['order']['metafields'], 'value'));
 	}
 
 	private static function payload(array $snap, array $customer = ['gid' => 'gid://shopify/Customer/9', 'contact' => true]): array
