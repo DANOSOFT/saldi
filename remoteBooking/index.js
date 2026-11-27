@@ -4,6 +4,9 @@
 //                 A start date whose rental would end on a closed day is refused with a message (no onChange loop).
 // 20261111 CL/MMR SST-992: also read the account from ?id=, the form older «Ekstern booking» links use.
 // 20261111 CL/MMR SST-992 (review): the account comes from index.php (validated), not from the link, and is URL-encoded where it is used.
+// 20261119 CL/MMR SST-999 Review (PR #1097): stop with a message when createBooking refuses the booking.
+//                 No payment link is asked for without a booking (no free item for the period moved by closed days).
+//                 The booking button is enabled again, so another date can be booked without reloading the page.
 const productsView = async (main, db) => {
     const products = await fetch(`api.php?getAllProducts&id=${encodeURIComponent(db)}`,{
         method: "GET",
@@ -420,6 +423,13 @@ const calendarView = async (main, product, weeks, price, db) => {
             })
             
             const bookingId = response.id
+            // SST-999: closed days make the rental longer, and the API refuses the booking (no id) when no item
+            // of the product is free for the longer period. Stop here instead of asking for a payment link.
+            if (!bookingId) {
+                alert("Perioden er ikke ledig, når lukkedagene lægges til lejeperioden. Vælg en anden startdato.")
+                button.disabled = false // the button was disabled above; the customer must be able to book another date
+                return
+            }
             const loading = document.querySelector("#loading")
             loading.style.display = "flex"
             const quickRes = await fetch("vibrantPaymentLink.php", {

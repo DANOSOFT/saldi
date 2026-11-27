@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- mysale/api.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- mysale/api.php --- ver 5.1.1 --- 2026-11-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,12 +31,23 @@
 //
 // 20261016 SS Review (PR #803): a discount row from the old page (DG/VG) still applies when the pair has no matrix row (NR).
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261111 CL/MMR SST-999 createBooking moves the end of the booking one day on for every closed day in the period.
+//                 rentalclosed.day is a unix time, and strtotime() on it gave false, so no closed day was ever counted.
+// 20261119 CL/MMR SST-999 Review (PR #1097): when closed days move the end, the moved period is checked against the item's bookings.
+//                 Another free item of the product is booked, or the booking is refused with 409 and nothing is stored.
+// 20261120 CL/MMR SST-999 Codex round 7: the check and the insert run under one row lock on the product's items (rental_insert_booking()), and the booking id comes from the INSERT.
+//                 A start or end date that cannot be read is refused with 400 instead of an SQL error.
+// 20261120 CL/MMR SST-999 Codex round 8: the requested item is always checked under the lock; only a booking whose end moved may use another item.
+//                 CreateOrder() takes the order number and inserts the order in one transaction, and the order id comes from the INSERT.
+// 20261120 CL/MMR SST-999 Codex round 9: the booking and its order are stored in one transaction, so a booking whose order failed no longer blocks the item.
+//                 The reply has the booking id only when the booking was stored with its order (otherwise 500).
 
 $header = "nix";
 $bg = "nix";
 include(__DIR__ . "/../includes/connect.php");
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/../includes/publicTenantDb.php");
+include_once(__DIR__ . "/../includes/stdFunc/rentalClosedDays.php");
 $db = public_tenant_db(ifset($_GET, "db", ""));
 
 $connection = db_connect($sqhost, $squser, $sqpass, $db);
@@ -160,18 +171,31 @@ if(isset($_GET["createBooking"])){
     // make timestamp to unix timestamp
     $from = strtotime($data["start_date"]);
     $to = strtotime($data["end_date"]);
+    if ($from === false || $to === false) {
+        http_response_code(400);
+        echo json_encode(["error" => "Invalid booking"]);
+        exit;
+    }
     $expiryTime = time() + 240;
     $expiryTime = date('Y-m-d H:i:s', $expiryTime);
     // if there is closed dates between the selected dates extend the end date by the number of days closed
-    while($row = db_fetch_array($query)){
-        $closedDate = strtotime($row["day"]);
-        if($closedDate >= $from && $closedDate <= $to){
-            $to = strtotime("+1 day", $to);
-        }
+    $calendarTo = $to;
+    $to = rental_extend_for_closed_days($from, $to, rental_closed_days());
+    // SST-999: the item is checked and the booking stored under one lock, so a booking made after the page loaded is seen.
+    // The calendar only checked up to the chosen end: when closed days moved the end, another free item of the product
+    // may be booked. Otherwise a busy item refuses the booking (409) and nothing is stored.
+    // The booking and its order are stored in one transaction (CreateOrder() runs inside it), so a booking is never left
+    // without its order: a failure or an exit before the commit stores neither.
+    transaktion('begin');
+    $booking = rental_insert_booking($data["item_id"], $data["cust_id"], $from, $to, $expiryTime, $to !== $calendarTo);
+    if ($booking === null) {
+        transaktion('rollback');
+        http_response_code(409);
+        echo json_encode(["error" => "No item is free for the period"]);
+        exit;
     }
-    db_modify("INSERT INTO rentalperiod (item_id, cust_id, rt_from, rt_to, order_id, expiry_time) VALUES ($data[item_id], $data[cust_id], $from, $to, 0, TO_TIMESTAMP('$expiryTime', 'YYYY-MM-DD HH24:MI:SS'))", __FILE__ . " linje " . __LINE__);
-    $query = db_select("SELECT id FROM rentalperiod WHERE item_id = $data[item_id] AND cust_id = $data[cust_id] AND rt_from = $from AND rt_to = $to", __FILE__ . " linje " . __LINE__);
-    $data["booking_id"] = db_fetch_array($query)["id"];
+    $data["item_id"] = $booking["item_id"];
+    $data["booking_id"] = $booking["booking_id"];
     if($data["unit"] == "Dag"){
         $data["days"] = $data["weeks"];
     }else{
@@ -180,6 +204,15 @@ if(isset($_GET["createBooking"])){
     $data["fromDate"] = date("Y-m-d", $from);
     $data["toDate"] = date("Y-m-d", $to);
     CreateOrder($data);
+    transaktion('commit');
+    // a failed statement before the commit makes PostgreSQL roll the whole transaction back: only answer with the id when
+    // the booking was stored with its order
+    $stored = db_fetch_array(db_select("SELECT order_id FROM rentalperiod WHERE id = " . (int)$data["booking_id"], __FILE__ . " linje " . __LINE__));
+    if (!$stored || (int)$stored["order_id"] <= 0) {
+        http_response_code(500);
+        echo json_encode(["error" => "The booking could not be stored"]);
+        exit;
+    }
     echo json_encode(["id" => $data["booking_id"]]);
 }
 
@@ -857,14 +890,25 @@ function CreateOrder($data){
         $esc[$key] = db_escape_string((string)$customer[$key]);
     }
     $date = date("Y-m-d");
-    $ordrenr = get_next_order_number('DO');
+    // SST-999: runs inside createBooking's transaction. The order number is taken in it too (its lock on ordrer is held
+    // until the commit), so a booking at the same moment can't get the same number, and the order id comes from the
+    // INSERT (a SELECT by ordrenr found the other booking's order).
+    $ordrenr = get_next_order_number('DO', false);
     if($invoiceDate){
-        $query = db_modify("INSERT INTO ordrer (firmanavn, addr1, postnr, bynavn, email, betalingsdage, kontonr, art, valuta, ordredate, fakturadate, levdate, ordrenr, sum, status, konto_id, momssats, nextfakt, moms) VALUES ('$esc[name]', '$esc[address]', '$esc[zip]', '$esc[city]', '$esc[email]', $customer[payment_days], '$esc[account_number]', '$customer[art]', '$customer[valuta]', '$date', '$data[fromDate]', '$data[fromDate]', $ordrenr, $sum, 1, $customer[konto_id], $momssats, '$data[toDate]', $moms)", __FILE__ . " linje " . __LINE__);
+        $query = db_select("INSERT INTO ordrer (firmanavn, addr1, postnr, bynavn, email, betalingsdage, kontonr, art, valuta, ordredate, fakturadate, levdate, ordrenr, sum, status, konto_id, momssats, nextfakt, moms) VALUES ('$esc[name]', '$esc[address]', '$esc[zip]', '$esc[city]', '$esc[email]', $customer[payment_days], '$esc[account_number]', '$customer[art]', '$customer[valuta]', '$date', '$data[fromDate]', '$data[fromDate]', $ordrenr, $sum, 1, $customer[konto_id], $momssats, '$data[toDate]', $moms) RETURNING id", __FILE__ . " linje " . __LINE__);
     }else{
-        $query = db_modify("INSERT INTO ordrer (firmanavn, addr1, postnr, bynavn, email, betalingsdage, kontonr, art, valuta, ordredate, levdate, ordrenr, sum, status, konto_id, momssats, nextfakt, moms) VALUES ('$esc[name]', '$esc[address]', '$esc[zip]', '$esc[city]', '$esc[email]', $customer[payment_days], '$esc[account_number]', '$customer[art]', '$customer[valuta]', '$date', '$data[fromDate]', $ordrenr, $sum, 1, $customer[konto_id], $momssats, '$data[toDate]', $moms)", __FILE__ . " linje " . __LINE__);
+        $query = db_select("INSERT INTO ordrer (firmanavn, addr1, postnr, bynavn, email, betalingsdage, kontonr, art, valuta, ordredate, levdate, ordrenr, sum, status, konto_id, momssats, nextfakt, moms) VALUES ('$esc[name]', '$esc[address]', '$esc[zip]', '$esc[city]', '$esc[email]', $customer[payment_days], '$esc[account_number]', '$customer[art]', '$customer[valuta]', '$date', '$data[fromDate]', $ordrenr, $sum, 1, $customer[konto_id], $momssats, '$data[toDate]', $moms) RETURNING id", __FILE__ . " linje " . __LINE__);
     }
-    $query = db_select("SELECT id FROM ordrer WHERE ordrenr = $ordrenr AND art LIKE 'D%'", __FILE__ . " linje " . __LINE__);
-    $order_id = db_fetch_array($query)["id"];
+    $row = $query ? db_fetch_array($query) : false;
+    $order_id = $row ? (int)$row["id"] : 0;
+    if ($order_id <= 0) {
+        // db_modify() stopped here when the INSERT failed; db_select() only alerts, so stop the same way. The rollback
+        // also removes the booking, so the item stays free for a new try.
+        transaktion('rollback');
+        http_response_code(500);
+        echo json_encode(["error" => "The order could not be created"]);
+        exit;
+    }
     opret_ordrelinje($order_id, $product["product_id"], $product["product_number"], $paidWeeks, $product["description"], $basePrice, $discount, '100', 'D', '', '1', '', '', '', $rabatart, '0', '', '', '', '', __LINE__);
     db_modify("INSERT INTO ordrelinjer (antal, posnr, pris, rabat, momssats, ordre_id, beskrivelse) VALUES (1, 2, 0, 0, 0, $order_id, '" . db_escape_string("Stand: " . $product["name"]) . "')", __FILE__ . " linje " . __LINE__);
     db_modify("INSERT INTO ordrelinjer (antal, posnr, pris, rabat, momssats, ordre_id, beskrivelse) VALUES (1, 3, 0, 0, 0, $order_id, 'Udlejning: Fra $data[fromDate] til $data[toDate]')", __FILE__ . " linje " . __LINE__);
