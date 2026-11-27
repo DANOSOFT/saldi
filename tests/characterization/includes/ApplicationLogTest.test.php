@@ -212,4 +212,17 @@ final class ApplicationLogTest extends TestCase
             self::assertStringContainsString('fixture', file_get_contents($this->directory . '/ntr/temp/fixture/' . $filename));
         }
     }
+
+    public function testVatDiagnosticUsesTheSameDatabaseLocationPolicy(): void
+    {
+        $db = 'fixture';
+        $varenr = 'fixture-item';
+        $varemomssats = 25;
+        $vatAccount = 1000;
+        $source = file_get_contents(__DIR__ . '/../../../includes/ordrefunc.php');
+        preg_match_all('/\bapplicationLogPutContents\(.*?\);/s', $source, $calls);
+        self::assertCount(1, $calls[0]);
+        eval('namespace ' . $this->logger . ';' . $calls[0][0]);
+        self::assertStringContainsString('fixture-item', file_get_contents($this->directory . '/ntr/temp/fixture/momslog.log'));
+    }
 }
