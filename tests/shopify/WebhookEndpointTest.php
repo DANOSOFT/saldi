@@ -18,6 +18,7 @@
 // 20261029 CL/SZ SD-749 review: register-webhooks goes on after a misconfigured shop; setUp clears the stored base URL.
 // 20261029 CL/SZ SD-749 review: register-webhooks needs no fiscal year and stores the host lower-cased.
 // 20261103 CL/MJ SD-790: a misconfigured shop fails every topic in SHOPIFY_WEBHOOK_TOPICS, APP_UNINSTALLED included.
+// 20261125 CL/SS SD-834: the worker run also does the shop's credit.scan, which finds nothing here.
 
 use PHPUnit\Framework\TestCase;
 
@@ -139,7 +140,7 @@ final class WebhookEndpointTest extends TestCase
         $this->assertSame('queued', $this->events()[0]['state']);
         // runtime.purge (S02c) is also due from 07:15 to midnight; it isn't this test's business.
         $jobs = array_values(array_filter($this->jobs(), fn(array $j): bool => $j['type'] !== 'runtime.purge'));
-        $this->assertSame([['order.import', 'queued', (int)$this->events()[0]['id']], ['webhook.health', 'done', 0]],
+        $this->assertSame([['credit.scan', 'done', 0], ['order.import', 'queued', (int)$this->events()[0]['id']], ['webhook.health', 'done', 0]],
             array_map(fn(array $j): array => [$j['type'], $j['state'], (int)$j['event_row_id']], $jobs),
             'webhook.health is scheduled for a shop with orders on, and skips without a stored base URL');
     }

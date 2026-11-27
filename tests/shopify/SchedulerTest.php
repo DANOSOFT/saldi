@@ -6,6 +6,7 @@
 //
 // History:
 // 20261026 Sawaneh SD-737: created.
+// 20261125 CL/SS SD-834: credit.scan is due every five minutes for a shop with orders.
 
 use PHPUnit\Framework\TestCase;
 
@@ -39,6 +40,7 @@ final class SchedulerTest extends TestCase
     {
         $due = self::due(self::at('2026-10-26 09:22:10'));
         $this->assertSame([
+            'credit.scan 1' => 'hml:2026-10-26T08:20Z',
             'monitor.counterpart 1' => 'hml:2026-10-26T08:15Z',
             'monitor.overview tenant' => 'tenant:2026-10-26',
             'price.window 1' => 'hml:2026-10-26T08:15Z',
