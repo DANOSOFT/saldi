@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/docPool.php --- ver 5.1.0 --- 2026-10-30 ---
+// --- includes/docsIncludes/docPool.php --- ver 5.1.1 --- 2026-11-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -223,6 +223,9 @@
 //                It saved only the first row and left the unsaved split rows out without a word. "Gem og næste" is unchanged.
 // 20261029 CL/LH "Opdatér alle" scans only the documents not read yet (poolListData() unscanned=1), not the whole pool again.
 // 20261030 CDX/NTR Stop bulk extraction when the unscanned list cannot be loaded, so captured documents are never retried from cached rows.
+// 20261124 CL/LH The row and card editors' save no longer refuses an edit for the stored account the user left alone (poolMetadataEditedAccount()).
+//                A refused save says why (<pool-save-problem>, poolMetadataErrorText()) instead of "Fejl ved gemning (Status: 422)".
+//                The edit button passes its values as JavaScript strings (poolOnclickArg()), and the date input escapes its value, so a " or ' in a subject or a stored date no longer breaks out.
 
 include_once(__DIR__ . "/poolAmountNormalizer.php");
 include_once(__DIR__ . "/poolContentHash.php");
@@ -1044,12 +1047,9 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			}
 			poolMetadataSave($poolFile, $input, true, $version, (int)$regnaar);
 		} catch (RuntimeException | InvalidArgumentException $error) {
-			$status = $error->getCode() === 409 ? 409 : 422;
-			http_response_code($status);
-			$message = $status === 409
-				? findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id)
-				: findtekst('5254|Kontrollér konto, beløb og dato. Ingen ændringer er gemt.', $sprog_id);
-			print htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
+			http_response_code($error->getCode() === 409 ? 409 : 422);
+			// documents.php has printed its page head by now, so the reason is marked for the editor to find
+			print '<pool-save-problem>' . jsString([poolMetadataErrorText($error, $sprog_id)]) . '</pool-save-problem>';
 		}
 		return;
 	}
@@ -1526,7 +1526,7 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 			if (!$currentRow || $submittedVersion === null || !hash_equals(poolMetadataVersion($currentRow), $submittedVersion)) {
 				throw new RuntimeException('Document changed', 409);
 			}
-			$newAccount = poolMetadataAccount($newAccount, (int)$regnaar);
+			$newAccount = poolMetadataEditedAccount($newAccount, $currentRow['account'] ?? '', (int)$regnaar);
 			if ($newAmount !== '' && $newAmount !== null && normalizePoolAmount($newAmount) === null) {
 				throw new InvalidArgumentException('Invalid amount', 422);
 			}
@@ -1534,12 +1534,8 @@ function docPool($sourceId,$source,$kladde_id,$bilag,$fokus,$poolFile,$docFolder
 				throw new InvalidArgumentException('Invalid date', 422);
 			}
 		} catch (RuntimeException | InvalidArgumentException $error) {
-			$status = $error->getCode() === 409 ? 409 : 422;
-			http_response_code($status);
-			$message = $status === 409
-				? findtekst('5253|Dokumentet er ændret. Genindlæs det før du gemmer.', $sprog_id)
-				: findtekst('5254|Kontrollér konto, beløb og dato. Ingen ændringer er gemt.', $sprog_id);
-			print htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
+			http_response_code($error->getCode() === 409 ? 409 : 422);
+			print '<pool-save-problem>' . jsString([poolMetadataErrorText($error, $sprog_id)]) . '</pool-save-problem>';
 			return;
 		}
 
@@ -3575,7 +3571,7 @@ print <<<JS
 			const deleteUrl = row.href.replace(/poolFile=[^&]*/, '') + (row.href.includes('?') ? '&' : '?') + 'unlink=1&unlinkFile=' + encodeURIComponent(poolFileFromHref);
 			
 			const actionsCell = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
-				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromHref) + "\", \"" + escapeHTML(row.subject) + "\", \"" + escapeHTML(row.account) + "\", \"" + escapeHTML(row.amount) + "\", \"" + dateFormatted + "\", \"" + escapeHTML(row.invoiceNumber || '') + "\", \"" + escapeHTML(row.description || '') + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='{$txt13}'>" + svgIcons.pencil + "</button>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, " + [poolFileFromHref, row.subject, row.account, row.amount, row.date.split(' ')[0], row.invoiceNumber, row.description].map(poolOnclickArg).join(', ') + "); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='{$txt13}'>" + svgIcons.pencil + "</button>" +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); deletePoolFile(\"" + escapeHTML(poolFileFromHref) + "\", " + JSON.stringify(row.subject) + ", \"" + deleteUrl + "\"); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='{$txt12}'>" + svgIcons.trash + "</button>" +
 				(window.poolArchive ? window.poolArchive.button(poolFileFromHref, 'row') : '') +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); extractPoolFile(\"" + escapeHTML(poolFileFromHref) + "\"); return false;' style='padding: 4px 8px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#138496\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#17a2b8\"; this.style.transform=\"scale(1)\"' title='{$txt25}'>" + svgIcons.scan + "</button>" +
@@ -4078,7 +4074,7 @@ print <<<JS
 				// Refresh the file list
 				fetchFiles();
 			} else {
-				alert('{$txt71}');
+				response.text().then(text => alert(poolSaveProblemText(text) || '{$txt71}')).catch(() => alert('{$txt71}'));
 			}
 		})
 		.catch(error => {
@@ -4100,6 +4096,12 @@ print <<<JS
 		});
 	}
 
+
+    // A value as a JavaScript string argument inside an onclick='...' attribute: the browser decodes the HTML entities
+    // before the script runs, so a " or ' in a subject or a stored date must arrive escaped for JavaScript too.
+    function poolOnclickArg(value) {
+        return escapeHTML(JSON.stringify(value == null ? '' : String(value)));
+    }
 
     function escapeHTML(str) {
         if (typeof str !== 'string') return str;
@@ -4431,6 +4433,13 @@ print <<<JS
 		try { return JSON.parse(match[1]); } catch (e) { return ''; }
 	}
 
+	// The reason docPool.php gives for a refused row or card save (<pool-save-problem>"…"</pool-save-problem>), or ''
+	function poolSaveProblemText(text) {
+		const match = /<pool-save-problem>([\s\S]*?)<\/pool-save-problem>/.exec(text || '');
+		if (!match) return '';
+		try { return JSON.parse(match[1]); } catch (e) { return ''; }
+	}
+
 	// Save checkbox state to sessionStorage
 	window.saveCheckboxState = function() {
 		const checkboxes = document.querySelectorAll('.file-checkbox');
@@ -4568,7 +4577,7 @@ window.enableRowEdit = function(button, poolFile, subject, account, amount, date
         cells[1].innerHTML += "<label>{$txt9}<input type='text' class='edit-input' value='" + escapeHTML(description || '') + "' data-field='description' " + inputEvents + "></label>";
         cells[2].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(displayAmount) + "' data-field='amount' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
         cells[3].innerHTML = "<input type='text' class='edit-input' value='" + escapeHTML(invoiceNumber || '') + "' data-field='invoiceNumber' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
-        cells[4].innerHTML = "<input type='date' class='edit-input' value='" + dateFormatted + "' data-field='date' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
+        cells[4].innerHTML = "<input type='date' class='edit-input' value='" + escapeHTML(dateFormatted) + "' data-field='date' onkeydown='handleEnterKey(event, this)' " + inputEvents + ">";
         
         // Update actions column
         cells[5].innerHTML = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
@@ -5076,7 +5085,7 @@ window.saveRowData = function(input) {
 			const deleteUrl = currentUrl.replace(/poolFile=[^&]*/, '') + (currentUrl.includes('?') ? '&' : '?') + 'unlink=1&unlinkFile=' + encodeURIComponent(poolFileFromRow);
 			
 			const actionsCell = "<div style='display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;'>" +
-				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, \"" + escapeHTML(poolFileFromRow) + "\", \"" + escapeHTML(data.newSubject) + "\", \"" + escapeHTML(data.newAccount) + "\", \"" + escapeHTML(data.newAmount) + "\", \"" + dateFormatted + "\", \"" + escapeHTML(data.newInvoiceNumber || '') + "\", \"" + escapeHTML(data.newInvoiceDescription || '') + "\"); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='{$txt13}'>" + svgIcons.pencil + "</button>" +
+				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); enableRowEdit(this, " + [poolFileFromRow, data.newSubject, data.newAccount, data.newAmount, dateFormatted, data.newInvoiceNumber, data.newInvoiceDescription].map(poolOnclickArg).join(', ') + "); return false;' style='padding: 4px 8px; background-color: " + buttonColor + "; color: " + buttonTxtColor + "; border: 1px solid " + buttonColor + "; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.opacity=\"0.9\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.opacity=\"1\"; this.style.transform=\"scale(1)\"' title='{$txt13}'>" + svgIcons.pencil + "</button>" +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); deletePoolFile(\"" + escapeHTML(poolFileFromRow) + "\", " + JSON.stringify(data.newSubject) + ", \"" + deleteUrl + "\"); return false;' style='padding: 4px 8px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#c82333\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#dc3545\"; this.style.transform=\"scale(1)\"' title='{$txt12}'>" + svgIcons.trash + "</button>" +
 				(window.poolArchive ? window.poolArchive.button(poolFileFromRow, 'row') : '') +
 				"<button type='button' onclick='event.preventDefault(); event.stopPropagation(); extractPoolFile(\"" + escapeHTML(poolFileFromRow) + "\"); return false;' style='padding: 4px 8px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; transition: all 0.2s;' onmouseover='this.style.backgroundColor=\"#138496\"; this.style.transform=\"scale(1.05)\"' onmouseout='this.style.backgroundColor=\"#17a2b8\"; this.style.transform=\"scale(1)\"' title='{$txt25}'>" + svgIcons.scan + "</button>" +
@@ -5112,7 +5121,7 @@ window.saveRowData = function(input) {
 			// Try to get error message from response
 			response.text().then(text => {
 				console.error('Save failed. Response:', response.status, text);
-				alert(response.status === 409 ? '{$poolStaleText}' : '{$txt31} (Status: ' + response.status + '). {$txt32}.');
+				alert(response.status === 409 ? '{$poolStaleText}' : (poolSaveProblemText(text) || '{$txt31} (Status: ' + response.status + '). {$txt32}.'));
 			}).catch(() => {
 				alert('{$txt71}');
 			});
