@@ -1,11 +1,11 @@
 <?php
-
+//
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/opretfunc.php --- ver 5.1.1 --- 2026-11-10 ---
+// --- includes/opretfunc.php --- ver 5.1.1 --- 2026-11-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,6 +40,7 @@
 // 20261028 CL/LH MB-73: ordrelinjer.leveret defaults to 0, as includes/betweenUpdates.php sets it on
 //                existing accounts (moved here from admin/opret.php with opret_build_tenant()).
 // 20261110 CDX/NTR Release 5.1.1: create tekst_key and its lookup index for new tenants.
+// 20261125 CDX/NTR Include the piecework percentage and all height-surcharge columns in new tenants.
 
 /**
  * Create a new regnskab: a master `regnskab` row plus a full dedicated tenant
@@ -447,7 +448,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt.= "datoer text,afregnet text,afregnet_af text,korsel text,opg_id integer,opg_nr integer,afvist_pga text,sag_ref text,";
 	$qtxt.= "feriefra text,ferietil text,mentor text,mentor_rate $decimal_type(15,3),PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-	db_modify("CREATE TABLE loen_enheder ($id_column,loen_id integer,vare_id integer,op $decimal_type(15,3),ned $decimal_type(15,3),tekst text,pris_op $decimal_type(15,3),pris_ned $decimal_type(15,3),op_25 $decimal_type(15,3),ned_25 $decimal_type(15,3),op_30m $decimal_type(15,3),ned_30m $decimal_type(15,3),op_40 $decimal_type(15,3),ned_40 $decimal_type(15,3),op_60 $decimal_type(15,3),ned_60 $decimal_type(15,3),op_tag $decimal_type(15,3),ned_tag $decimal_type(15,3),varenr text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
+	db_modify("CREATE TABLE loen_enheder ($id_column,loen_id integer,vare_id integer,op $decimal_type(15,3),ned $decimal_type(15,3),tekst text,pris_op $decimal_type(15,3),pris_ned $decimal_type(15,3),procent $decimal_type(15,3),op_25 $decimal_type(15,3),ned_25 $decimal_type(15,3),op_30 $decimal_type(15,3),ned_30 $decimal_type(15,3),op_30m $decimal_type(15,3),ned_30m $decimal_type(15,3),op_40 $decimal_type(15,3),ned_40 $decimal_type(15,3),op_60 $decimal_type(15,3),ned_60 $decimal_type(15,3),op_70 $decimal_type(15,3),ned_70 $decimal_type(15,3),op_100 $decimal_type(15,3),ned_100 $decimal_type(15,3),op_160 $decimal_type(15,3),ned_160 $decimal_type(15,3),op_tag $decimal_type(15,3),ned_tag $decimal_type(15,3),varenr text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE opgaver ($id_column,assign_id integer,assign_to text,nr $decimal_type(15,0),beskrivelse text,omfang text,ref text,status text,tidspkt text,hvem text,oprettet_af text,kunde_ref text,opg_planfra text,opg_plantil text,opg_tilknyttil text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE tjekskema ($id_column,tjekliste_id integer,datotid text,opg_art text,sjak text,sag_id integer,hvem text,man_trans text,stillads_til text,opg_navn text,opg_beskrivelse text,sjakid text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE mappe ($id_column,beskrivelse text,sort $decimal_type(15,0),PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);

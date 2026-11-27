@@ -13,6 +13,7 @@ use PHPUnit\Framework\TestCase;
 //                 The transfer locks the case, then the akkordafregning (the order of Afvis and Godkend), then the slips in id order,
 //                 so two transfers on one case and a transfer against Afvis or Godkend cannot deadlock.
 //                 The source is read with LF line endings, so the test also runs on a CRLF checkout (CodeRabbit).
+// 20261110 CDX/NTR SST-980 Assert stored transfer protection at runtime through the shared authorization policy.
 #[RunTestsInSeparateProcesses]
 final class AkkordTransferLockTest extends TestCase
 {
@@ -109,17 +110,11 @@ final class AkkordTransferLockTest extends TestCase
 
     public function testASlipTransferredAfterItsFormWasOpenedIsNotSavedOver(): void
     {
-        $src = self::source();
-        $read = strpos($src, "select afvist, afvist_af, afsluttet, afsluttet_af from loen where id='\" . (int)\$id . \"' for update\"");
-        $refuse = strpos($src, "if (trim((string)\$r['afsluttet']) && !trim((string)ifset(\$_POST, 'afsluttet', ''))) {");
-        $save = strpos($src, "\$qtxt = \"update loen set art='\$loen_art'");
-        self::assertNotFalse($read, 'the save no longer reads and locks the stored transfer state');
-        self::assertNotFalse($refuse, 'the save no longer refuses a slip transferred after its form was opened');
-        self::assertNotFalse($save, 'the slip UPDATE is gone');
-        self::assertLessThan($refuse, $read);
-        self::assertLessThan($save, $refuse, 'the refusal must come before the slip is written');
-        $exit = strpos($src, 'exit;', $refuse);
-        self::assertNotFalse($exit);
-        self::assertLessThan($save, $exit, 'the refusal must stop before the slip is written');
+        require_once(__DIR__ . '/../../../sager/loenIncludes/loenAccess.php');
+        $stored = ['afsluttet' => '1700000000', 'godkendt' => '', 'afregnet' => '', 'afvist' => ''];
+        foreach (['gem', 'afslut', 'slet'] as $action) {
+            self::assertFalse(loenMayChange($stored, true, false, $action));
+            self::assertFalse(loenMayChange($stored, true, true, $action));
+        }
     }
 }

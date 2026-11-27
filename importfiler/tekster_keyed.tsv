@@ -40,6 +40,8 @@ reinvoice.receipt.skipped	Ikke genfaktureret, fordi fakturadatoen ligger uden fo
 reinvoice.receipt.skipped_help	Ret Genfakt.-datoen eller opret regnskabsåret, og genfakturér dem igen.	Correct the next invoice date or create the fiscal year, then re-invoice them again.	Rett neste fakturadato eller opprett regnskapsåret, og refakturer dem igjen.
 reinvoice.receipt.stopped	Genfaktureringen stoppede, før alle fakturaer var bogført:	Re-invoicing stopped before all invoices were posted:	Refaktureringen stoppet før alle fakturaer var bokført:
 reinvoice.receipt.title	Genfakturering udført	Re-invoicing completed	Refakturering utført
+salary.access_denied	Du må ikke ændre denne lønseddel	You may not change this wage slip	Du kan ikke endre denne lønnsslippen
+salary.invalid_request	Ugyldig lønseddel eller handling	Invalid wage slip or action	Ugyldig lønnsslipp eller handling
 wage.overtime.hours_100	Overtid 100%	Overtime 100%	Overtid 100%
 wage.overtime.hours_50	Overtid 50%	Overtime 50%	Overtid 50%
 wage.overtime.no_access	Du har ikke adgang til denne side.	You do not have access to this page.	Du har ikke tilgang til denne siden.
