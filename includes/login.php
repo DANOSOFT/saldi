@@ -29,6 +29,7 @@ ob_start(); //Starter output buffering
 // 2015.01.27 PHR	- Tilføjet rettigheder da man ellers bliver smidt af ved forsøg på login med tmp kode.  
 // 20261029 CDX/NTR Share login logs and temporary directories with the web server.
 // 20261127 CDX/NTR Write login logs to private application storage, preserving temporary-file locations.
+// 20261127 CDX/NTR Keep login logs in this installation's temp/database folder with a location-only check.
 
 require_once __DIR__ . '/sharedFile.php';
 require_once __DIR__ . '/applicationLog.php';
@@ -140,12 +141,13 @@ if ((!(($regnskab=='test')&&($brugernavn=='test')&&($password=='test')))&&(!(($r
 }
 db_modify("delete from online where session_id = '$s_id'",__FILE__ . " linje " . __LINE__);
 $loginLogName = '.ht_' . rawurlencode((string)$db) . '.log';
-$loginLogPath = applicationLogDirectory() . '/' . $loginLogName;
-if ($db && applicationLogTrustedPath($loginLogPath) && !file_exists($loginLogPath)) {
+$loginLogPath = applicationLogDirectory((string)$db) . '/' . $loginLogName;
+if ($db && applicationLogPathAllowed($loginLogPath) && !file_exists($loginLogPath)) {
 	applicationLogPutContents(
 		$loginLogName,
 		"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n" . "\\connect $db;\n",
-		true
+		true,
+		(string)$db
 	);
 }
 if ((isset($regnskabsaar))&&($db)){
@@ -242,7 +244,8 @@ if(!isset($afbryd)){
 	applicationLogPutContents(
 		'online.log',
 		date("Y-m-d")." ".date("H:i:s")." ".getenv("remote_addr")." ".$s_id." ".$brugernavn."\n",
-		true
+		true,
+		(string)$db
 	);
 	if ($regnskab==$sqdb) {
 		if ($dbver<$version) tjek4opdat($dbver,$version); #20130919

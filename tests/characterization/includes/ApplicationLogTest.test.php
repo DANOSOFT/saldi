@@ -1,6 +1,7 @@
 <?php
 // 20261127 CDX/NTR Keep database/login logs outside writable application ancestors.
 // 20261127 CDX/NTR Cover login entry points, canonical web-tree boundaries and creation under trusted parents.
+// 20261127 CDX/NTR Cover installation/database routing independently of URL depth and working directory.
 
 declare(strict_types=1);
 
@@ -11,41 +12,47 @@ require_once __DIR__ . '/../../../includes/db_query.php';
 final class ApplicationLogTest extends TestCase
 {
     private string $directory;
-    private string|false $originalRoot;
+    private string $logger;
+    private string $otherLogger;
     private string|false $originalGroup;
+    private string|false $originalLogRoot;
     private string $originalErrorLog;
-    private ?string $originalRequestUri;
-    private ?string $originalDocumentRoot;
+    private string $originalCwd;
+    private array $originalGlobals;
+    private array $originalServer;
 
     protected function setUp(): void
     {
-        $this->directory = sys_get_temp_dir() . '/saldi_logs_' . bin2hex(random_bytes(8));
+        $this->directory = sys_get_temp_dir() . '/saldi_log_routing_' . bin2hex(random_bytes(8));
         mkdir($this->directory, 0700);
-        $this->originalRoot = getenv('SALDI_LOG_DIR');
         $this->originalGroup = getenv('SALDI_SHARED_FILE_GROUP');
-        putenv('SALDI_LOG_DIR=' . $this->directory);
+        $this->originalLogRoot = getenv('SALDI_LOG_DIR');
         putenv('SALDI_SHARED_FILE_GROUP=' . posix_getgrgid(posix_getegid())['name']);
+        putenv('SALDI_LOG_DIR');
         $this->originalErrorLog = ini_get('error_log');
         ini_set('error_log', $this->directory . '/diagnostics.log');
-        $this->originalRequestUri = $_SERVER['REQUEST_URI'] ?? null;
-        $this->originalDocumentRoot = $_SERVER['DOCUMENT_ROOT'] ?? null;
+        $this->originalCwd = getcwd();
+        $this->originalGlobals = array_intersect_key($GLOBALS, array_flip(['db', 'sqdb']));
+        $this->originalServer = $_SERVER;
+        $GLOBALS['db'] = 'fixture';
+        $GLOBALS['sqdb'] = 'master_fixture';
+        $this->logger = $this->loadInstallation('ntr');
+        $this->otherLogger = $this->loadInstallation('other');
     }
 
     protected function tearDown(): void
     {
-        putenv($this->originalRoot === false ? 'SALDI_LOG_DIR' : 'SALDI_LOG_DIR=' . $this->originalRoot);
+        chdir($this->originalCwd);
+        $_SERVER = $this->originalServer;
+        foreach (['db', 'sqdb'] as $key) {
+            unset($GLOBALS[$key]);
+        }
+        foreach ($this->originalGlobals as $key => $value) {
+            $GLOBALS[$key] = $value;
+        }
         putenv($this->originalGroup === false ? 'SALDI_SHARED_FILE_GROUP' : 'SALDI_SHARED_FILE_GROUP=' . $this->originalGroup);
+        putenv($this->originalLogRoot === false ? 'SALDI_LOG_DIR' : 'SALDI_LOG_DIR=' . $this->originalLogRoot);
         ini_set('error_log', $this->originalErrorLog);
-        if ($this->originalRequestUri === null) {
-            unset($_SERVER['REQUEST_URI']);
-        } else {
-            $_SERVER['REQUEST_URI'] = $this->originalRequestUri;
-        }
-        if ($this->originalDocumentRoot === null) {
-            unset($_SERVER['DOCUMENT_ROOT']);
-        } else {
-            $_SERVER['DOCUMENT_ROOT'] = $this->originalDocumentRoot;
-        }
         $entries = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($this->directory, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
         foreach ($entries as $entry) {
             if ($entry->isDir() && !$entry->isLink()) {
@@ -57,105 +64,138 @@ final class ApplicationLogTest extends TestCase
         rmdir($this->directory);
     }
 
-    public function testDatabaseSelectChoosesPrivateLogDirectory(): void
+    /** Load the production logger with __DIR__ pointing at an isolated installation fixture. */
+    private function loadInstallation(string $name): string
+    {
+        $root = $this->directory . '/' . $name;
+        mkdir($root, 0700);
+        foreach (['includes', 'temp', 'finans', 'index'] as $folder) {
+            mkdir($root . '/' . $folder, 0700);
+        }
+        $source = file_get_contents(__DIR__ . '/../../../includes/applicationLog.php');
+        $source = str_replace("require_once __DIR__ . '/sharedFile.php';", '', substr($source, 5));
+        $source = str_replace('__DIR__', var_export($root . '/includes', true), $source);
+        $namespace = 'InstalledLog' . bin2hex(random_bytes(8));
+        eval('namespace ' . $namespace . ';' . $source);
+        return $namespace;
+    }
+
+    public function testDatabaseWritersResolveTheLoadedInstallationWithoutUriOrCwdGuessing(): void
     {
         $source = file_get_contents(__DIR__ . '/../../../includes/db_query.php');
-        $start = strpos($source, 'function db_select(');
-        self::assertNotFalse($start);
-        $start = strpos($source, '$temp = ', $start);
-        $end = strpos($source, ';', $start);
-        $_SERVER['REQUEST_URI'] = '/saldi/finans/kassekladde.php';
         $db = 'fixture';
-        eval(substr($source, $start, $end - $start + 1));
-        self::assertSame($this->directory . '/tenant-fixture', $temp);
-        self::assertTrue(db_log_append($temp . '/.ht_select.log', "fixture\n"));
-        self::assertSame("fixture\n", file_get_contents($temp . '/.ht_select.log'));
-        self::assertSame(0700, fileperms($this->directory) & 0777, 'Existing log-root permissions must stay unchanged');
-    }
-
-    public function testLoginLogsArePrivateAndPreserveAppendSemantics(): void
-    {
-        self::assertSame(4, applicationLogPutContents('online.log', 'one '));
-        self::assertSame(3, applicationLogPutContents('online.log', 'two'));
-        self::assertSame('one two', file_get_contents($this->directory . '/online.log'));
-        self::assertSame(0660, fileperms($this->directory . '/online.log') & 0777);
-        self::assertSame(0700, fileperms($this->directory) & 0777);
-    }
-
-    public function testUnsafeRootIsRefusedWithoutChangingItsPermissions(): void
-    {
-        chmod($this->directory, 0777);
-        try {
-            self::assertFalse(applicationLogPutContents('online.log', 'private'));
-            self::assertFalse(db_log_append($this->directory . '/.ht_modify.log', 'private'));
-            self::assertFalse(file_exists($this->directory . '/online.log'));
-            self::assertFalse(file_exists($this->directory . '/.ht_modify.log'));
-            self::assertSame(0777, fileperms($this->directory) & 0777);
-        } finally {
-            chmod($this->directory, 0700);
+        foreach (['/ntr/index/main.php', '/ntr/lager/lister/varer.php?x=1', '/other/index/main.php'] as $uri) {
+            $_SERVER['REQUEST_URI'] = $uri;
+            foreach ([$this->directory, $this->directory . '/ntr/finans'] as $cwd) {
+                chdir($cwd);
+                foreach (['db_select', 'db_modify', 'transaktion', 'injecttjek'] as $function) {
+                    $start = strpos($source, 'function ' . $function . '(');
+                    self::assertNotFalse($start);
+                    $start = strpos($source, '$temp = ', $start);
+                    $end = strpos($source, ';', $start);
+                    eval('namespace ' . $this->logger . ';' . substr($source, $start, $end - $start + 1));
+                    self::assertSame($this->directory . '/ntr/temp/fixture', $temp);
+                }
+            }
         }
     }
 
-    public function testTenantNamesCannotEscapeThePrivateRoot(): void
+    public function testInstallationsKeepTheSameDatabaseNameSeparate(): void
     {
-        $path = applicationLogDirectory('../other');
-        self::assertSame($this->directory . '/tenant-..%2Fother', $path);
-        clearstatcache(true, $path);
-        self::assertSame(02770, fileperms($path) & 07777);
-        self::assertTrue(applicationLogTrustedPath($path . '/.ht_select.log'));
-        self::assertFalse(applicationLogPutContents('../outside.log', 'private'));
-        self::assertFalse(applicationLogTrustedPath($this->directory . '/../outside.log'));
+        $first = ($this->logger . '\\applicationLogDirectory')('fixture');
+        $second = ($this->otherLogger . '\\applicationLogDirectory')('fixture');
+        self::assertSame($this->directory . '/ntr/temp/fixture', $first);
+        self::assertSame($this->directory . '/other/temp/fixture', $second);
     }
 
-    public function testMissingRootIsCreatedOnlyUnderTrustedExistingParent(): void
+    public function testLoggingChecksLocationWithoutChangingExistingPermissions(): void
     {
-        $root = $this->directory . '/new-root';
-        putenv('SALDI_LOG_DIR=' . $root);
-        self::assertSame(7, applicationLogPutContents('online.log', 'private'));
-        clearstatcache(true, $root);
-        self::assertSame(02770, fileperms($root) & 07777);
-        self::assertSame(0700, fileperms($this->directory) & 0777);
-    }
-
-    public function testMissingAncestorsAreNotCreated(): void
-    {
-        putenv('SALDI_LOG_DIR=' . $this->directory . '/missing-parent/logs');
-        self::assertFalse(applicationLogPutContents('online.log', 'private'));
-        self::assertFalse(file_exists($this->directory . '/missing-parent'));
-    }
-
-    public function testUnsafeParentPreventsCreatingLogRoot(): void
-    {
-        mkdir($this->directory . '/unsafe', 0777);
-        chmod($this->directory . '/unsafe', 0777);
-        putenv('SALDI_LOG_DIR=' . $this->directory . '/unsafe/logs');
-        self::assertFalse(applicationLogPutContents('online.log', 'private'));
-        self::assertFalse(is_dir($this->directory . '/unsafe/logs'));
-        self::assertSame(0777, fileperms($this->directory . '/unsafe') & 0777);
-    }
-
-    public function testInstallationAndSymlinkAliasesAreNotLogStorage(): void
-    {
-        $installation = realpath(__DIR__ . '/../../..');
-        foreach ([$installation, $installation . '/includes'] as $root) {
-            putenv('SALDI_LOG_DIR=' . $root);
-            self::assertFalse(applicationLogTrustedPath($root . '/online.log'));
+        $root = $this->directory . '/ntr';
+        mkdir($root . '/temp/fixture', 0777);
+        foreach ([$root, $root . '/temp', $root . '/temp/fixture'] as $path) {
+            chmod($path, 0777);
         }
-        symlink($installation . '/includes', $this->directory . '/alias');
-        putenv('SALDI_LOG_DIR=' . $this->directory . '/alias');
-        self::assertFalse(applicationLogPutContents('online.log', 'private'));
+        $write = $this->logger . '\\applicationLogPutContents';
+        self::assertSame(4, $write('online.log', 'one ', true, 'fixture'));
+        self::assertSame(3, $write('online.log', 'two', true, 'fixture'));
+        $path = $root . '/temp/fixture/online.log';
+        self::assertSame('one two', file_get_contents($path));
+        chmod($path, 0640);
+        self::assertSame(1, $write('online.log', '!', true, 'fixture'));
+        clearstatcache();
+        self::assertSame(0640, fileperms($path) & 0777);
+        foreach ([$root, $root . '/temp', $root . '/temp/fixture'] as $folder) {
+            self::assertSame(0777, fileperms($folder) & 0777);
+        }
+        $diagnostics = file_exists($this->directory . '/diagnostics.log') ? file_get_contents($this->directory . '/diagnostics.log') : '';
+        self::assertStringNotContainsString('Untrusted shared-file parent', $diagnostics);
     }
 
-    public function testMissingDirectoryBelowDocumentRootIsRejected(): void
+    public function testLogLocationRejectsTheTempRootAnotherInstallationAndTraversal(): void
     {
-        mkdir($this->directory . '/public', 0700);
-        $_SERVER['DOCUMENT_ROOT'] = $this->directory . '/public';
-        putenv('SALDI_LOG_DIR=' . $this->directory . '/public/new-logs');
-        self::assertFalse(applicationLogPutContents('online.log', 'private'));
-        self::assertFalse(is_dir($this->directory . '/public/new-logs'));
+        ($this->logger . '\\applicationLogDirectory')('fixture');
+        $allowed = $this->logger . '\\applicationLogPathAllowed';
+        self::assertTrue($allowed($this->directory . '/ntr/temp/fixture/online.log'));
+        foreach (['/temp/online.log', '/online.log', '/temp/fixture/../online.log', '/../other/temp/fixture/online.log'] as $suffix) {
+            self::assertFalse($allowed($this->directory . '/ntr' . $suffix));
+        }
+        self::assertFalse(($this->logger . '\\applicationLogPutContents')('../outside.log', 'no', true, 'fixture'));
+        self::assertFalse(($this->logger . '\\applicationLogPutContents')('online.log', 'no', true, '../other'));
     }
 
-    public function testAllLoginEntryPointsWriteOutsideTheWebTree(): void
+    public function testDatabaseLogLinesAndErrorMarkersUseTheSameScopedFolder(): void
+    {
+        chmod($this->directory . '/ntr/temp', 0777);
+        $folder = ($this->logger . '\\applicationLogDirectory')('fixture');
+        $append = $this->logger . '\\applicationLogAppend';
+        self::assertTrue($append($folder . '/.ht_select.log', ["first\n", "second\n"]));
+        self::assertSame("first\nsecond\n", file_get_contents($folder . '/.ht_select.log'));
+        self::assertTrue($append($folder . '/selectfejl.txt', 'old', 'w'));
+        self::assertTrue($append($folder . '/selectfejl.txt', 'new', 'w'));
+        self::assertSame('new', file_get_contents($folder . '/selectfejl.txt'));
+        self::assertFalse($append($this->directory . '/ntr/temp/selectfejl.txt', 'unscoped'));
+        clearstatcache();
+        self::assertSame(02770, fileperms($folder) & 07777);
+        self::assertSame(0660, fileperms($folder . '/.ht_select.log') & 0777);
+        self::assertSame(0777, fileperms($this->directory . '/ntr/temp') & 0777);
+    }
+
+    public function testSymlinkCannotRedirectLogsOutsideTheDatabaseFolder(): void
+    {
+        $root = $this->directory . '/ntr/temp';
+        mkdir($this->directory . '/outside', 0700);
+        symlink($this->directory . '/outside', $root . '/fixture');
+        self::assertFalse(($this->logger . '\\applicationLogPutContents')('online.log', 'no', true, 'fixture'));
+        self::assertFalse(file_exists($this->directory . '/outside/online.log'));
+        unlink($root . '/fixture');
+        mkdir($root . '/fixture', 0700);
+        file_put_contents($this->directory . '/outside/keep', 'keep');
+        symlink($this->directory . '/outside/keep', $root . '/fixture/online.log');
+        self::assertFalse(($this->logger . '\\applicationLogPutContents')('online.log', 'overwrite', false, 'fixture'));
+        self::assertSame('keep', file_get_contents($this->directory . '/outside/keep'));
+    }
+
+    public function testUnknownDatabaseDoesNotWriteAnUnscopedLog(): void
+    {
+        unset($GLOBALS['db'], $GLOBALS['sqdb']);
+        self::assertFalse(($this->logger . '\\applicationLogPutContents')('online.log', 'no'));
+        self::assertFalse(file_exists($this->directory . '/ntr/temp/online.log'));
+    }
+
+    public function testMasterDatabaseIsUsedBeforeATenantIsSelected(): void
+    {
+        $GLOBALS['db'] = '';
+        self::assertSame($this->directory . '/ntr/temp/master_fixture', ($this->logger . '\\applicationLogDirectory')());
+    }
+
+    public function testExternalLogOverrideDoesNotChangeTheInstallationDestination(): void
+    {
+        putenv('SALDI_LOG_DIR=' . $this->directory . '/external');
+        self::assertSame($this->directory . '/ntr/temp/fixture', ($this->logger . '\\applicationLogDirectory')('fixture'));
+        self::assertFalse(file_exists($this->directory . '/external'));
+    }
+
+    public function testAllLoginEntryPointsWriteToTheirDatabaseFolder(): void
     {
         $db = $regnskab = $brugernavn = $spor = 'fixture';
         $s_id = 'fixture-session';
@@ -165,11 +205,11 @@ final class ApplicationLogTest extends TestCase
             preg_match_all('/\bapplicationLogPutContents\(.*?\);/s', $source, $calls);
             self::assertCount($file === 'soapserver/logon.php' ? 1 : 2, $calls[0]);
             foreach ($calls[0] as $call) {
-                eval($call);
+                eval('namespace ' . $this->logger . ';' . $call);
             }
         }
-        self::assertStringContainsString('fixture', file_get_contents($this->directory . '/.ht_fixture.log'));
-        self::assertStringContainsString('fixture', file_get_contents($this->directory . '/.ht_online.log'));
-        self::assertStringContainsString('fixture', file_get_contents($this->directory . '/online.log'));
+        foreach (['.ht_fixture.log', '.ht_online.log', 'online.log'] as $filename) {
+            self::assertStringContainsString('fixture', file_get_contents($this->directory . '/ntr/temp/fixture/' . $filename));
+        }
     }
 }

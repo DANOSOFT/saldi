@@ -1,7 +1,8 @@
 # Shared runtime files
 
-Login and database logs use `includes/applicationLog.php`, backed by
-`includes/sharedFile.php`. Files use `0660`;
+Login and database logs use `includes/applicationLog.php` to constrain their
+location to this installation's `temp/<db>` folder. Other shared runtime files
+use `includes/sharedFile.php` and its ancestor-permission checks. New files use `0660`;
 directories use `02770` (setgid), so new entries inherit the shared group. The
 group is `balances` when that group exists and `www-data` is a member of it (the
 setup in `INSTALLATION.md`), and `www-data` otherwise. Set
@@ -16,7 +17,7 @@ a different account, which must also belong to the configured shared group.
 PHP source files need read access, and every directory traversed needs execute
 access for that account.
 
-The helpers validate every parent component before changing permissions or
+For non-log runtime files, the shared-file helpers validate every parent component before changing permissions or
 opening a file, including before a `w` open can truncate it. Special files,
 parents writable by others, and parents writable by unrelated groups are refused.
 Symlinked installations work: a symlink in the path is followed when the
@@ -34,40 +35,28 @@ must therefore use the shared group; migrating `temp` alone does not repair it.
 
 ## Application logs
 
-Database and login logs belong outside the web tree. Their default root is
-`/var/log/saldi/<installation-directory-name>`. Set `SALDI_LOG_DIR` to an
-absolute private directory to override it, consistently for PHP workers and
-CLI jobs. Tenant SQL logs and error notification markers live in
-`tenant-<encoded-database-name>` directories under that root; installation-wide
-login/online logs live directly in the root. Attachments and other temporary
-files keep their existing locations.
+Application logs belong in the database's folder inside the installation that
+loaded the logger: `<installation>/temp/<db>/`. For example, an `ntr`
+installation uses `/var/www/html/ntr/temp/<db>/`, whether its request is
+`/ntr/index/main.php`, a more deeply nested URL, or a CLI command. The root is
+anchored to the PHP source location, not guessed from URL depth or the current
+working directory. The database defaults to the active database, then the
+master database before a tenant is selected. Without a known database, no
+unscoped log is written.
 
-The worker can create a missing root with private modes when its immediate
-parent already exists, is trusted and is writable. Existing roots keep their
-permissions. No ancestors are created recursively. Otherwise an administrator
-provisions the root under trusted ancestors. With `www-data` as the shared
-group, for example:
+The logging check validates **location only**. It rejects logs directly in the
+installation/temp roots, paths outside this installation, traversal, special
+files and symlinks redirecting outside the database folder. It does not inspect
+ancestor write permissions. Existing file and directory permissions stay
+unchanged; only newly created database directories and logs receive the shared
+runtime modes. Generic non-log runtime helpers retain their permission checks.
+There is no separate `/var/log/saldi` root or `SALDI_LOG_DIR` override.
 
-```sh
-sudo install -d -o root -g www-data -m 2770 /var/log/saldi/INSTALLATION
-```
-
-Use the configured shared group instead of `www-data` when applicable. The
-application creates new log-root and tenant directories with the shared runtime
-modes, but does not change existing directory permissions. Missing parents or
-unsafe log storage produce a server diagnostic and the write fails; logs
-are not redirected back into the web tree. Configured roots inside the
-installation or the known document root are refused, including symlink aliases.
-Do not loosen application or parent
-directory permissions to silence a logging diagnostic.
-
-Existing log history is not moved automatically. With writers stopped, an
-administrator can transfer installation-wide `.ht_*.log` and `online.log` to
-the root, and each tenant's `.ht_modify.log`, `.ht_select.log`, `lasterror.txt`,
-`opdatfejl.txt`, `modifyfejl.txt` and `selectfejl.txt` to its new tenant log
-directory, preserving contents and restricting access to the shared group.
-Do not move attachments, exports or unrelated temporary files. Error markers
-are read from the same private location where they are written.
+Database query logs, error markers, and all main/legacy/SOAP login log writers
+use the same database-scoped location. Attachments and other temporary files
+keep their existing locations. Existing historical logs are not moved or
+deleted automatically during a request. Do not loosen filesystem permissions
+to correct a log path.
 
 ## One-time setup and migration
 

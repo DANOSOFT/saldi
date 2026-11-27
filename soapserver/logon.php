@@ -21,6 +21,7 @@
 // Copyright (c) 2004-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261127 CDX/NTR Write SOAP login audit entries to private application log storage.
+// 20261127 CDX/NTR Scope SOAP login logging to this installation's database folder.
 ini_set("soap.wsdl_cache_enabled", "1");
 
 function logon($string) {
@@ -45,7 +46,9 @@ function logon($string) {
 					include __DIR__ . '/../includes/connect.php';
 					applicationLogPutContents(
 						'.ht_' . rawurlencode((string)$db) . '.log',
-						"-- ".$brugernavn." ".date("Y-m-d H:i:s").": OK jeg er inde ".$s_id."\n"
+						"-- ".$brugernavn." ".date("Y-m-d H:i:s").": OK jeg er inde ".$s_id."\n",
+						true,
+						(string)$db
 					);
 					db_modify("update online set regnskabsaar='$regnskabsaar', rettigheder='$rettigheder' where session_id='$s_id'",__FILE__ . " linje " . __LINE__);
 					$return='0'.chr(9).$s_id;

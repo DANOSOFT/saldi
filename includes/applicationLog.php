@@ -4,80 +4,70 @@
 // Licensed under the GNU General Public License, version 2 or later.
 // 20261127 CDX/NTR Route application logs to private storage without changing source-tree permissions.
 // 20261127 CDX/NTR Reject web-tree aliases and create missing log directories without changing existing modes.
+// 20261127 CDX/NTR Resolve logs inside this installation's temp/database folder and check location only.
 
 require_once __DIR__ . '/sharedFile.php';
 
 /**
- * Locate private logs, creating only missing directories under trusted writable parents.
+ * Resolve the loaded installation's database log folder without relying on the request URL or working directory.
  *
- * @param string $tenant Database name, or empty for installation-wide logs.
- * @return string Absolute directory; callers must validate it before writing.
+ * @param string $tenant Database name; defaults to the active database, then the master database.
+ * @return string Absolute database directory, or the temp root when no valid database is known (not writable as a log destination).
  */
 function applicationLogDirectory(string $tenant = ''): string
 {
-    $configured = getenv('SALDI_LOG_DIR');
-    $root = rtrim($configured !== false && $configured !== '' ? $configured : '/var/log/saldi/' . basename(dirname(__DIR__)), '/');
-    if ($root === '' || $root[0] !== '/' || str_contains($root, "\0")) {
-        sharedFileWarning('SALDI_LOG_DIR must be an absolute private directory; follow doc/runtime-permissions.md');
-        $root = '/var/log/saldi/' . basename(dirname(__DIR__));
-    }
-    if (applicationLogOutsideWebTree($root)) {
-        applicationLogCreateDirectory($root);
-    }
+    $root = dirname(__DIR__) . '/temp';
     if ($tenant === '') {
+        $tenant = (string)($GLOBALS['db'] ?? '');
+        if ($tenant === '') {
+            $tenant = (string)($GLOBALS['sqdb'] ?? '');
+        }
+    }
+    if ($tenant === '' || $tenant === '.' || $tenant === '..' || basename($tenant) !== $tenant || str_contains($tenant, '\\') || str_contains($tenant, "\0")) {
         return $root;
     }
-    $directory = $root . '/tenant-' . rawurlencode($tenant);
-    if (!is_dir($directory) && applicationLogTrustedPath($root . '/.log-directory-check')) {
-        applicationLogCreateDirectory($directory);
-    }
+    $directory = $root . '/' . $tenant;
+    applicationLogCreateDirectory($directory);
     return $directory;
 }
 
 /**
- * Resolve existing symlinks and reject storage in the installation or a known document root.
+ * Check location only: a regular log file directly inside this installation's temp/database folder.
  *
- * @param string $path Absolute log-directory path, possibly not created yet.
- * @return bool Whether its canonical destination is outside public application storage.
+ * @param string $path Absolute log path.
+ * @return bool Whether the path stays in its database folder, without traversal or symlink redirection.
  */
-function applicationLogOutsideWebTree(string $path): bool
+function applicationLogPathAllowed(string $path): bool
 {
-    $suffix = '';
-    $ancestor = $path;
-    while (($resolved = realpath($ancestor)) === false && dirname($ancestor) !== $ancestor) {
-        $suffix = '/' . basename($ancestor) . $suffix;
-        $ancestor = dirname($ancestor);
-    }
-    if ($resolved === false || in_array('..', explode('/', $suffix), true)) {
+    $root = dirname(__DIR__) . '/temp';
+    if (!str_starts_with($path, $root . '/') || str_contains($path, "\0") || str_contains($path, '\\')) {
         return false;
     }
-    $canonical = rtrim($resolved, '/') . $suffix;
-    foreach (array(dirname(__DIR__), $_SERVER['DOCUMENT_ROOT'] ?? '') as $publicRoot) {
-        if ($publicRoot === '' || ($publicRoot = realpath($publicRoot)) === false) {
-            continue;
-        }
-        $publicRoot = rtrim($publicRoot, '/');
-        if ($canonical === $publicRoot || str_starts_with($canonical, $publicRoot . '/')) {
-            sharedFileWarning('Application logs must be outside the web tree; configure SALDI_LOG_DIR');
-            return false;
-        }
+    $parts = explode('/', substr($path, strlen($root) + 1));
+    if (count($parts) !== 2 || in_array('', $parts, true) || in_array('.', $parts, true) || in_array('..', $parts, true)) {
+        return false;
     }
-    return true;
+    $canonicalRoot = realpath($root);
+    if ($canonicalRoot === false || realpath(dirname($path)) !== $canonicalRoot . '/' . $parts[0] || is_link($path)) {
+        return false;
+    }
+    return !file_exists($path) || is_file($path);
 }
 
 /**
- * Create a single new log directory; existing directories, including concurrent creations, keep their modes.
+ * Create only a missing database directory; never change permissions on an existing directory.
  *
- * @param string $directory Missing directory under a trusted, writable existing parent.
- * @return bool Whether the directory exists after this attempt.
+ * @param string $directory Database directory directly below this installation's temp.
+ * @return bool Whether that directory exists.
  */
 function applicationLogCreateDirectory(string $directory): bool
 {
+    $root = dirname(__DIR__) . '/temp';
+    if (dirname($directory) !== $root || !is_dir($root)) {
+        return false;
+    }
     if (is_dir($directory)) {
         return true;
-    }
-    if (!is_dir(dirname($directory)) || !is_writable(dirname($directory)) || !sharedFileTrustedParent($directory)) {
-        return false;
     }
     set_error_handler(static function ($severity, $message, $file, $line) {
         throw new ErrorException($message, 0, $severity, $file, $line);
@@ -85,55 +75,87 @@ function applicationLogCreateDirectory(string $directory): bool
     try {
         $created = mkdir($directory, 02770);
     } catch (ErrorException $error) {
+        clearstatcache(true, $directory);
         if (!is_dir($directory)) {
-            sharedFileWarning('Could not create private application log directory: ' . $directory);
+            sharedFileWarning('Could not create application log database directory: ' . $directory);
         }
         return is_dir($directory);
     } finally {
         restore_error_handler();
     }
-    if ($created) {
-        return sharedFileApplyPermissions($directory, sharedFileGroup());
-    }
-    return false;
+    $group = sharedFileGroup();
+    return $created && $group !== false && sharedFileApplyPermissions($directory, $group);
 }
 
 /**
- * Require a provisioned, trusted log directory. There is no fallback through an unsafe parent.
+ * Open a location-checked log without checking ancestor permissions or changing existing file modes.
  *
- * @param string $path Log file under the configured root.
- * @return bool Whether a writer may use the path without weakening parent permissions.
+ * @param string $path Absolute log path in this installation's temp/database folder.
+ * @param string $mode Append or overwrite mode.
+ * @return resource|false Opened stream, or false for an invalid/unwritable destination.
  */
-function applicationLogTrustedPath(string $path): bool
+function applicationLogOpen(string $path, string $mode = 'a')
 {
-    $root = applicationLogDirectory();
-    if (!str_starts_with($path, $root . '/')
-        || in_array('..', explode('/', substr($path, strlen($root) + 1)), true)
-        || !applicationLogOutsideWebTree($root)
-        || !sharedFileTrustedParent($path)) {
-        sharedFileWarning('Private application log directory is unavailable; provision SALDI_LOG_DIR as described in doc/runtime-permissions.md');
+    if (!applicationLogPathAllowed($path)) {
         return false;
     }
-    return true;
+    if (!file_exists($path)) {
+        $created = sharedFilePlainOpen($path, 'x');
+        if ($created !== false) {
+            $group = sharedFileGroup();
+            $ready = $group !== false && sharedFileApplyPermissions($path, $group);
+            fclose($created);
+            if (!$ready) {
+                return false;
+            }
+        }
+    }
+    return applicationLogPathAllowed($path) ? sharedFilePlainOpen($path, $mode) : false;
 }
 
 /**
- * Write an installation-wide or tenant log outside the application tree.
+ * Append database log lines with the installation/database location policy.
+ * db_query.php loads this module before defining its shared line writer.
  *
- * @param string $filename A filename without directory components.
+ * @see db_log_append()
+ *
+ * @param string $path Absolute database log path.
+ * @param string|string[] $lines Log contents.
+ * @param string $mode Append or overwrite mode.
+ * @return bool Whether all lines were written.
+ */
+function applicationLogAppend(string $path, $lines, string $mode = 'a'): bool
+{
+    return db_log_append($path, $lines, $mode, __NAMESPACE__ . '\\applicationLogOpen');
+}
+
+/**
+ * Write a database-scoped log; no logs are written directly in temp or outside this installation.
+ *
+ * @param string $filename Log filename without directory components.
  * @param string $contents Log entry.
- * @param bool $append Append instead of replacing the log.
- * @param string $tenant Database name, or empty for installation-wide logs.
- * @return int|false Bytes written, or false when storage is unavailable or unsafe.
+ * @param bool $append Append instead of replacing contents.
+ * @param string $tenant Database name, or the active/master database when omitted.
+ * @return int|false Bytes written, or false when the location is invalid or unavailable.
  */
 function applicationLogPutContents(string $filename, string $contents, bool $append = true, string $tenant = '')
 {
-    if ($filename === '' || $filename === '.' || $filename === '..' || basename($filename) !== $filename || str_contains($filename, "\0")) {
-        return false;
-    }
     $path = applicationLogDirectory($tenant) . '/' . $filename;
-    if (!applicationLogTrustedPath($path)) {
+    $stream = applicationLogOpen($path, $append ? 'a' : 'w');
+    if ($stream === false) {
         return false;
     }
-    return sharedFilePutContents($path, $contents, $append);
+    try {
+        $written = 0;
+        while ($written < strlen($contents)) {
+            $count = fwrite($stream, substr($contents, $written));
+            if ($count === false || $count === 0) {
+                return false;
+            }
+            $written += $count;
+        }
+        return $written;
+    } finally {
+        fclose($stream);
+    }
 }

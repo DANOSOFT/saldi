@@ -69,6 +69,7 @@
 // 20261105 CL/MMR SD-807 The login messages and the max users and already logged in screens use the language chosen on the login page (languageId cookie, 1-3).
 //                 A message that names the account is kept within 80 characters (loginFejltxt()), so a long account name no longer makes it disappear.
 // 20261127 CDX/NTR Route both main-login logs through private application storage.
+// 20261127 CDX/NTR Keep both main-login logs in this installation's temp/database folder.
 
 ob_start(); //Starter output buffering 
 @session_start();
@@ -404,12 +405,13 @@ if (isset($_POST['force_logout']) && isset($_POST['user_to_logout'])) {
 $spor = null; 
 db_modify("delete from online where session_id = '$s_id'",__FILE__ . " linje " . __LINE__);
 $loginLogName = '.ht_' . rawurlencode((string)$db) . '.log';
-$loginLogPath = applicationLogDirectory() . '/' . $loginLogName;
-if ($db && applicationLogTrustedPath($loginLogPath) && !file_exists($loginLogPath)) {
+$loginLogPath = applicationLogDirectory((string)$db) . '/' . $loginLogName;
+if ($db && applicationLogPathAllowed($loginLogPath) && !file_exists($loginLogPath)) {
 	applicationLogPutContents(
 		$loginLogName,
 		"-- ".$brugernavn." ".date("Y-m-d H:i:s").": ".$spor."\n" . "\\connect $db;\n",
-		true
+		true,
+		(string)$db
 	);
 }
 if ($db) {
@@ -910,7 +912,8 @@ if(!isset($afbryd)){
 	applicationLogPutContents(
 		'.ht_online.log',
 		date("Y-m-d")." ".date("H:i:s")." ".getenv("remote_addr")." ".$s_id." ".$regnskab." ".$brugernavn."\n",
-		true
+		true,
+		(string)$db
 	);
 	if ($regnskab==$sqdb) {
 		if ($dbver<$version) tjek4opdat($dbver,$version); #20130919
