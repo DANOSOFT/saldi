@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-25 ---
+// --- finans/kassekladde.php --- ver 5.1.1 --- 2026-11-27 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -232,6 +232,7 @@
 //              A replaced number reaches only the line that still carries its proposal, and a line whose own year has no number left is refused instead of stored under another year's number.
 //              A taken-proposal replacement the year pass overrides is not announced, and its number is not held back from the year's own series.
 // 20261125 CDX/NTR Display the grid's prepared account text and use raw row values for escaped SQL and card links.
+// 20261127 LOE SST-906 (review) A taken-proposal replacement is only kept out of the series while a line still stores under it, and its notice is suppressed exactly when the year pass freed it.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
 require_once __DIR__ . '/kassekladde_includes/invoiceReuse.php';
@@ -4858,9 +4859,14 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		# of the year the line is dated in now, so changing only the date cannot carry one year's numbers into
 		# the other. The replacements made above are handed over, because their numbers are this save's already:
 		# the year's allocator must not pick one of them for a line of its own
-		$kk_aar_erstat = bilagReplaceForeignYearProposals($kladde_id, $bilagForslag, $bilagForslagDato, $kk_bilag_fra, $bilagErstat);
-		# the numbers those lines move onto are this save's as well, so a line without a number walks past them
+		$kk_aar_frigivet = array();
+		$kk_aar_erstat = bilagReplaceForeignYearProposals($kladde_id, $bilagForslag, $bilagForslagDato, $kk_bilag_fra, $bilagErstat, $kk_aar_frigivet);
+		# the numbers those lines move onto are this save's as well, so a line without a number walks past them;
+		# a taken replacement no line stores any more is free, so it is dropped instead of being skipped
 		$kk_erstat_brugt = $bilagErstat;
+		foreach (array_keys($kk_aar_frigivet) as $kk_aar_fri) {
+			unset($kk_erstat_brugt[(int)$kk_aar_fri]);
+		}
 		foreach ($kk_aar_erstat as $kk_aar_lobenr => $kk_aar_svar) {
 			if ((int)$kk_aar_svar['to'] > 0) {
 				$kk_erstat_brugt["aar$kk_aar_lobenr"] = (int)$kk_aar_svar['to'];
@@ -5123,27 +5129,9 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			}
 		}
 		transaktion('commit');
-		# SST-906 (review) a number this save moves to another year is stored under this pass's number, so the
-		# taken-proposal replacement for it is never used and must not be announced. Only numbers that no line
-		# of this save keeps are dropped: if another staged line still carries it, the message is true for that one
-		$kk_aar_overskrevet = array();
-		foreach ($kk_aar_erstat as $kk_aar_svar) {
-			if ((int)$kk_aar_svar['to'] > 0) {
-				$kk_aar_overskrevet[(int)$kk_aar_svar['from']] = true;
-			}
-		}
-		if ($kk_aar_overskrevet && $bilagErstat) {
-			$q = db_select("select bilag from tmpkassekl where kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__);
-			while ($r = db_fetch_array($q)) {
-				$kk_staget_bilag = (int)$r['bilag'];
-				if (!isset($kk_aar_overskrevet[$kk_staget_bilag])) {
-					unset($kk_aar_overskrevet[$kk_staget_bilag]);
-				}
-			}
-		}
 		foreach ($bilagErstat as $taget => $ny) {
-			if (isset($kk_aar_overskrevet[(int)$taget])) {
-				continue;   # this save moved its line itself, and says so below
+			if (isset($kk_aar_frigivet[(int)$taget])) {
+				continue;   # no line of this save stores under that number any more: the year pass says where it went
 			}
 			alert(addslashes(sprintf(findtekst('5439|Bilagsnummer %s blev brugt af en anden bruger, mens du skrev. Linjen er gemt som bilag %s.', $sprog_id), $taget, $ny)));
 		}

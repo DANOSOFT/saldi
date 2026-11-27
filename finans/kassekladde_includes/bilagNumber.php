@@ -1,5 +1,5 @@
 <?php
-// --- finans/kassekladde_includes/bilagNumber.php --- 20261125 LOE SST-906 ---
+// --- finans/kassekladde_includes/bilagNumber.php --- 20261127 LOE SST-906 ---
 //
 // Voucher number (bilag) allocation for the cash journal.
 //
@@ -43,6 +43,7 @@
 //                 A typed 0, and a line already saved under 0, now travel through the save as '00' (bilagFromInput()).
 //                 Only an empty field is numbered (bilagIsUnnumbered()), and the page shows a saved 0 as 0 (bilagFieldValue()).
 // 20261125 LOE SST-906 A line dated in another fiscal year continues that year's series: bilagFiscalYearForDate(), a year on bilagFiscalYearBounds(), the line date on bilagNextNumberForJournal(), and bilagReplaceForeignYearProposals() for the save.
+// 20261127 LOE SST-906 (review) A staged date is read only in the syntax the journal itself reads, a yearless value takes the journal's own year, a target equal to the number the line carries is no move, and the pass reports the taken replacements it frees.
 //              That last one skips the rows the save will not store, gives lines of one voucher one number, and is told the numbers the taken-proposal pass already moved lines onto.
 //              It answers per line, so a number the operator typed on another line stays his, and it reports a line the year has no number left for so the save can refuse it.
 //              A staged date without a year (ddmm) is read the way usdate() reads it, and a year's window is built from its own box row, so a legacy one-digit month or a retired year (box10) cannot hide a year from the lookup.
@@ -148,8 +149,6 @@ function bilagReplaceTakenProposals($kladde_id, $proposed, $from = 0, $own_ids =
 	}
 	$kept = array();
 	$held = bilagStagedNumbersWillBeSaved($kladde_id);
-	# one window for every staged date that carries no year of its own, read once for the whole save
-	$activeBounds = function_exists('db_select') ? bilagFiscalYearBounds() : array('', '');
 	$q = db_select("SELECT lobenr, id, bilag FROM tmpkassekl WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$bilag = (int)$r['bilag'];
@@ -206,28 +205,39 @@ function bilagReplaceTakenProposals($kladde_id, $proposed, $from = 0, $own_ids =
  * @param int                $from          Series start: the journal's next number, read once per save.
  * @param array<int, int>    $alreadyUsed   Replacements this save has already made (bilagReplaceTakenProposals()),
  *                                          whose numbers are taken and must not be handed out again.
+ * @param array<int, bool>   $freed         Set (by reference) for every taken proposal whose replacement no line
+ *                                          of this save stores, because every line carrying it moved to another
+ *                                          year. The caller can hand that number out again, and must not
+ *                                          announce it.
  * @return array<int, array{from: int, to: int}> Line number => the number it carries and the number to save it
  *                                               under; 'to' = 0 when that year has no number left. Lines this
  *                                               does not touch are absent.
  */
-function bilagReplaceForeignYearProposals($kladde_id, $proposed, $proposedDates, $from = 0, $alreadyUsed = array()) {
+function bilagReplaceForeignYearProposals($kladde_id, $proposed, $proposedDates, $from = 0, $alreadyUsed = array(), &$freed = array()) {
 	$kladde_id = (int)$kladde_id;
 	$replacements = array();
 	if ($kladde_id <= 0 || !$proposed || !$proposedDates) {
 		return $replacements;
 	}
 	$held = bilagStagedNumbersWillBeSaved($kladde_id);
-	# one window for every staged date that carries no year of its own, read once for the whole save
-	$activeBounds = function_exists('db_select') ? bilagFiscalYearBounds() : array('', '');
-	# read the staged rows first: a line that both lost its proposal to another save and moved to another
-	# fiscal year is stored under this pass's number, so the taken replacement for it is never written and
-	# must not keep a number out of the pool
+	# read the staged rows first: a proposal another save took is free again only when every line carrying it
+	# moved to another year - a line that stays in its own year is still stored under that replacement
 	$rows = array();
 	$q = db_select("SELECT * FROM tmpkassekl WHERE kladde_id = '$kladde_id'", __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		$rows[] = $r;
 	}
-	$superseded = array();
+	# the window a date without a year needs, looked up only when such a value is actually staged
+	$activeBounds = null;
+	foreach ($rows as $r) {
+		$staged = trim((string)($r['transdate'] ?? ''));
+		if ($staged !== '' && preg_match('/^\d{1,4}$|^\d{1,2}[.\-\/ ]\d{1,2}$/', $staged)) {
+			$activeBounds = function_exists('db_select') ? bilagFiscalYearBounds() : array('', '');
+			break;
+		}
+	}
+	$moved = array();
+	$stayed = array();
 	foreach ($rows as $r) {
 		$bilag = (int)$r['bilag'];
 		$lobenr = (int)$r['lobenr'];
@@ -236,13 +246,22 @@ function bilagReplaceForeignYearProposals($kladde_id, $proposed, $proposedDates,
 			continue;
 		}
 		if (bilagForeignYearMove($r, $proposedDates, $activeBounds)) {
-			$superseded[$bilag] = true;
+			$moved[$bilag] = true;
+		} else {
+			$stayed[$bilag] = true;
 		}
 	}
-	# SST-906 (review) the numbers the taken-proposal pass already moved lines onto are this save's as well
+	$freed = array();
+	foreach (array_keys($moved) as $bilag) {
+		if (!isset($stayed[$bilag])) {
+			$freed[$bilag] = true;
+		}
+	}
+	# SST-906 (review) the numbers the taken-proposal pass already moved lines onto are this save's as well -
+	# unless no line stores under one, and then it is free again
 	$used = array();
 	foreach ((array)$alreadyUsed as $taken_key => $taken_number) {
-		if (isset($superseded[(int)$taken_key])) {
+		if (isset($freed[(int)$taken_key])) {
 			continue;
 		}
 		$used[] = (int)$taken_number;
@@ -262,7 +281,11 @@ function bilagReplaceForeignYearProposals($kladde_id, $proposed, $proposedDates,
 		}
 		if (isset($targets[$bilag])) {
 			# another line of the same voucher already worked out where it goes, so this one follows it
-			$replacements[$lobenr] = array('from' => $bilag, 'to' => (int)$targets[$bilag]);
+			if ((int)$targets[$bilag] <= 0) {
+				$replacements[$lobenr] = array('from' => $bilag, 'to' => 0);
+			} elseif ((int)$targets[$bilag] !== $bilag) {
+				$replacements[$lobenr] = array('from' => $bilag, 'to' => (int)$targets[$bilag]);
+			}
 			continue;
 		}
 		# the line's own year's next number, past the numbers this save already holds or hands out
@@ -276,7 +299,13 @@ function bilagReplaceForeignYearProposals($kladde_id, $proposed, $proposedDates,
 		# no number left in that year (its series is at the column maximum): the line is refused by the caller
 		# rather than stored under a number that belongs to another year
 		$targets[$bilag] = (int)$target;
-		$replacements[$lobenr] = array('from' => $bilag, 'to' => (int)$target);
+		if ($target <= 0) {
+			$replacements[$lobenr] = array('from' => $bilag, 'to' => 0);   # refused by the caller
+		} elseif ($target !== $bilag) {
+			$replacements[$lobenr] = array('from' => $bilag, 'to' => (int)$target);
+		}
+		# a journal that already has numbered rows answers with its own next number whatever the date, so the
+		# target can be the number the line already carries: nothing to change, nothing to announce
 	}
 	return $replacements;
 }
@@ -301,35 +330,52 @@ function bilagStagedDate($date, $activeBounds = null) {
 	if ($date === '') {
 		return '';
 	}
+	# the form the page itself writes back for a saved line
 	if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $date, $ymd)) {
 		return checkdate((int)$ymd[2], (int)$ymd[3], (int)$ymd[1]) ? $date : '';
 	}
-	# the staging table keeps the operator's dd-mm-yyyy; read it here so the helper stands on its own
-	$parts = preg_split('/[^0-9]+/', $date, -1, PREG_SPLIT_NO_EMPTY);
-	# and a compact ddmm or ddmmyyyy, which usdate() also reads
-	if (is_array($parts) && count($parts) === 1 && preg_match('/^(\d{2})(\d{2})(\d{2}|\d{4})$/', $parts[0], $compact)) {
-		$parts = array($compact[1], $compact[2], $compact[3]);
+	# day, month and year with one of the separators usdate() accepts. Anything else ('13x06x2025') is not a
+	# date usdate() can read either, and reading it here while the save reads it as today is how a proposal
+	# ends up moved to a year the line is not dated in
+	if (preg_match('/^(\d{1,2})[.\-\/ ](\d{1,2})[.\-\/ ](\d{2,4})$/', $date, $dmy)) {
+		return bilagStagedDateFromParts((int)$dmy[1], (int)$dmy[2], (int)$dmy[3], $activeBounds);
 	}
-	if (is_array($parts) && count($parts) === 3) {
-		list($day, $month, $year) = array_map('intval', $parts);
-		if ($year < 100) {
-			$year += $year < 80 ? 2000 : 1900;
-		}
-		if (checkdate($month, $day, $year)) {
-			return sprintf('%04d-%02d-%02d', $year, $month, $day);
-		}
-		return '';
+	# day and month, with or without a separator: the year is the one the journal gives such a value
+	if (preg_match('/^(\d{1,2})[.\-\/ ](\d{1,2})$/', $date, $dm)) {
+		return bilagStagedDateFromParts((int)$dm[1], (int)$dm[2], 0, $activeBounds);
 	}
-	# ddmm or dd-mm: no year was typed, so it is the one the journal's own converter would give it - the
-	# active fiscal year's opening year from its opening month onwards, otherwise its closing year
-	if (is_array($parts) && count($parts) === 2 && strlen($parts[0]) === 2 && strlen($parts[1]) === 2) {
-		$parts = array($parts[0], $parts[1], '');
-	} elseif (is_array($parts) && count($parts) === 1 && strlen($parts[0]) === 4) {
-		$parts = array(substr($parts[0], 0, 2), substr($parts[0], 2, 2), '');
+	# the compacts: ddmmyy, ddmmyyyy, ddmm, and a bare day
+	if (preg_match('/^(\d{2})(\d{2})(\d{2}|\d{4})$/', $date, $compact)) {
+		return bilagStagedDateFromParts((int)$compact[1], (int)$compact[2], (int)$compact[3], $activeBounds);
 	}
-	if (is_array($parts) && count($parts) === 3 && $parts[2] === '') {
-		$day = (int)$parts[0];
-		$month = (int)$parts[1];
+	if (preg_match('/^(\d{2})(\d{2})$/', $date, $ddmm)) {
+		return bilagStagedDateFromParts((int)$ddmm[1], (int)$ddmm[2], 0, $activeBounds);
+	}
+	if (preg_match('/^(\d{1,2})$/', $date, $day)) {
+		# a bare day is the day of the month the journal is in now, which is what usdate() makes of it
+		return bilagStagedDateFromParts((int)$day[1], (int)date('n'), 0, $activeBounds);
+	}
+	return '';
+}
+
+/**
+ * A staged date from its parts, with the year rules the journal's own converter applies.
+ *
+ * A year of 0 means the operator typed none: the value then takes the active fiscal year's opening year from
+ * its opening month onwards (January 2026 belongs to 2025/26 when that year opens in October), otherwise the
+ * closing year. A two-digit year is 20xx below 80 and 19xx above, as elsewhere in the journal.
+ *
+ * @param int   $day         Day of the month.
+ * @param int   $month       Month, 1-12.
+ * @param int   $year        Year, 0 when the operator typed none.
+ * @param array|null $activeBounds The active fiscal year's window (start, end), needed when $year is 0.
+ * @return string Y-m-d, or '' when the parts are not a date or the year cannot be settled.
+ */
+function bilagStagedDateFromParts($day, $month, $year, $activeBounds = null) {
+	if ($year > 0 && $year < 100) {
+		$year += $year < 80 ? 2000 : 1900;
+	}
+	if ($year === 0) {
 		if ($activeBounds === null) {
 			# the caller hands the window in, so this stays a pure function: without one it cannot give a
 			# yearless date a year, and the line's number is left alone
@@ -341,11 +387,8 @@ function bilagStagedDate($date, $activeBounds = null) {
 			return '';
 		}
 		$year = ($month >= (int)substr($start, 5, 2)) ? (int)substr($start, 0, 4) : (int)substr($end, 0, 4);
-		if (checkdate($month, $day, $year)) {
-			return sprintf('%04d-%02d-%02d', $year, $month, $day);
-		}
 	}
-	return '';
+	return checkdate($month, $day, $year) ? sprintf('%04d-%02d-%02d', $year, $month, $day) : '';
 }
 
 /**

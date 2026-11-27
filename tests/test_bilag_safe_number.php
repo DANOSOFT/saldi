@@ -1,5 +1,5 @@
 <?php
-// --- tests/test_bilag_safe_number.php --- 2026-10-28 ---
+// --- tests/test_bilag_safe_number.php --- 2026-11-27 ---
 // Copyright (c) 2026 Danosoft ApS
 // Licensed under the GNU General Public License, version 2 or later.
 // 20261023 LOE Cover SST-888: a voucher number that does not fit kassekladde.bilag is rejected
@@ -15,6 +15,7 @@
 //                 reads them.
 // 20261028 LOE Cover SST-888 (review): the taken-number query, the offered number, the staging clear and the
 //                 first line of a new journal are all pinned, so a number the column cannot hold cannot reach any of them.
+// 20261127 LOE SST-906 the exhaustion refusal and the refused-line list each have a fifth occurrence: a line whose own fiscal year is used up.
 //
 //   php tests/test_bilag_safe_number.php
 //
@@ -144,8 +145,8 @@ bilagTestJournal(2147483647, array('2147483647'));
 bilagCheck(bilagNextNumberReserved(1, array()) === 0,
 	'while a journal and a staged line both at the maximum leave nothing storable' . "\n");
 $kassekladde = file_get_contents(__DIR__ . '/../finans/kassekladde.php');
-	bilagCheck(substr_count($kassekladde, 'alert(addslashes(findtekst("7636|') === 4,
-	'every allocation that finds no storable number refuses its line with the exhaustion alert');
+	bilagCheck(substr_count($kassekladde, 'alert(addslashes(findtekst("7636|') === 5,
+	'every allocation that finds no storable number refuses its line with the exhaustion alert; SST-906 added the fifth, for a line whose own fiscal year is used up');
 bilagTestJournalEmptyLines(3, array('4'));
 bilagCheck(bilagNextNumberReserved(1, array()) === 4,
 	'a staged 4 the save will skip does not hold a number back: the replacement is still 4');
@@ -191,8 +192,8 @@ bilagCheck(bilagNextNumberReserved(1, array(9 => 4)) === 5,
 $kassekladde2 = file_get_contents(__DIR__ . '/../finans/kassekladde.php');
 bilagCheck(strpos($kassekladde2, "\$GLOBALS['kk_refused_lobenr'] = array();") !== false,
 	'opdater() starts with an empty list of refused lines');
-bilagCheck(substr_count($kassekladde2, "\$GLOBALS['kk_refused_lobenr'][] = (int)\$r['lobenr'];") === 4,
-	'and records every line it refuses, all four' . "
+bilagCheck(substr_count($kassekladde2, "\$GLOBALS['kk_refused_lobenr'][] = (int)\$r['lobenr'];") === 5,
+	'and records every line it refuses, all five' . "
 ");
 $refusedAt = strpos($kassekladde2, "if (\$fejl) {\n\t\t\t# SST-888 (review) the fingerprint is recorded");
 bilagCheck($refusedAt !== false && strpos($kassekladde2, "\$_SESSION['kk_last_save'][\$kladde_id] = \$kk_payload;", $refusedAt) !== false,

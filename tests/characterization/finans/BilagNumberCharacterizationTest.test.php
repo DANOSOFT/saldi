@@ -16,6 +16,7 @@
 // History:
 // 20260928 LOE SST-817: created.
 // 20261125 LOE SST-906: the year choice and the staged-date conversion are pinned as behaviour, and no proposal site may fall back to the session year or to a hardcoded today.
+// 20261127 LOE SST-906 (review): the separators the save reads and the ones it does not are pinned, so the helper and opdater() cannot disagree about a staged date.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -146,6 +147,12 @@ final class BilagNumberCharacterizationTest extends TestCase
             'the same for a day and month written with a separator');
         $this->assertSame('', bilagStagedDate('1306'), 'with no tenant and no window given, there is no year to use');
         $this->assertSame('', bilagStagedDate('1306261'), 'seven digits are not a date this reads');
+        $this->assertSame('', bilagStagedDate('13x06x2025'), 'a separator the journal cannot read is not a date');
+        $this->assertSame('2025-06-13', bilagStagedDate('13/06/2025'), 'a slash is one of the separators it reads');
+        $this->assertSame('2025-06-13', bilagStagedDate('13-6-2025'), 'a one-digit month is read too');
+        $this->assertSame('2025-06-13', bilagStagedDate('13.6.2025'), 'and a one-digit month after a dot');
+        $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}$/', bilagStagedDate('13', array('2025-10-01', '2026-09-30')),
+            'a bare day is that day of the month the journal is in, as usdate() reads it');
         $this->assertSame('2026-11-25', bilagStagedDate('2026-11-25'), 'an already converted date passes through');
         $this->assertSame('', bilagStagedDate('2026-02-31'), 'nor is a Y-m-d field the calendar does not have a day');
         $this->assertSame('', bilagStagedDate(''), 'an empty staged date names no day');
