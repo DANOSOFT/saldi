@@ -1,5 +1,5 @@
 <?php
-// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-11-03 ----
+// ----------------systemdata/settingsRegistry.php --- Settings search Phase 1 --- 2026-11-14 ----
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -99,6 +99,9 @@
 // 20261102 CL/ASR Review: search shows Ekstra felter under Brugere & ansatte, as Roller and Audit-log ('searchGroup'), not under Organisation.
 // 20261103 CL/ASR The heading is Brugere & roller again with the rows Brugere, Roller, Audit-log and Ekstra felter (owner, 3 Nov 2026): the brugere entry is called Brugere (5549, no 'renamedFrom': Brugere & roller is the heading now, not an old name), and the users group and Ekstra felter's search group are Brugere & roller (5536); the employee section's entry (ansatte, the list of a user without usersRoles.php) is called Brugere too.
 //                 'Brugere & roller' is a keyword of Brugere, so the top-bar search, which does not search headings, still finds the page by its old name.
+// 20261110 CDX/ASR Improve role search aliases and name the shared people list and activity log clearly.
+// 20261114 CL/ASR Abonnement & konto is no longer found by 'nulstil regnskab' and 'reset': the reset moved to the admin panel.
+// 20261114 CL/ASR Integration: nor is the old kontoindstillinger page, which no longer offers Nulstil either.
 
 if (!function_exists('getSettingsRegistry')) {
 	function getSettingsRegistry() {
@@ -120,22 +123,24 @@ if (!function_exists('getSettingsRegistry')) {
 				'keywords' => array('customer discount matrix','debtor discount group','product discount group','discount matrix','percent discount','amount discount per unit','kr/stk rabat','discount by customer and product group','debitor rabatgruppe','vare rabatgruppe','rabatgrupper','rabat','rabatt')),
 			array('key' => 'valuta',           'group' => 'finance', 'url' => 'settingsSection.php?s=finance.currencies', 'section' => 'finance.currencies', 'category' => 'finance', 'textId' => 776,
 				'keywords' => array('currency','currencies','exchange rate','currency code','currency rate','pos currency','valuta','valutakode','kurs')),
-			array('key' => 'brugere',          'group' => 'users', 'url' => 'usersRoles.php',               'category' => 'users',   'textId' => 5549,
+			array('key' => 'brugere',          'group' => 'users', 'url' => 'usersRoles.php',               'category' => 'users',   'textId' => 'roles.people.title|Brugere & ansatte',
+				'primaryKeywords' => array('invitation', 'invitér', 'invite', 'medarbejder', 'ansat', 'login'),
 				'keywords' => array('user','users','user permissions','access rights','user rights','password','change password','two factor authentication','2fa','sms code','auditor','accountant','revisor','revisoradgang','employee link','ip address restriction','allowed ip','user roles','delete user','add user','new user','brugernavn','rettigheder','adgangskode','brukere','brukernavn','passord','tilgangsrettigheter',
-					'brugere','ansatte','medarbejdere','medarbeidere','personer','people','staff','employees','tilføj person','add person','stamdata','initialer','login og rolle','brugere & roller','users & roles','brukere & roller')),
+					'brugere','ansatte','medarbejdere','medarbeidere','personer','people','staff','employees','tilføj person','add person','stamdata','initialer','login og rolle','brugere & roller','users & roles','brukere & roller','invitation','invitér','inviter','invite','invitasjon')),
 			array('key' => 'roller',           'group' => 'users', 'url' => 'usersRoles.php?tab=roles',     'category' => 'users',   'textId' => 5550, 'permission' => 'settings.roles.manage', 'newInHub' => true,
-				'keywords' => array('roles','role','roller','rolle','ny rolle','kopiér','standardrolle','nulstil til standard','sæt alle til skriv','sæt alle til læs','farlige funktioner','administrator','bogholder','revisor')),
-			array('key' => 'audit_log',        'group' => 'users', 'url' => 'usersRoles.php?tab=log',       'category' => 'users',   'textId' => 5796, 'permission' => 'settings.audit.read', 'newInHub' => true,
+				'primaryKeywords' => array('rettigheder', 'adgang', 'tilladelser', 'brugerrolle', 'permissions', 'access', 'tilgang', 'rettigheter'),
+				'keywords' => array('roles','role','roller','rolle','ny rolle','kopiér','standardrolle','nulstil til standard','sæt alle til skriv','sæt alle til læs','farlige funktioner','administrator','bogholder','revisor','rettigheder','adgang','tilladelser','brugerrolle','permissions','access','tilgang','rettigheter')),
+			array('key' => 'audit_log',        'group' => 'users', 'url' => 'usersRoles.php?tab=log',       'category' => 'users',   'textId' => 'roles.activity.title|Aktivitetslog', 'permission' => 'settings.audit.read', 'newInHub' => true,
 				'keywords' => array('audit log','audit-log','log','revisjonslogg','handling','hændelser','login og logud','sessioner','rettigheder og sikkerhed','eksportér csv','export csv','håndhævelse','ville være afvist')),
 			array('key' => 'regnskabsaar',     'group' => 'company', 'url' => 'settingsSection.php?s=company.fiscal_years', 'section' => 'company.fiscal_years', 'category' => 'finance', 'textId' => 778,
 				'keywords' => array('fiscal year','financial year','accounting year','start month','end month','close year','closed year','delete fiscal year','active fiscal year','set active year','create fiscal year','regnskabsår','regnskapsår')),
 			array('key' => 'stamkort',         'group' => 'company', 'url' => 'settingsSection.php?s=company.data', 'section' => 'company.data', 'category' => 'company', 'textId' => 779,
 				'keywords' => array('company info','company profile','company name','company address','vat number','tax id','cvr number','bank details','bank account','gdpr agreement','data processing agreement','contact person','phone number','mobile number','employee list','firmanavn','bankoplysninger','databehandleraftale','kontaktperson')),
 			array('key' => 'konto',            'group' => 'company', 'url' => 'settingsSection.php?s=company.account', 'section' => 'company.account', 'category' => 'company', 'textId' => 6630, 'visibilityRule' => 'hosted',
-				'keywords' => array('abonnement', 'konto', 'regnskabets navn', 'skift navn', 'nulstil regnskab', 'slet regnskab', 'farezone', 'reset', 'delete ledger')),
+				'keywords' => array('abonnement', 'konto', 'regnskabets navn', 'skift navn', 'slet regnskab', 'farezone', 'delete ledger')),
 			array('key' => 'gdpr',             'group' => 'company', 'url' => 'settingsSection.php?s=company.gdpr', 'section' => 'company.gdpr', 'category' => 'company', 'textId' => 7737,
 				'keywords' => array('gdpr', 'persondata', 'personal data', 'inaktive kunder', 'inactive customers', 'oprydning')),
-			array('key' => 'ansatte',          'group' => 'organisation', 'url' => 'settingsSection.php?s=organisation.employees', 'section' => 'organisation.employees', 'category' => 'company', 'textId' => 5549, 'renamedFrom' => 1262, 'searchHideIf' => 'users',
+			array('key' => 'ansatte',          'group' => 'organisation', 'url' => 'settingsSection.php?s=organisation.employees', 'section' => 'organisation.employees', 'category' => 'company', 'textId' => 'roles.people.title|Brugere & ansatte', 'renamedFrom' => 1262, 'searchHideIf' => 'users',
 				'keywords' => array('employee record','staff record','new employee','edit employee','employee number','employee name','employee address','employee email','employee phone','employee mobile','salary','payroll','extra salary','cpr number','social security number','initials','pos code','employee department','employee background','employee language','employee bank account','employee notes','employee start date','employee end date','terminate employee','close employee','ansatte','løn','cprnr','initialer','startdato','slutdato','lønn','medarbejdere','medarbeidere','staff','personer','people')),
 			array('key' => 'ekstra_felter',    'group' => 'organisation', 'url' => 'settingsSection.php?s=organisation.employees&sub=general', 'category' => 'company', 'textId' => 6611, 'page' => true, 'newInHub' => true, 'searchGroup' => 5536,
 				'keywords' => array('ekstra felter', 'extra fields', 'ekstra felt', 'tilføj ekstra felter på ansatte', 'stamkort', 'diverse valg')),
@@ -151,7 +156,7 @@ if (!function_exists('getSettingsRegistry')) {
 			array('key' => 'diverse_overview',      'group' => '', 'url' => 'diverse.php',                              'category' => 'diverse', 'textId' => 782,
 				'keywords' => array('miscellaneous settings','other settings','diverse indstillinger')),
 			array('key' => 'kontoindstillinger',    'group' => 'company', 'url' => 'diverse.php?sektion=kontoindstillinger',   'category' => 'diverse', 'textId' => 783,
-				'keywords' => array('account settings','company settings','system settings','rename account','rename company','company name change','base currency','system currency','timezone','time zone','max users','user limit','number of users','reset account data','wipe all data','delete account','close account','terminate account','regnskabsnavn','tidszone','nulstil regnskab','slet regnskab','antal brugere','kontoinnstillinger','sort by phone number','postings last 12 months','keep customers and suppliers on reset','keep products on reset','reset account confirmation','backup before reset warning','5 year backup retention','bookkeeping law backup')),
+				'keywords' => array('account settings','company settings','system settings','rename account','rename company','company name change','base currency','system currency','timezone','time zone','max users','user limit','number of users','delete account','close account','terminate account','regnskabsnavn','tidszone','slet regnskab','antal brugere','kontoinnstillinger','sort by phone number','postings last 12 months','5 year backup retention','bookkeeping law backup')),
 			array('key' => 'provision',             'group' => 'organisation', 'url' => 'settingsSection.php?s=organisation.commission', 'section' => 'organisation.commission', 'category' => 'diverse', 'textId' => 657,
 				'keywords' => array('commission report settings','commission calculation','sales commission','provisionsrapport','provision','provisjonsberegning','provisjon',
 					'commission basis','invoiced or paid commission','commission source person','customer responsible person commission','reference person commission','cost price source for commission','purchase price commission','product card cost price commission','cutoff date commission calculation', 'default commission rate', 'show commission on item card', 'standard provisionssats')),

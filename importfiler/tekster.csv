@@ -5310,7 +5310,6 @@
 7643	linjen	the line	linjen
 5438	Dokumentet kunne ikke slettes	The document could not be deleted	Dokumentet kunne ikke slettes
 5442	Lagertallet blev ikke opdateret i webshoppen for	The stock level was not updated in the webshop for	Lagernivået ble ikke oppdatert i nettbutikken for
-
 5443	Webshopopdateringen afventer og forsøges automatisk igen ved næste lageropdatering for	The webshop update is pending and will be retried automatically on the next stock update for	Nettbutikkoppdateringen venter og forsøkes automatisk igjen ved neste lageroppdatering for
 5500	Personlige indstillinger	Personal settings	Personlige innstillinger
 5501	Hvem er online	Who is online	Hvem er pålogget
@@ -6292,10 +6291,10 @@
 6491	Lagerført	Stock-managed	Lagerført
 6492	Batchkontrol	Batch control	Batchkontroll
 6493	Operation (Sager/løn)	Operation (cases/payroll)	Operasjon (saker/lønn)
-6494	Alt. varekøbskonto i EU (lagerværdi)	Alt. purchase account in the EU (stock value)	Alt. varekjøpskonto i EU (lagerverdi)
-6495	Alt. varekøbskonto uden for EU (lagerværdi)	Alt. purchase account outside the EU (stock value)	Alt. varekjøpskonto utenfor EU (lagerverdi)
-6496	Ekstra varekøbskonto til beregning af lagerværdi. Hed tidligere "Køb i EU".	Extra purchase account for the stock value. Formerly "Køb i EU".	Ekstra varekjøpskonto for lagerverdi. Het tidligere "Køb i EU".
-6497	Ekstra varekøbskonto til beregning af lagerværdi. Hed tidligere "Køb uden for EU".	Extra purchase account for the stock value. Formerly "Køb uden for EU".	Ekstra varekjøpskonto for lagerverdi. Het tidligere "Køb uden for EU".
+6494	Alt. varekøbskonto i EU	Alt. purchase account in the EU	Alt. varekjøpskonto i EU
+6495	Alt. varekøbskonto uden for EU	Alt. purchase account outside the EU	Alt. varekjøpskonto utenfor EU
+6496	Bruges i stedet for Varekøb, når leverandøren har et CVR-nr. i et andet EU-land. Hed tidligere "Køb i EU".	Used instead of Purchases when the supplier has a VAT number in another EU country. Formerly "Køb i EU".	Brukes i stedet for Varekjøp når leverandøren har et org.nr. i et annet EU-land. Het tidligere "Køb i EU".
+6497	Bruges i stedet for Varekøb, når leverandøren har et CVR-nr. uden for EU. Hed tidligere "Køb uden for EU".	Used instead of Purchases when the supplier has a VAT number outside the EU. Formerly "Køb uden for EU".	Brukes i stedet for Varekjøp når leverandøren har et org.nr. utenfor EU. Het tidligere "Køb uden for EU".
 6498	Batchkontrol kræver lagerførte varer	Batch control requires stock-managed items	Batchkontroll krever lagerførte varer
 6499	Lagertilgang og lagertræk udfyldes begge eller ingen af dem	Stock in and stock out are both filled in or neither	Lagertilgang og lageruttak fylles begge ut eller ingen av dem
 6500	S.moms grp skal udfyldes, når OB er afmærket	S.VAT group is required when reverse charge is ticked	S.mva-gruppe må fylles ut når OB er avmerket
@@ -6428,7 +6427,7 @@
 6628	Den formularbaggrund, brugeren udskriver med.	The form background the user prints with.	Skjemabakgrunnen brukeren skriver ut med.
 6629	Rækkefølgen bruges i lister over medarbejdere.	The order is used in lists of employees.	Rekkefølgen brukes i lister over medarbeidere.
 6630	Abonnement & konto	Subscription & account	Abonnement og konto
-6631	Regnskabets navn og farezonen: nulstil eller slet regnskabet	The ledger's name and the danger zone: reset or delete the ledger	Regnskapets navn og faresonen: nullstill eller slett regnskapet
+6631	Regnskabets navn og farezonen: slet regnskabet	The ledger's name and the danger zone: delete the ledger	Regnskapets navn og faresonen: slett regnskapet
 6632	Regnskab	Ledger	Regnskap
 6633	Farezone	Danger zone	Faresone
 6634	Handlingerne her kan ikke fortrydes. De kræver din adgangskode og logges.	These actions cannot be undone. They require your password and are logged.	Handlingene her kan ikke angres. De krever passordet ditt og logges.
@@ -6954,7 +6953,6 @@
 7168	Kontakt-telefon til kunder	Contact phone for customers	Kontakttelefon til kunder
 7169	Vises på betalingssiden. Tom = intet telefonnummer.	Shown on the payment page. Empty = no phone number.	Vises på betalingssiden. Tom = intet telefonnummer.
 7170	Kontakt-e-mail afvist: ugyldig e-mailadresse (IKKE gemt)	Contact e-mail rejected: invalid e-mail address (NOT saved)	Kontakt-e-post avvist: ugyldig e-postadresse (IKKE lagret)
-
 7600	Ikke forfalden	Not yet due	Ikke forfalt
 7601	%s valgte konti blev sprunget over, fordi de ikke har et positivt forfaldent beløb.	%s selected accounts were skipped because they have no positive overdue balance.	%s valgte kontoer ble hoppet over fordi de ikke har et positivt forfalt beløp.
 7602	Din browser blokerede vinduet. Klik her for at åbne resultatet.	Your browser blocked the window. Click here to open the result.	Nettleseren din blokkerte vinduet. Klikk her for å åpne resultatet.
@@ -7016,6 +7014,76 @@
 8417	Af	By	Av
 8418	Aktuelle sager	Current projects	Aktuelle saker
 8419	Alle sager	All projects	Alle saker
+8420	Beløb og summer er ikke opdateret, før sedlen er gemt med dato.	Amounts and totals are not updated until the slip is saved with a date.	Beløp og summer er ikke oppdatert før seddelen er lagret med dato.
+8421	Fejl i brugernavn eller adgangskode	Wrong username or password	Feil brukernavn eller passord
+8422	Brugeren %s er allerede logget ind.	The user %s is already logged in.	Brukeren %s er allerede logget inn.
+8423	Vil du fortsætte?	Do you want to continue?	Vil du fortsette?
+8424	Max antal samtidige brugere (%s) er overskredet	Maximum number of simultaneous users (%s) exceeded	Maks antall samtidige brukere (%s) er overskredet
+8425	Aktive brugere:	Active users:	Aktive brukere:
+8426	Vælg en bruger at logge ud:	Select a user to log out:	Velg en bruker som skal logges ut:
+8427	Sidst aktiv	Last active	Sist aktiv
+8428	Log ud og fortsæt	Log out and continue	Logg ut og fortsett
+8429	Regnskab %s findes ikke	Account %s does not exist	Regnskap %s finnes ikke
+8430	Midlertidig adgangskode udløbet	Temporary password expired	Midlertidig passord er utløpt
+8431	Regnskabet er lukket. Ring %s for genåbning	The account is closed. Call %s to reopen it	Regnskapet er stengt. Ring %s for gjenåpning
+8432	Din IP-adresse er ikke godkendt til at logge ind.	Your IP address is not approved for logging in.	IP-adressen din er ikke godkjent for innlogging.
+8433	Din session er udløbet - du skal logge ind igen	Your session has expired - please log in again	Økten din er utløpt - du må logge inn igjen
+8434	Regnskabet er lukket	The account is closed	Regnskapet er stengt
+8435	Glemt kode	Forgot password	Glemt passord
+8436	Regnskab %s ikke fundet	Account %s not found	Regnskap %s ikke funnet
+8437	Hverken bruger %s eller regnskab %s er tilknyttet en mailadresse	Neither user %s nor account %s is linked to an email address	Verken bruker %s eller regnskap %s er knyttet til en e-postadresse
+8438	Brugernavnet %s findes ikke i regnskabet %s!\n Lad feltet være tomt for at få sendt en liste over oprettede brugere	The username %s does not exist in the account %s!\n Leave the field empty to receive a list of the users that have been created	Brukernavnet %s finnes ikke i regnskapet %s!\n La feltet stå tomt for å få tilsendt en liste over opprettede brukere
+8439	Skriv navn på regnskab, dit brugernavn og klik send, så vil det blive sendt en mail med en midlertidig adgangskode til den mailadresse som hører til brugernavnet.<br><br>Er det ikke tilknyttet en mail til brugernavnet, sendes mailen til den mailadresse der er registreret på regnskabet.<br><br>Har du glemt navnet på regnskabet, skal du skrive din mailadresse i feltet "Brugernavn" og klikke på send, så bliver navn på det regnskab som er knyttet til mailadressen sendt sammen med brugernavn til mailadressen.<br><br>Har du glemt dit brugernavn, så skriv navnet på dit regnskab i feltet "Regnskab" og der vil blive sendt en liste over brugere til den mail som er knyttet til regnskabet.	Enter the name of the account and your username and click Send. A mail with a temporary password is then sent to the email address that belongs to the username.<br><br>If no email address is linked to the username, the mail is sent to the email address registered on the account.<br><br>If you have forgotten the name of the account, enter your email address in the "Username" field and click Send. The name of the account linked to that email address is then sent to it together with the username.<br><br>If you have forgotten your username, enter the name of your account in the "Account" field, and a list of users is sent to the email address linked to the account.	Skriv inn navnet på regnskapet og brukernavnet ditt og klikk Send. Da sendes en e-post med et midlertidig passord til e-postadressen som hører til brukernavnet.<br><br>Hvis ingen e-postadresse er knyttet til brukernavnet, sendes e-posten til e-postadressen som er registrert på regnskapet.<br><br>Hvis du har glemt navnet på regnskapet, skriver du e-postadressen din i feltet "Brukernavn" og klikker Send. Da sendes navnet på regnskapet som er knyttet til e-postadressen, sammen med brukernavnet til e-postadressen.<br><br>Hvis du har glemt brukernavnet ditt, skriver du navnet på regnskapet ditt i feltet "Regnskap", så sendes en liste over brukere til e-postadressen som er knyttet til regnskapet.
+8440	Et %s regnskab	A %s account	Et %s regnskap
+8441	Op til venstre	Top left	Opp til venstre
+8442	Op til højre	Top right	Opp til høyre
+8443	Ned til venstre	Bottom left	Ned til venstre
+8444	Ned til højre	Bottom right	Ned til høyre
+8445	Hjælpetekst til siden	Help text for this page	Hjelpetekst til siden
+8446	PDF-udskriften kunne ikke oprettes. Kontakt support.	The PDF printout could not be created. Contact support.	PDF-utskriften kunne ikke opprettes. Kontakt support.
+8447	PDF-filen kunne ikke oprettes eller er ikke længere tilgængelig. Dan udskriften igen.	The PDF file could not be created or is no longer available. Generate the printout again.	PDF-filen kunne ikke opprettes eller er ikke lenger tilgjengelig. Lag utskriften på nytt.
+8448	Udskriftsvalg	Print options	Utskriftsvalg
+8449	BCC til	BCC to	BCC til
+8450	Fejl i afsendelse til	Error sending to	Feil ved sending til
+8451	Medarbejdernummer eksisterer i forvejen	Employee number already exists	Ansattnummer eksisterer allerede
+8452	Medarbejder skal have et navn	Employee must have a name	Ansatt må ha et navn
+8456	DB	CM	DB
+8457	Nt/Bt	Net/Gross	Nt/Bt
+8458	CVR-opslag vil overskrive eksisterende felter. Vil du opdatere?	The VAT lookup will overwrite existing fields. Do you want to update them?	Oppslaget vil overskrive eksisterende felt. Vil du oppdatere dem?
+8459	Nej, behold nuværende	No, keep current	Nei, behold nåværende
+8460	Ja, opdater	Yes, update	Ja, oppdater
+8461	Dyrtidssedler uden dato	Premium time slips without a date	Dyrtidssedler uten dato
+8462	Akkordafregningen kan ikke overføres, før sedlerne har en dato. En overført seddel skal først afvises af en godkender.	The piecework settlement cannot be transferred until the slips have a date. A transferred slip must first be rejected by an approver.	Akkordoppgjøret kan ikke overføres før sedlene har en dato. En overført seddel må først avvises av en godkjenner.
+8463	Du har skiftet regnskab fra %s til %s, handling afbrudt	You switched account from %s to %s, the action was cancelled	Du har byttet regnskap fra %s til %s, handlingen ble avbrutt
+8464	Du har logget ud - vinduet lukkes	You have logged out - the window will close	Du har logget ut - vinduet lukkes
+8465	Du har ikke nogen rettigheder her - din aktivitet er blevet logget	You do not have access here - your activity has been logged	Du har ingen rettigheter her - aktiviteten din er logget
+8466	Midlertidig adgangskode til Saldi	Temporary password for Saldi	Midlertidig passord til Saldi
+8467	Kære %s	Dear %s	Kjære %s
+8468	I dag den %s kl. %s er der blevet rekvireret en midlertidig adgangskode til brugeren %s i regnskabet %s	Today, %s at %s, a temporary password was requested for the user %s in the account %s	I dag den %s kl. %s ble det bedt om et midlertidig passord til brukeren %s i regnskapet %s
+8469	I dag den %s kl. %s er der blevet rekvireret en midlertidig adgangskode til regnskabet %s	Today, %s at %s, a temporary password was requested for the account %s	I dag den %s kl. %s ble det bedt om et midlertidig passord til regnskapet %s
+8470	Indtil den %s kl. %s kan anvendes adgangskoden: %s	Until %s at %s you can use the password: %s	Frem til %s kl. %s kan dette passordet brukes: %s
+8471	Efter login kan adgangskoden ændres under "Indstillinger -> Brugere"	After logging in you can change the password under "Settings -> Users"	Etter innlogging kan passordet endres under "Innstillinger -> Brukere"
+8472	Brugerliste til regnskabet %s	User list for the account %s	Brukerliste for regnskapet %s
+8473	I dag den %s kl. %s er der blevet rekvireret en brugerliste til regnskabet %s	Today, %s at %s, a user list was requested for the account %s	I dag den %s kl. %s ble det bedt om en brukerliste for regnskapet %s
+8474	Brugerne er: %s.	The users are: %s.	Brukerne er: %s.
+8475	Saldi regnskab	Saldi account	Saldi-regnskap
+8476	I dag den %s kl. %s er der blevet rekvireret en liste over regnskaber tilknyttet %s	Today, %s at %s, a list of the accounts linked to %s was requested	I dag den %s kl. %s ble det bedt om en liste over regnskap knyttet til %s
+8477	%s et tilknyttet : %s.	%s is linked to: %s.	%s er knyttet til: %s.
+8478	God fornøjelse fra dit Saldi team	Best regards from your Saldi team	Hilsen ditt Saldi-team
+8479	Slet linje %s?	Delete line %s?	Slett linje %s?
+8480	ikke lagerført	not stocked	ikke lagerført
+8481	Mangler fortsat at levere resten.	The rest is still to be delivered.	Resten mangler fortsatt å bli levert.
+8482	Mangler fortsat at modtage resten.	The rest is still to be received.	Resten mangler fortsatt å bli mottatt.
+8483	Intet leveret endnu.	Nothing delivered yet.	Ingenting levert ennå.
+8484	Intet modtaget endnu.	Nothing received yet.	Ingenting mottatt ennå.
+8485	Tidligere leveret %s på denne ordre.	Previously delivered %s on this order.	Tidligere levert %s på denne ordren.
+8486	Tidligere modtaget %s på denne ordre.	Previously received %s on this order.	Tidligere mottatt %s på denne ordren.
+8487	kr.	DKK	kr.
+8488	Vil du slette denne vare og lægge den tilbage på lager?	Do you want to delete this item and return it to stock?	Vil du slette denne varen og legge den tilbake på lager?
+8489	%s er tilknyttet: %s.	%s is linked to: %s.	%s er knyttet til: %s.
+8490	Denne seddel er overført af	This slip has been transferred by	Denne seddelen er overført av
+8530	Vælg leveringsadresse	Choose delivery address	Velg leveringsadresse
+8531	Ingen leveringsadresse	No delivery address	Ingen leveringsadresse
 7700	inkl. moms	incl. VAT	inkl. mva
 7701	Forfaldsgruppe	Due group	Forfallsgruppe
 7702	Vis færre	Show fewer	Vis færre
@@ -7140,73 +7208,527 @@
 7851	Opret næste regnskabsår under Indstillinger » Virksomhed » Regnskabsår	Create the next fiscal year under Settings » Company » Fiscal year	Opprett neste regnskapsår under Innstillinger » Virksomhet » Regnskapsår
 7852	Intet regnskabsår dækker dags dato	No fiscal year covers today's date	Ingen regnskapsår dekker dagens dato
 7853	Giv brugeren rollen %s? Den tilpassede rolle bliver liggende under Roller, så du kan skifte tilbage.	Give the user the role %s? The custom role stays under Roles, so you can switch back.	Gi brukeren rollen %s? Den tilpassede rollen blir liggende under Roller, så du kan bytte tilbake.
-8420	Beløb og summer er ikke opdateret, før sedlen er gemt med dato.	Amounts and totals are not updated until the slip is saved with a date.	Beløp og summer er ikke oppdatert før seddelen er lagret med dato.
-8421	Fejl i brugernavn eller adgangskode	Wrong username or password	Feil brukernavn eller passord
-8422	Brugeren %s er allerede logget ind.	The user %s is already logged in.	Brukeren %s er allerede logget inn.
-8423	Vil du fortsætte?	Do you want to continue?	Vil du fortsette?
-8424	Max antal samtidige brugere (%s) er overskredet	Maximum number of simultaneous users (%s) exceeded	Maks antall samtidige brukere (%s) er overskredet
-8425	Aktive brugere:	Active users:	Aktive brukere:
-8426	Vælg en bruger at logge ud:	Select a user to log out:	Velg en bruker som skal logges ut:
-8427	Sidst aktiv	Last active	Sist aktiv
-8428	Log ud og fortsæt	Log out and continue	Logg ut og fortsett
-8429	Regnskab %s findes ikke	Account %s does not exist	Regnskap %s finnes ikke
-8430	Midlertidig adgangskode udløbet	Temporary password expired	Midlertidig passord er utløpt
-8431	Regnskabet er lukket. Ring %s for genåbning	The account is closed. Call %s to reopen it	Regnskapet er stengt. Ring %s for gjenåpning
-8432	Din IP-adresse er ikke godkendt til at logge ind.	Your IP address is not approved for logging in.	IP-adressen din er ikke godkjent for innlogging.
-8433	Din session er udløbet - du skal logge ind igen	Your session has expired - please log in again	Økten din er utløpt - du må logge inn igjen
-8434	Regnskabet er lukket	The account is closed	Regnskapet er stengt
-8435	Glemt kode	Forgot password	Glemt passord
-8436	Regnskab %s ikke fundet	Account %s not found	Regnskap %s ikke funnet
-8437	Hverken bruger %s eller regnskab %s er tilknyttet en mailadresse	Neither user %s nor account %s is linked to an email address	Verken bruker %s eller regnskap %s er knyttet til en e-postadresse
-8438	Brugernavnet %s findes ikke i regnskabet %s!\n Lad feltet være tomt for at få sendt en liste over oprettede brugere	The username %s does not exist in the account %s!\n Leave the field empty to receive a list of the users that have been created	Brukernavnet %s finnes ikke i regnskapet %s!\n La feltet stå tomt for å få tilsendt en liste over opprettede brukere
-8439	Skriv navn på regnskab, dit brugernavn og klik send, så vil det blive sendt en mail med en midlertidig adgangskode til den mailadresse som hører til brugernavnet.<br><br>Er det ikke tilknyttet en mail til brugernavnet, sendes mailen til den mailadresse der er registreret på regnskabet.<br><br>Har du glemt navnet på regnskabet, skal du skrive din mailadresse i feltet "Brugernavn" og klikke på send, så bliver navn på det regnskab som er knyttet til mailadressen sendt sammen med brugernavn til mailadressen.<br><br>Har du glemt dit brugernavn, så skriv navnet på dit regnskab i feltet "Regnskab" og der vil blive sendt en liste over brugere til den mail som er knyttet til regnskabet.	Enter the name of the account and your username and click Send. A mail with a temporary password is then sent to the email address that belongs to the username.<br><br>If no email address is linked to the username, the mail is sent to the email address registered on the account.<br><br>If you have forgotten the name of the account, enter your email address in the "Username" field and click Send. The name of the account linked to that email address is then sent to it together with the username.<br><br>If you have forgotten your username, enter the name of your account in the "Account" field, and a list of users is sent to the email address linked to the account.	Skriv inn navnet på regnskapet og brukernavnet ditt og klikk Send. Da sendes en e-post med et midlertidig passord til e-postadressen som hører til brukernavnet.<br><br>Hvis ingen e-postadresse er knyttet til brukernavnet, sendes e-posten til e-postadressen som er registrert på regnskapet.<br><br>Hvis du har glemt navnet på regnskapet, skriver du e-postadressen din i feltet "Brukernavn" og klikker Send. Da sendes navnet på regnskapet som er knyttet til e-postadressen, sammen med brukernavnet til e-postadressen.<br><br>Hvis du har glemt brukernavnet ditt, skriver du navnet på regnskapet ditt i feltet "Regnskap", så sendes en liste over brukere til e-postadressen som er knyttet til regnskapet.
-8440	Et %s regnskab	A %s account	Et %s regnskap
-8441	Op til venstre	Top left	Opp til venstre
-8442	Op til højre	Top right	Opp til høyre
-8443	Ned til venstre	Bottom left	Ned til venstre
-8444	Ned til højre	Bottom right	Ned til høyre
-8445	Hjælpetekst til siden	Help text for this page	Hjelpetekst til siden
-8446	PDF-udskriften kunne ikke oprettes. Kontakt support.	The PDF printout could not be created. Contact support.	PDF-utskriften kunne ikke opprettes. Kontakt support.
-8447	PDF-filen kunne ikke oprettes eller er ikke længere tilgængelig. Dan udskriften igen.	The PDF file could not be created or is no longer available. Generate the printout again.	PDF-filen kunne ikke opprettes eller er ikke lenger tilgjengelig. Lag utskriften på nytt.
-8448	Udskriftsvalg	Print options	Utskriftsvalg
-8449	BCC til	BCC to	BCC til
-8450	Fejl i afsendelse til	Error sending to	Feil ved sending til
-8451	Medarbejdernummer eksisterer i forvejen	Employee number already exists	Ansattnummer eksisterer allerede
-8452	Medarbejder skal have et navn	Employee must have a name	Ansatt må ha et navn
-8456	DB	CM	DB
-8457	Nt/Bt	Net/Gross	Nt/Bt
-8458	CVR-opslag vil overskrive eksisterende felter. Vil du opdatere?	The VAT lookup will overwrite existing fields. Do you want to update them?	Oppslaget vil overskrive eksisterende felt. Vil du oppdatere dem?
-8459	Nej, behold nuværende	No, keep current	Nei, behold nåværende
-8460	Ja, opdater	Yes, update	Ja, oppdater
-8461	Dyrtidssedler uden dato	Premium time slips without a date	Dyrtidssedler uten dato
-8462	Akkordafregningen kan ikke overføres, før sedlerne har en dato. En overført seddel skal først afvises af en godkender.	The piecework settlement cannot be transferred until the slips have a date. A transferred slip must first be rejected by an approver.	Akkordoppgjøret kan ikke overføres før sedlene har en dato. En overført seddel må først avvises av en godkjenner.
-8463	Du har skiftet regnskab fra %s til %s, handling afbrudt	You switched account from %s to %s, the action was cancelled	Du har byttet regnskap fra %s til %s, handlingen ble avbrutt
-8464	Du har logget ud - vinduet lukkes	You have logged out - the window will close	Du har logget ut - vinduet lukkes
-8465	Du har ikke nogen rettigheder her - din aktivitet er blevet logget	You do not have access here - your activity has been logged	Du har ingen rettigheter her - aktiviteten din er logget
-8466	Midlertidig adgangskode til Saldi	Temporary password for Saldi	Midlertidig passord til Saldi
-8467	Kære %s	Dear %s	Kjære %s
-8468	I dag den %s kl. %s er der blevet rekvireret en midlertidig adgangskode til brugeren %s i regnskabet %s	Today, %s at %s, a temporary password was requested for the user %s in the account %s	I dag den %s kl. %s ble det bedt om et midlertidig passord til brukeren %s i regnskapet %s
-8469	I dag den %s kl. %s er der blevet rekvireret en midlertidig adgangskode til regnskabet %s	Today, %s at %s, a temporary password was requested for the account %s	I dag den %s kl. %s ble det bedt om et midlertidig passord til regnskapet %s
-8470	Indtil den %s kl. %s kan anvendes adgangskoden: %s	Until %s at %s you can use the password: %s	Frem til %s kl. %s kan dette passordet brukes: %s
-8471	Efter login kan adgangskoden ændres under "Indstillinger -> Brugere"	After logging in you can change the password under "Settings -> Users"	Etter innlogging kan passordet endres under "Innstillinger -> Brukere"
-8472	Brugerliste til regnskabet %s	User list for the account %s	Brukerliste for regnskapet %s
-8473	I dag den %s kl. %s er der blevet rekvireret en brugerliste til regnskabet %s	Today, %s at %s, a user list was requested for the account %s	I dag den %s kl. %s ble det bedt om en brukerliste for regnskapet %s
-8474	Brugerne er: %s.	The users are: %s.	Brukerne er: %s.
-8475	Saldi regnskab	Saldi account	Saldi-regnskap
-8476	I dag den %s kl. %s er der blevet rekvireret en liste over regnskaber tilknyttet %s	Today, %s at %s, a list of the accounts linked to %s was requested	I dag den %s kl. %s ble det bedt om en liste over regnskap knyttet til %s
-8477	%s et tilknyttet : %s.	%s is linked to: %s.	%s er knyttet til: %s.
-8478	God fornøjelse fra dit Saldi team	Best regards from your Saldi team	Hilsen ditt Saldi-team
-8479	Slet linje %s?	Delete line %s?	Slett linje %s?
-8480	ikke lagerført	not stocked	ikke lagerført
-8481	Mangler fortsat at levere resten.	The rest is still to be delivered.	Resten mangler fortsatt å bli levert.
-8482	Mangler fortsat at modtage resten.	The rest is still to be received.	Resten mangler fortsatt å bli mottatt.
-8483	Intet leveret endnu.	Nothing delivered yet.	Ingenting levert ennå.
-8484	Intet modtaget endnu.	Nothing received yet.	Ingenting mottatt ennå.
-8485	Tidligere leveret %s på denne ordre.	Previously delivered %s on this order.	Tidligere levert %s på denne ordren.
-8486	Tidligere modtaget %s på denne ordre.	Previously received %s on this order.	Tidligere mottatt %s på denne ordren.
-8487	kr.	DKK	kr.
-8488	Vil du slette denne vare og lægge den tilbage på lager?	Do you want to delete this item and return it to stock?	Vil du slette denne varen og legge den tilbake på lager?
-8489	%s er tilknyttet: %s.	%s is linked to: %s.	%s er knyttet til: %s.
-8490	Denne seddel er overført af	This slip has been transferred by	Denne seddelen er overført av
-8530	Vælg leveringsadresse	Choose delivery address	Velg leveringsadresse
-8531	Ingen leveringsadresse	No delivery address	Ingen leveringsadresse
+8700	Hjælp og Saldi AI	Help and Saldi AI	Hjelp og Saldi AI
+8701	Hjælp og Saldi AI, har et forslag til siden	Help and Saldi AI, has a suggestion for this page	Hjelp og Saldi AI, har et forslag til siden
+8702	Søg i hjælpen, eller spørg Saldi AI	Search help, or ask Saldi AI	Søk i hjelpen, eller spør Saldi AI
+8703	Om siden	About this page	Om siden
+8704	Feltet du stod i: %s	The field you were in: %s	Feltet du sto i: %s
+8705	Spørg Saldi AI om feltet	Ask Saldi AI about the field	Spør Saldi AI om feltet
+8706	Sådan gør du	How to	Slik gjør du
+8707	Vis mig	Show me	Vis meg
+8708	Vis mig: %s	Show me: %s	Vis meg: %s
+8709	Rundvisning af siden (%s trin)	Tour of the page (%s steps)	Omvisning på siden (%s trinn)
+8710	Vis mig rundt, ét trin ad gangen	Show me around, one step at a time	Vis meg rundt, ett trinn om gangen
+8711	Hvad kan jeg hjælpe med?	What can I help you with?	Hva kan jeg hjelpe deg med?
+8712	Spørg Saldi AI: »%s«	Ask Saldi AI: »%s«	Spør Saldi AI: »%s«
+8713	Spørg Saldi AI om %s	Ask Saldi AI about %s	Spør Saldi AI om %s
+8714	Kontakt support	Contact support	Kontakt support
+8715	Ring %s	Call %s	Ring %s
+8716	hverdage 9–16	weekdays 9–16	hverdager 9–16
+8717	Åbent nu, til kl. %s	Open now, until %s	Åpent nå, til kl. %s
+8718	Lukket, åbner kl. %s	Closed, opens at %s	Stengt, åpner kl. %s
+8719	Lukket, åbner i morgen kl. %s	Closed, opens tomorrow at %s	Stengt, åpner i morgen kl. %s
+8720	Lukket, åbner mandag kl. %s	Closed, opens Monday at %s	Stengt, åpner mandag kl. %s
+8721	Skriv til os	Write to us	Skriv til oss
+8722	Din besked	Your message	Din melding
+8723	Send med	Include	Send med
+8724	Sidens adresse	Page address	Sidens adresse
+8725	Send	Send	Send
+8726	Tak. Vi har fået din besked og svarer på mail, normalt samme dag.	Thank you. We have received your message and will reply by email, usually the same day.	Takk. Vi har fått meldingen din og svarer på e-post, vanligvis samme dag.
+8727	Beskeden blev ikke sendt. Prøv igen, eller ring til os.	The message was not sent. Try again, or call us.	Meldingen ble ikke sendt. Prøv igjen, eller ring oss.
+8728	Tilbage til hjælpen	Back to help	Tilbake til hjelpen
+8729	Viser: %s	Showing: %s	Viser: %s
+8730	Fastgør	Pin	Fest
+8731	Løsn	Unpin	Løsne
+8732	Hold hjælpen åben i højre side, også når du skifter side	Keep help open on the right, also when you change page	Hold hjelpen åpen til høyre, også når du bytter side
+8733	Løsn: hjælpen lukker, når du skifter side	Unpin: help closes when you change page	Løsne: hjelpen lukkes når du bytter side
+8734	Vinduet er for smalt til at vise hjælpen ved siden af. Den ligger over siden.	The window is too narrow to show help beside the page. It lies over the page.	Vinduet er for smalt til å vise hjelpen ved siden av. Den ligger over siden.
+8735	Luk hjælpen	Close help	Lukk hjelpen
+8736	Hvad får Saldi AI at vide?	What does Saldi AI get to know?	Hva får Saldi AI vite?
+8737	Det spørgsmål, du sender, og hvilken side du står på. Saldi AI kan ikke se dine posteringer eller beløb.	The question you send and which page you are on. Saldi AI cannot see your entries or amounts.	Spørsmålet du sender, og hvilken side du er på. Saldi AI kan ikke se posteringene eller beløpene dine.
+8738	Saldi AI åbner i sit eget vindue med dit spørgsmål. Det er ikke sendt endnu. Send det dér, når du er klar.	Saldi AI opens in its own window with your question. It has not been sent yet. Send it there when you are ready.	Saldi AI åpnes i sitt eget vindu med spørsmålet ditt. Det er ikke sendt ennå. Send det der når du er klar.
+8739	Saldi AI-vinduet er åbent. Skriv dit spørgsmål dér.	The Saldi AI window is open. Type your question there.	Saldi AI-vinduet er åpent. Skriv spørsmålet ditt der.
+8740	Saldi AI kan ikke svare lige nu. Du kan skrive spørgsmålet til support i stedet.	Saldi AI cannot answer right now. You can write the question to support instead.	Saldi AI kan ikke svare akkurat nå. Du kan skrive spørsmålet til support i stedet.
+8741	Skriv til support med spørgsmålet	Write to support with the question	Skriv til support med spørsmålet
+8742	Her er knappen. Der sker ikke noget, før du selv klikker.	Here is the button. Nothing happens until you click it yourself.	Her er knappen. Ingenting skjer før du klikker selv.
+8743	Her er feltet.	Here is the field.	Her er feltet.
+8744	Her står det.	It is shown here.	Her står det.
+8745	Knappen ligger bag hjælpen.	The button is behind help.	Knappen ligger bak hjelpen.
+8746	Feltet ligger bag hjælpen.	The field is behind help.	Feltet ligger bak hjelpen.
+8747	Luk (Esc)	Close (Esc)	Lukk (Esc)
+8748	Til denne side	For this page	For denne siden
+8749	Åbn hjælpen (uden for felter)	Open help (outside fields)	Åpne hjelpen (utenfor felt)
+8750	Åbn hjælpen, også i et felt	Open help, also in a field	Åpne hjelpen, også i et felt
+8751	Luk hjælpen og gå tilbage til feltet	Close help and go back to the field	Lukk hjelpen og gå tilbake til feltet
+8752	Søg i Saldi	Search Saldi	Søk i Saldi
+8753	Gå et niveau tilbage	Go back one level	Gå ett nivå tilbake
+8754	Sidens egne genveje	The page's own shortcuts	Sidens egne snarveier
+8755	Hjælp, fastgjort	Help, pinned	Hjelp, festet
+8756	Forklar mere om: %s	Tell me more about: %s	Forklar mer om: %s
+8757	Skriv til %s	Write to %s	Skriv til %s
+8758	Det ligger bag hjælpen.	It is behind help.	Det ligger bak hjelpen.
+8759	Her er linjen.	Here is the line.	Her er linjen.
+8760	Rundvisning	Tour	Omvisning
+8761	%s af %s	%s of %s	%s av %s
+8762	Luk rundvisningen	Close the tour	Lukk omvisningen
+8763	Spørg Saldi AI om dette	Ask Saldi AI about this	Spør Saldi AI om dette
+8764	Når du klikker i feltet, viser Saldi en liste, du kan vælge fra.	When you click in the field, Saldi shows a list you can choose from.	Når du klikker i feltet, viser Saldi en liste du kan velge fra.
+8765	Skriv fakturanummeret. Når du klikker i feltet, viser Saldi de åbne poster.	Type the invoice number. When you click in the field, Saldi shows the open items.	Skriv fakturanummeret. Når du klikker i feltet, viser Saldi de åpne postene.
+8766	Den opdateres, når du gemmer.	It is updated when you save.	Den oppdateres når du lagrer.
+8767	Bogfør viser først en oversigt. Der bogføres ikke noget, før du klikker Bogfør igen.	Post first shows an overview. Nothing is posted until you click Post again.	Bokfør viser først en oversikt. Ingenting bokføres før du klikker Bokfør igjen.
+8768	Laver en ny, åben kladde med de samme linjer. Sæt flueben i Vend fortegn (tilbagefør) for at vende hele kladden.	Creates a new, open journal with the same lines. Tick Flip sign (reverse) to reverse the whole journal.	Lager en ny, åpen kladd med de samme linjene. Kryss av for Vend fortegn (tilbagefør) for å snu hele kladden.
+8769	Klik på en kladde for at åbne den. Åbne kladder står øverst og bogførte nederst.	Click a journal to open it. Open journals are at the top and posted ones at the bottom.	Klikk på en kladd for å åpne den. Åpne kladder står øverst og bokførte nederst.
+8770	Skift mellem dine egne kladder og alle brugeres kladder.	Switch between your own journals and every user's journals.	Bytt mellom dine egne kladder og alle brukeres kladder.
+8771	Det spørgsmål, du sender, hvilken side du står på, og den gemte kladde eller faktura, du har åben. Saldi AI kan læse den, men ikke ændre den.	The question you send, which page you are on, and the saved journal or invoice you have open. Saldi AI can read it but not change it.	Spørsmålet du sender, hvilken side du er på, og den lagrede kladden eller fakturaen du har åpen. Saldi AI kan lese den, men ikke endre den.
+8772	Spørgsmålet sendes til den server, Saldi AI kører på.	The question is sent to the server Saldi AI runs on.	Spørsmålet sendes til serveren Saldi AI kjører på.
+8773	Luk hjælpen (træk ned)	Close help (drag down)	Lukk hjelpen (dra ned)
+8774	Taster	Keys	Taster
+8775	Koder i felterne	Codes in the fields	Koder i feltene
+8776	Overalt i Saldi	Everywhere in Saldi	Overalt i Saldi
+8777	Spørg Saldi AI	Ask Saldi AI	Spør Saldi AI
+8778	Differencen mellem debet og kredit på de gemte linjer.	The difference between debit and credit on the saved lines.	Differansen mellom debet og kredit på de lagrede linjene.
+8779	Klik her for at oprette en ny kassekladde. Linjerne kommer først på kontiene, når du bogfører kladden.	Click here to create a new cash journal. The lines only reach the accounts when you post the journal.	Klikk her for å opprette en ny kassekladd. Linjene kommer først på kontoene når du bokfører kladden.
+8780	Bilagsnummeret. Linjer med samme nummer er ét bilag. Skriv = for samme nummer som linjen over, eller - for at slette linjen.	The voucher number. Lines with the same number are one voucher. Type = for the same number as the line above, or - to delete the line.	Bilagsnummeret. Linjer med samme nummer er ett bilag. Skriv = for samme nummer som linjen over, eller - for å slette linjen.
+8781	Bilagets dato. En ny linje får datoen fra linjen over eller dags dato, så ret den til bilagets dato.	The date of the voucher. A new line gets the date of the line above or today's date, so change it to the date of the voucher.	Datoen på bilaget. En ny linje får datoen fra linjen over eller dagens dato, så rett den til datoen på bilaget.
+8782	Beløbet går fra kontoen i Kredit til kontoen i Debet. Et køb betalt med kort: udgiften i Debet og banken i Kredit.	The amount goes from the account in Credit to the account in Debit. A purchase paid by card: the expense in Debit and the bank in Credit.	Beløpet går fra kontoen i Kredit til kontoen i Debet. Et kjøp betalt med kort: utgiften i Debet og banken i Kredit.
+8783	Momskoden hentes fra kontoen. Saldi beregner momsen, når kladden bogføres.	The VAT code is taken from the account. Saldi calculates the VAT when the journal is posted.	Mva-koden hentes fra kontoen. Saldi beregner mva når kladden bokføres.
+8784	Skriv beløbet, som det står på bilaget. Med en almindelig momskode er det med moms, og Saldi trækker momsen ud.	Enter the amount as it is on the voucher. With an ordinary VAT code it includes VAT, and Saldi takes the VAT out.	Skriv beløpet slik det står på bilaget. Med en vanlig mva-kode er det med mva, og Saldi trekker mva ut.
+8785	Klik på clipsen for at sætte bilaget på linjen. Dokumentpuljen åbner, og har du ændringer, gemmer Saldi dem først.	Click the paper clip to attach the voucher to the line. The document pool opens, and if you have changes, Saldi saves them first.	Klikk på bindersen for å sette bilaget på linjen. Dokumentpuljen åpnes, og har du endringer, lagrer Saldi dem først.
+8786	Gem gemmer linjerne i kladden. Intet står på kontiene endnu.	Save saves the lines in the journal. Nothing is on the accounts yet.	Lagre lagrer linjene i kladden. Ingenting står på kontoene ennå.
+8787	Klik på et kontonummer for at åbne kontoen. En finanskonto viser posteringerne, en kunde eller leverandør viser kortet.	Click an account number to open the account. A ledger account shows the entries, a customer or supplier shows the card.	Klikk på et kontonummer for å åpne kontoen. En finanskonto viser posteringene, en kunde eller leverandør viser kortet.
+8788	Skriv dit spørgsmål med dine egne ord	Write your question in your own words	Skriv spørsmålet ditt med egne ord
+8789	Du kan spørge om alt, også det, der ikke står herunder.	You can ask about anything, also what is not listed below.	Du kan spørre om alt, også det som ikke står nedenfor.
+8790	Lær siden at kende	Get to know the page	Bli kjent med siden
+8791	Se her først	Look here first	Se her først
+8792	Send spørgsmålet	Send the question	Send spørsmålet
+8793	Hjælp til siden	Help for this page	Hjelp til siden
+8794	Tilbage til samtalen	Back to the conversation	Tilbake til samtalen
+8795	Ok	OK	OK
+8796	Ny chat	New chat	Ny chat
+8797	Start en ny samtale med Saldi AI	Start a new conversation with Saldi AI	Start en ny samtale med Saldi AI
+8820	Bestemmer, hvilke konti der tæller som omsætning i nøgletal og grafer. Lad felterne stå tomme, så bruger Saldi kontiene for nettoomsætning i din kontoplan.	Decides which accounts count as revenue in key figures and charts. Leave the fields empty, and Saldi uses the net revenue accounts in your chart of accounts.	Bestemmer hvilke kontoer som teller som omsetning i nøkkeltall og grafer. La feltene stå tomme, så bruker Saldi kontoene for nettoomsetning i kontoplanen din.
+8821	Automatisk: %s fra din kontoplan	Automatic: %s from your chart of accounts	Automatisk: %s fra kontoplanen din
+8822	Automatisk: %s. Din kontoplan har ingen sumkonto for nettoomsætning, så vælg kontiene selv.	Automatic: %s. Your chart of accounts has no net revenue total account, so choose the accounts yourself.	Automatisk: %s. Kontoplanen din har ingen sumkonto for nettoomsetning, så velg kontoene selv.
+8823	Skriv kontonummeret med tal, eller lad feltet stå tomt for automatisk.	Enter the account number in digits, or leave the field empty for automatic.	Skriv kontonummeret med tall, eller la feltet stå tomt for automatisk.
+8824	Fra kontonr. må ikke være større end Til kontonr.	From account no. must not be greater than To account no.	Fra kontonr. kan ikke være større enn Til kontonr.
+8825	Spørgsmål om %s	Questions about %s	Spørsmål om %s
+8826	Spørg Saldi AI om mere	Ask Saldi AI for more	Spør Saldi AI om mer
+8827	Flere spørgsmål om siden	More questions about this page	Flere spørsmål om siden
+9000	i dag	today	i dag
+9001	i morgen	tomorrow	i morgen
+9002	i går	yesterday	i går
+9003	for %s dage siden	%s days ago	for %s dager siden
+9004	%s kr	DKK %s	%s kr
+9005	Ingen status	No status	Ingen status
+9006	Dig	You	Deg
+9007	dig	you	deg
+9008	Note	Note	Notat
+9009	Opkald	Call	Samtale
+9010	Mail	Email	E-post
+9011	Møde	Meeting	Møte
+9012	Status	Status	Status
+9013	Sag	Case	Sak
+9014	Kunne ikke gemme (%s). Prøv igen.	Could not save (%s). Please try again.	Kunne ikke lagre (%s). Prøv igjen.
+9015	Opfølgning	Follow-up	Oppfølging
+9016	%s forsinket	%s overdue	%s forsinket
+9017	Sager	Cases	Saker
+9018	Kalender	Calendar	Kalender
+9019	Kunder	Customers	Kunder
+9020	Aktivitet	Activity	Aktivitet
+9021	Forsinket	Overdue	Forsinket
+9022	I dag	Today	I dag
+9023	I morgen	Tomorrow	I morgen
+9024	Resten af ugen	Rest of the week	Resten av uken
+9025	Næste uge	Next week	Neste uke
+9026	Senere	Later	Senere
+9027	Markér som ikke gjort	Mark as not done	Merk som ikke gjort
+9028	Markér som gjort	Mark as done	Merk som gjort
+9029	Gjort	Done	Gjort
+9030	Udsæt	Postpone	Utsett
+9031	Åbn	Open	Åpne
+9032	Kunde · kontakt	Customer · contact	Kunde · kontakt
+9033	Ansvarlig	Owner	Ansvarlig
+9034	Dato	Date	Dato
+9035	Ingen åbne opfølgninger	No open follow-ups	Ingen åpne oppfølginger
+9036	Prøv at fjerne filtrene.	Try removing the filters.	Prøv å fjerne filtrene.
+9037	Opret en med »Ny opfølgning« eller fra en kunde.	Create one with “New follow-up” or from a customer.	Opprett en med «Ny oppfølging» eller fra en kunde.
+9038	Skjul %s gjort de sidste 14 dage	Hide %s done in the last 14 days	Skjul %s gjort de siste 14 dagene
+9039	Vis %s gjort de sidste 14 dage	Show %s done in the last 14 days	Vis %s gjort de siste 14 dagene
+9040	Alle statusser	All statuses	Alle statuser
+9041	ny	new	ny
+9042	%s år	%s yr	%s år
+9043	%s d	%s d	%s d
+9044	%s åbne sager	%s open cases	%s åpne saker
+9045	Ingen opfølgning	No follow-up	Ingen oppfølging
+9046	I %s siden %s	In %s since %s	I %s siden %s
+9047	Ingen statusser at vise	No statuses to show	Ingen statuser å vise
+9049	%s kunder	%s customers	%s kunder
+9050	åbne sager %s	open cases %s	åpne saker %s
+9051	%s med forsinket opfølgning	%s with an overdue follow-up	%s med forsinket oppfølging
+9052	%s uden opfølgning	%s without a follow-up	%s uten oppfølging
+9053	Statusgruppe	Status group	Statusgruppe
+9054	Vundet	Won	Vunnet
+9055	Tabt	Lost	Tapt
+9056	Ny opfølgning %s	New follow-up %s	Ny oppfølging %s
+9057	+%s mere	+%s more	+%s til
+9058	Uge %s	Week %s	Uke %s
+9059	Forrige	Previous	Forrige
+9060	Næste	Next	Neste
+9061	Åben	Open	Åpen
+9062	Træk for at flytte	Drag to move	Dra for å flytte
+9063	Måned	Month	Måned
+9064	Uge	Week	Uke
+9065	Alle	All	Alle
+9066	Uden gruppe	No group	Uten gruppe
+9067	Alle i %s	All in %s	Alle i %s
+9068	Kunde	Customer	Kunde
+9069	Kontaktperson	Contact person	Kontaktperson
+9070	Seneste kontakt	Last contact	Siste kontakt
+9071	Næste opfølgning	Next follow-up	Neste oppfølging
+9072	Omsætning i år	Revenue this year	Omsetning i år
+9073	Ingen	None	Ingen
+9074	Ingen kunder	No customers	Ingen kunder
+9075	Ingen kunder matcher filtrene.	No customers match the filters.	Ingen kunder samsvarer med filtrene.
+9077	Opfølgning %s · gjort	Follow-up %s · done	Oppfølging %s · gjort
+9078	Opfølgning %s	Follow-up %s	Oppfølging %s
+9079	Ukendt	Unknown	Ukjent
+9080	Ret	Edit	Rediger
+9081	Slet	Delete	Slett
+9082	I går	Yesterday	I går
+9083	Ingen aktivitet	No activity	Ingen aktivitet
+9084	Ingen henvendelser matcher filtrene.	No entries match the filters.	Ingen henvendelser samsvarer med filtrene.
+9085	Om 1 uge	In 1 week	Om 1 uke
+9086	Om 2 uger	In 2 weeks	Om 2 uker
+9087	Om 1 måned	In 1 month	Om 1 måned
+9088	med	with	med
+9089	(ingen)	(none)	(ingen)
+9090	Hvad blev der talt om?	What was discussed?	Hva ble det snakket om?
+9091	Vælg dato	Choose date	Velg dato
+9092	til	for	til
+9093	mig	me	meg
+9094	Markér opfølgningen fra %s som gjort	Mark the follow-up from %s as done	Merk oppfølgingen fra %s som gjort
+9095	Gem	Save	Lagre
+9096	Kunde %s	Customer %s	Kunde %s
+9097	ansvarlig: %s	owner: %s	ansvarlig: %s
+9098	Luk (Esc)	Close (Esc)	Lukk (Esc)
+9099	Opret sag	Create case	Opprett sak
+9100	Opret tilbud	Create quote	Opprett tilbud
+9101	Opret ordre	Create order	Opprett ordre
+9102	Debitorkort	Customer card	Kundekort
+9103	Jobkort	Job card	Jobbkort
+9104	Kunde siden	Customer since	Kunde siden
+9105	Åbne poster	Open items	Åpne poster
+9106	%s forfalden	%s overdue	%s forfalt
+9107	Historik	History	Historikk
+9108	Sager og ordrer	Cases and orders	Saker og ordrer
+9109	Kontaktpersoner	Contact persons	Kontaktpersoner
+9110	forsinket	overdue	forsinket
+9111	Ingen historik endnu	No history yet	Ingen historikk ennå
+9112	Skriv den første note ovenfor.	Write the first note above.	Skriv det første notatet ovenfor.
+9113	Ny note	New note	Nytt notat
+9114	Ingen kontaktpersoner	No contact persons	Ingen kontaktpersoner
+9115	+ Tilføj kontaktperson på debitorkortet	+ Add a contact person on the customer card	+ Legg til kontaktperson på kundekortet
+9116	forventet lukket %s	expected to close %s	forventet lukket %s
+9117	Vundet %s	Won %s	Vunnet %s
+9118	Tabt %s	Lost %s	Tapt %s
+9119	Ingen sager	No cases	Ingen saker
+9120	+ Ny sag	+ New case	+ Ny sak
+9121	Åbne tilbud og ordrer	Open quotes and orders	Åpne tilbud og ordrer
+9122	delvist leveret	partly delivered	delvis levert
+9123	sag: %s	case: %s	sak: %s
+9124	Ingen åbne tilbud eller ordrer.	No open quotes or orders.	Ingen åpne tilbud eller ordrer.
+9125	+ Opret tilbud	+ Create quote	+ Opprett tilbud
+9126	+ Opret ordre	+ Create order	+ Opprett ordre
+9127	Tilbud kan ikke oprettes, fordi »Anvend hurtigfakturering« er slået til (Indstillinger → Ordrer).	Quotes cannot be created because “Use fast invoicing” is on (Settings → Orders).	Tilbud kan ikke opprettes fordi «Bruk hurtigfakturering» er slått på (Innstillinger → Ordrer).
+9128	Gemt	Saved	Lagret
+9129	opfølgning %s	follow-up %s	oppfølging %s
+9130	forrige opfølgning markeret som gjort	previous follow-up marked as done	forrige oppfølging merket som gjort
+9131	Søg kunde, kundenummer eller kontaktperson	Search customer, customer number or contact person	Søk kunde, kundenummer eller kontaktperson
+9132	Opret kunden under Debitor → Konti.	Create the customer under Customers → Accounts.	Opprett kunden under Kunder → Kontoer.
+9133	Ny opfølgning	New follow-up	Ny oppfølging
+9134	Vælg kunden – du kan også søge på kontaktperson eller kundenummer.	Choose the customer – you can also search by contact person or customer number.	Velg kunden – du kan også søke på kontaktperson eller kundenummer.
+9135	Skift kunde	Change customer	Bytt kunde
+9136	Faktura %s	Invoice %s	Faktura %s
+9137	Tilbud %s	Quote %s	Tilbud %s
+9138	Ordre %s	Order %s	Ordre %s
+9139	faktureret	invoiced	fakturert
+9140	ordre	order	ordre
+9141	tilbud	quote	tilbud
+9142	Brug beløbet fra tilbuddet: %s	Use the amount from the quote: %s	Bruk beløpet fra tilbudet: %s
+9143	Brug beløbet fra ordren: %s	Use the amount from the order: %s	Bruk beløpet fra ordren: %s
+9144	Ordren er faktureret – markér sagen som vundet	The order is invoiced – mark the case as won	Ordren er fakturert – merk saken som vunnet
+9145	Intet tilbud eller ordre til sagen endnu	No quote or order for this case yet	Ingen tilbud eller ordre til saken ennå
+9146	Ret sag	Edit case	Rediger sak
+9147	Ny sag	New case	Ny sak
+9148	Titel	Title	Tittel
+9149	Fx Saldi Plus, 3 brugere	E.g. Saldi Plus, 3 users	F.eks. Saldi Plus, 3 brukere
+9151	Forventet lukket	Expected close	Forventet lukket
+9152	Stadie	Stage	Fase
+9153	Mig	Me	Meg
+9154	Slet sag	Delete case	Slett sak
+9155	Annullér	Cancel	Avbryt
+9157	vundet	won	vunnet
+9158	tabt	lost	tapt
+9159	Sagen er gemt	The case is saved	Saken er lagret
+9160	Sag oprettet i %s	Case created in %s	Sak opprettet i %s
+9161	Hvilken kunde gælder sagen?	Which customer is the case for?	Hvilken kunde gjelder saken?
+9162	Pris	Price	Pris
+9163	Valgte en konkurrent	Chose a competitor	Valgte en konkurrent
+9164	Intet behov	No need	Intet behov
+9165	Forkert tidspunkt	Wrong timing	Feil tidspunkt
+9166	Ingen svar	No reply	Ikke noe svar
+9167	Hvorfor blev »%s« tabt?	Why was “%s” lost?	Hvorfor ble «%s» tapt?
+9168	Valgfrit. Over tid viser det, hvorfor I taber sager.	Optional. Over time it shows why you lose cases.	Valgfritt. Over tid viser det hvorfor dere taper saker.
+9169	Bemærkning	Remark	Merknad
+9170	Spring over	Skip	Hopp over
+9171	Markér som tabt	Mark as lost	Merk som tapt
+9172	Ret %s fra %s	Edit %s from %s	Rediger %s fra %s
+9173	Type	Type	Type
+9174	Med	With	Med
+9175	Noten er rettet	The note is updated	Notatet er endret
+9176	Slet %s fra %s?	Delete %s from %s?	Slette %s fra %s?
+9177	Slettet	Deleted	Slettet
+9178	%s markeret som gjort	%s marked as done	%s merket som gjort
+9179	%s er åben igen	%s is open again	%s er åpen igjen
+9180	Om 2 dage	In 2 days	Om 2 dager
+9181	Næste mandag	Next Monday	Neste mandag
+9182	Udsat til %s	Postponed to %s	Utsatt til %s
+9183	ingen status	no status	ingen status
+9184	Opfølgning om 1 uge	Follow-up in 1 week	Oppfølging om 1 uke
+9185	Følg op – %s	Follow up – %s	Følg opp – %s
+9186	Opfølgning sat til %s	Follow-up set to %s	Oppfølging satt til %s
+9187	Sæt %s som %s	Set %s to %s	Sett %s som %s
+9188	vundet sag	won case	vunnet sak
+9190	Gruppenavn	Group name	Gruppenavn
+9192	Fortrudt	Undone	Angret
+9194	Der er ingen medarbejdere under Indstillinger → Stamdata, så opfølgninger kan ikke fordeles.	There are no employees under Settings → Master data, so follow-ups cannot be assigned.	Det finnes ingen ansatte under Innstillinger → Stamdata, så oppfølginger kan ikke fordeles.
+9195	Ny gruppe	New group	Ny gruppe
+9197	%s flyttet til %s	%s moved to %s	%s flyttet til %s
+9198	Sag oprettet: »%s«	Case created: “%s”	Sak opprettet: «%s»
+9199	genåbnet	reopened	gjenåpnet
+9200	Sag »%s«: %s	Case “%s”: %s	Sak «%s»: %s
+9203	Søg	Search	Søk
+9206	Tilpas CRM	Customise CRM	Tilpass CRM
+9207	Statusgrupper styrer filteret, statuslinjen under Kunder og tavlerne under Sager (én tavle pr. gruppe). Gælder hele firmaet.	Status groups control the filter, the status line under Customers and the boards under Cases (one board per group). Applies to the whole company.	Statusgrupper styrer filteret, statuslinjen under Kunder og tavlene under Saker (én tavle per gruppe). Gjelder hele firmaet.
+9208	+ Tilføj statusgruppe	+ Add status group	+ Legg til statusgruppe
+9209	Fortryd	Undo	Angre
+9210	Viser de %s senest aktive kunder. Andre kunder findes med søgningen under »Ny opfølgning« og »Ny sag«.	Showing the %s most recently active customers. Other customers can be found with the search under “New follow-up” and “New case”.	Viser de %s sist aktive kundene. Andre kunder finnes med søket under «Ny oppfølging» og «Ny sak».
+9211	Kunden er måske ikke blandt de %s viste. Søg via »Ny opfølgning«.	The customer may not be among the %s shown. Search via “New follow-up”.	Kunden er kanskje ikke blant de %s viste. Søk via «Ny oppfølging».
+9212	CRM	CRM	CRM
+9213	Opfølgninger i dag	Follow-ups today	Oppfølginger i dag
+9214	%s opfølgninger i dag · %s forsinkede	%s follow-ups today · %s overdue	%s oppfølginger i dag · %s forsinkede
+9215	Ny opfølgning til dig	New follow-up for you	Ny oppfølging til deg
+9216	Sag tildelt dig	Case assigned to you	Sak tildelt deg
+9217	Sag vundet	Case won	Sak vunnet
+9218	Sag tabt	Case lost	Sak tapt
+9219	fra %s	from %s	fra %s
+9220	Hvis opfølgninger og kunder	Whose follow-ups and customers	Hvem sine oppfølginger og kunder
+9221	Alle opfølgninger og kunder i regnskabet	All follow-ups and customers in the accounts	Alle oppfølginger og kunder i regnskapet
+9222	Kun dem, du er ansvarlig for. Valget huskes til næste gang.	Only the ones you are responsible for. The choice is remembered.	Bare de du er ansvarlig for. Valget huskes til neste gang.
+9223	Mine	Mine	Mine
+9231	Statusser	Statuses	Statuser
+9232	Statusgrupper	Status groups	Statusgrupper
+9233	+ Tilføj status	+ Add status	+ Legg til status
+9234	Ny status	New status	Ny status
+9235	Statusnavn	Status name	Statusnavn
+9236	%s i brug	%s in use	%s i bruk
+9237	Bruges af %s kunder og sager – kan ikke slettes	Used by %s customers and cases – cannot be deleted	Brukes av %s kunder og saker – kan ikke slettes
+9238	Slet status	Delete status	Slett status
+9239	Slet gruppe	Delete group	Slett gruppe
+9240	Der er ingen kundestatusser endnu.	There are no customer statuses yet.	Det finnes ingen kundestatuser ennå.
+9241	Giv alle statusser et navn.	Give every status a name.	Gi alle statuser et navn.
+9242	Statusser og statusgrupper er gemt	Statuses and status groups are saved	Statuser og statusgrupper er lagret
+9243	Ny kunde	New customer	Ny kunde
+9244	Du er logget ud – genindlæs siden og prøv igen.	You have been logged out – reload the page and try again.	Du er logget ut – last siden på nytt og prøv igjen.
+9245	Genindlæs	Reload	Last på nytt
+9246	Du har ikke rettighed til at ændre i CRM.	You do not have the right to make changes in the CRM.	Du har ikke rettighet til å endre i CRM.
+9247	Statussen er i brug og kan ikke slettes.	The status is in use and cannot be deleted.	Statusen er i bruk og kan ikke slettes.
+9248	Beløbet kunne ikke læses – skriv fx 12.500,50.	The amount could not be read – write e.g. 12,500.50.	Beløpet kunne ikke leses – skriv f.eks. 12.500,50.
+9249	Ingen forbindelse – ændringen blev ikke gemt.	No connection – the change was not saved.	Ingen forbindelse – endringen ble ikke lagret.
+9250	Kunne ikke gemme. Prøv igen.	Could not save. Try again.	Kunne ikke lagre. Prøv igjen.
+9251	%s opfølgninger fra det gamle CRM er mere end 90 dage forsinkede.	%s follow-ups from the old CRM are more than 90 days overdue.	%s oppfølginger fra det gamle CRM er mer enn 90 dager forsinket.
+9252	Markér dem som gjort	Mark them as done	Merk dem som gjort
+9253	Ikke nu	Not now	Ikke nå
+9254	%s opfølgninger fra det gamle CRM (mere end 90 dage forsinkede) markeret som gjort	%s follow-ups from the old CRM (more than 90 days overdue) marked as done	%s oppfølginger fra det gamle CRM (mer enn 90 dager forsinket) merket som gjort
+9255	slettet	deleted	slettet
+9256	Slet sagen »%s«?	Delete the case “%s”?	Slette saken «%s»?
+9257	Sagen, dens beløb og koblingen til tilbud eller ordre forsvinder fra CRM. Du kan fortryde fra beskeden nederst.	The case, its amount and its link to a quote or order disappear from the CRM. You can undo from the message at the bottom.	Saken, beløpet og koblingen til tilbud eller ordre forsvinner fra CRM. Du kan angre fra meldingen nederst.
+9258	Kunden står ikke på tavlen – sæt status til %s	The customer is not on the board – set the status to %s	Kunden står ikke på tavlen – sett status til %s
+9259	Opsæt statusser først (tandhjulet øverst til højre).	Set up statuses first (the gear at the top right).	Sett opp statuser først (tannhjulet øverst til høyre).
+9260	Markér %s åbne sager som %s	Mark %s open cases as %s	Merk %s åpne saker som %s
+9261	Flyt også sagen til %s	Also move the case to %s	Flytt også saken til %s
+9262	– vælg –	– choose –	– velg –
+9263	Vælg, hvem opfølgningen er til.	Choose who the follow-up is for.	Velg hvem oppfølgingen er til.
+9264	Din bruger er ikke knyttet til en medarbejder: »Mine« virker ikke, dine noter får ingen afsender, og du skal selv vælge, hvem en opfølgning er til. Bed en administrator knytte brugeren under Indstillinger → Brugere.	Your login is not linked to an employee: “Mine” does not work, your notes get no author, and you must choose who each follow-up is for. Ask an administrator to link the login under Settings → Users.	Brukeren din er ikke knyttet til en ansatt: «Mine» virker ikke, notatene dine får ingen avsender, og du må selv velge hvem en oppfølging er til. Be en administrator knytte brukeren under Innstillinger → Brukere.
+9265	Beløb (kr, ekskl. moms)	Amount (DKK, excl. VAT)	Beløp (kr, ekskl. mva.)
+9266	ekskl. moms	excl. VAT	ekskl. mva.
+9267	Søg blandt alle kunder	Search all customers	Søk blant alle kunder
+9268	Fundet uden for listen	Found outside the list	Funnet utenfor listen
+9269	Markér sagen som %s	Mark the case as %s	Merk saken som %s
+9270	Mandag	Monday	Mandag
+9271	Sag »%s« slettet	Case “%s” deleted	Sak «%s» slettet
+9272	Genåbn	Reopen	Gjenåpne
+9273	%s kunder har en status, der ikke er med i en statusgruppe, og vises derfor ikke i CRM.	%s customers have a status that is not in a status group and are therefore not shown in the CRM.	%s kunder har en status som ikke er med i en statusgruppe, og vises derfor ikke i CRM.
+9274	Ansvarlig: %s → %s	Responsible: %s → %s	Ansvarlig: %s → %s
+9275	Der er ingen noter eller opkald endnu.	There are no notes or calls yet.	Det er ingen notater eller samtaler ennå.
+9276	Du kan se CRM, men ændringer kræver skriveadgang til Debitor → Konti.	You can view the CRM, but changes require write access to Customers → Accounts.	Du kan se CRM, men endringer krever skrivetilgang til Debitor → Konti.
+9277	Faktureret – markér vundet?	Invoiced – mark as won?	Fakturert – merk som vunnet?
+9278	Flyt %s åbne opfølgninger til %s	Move %s open follow-ups to %s	Flytt %s åpne oppfølginger til %s
+9279	Flyt ned	Move down	Flytt ned
+9280	Flyt op	Move up	Flytt opp
+9281	Forhandling	Negotiation	Forhandling
+9282	Forslag: en salgstavle med Henvendelse › Tilbud sendt › Forhandling, hvor Vundet giver status Kunde og Tabt giver status Tabt.	Suggestion: a sales board with Enquiry › Quote sent › Negotiation, where Won gives the status Customer and Lost gives the status Lost.	Forslag: en salgstavle med Henvendelse › Tilbud sendt › Forhandling, der Vunnet gir status Kunde og Tapt gir status Tapt.
+9283	Henvendelse	Enquiry	Henvendelse
+9284	Hver gruppe bliver en tavle under Sager. Vundet → og Tabt → er den status, kunden får, når kortet trækkes til Vundet eller Tabt.	Each group becomes a board under Cases. Won → and Lost → are the status the customer gets when its card is dragged to Won or Lost.	Hver gruppe blir en tavle under Saker. Vunnet → og Tapt → er statusen kunden får når kortet dras til Vunnet eller Tapt.
+9285	Hvilken sag gælder ordren?	Which case is the order for?	Hvilken sak gjelder ordren?
+9286	Hvilken sag gælder tilbuddet?	Which case is the quote for?	Hvilken sak gjelder tilbudet?
+9287	Ingen sag	No case	Ingen sak
+9288	Ingen kontakt endnu	No contact yet	Ingen kontakt ennå
+9289	Ingen opfølgninger matcher »%s«.	No follow-ups match “%s”.	Ingen oppfølginger samsvarer med «%s».
+9290	Ingen statusgrupper endnu.	No status groups yet.	Ingen statusgrupper ennå.
+9291	Knyt til sag	Link to case	Knytt til sak
+9292	Knyttet til sagen »%s«	Linked to the case “%s”	Knyttet til saken «%s»
+9293	Luk	Close	Lukk
+9294	Opfølgningerne er flyttet	The follow-ups have been moved	Oppfølgingene er flyttet
+9295	Opsæt statusgrupper	Set up status groups	Sett opp statusgrupper
+9296	Opsæt statusser og statusgrupper under tandhjulet.	Set up statuses and status groups under the gear.	Sett opp statuser og statusgrupper under tannhjulet.
+9297	Salg	Sales	Salg
+9298	Salgstavlen er oprettet	The sales board has been created	Salgstavlen er opprettet
+9299	Seneste kontakt %s	Last contact %s	Siste kontakt %s
+9300	Skjul %s kunder uden opfølgning	Hide %s customers without a follow-up	Skjul %s kunder uten oppfølging
+9301	Start med en salgstavle	Start with a sales board	Start med en salgstavle
+9302	Statusserne er de samme som feltet Status på debitorkortet. Rækkefølgen her er rækkefølgen på tavlen.	The statuses are the same as the Status field on the customer card. The order here is the order on the board.	Statusene er de samme som feltet Status på debitorkortet. Rekkefølgen her er rekkefølgen på tavlen.
+9303	Til	To	Til
+9304	Tilbud sendt	Quote sent	Tilbud sendt
+9305	Tøm feltet for at fjerne påmindelsen – noten bliver stående	Clear the field to remove the reminder – the note stays	Tøm feltet for å fjerne påminnelsen – notatet blir stående
+9306	Vis %s kunder uden opfølgning	Show %s customers without a follow-up	Vis %s kunder uten oppfølging
+9307	Vis alle	Show all	Vis alle
+9308	Viser de 10 nyeste.	Showing the 10 newest.	Viser de 10 nyeste.
+9309	ingen	none	ingen
+9310	Åbn tandhjulet	Open the gear	Åpne tannhjulet
+9311	Vis 1 kunde uden opfølgning	Show 1 customer without a follow-up	Vis 1 kunde uten oppfølging
+9312	Skjul 1 kunde uden opfølgning	Hide 1 customer without a follow-up	Skjul 1 kunde uten oppfølging
+9313	Flyt opfølgningen til %s	Move the follow-up to %s	Flytt oppfølgingen til %s
+9314	1 kunde har en status, der ikke er med i en statusgruppe, og vises derfor ikke i CRM.	1 customer has a status that is not in a status group and is therefore not shown in the CRM.	1 kunde har en status som ikke er med i en statusgruppe, og vises derfor ikke i CRM.
+9315	Din opfølgning er flyttet til %s	Your follow-up has been moved to %s	Oppfølgingen din er flyttet til %s
+9316	Kunder kommer med i CRM, når de har en status i en statusgruppe, en note eller en sag. Søg efter andre kunder med søgefeltet.	Customers appear in the CRM when they have a status in a status group, a note or a case. Find other customers with the search box.	Kunder kommer med i CRM når de har en status i en statusgruppe, et notat eller en sak. Søk etter andre kunder med søkefeltet.
+9317	Kunden har sager i CRM og kan ikke slettes.	The customer has cases in the CRM and cannot be deleted.	Kunden har saker i CRM og kan ikke slettes.
+9318	lukket	closed	lukket
+9319	(lukket kontakt)	(closed contact)	(lukket kontakt)
+9320	(tidligere medarbejder)	(former employee)	(tidligere ansatt)
+9321	Indstillingerne er ændret af en anden. Genindlæs siden.	The settings were changed by someone else. Reload the page.	Innstillingene er endret av en annen. Last siden på nytt.
+9322	Gem eller annullér ændringerne i tandhjulet først.	Save or cancel the changes in the gear first.	Lagre eller avbryt endringene i tannhjulet først.
+9323	%s (Saldi)	%s (Saldi)	%s (Saldi)
+9324	%s har et møde %s–%s (%s)	%s has a meeting %s–%s (%s)	%s har et møte %s–%s (%s)
+9325	%s har inviteret dig til et møde med %s.	%s has invited you to a meeting with %s.	%s har invitert deg til et møte med %s.
+9326	%s invitationer kunne ikke sendes – tjek mailopsætningen under Indstillinger	%s invitations could not be sent – check the mail setup under Settings	%s invitasjoner kunne ikke sendes – sjekk e-postoppsettet under Innstillinger
+9327	%s invitationer sendt	%s invitations sent	%s invitasjoner sendt
+9328	%s min	%s min	%s min
+9329	%s t	%s h	%s t
+9330	1 invitation sendt	1 invitation sent	1 invitasjon sendt
+9331	Abonnement	Subscription	Abonnement
+9332	Abonnér	Subscribe	Abonner
+9333	Aflyst: møde med %s %s	Cancelled: meeting with %s %s	Avlyst: møte med %s %s
+9334	Andre kalendere → + → Fra webadresse, indsæt linket.	Other calendars → + → From URL, paste the link.	Andre kalendere → + → Fra nettadresse, lim inn lenken.
+9335	Arkiv → Nyt kalenderabonnement, indsæt linket.	File → New Calendar Subscription, paste the link.	Arkiv → Nytt kalenderabonnement, lim inn lenken.
+9336	Book møde	Book meeting	Book møte
+9337	Brug %s, hvor alle er ledige	Use %s, when everyone is free	Bruk %s, når alle er ledige
+9338	Deltagere: %s	Attendees: %s	Deltakere: %s
+9339	Din bruger er ikke knyttet til en medarbejder, så der er ingen møder at vise. Bed en administrator knytte brugeren under Indstillinger → Brugere.	Your user is not linked to an employee, so there are no meetings to show. Ask an administrator to link the user under Settings → Users.	Brukeren din er ikke knyttet til en ansatt, så det er ingen møter å vise. Be en administrator knytte brukeren under Innstillinger → Brukere.
+9340	Dit kalenderlink	Your calendar link	Din kalenderlenke
+9341	Du er inviteret til et møde	You are invited to a meeting	Du er invitert til et møte
+9342	Du er sat på sagen »%s«	You have been added to the case “%s”	Du er satt på saken «%s»
+9343	Du har et møde %s–%s (%s)	You have a meeting %s–%s (%s)	Du har et møte %s–%s (%s)
+9344	Emne	Subject	Emne
+9345	Fra	From	Fra
+9346	Fx gennemgang af tilbuddet	E.g. going through the quote	F.eks. gjennomgang av tilbudet
+9347	Hvilken kunde er mødet med?	Which customer is the meeting with?	Hvilken kunde er møtet med?
+9348	Ingen andre medarbejdere	No other employees	Ingen andre ansatte
+9349	Ingen ledig tid senere samme dag for alle.	No free time later that day for everyone.	Ingen ledig tid senere samme dag for alle.
+9350	Invitation: møde med %s %s	Invitation: meeting with %s %s	Invitasjon: møte med %s %s
+9351	Kalenderabonnement slået fra	Calendar subscription turned off	Kalenderabonnement slått av
+9352	Kalenderabonnement: nyt link	Calendar subscription: new link	Kalenderabonnement: ny lenke
+9353	Kolleger	Colleagues	Kolleger
+9354	Kolleger på sagen	Colleagues on the case	Kolleger på saken
+9355	Kontaktperson: %s	Contact person: %s	Kontaktperson: %s
+9356	Kopiér	Copy	Kopier
+9357	Lav mit link	Make my link	Lag min lenke
+9358	Lav nyt link	Make a new link	Lag ny lenke
+9359	Linket er kopieret	The link is copied	Lenken er kopiert
+9360	Linket er personligt: den, der har det, kan se dine møder. Er det kommet ud, så lav et nyt – det gamle holder op med at virke.	The link is personal: whoever has it can see your meetings. If it has got out, make a new one – the old one stops working.	Lenken er personlig: den som har den, kan se møtene dine. Har den kommet ut, så lag en ny – den gamle slutter å virke.
+9361	Med et personligt link kan Google Kalender, Outlook eller Apple Kalender vise dine møder fra CRM – dem, du er ansvarlig for eller deltager i. Kalenderen henter selv ændringerne; Google kan være op til et døgn om det.	With a personal link, Google Calendar, Outlook or Apple Calendar can show your meetings from the CRM – the ones you are responsible for or attend. The calendar fetches the changes itself; Google can take up to a day.	Med en personlig lenke kan Google Kalender, Outlook eller Apple Kalender vise møtene dine fra CRM – dem du er ansvarlig for eller deltar i. Kalenderen henter selv endringene; Google kan bruke opptil et døgn.
+9362	Møde %s kl. %s	Meeting %s at %s	Møte %s kl. %s
+9363	Møde %s · gjort	Meeting %s · done	Møte %s · utført
+9364	Møde booket %s kl. %s	Meeting booked %s at %s	Møte booket %s kl. %s
+9365	Møde med %s	Meeting with %s	Møte med %s
+9366	Mødet er flyttet til %s	The meeting is moved to %s	Møtet er flyttet til %s
+9367	Mødet er gemt	The meeting is saved	Møtet er lagret
+9368	Mødet er tilbage	The meeting is back	Møtet er tilbake
+9369	Mødet med %s %s er aflyst.	The meeting with %s %s is cancelled.	Møtet med %s %s er avlyst.
+9370	Nyt møde	New meeting	Nytt møte
+9371	Nyt møde %s	New meeting %s	Nytt møte %s
+9372	Næste møde	Next meeting	Neste møte
+9373	Optaget på det tidspunkt	Busy at that time	Opptatt på det tidspunktet
+9374	Ret møde	Edit meeting	Rediger møte
+9375	Saldi CRM – %s	Saldi CRM – %s	Saldi CRM – %s
+9376	Se dine møder i Google Kalender, Outlook eller Apple Kalender	See your meetings in Google Calendar, Outlook or Apple Calendar	Se møtene dine i Google Kalender, Outlook eller Apple Kalender
+9377	Se dine møder i din egen kalender	See your meetings in your own calendar	Se møtene dine i din egen kalender
+9378	Send aflysning til dem, der fik en invitation	Send a cancellation to those who got an invitation	Send avlysning til dem som fikk en invitasjon
+9379	Send kalenderinvitation til deltagerne på mail	Send a calendar invitation to the attendees by email	Send kalenderinvitasjon til deltakerne på e-post
+9380	Send også invitation til %s (%s)	Also send an invitation to %s (%s)	Send også invitasjon til %s (%s)
+9381	Send ændringen til deltagerne	Send the change to the attendees	Send endringen til deltakerne
+9382	Send ændringen til deltagerne på mail	Send the change to the attendees by email	Send endringen til deltakerne på e-post
+9383	Slet møde	Delete meeting	Slett møte
+9384	Slet mødet %s kl. %s?	Delete the meeting %s at %s?	Slette møtet %s kl. %s?
+9385	Slå fra	Turn off	Slå av
+9386	Tilføj kalender → Abonner fra nettet, indsæt linket.	Add calendar → Subscribe from web, paste the link.	Legg til kalender → Abonner fra nettet, lim inn lenken.
+9387	Uden mailadresse: %s	No email address: %s	Uten e-postadresse: %s
+9388	Varighed	Duration	Varighet
+9389	Vælg, hvem der er ansvarlig for mødet.	Choose who is responsible for the meeting.	Velg hvem som er ansvarlig for møtet.
+9390	aflysning sendt	cancellation sent	avlysning sendt
+9391	invitation sendt	invitation sent	invitasjon sendt
+9392	Åbn direkte	Open directly	Åpne direkte
+9393	Ændringen er sendt	The change is sent	Endringen er sendt
+9394	Adresse	Address	Adresse
+9395	Adresse 2	Address 2	Adresse 2
+9396	By	City	By
+9397	CVR-nummer	Company registration number	Organisasjonsnummer
+9398	CVR-nummeret findes allerede på en kunde. Find kunden via søgningen i CRM.	A customer with this registration number already exists. Find the customer using the CRM search.	Organisasjonsnummeret finnes allerede på en kunde. Finn kunden med søket i CRM.
+9399	Debitorgruppe	Debtor group	Debitorgruppe
+9400	Der er ingen debitorgrupper. Opret en under Indstillinger, og prøv igen.	There are no debtor groups. Create one in Settings and try again.	Det finnes ingen debitorgrupper. Opprett en under Innstillinger, og prøv igjen.
+9401	Dette lead er allerede oprettet som debitor. Genindlæs siden for at se debitorkortet.	This lead has already been registered as a debtor. Reload the page to view the debtor card.	Dette leadet er allerede opprettet som debitor. Last inn siden på nytt for å se debitorkortet.
+9402	Du har ikke rettighed til at oprette tilbud og ordrer.	You do not have permission to create quotes and orders.	Du har ikke rettighet til å opprette tilbud og ordrer.
+9403	E-mail	Email	E-post
+9404	Et felt indeholder for mange tegn. Forkort teksten og prøv igen.	A field contains too many characters. Shorten the text and try again.	Et felt inneholder for mange tegn. Forkort teksten og prøv igjen.
+9405	Forlad uden at gemme ændringerne?	Leave without saving your changes?	Forlate uten å lagre endringene?
+9406	Gruppen bestemmer blandt andet kundens moms.	The group determines the customer's VAT settings, among other things.	Gruppen bestemmer blant annet kundens merverdiavgift.
+9407	Kunden eller sagen er ændret. Genindlæs siden og prøv igen.	The customer or case has changed. Reload the page and try again.	Kunden eller saken er endret. Last inn siden på nytt og prøv igjen.
+9408	Kunden gemmes som lead i CRM. Den oprettes først som debitor, når du opretter det første tilbud eller den første ordre.	The customer is saved as a lead in CRM. It is registered as a debtor when you create the first quote or order.	Kunden lagres som lead i CRM. Den opprettes først som debitor når du oppretter det første tilbudet eller den første ordren.
+9409	Land	Country	Land
+9410	Lead	Lead	Lead
+9411	Lead gemt	Lead saved	Lead lagret
+9412	Lead oprettet	Lead created	Lead opprettet
+9413	Lead · ikke oprettet som debitor	Lead · not registered as a debtor	Lead · ikke opprettet som debitor
+9414	Navn	Name	Navn
+9415	Opret debitor og ordre	Create debtor and order	Opprett debitor og ordre
+9416	Opret debitor og tilbud	Create debtor and quote	Opprett debitor og tilbud
+9417	Opret et lead med »Ny kunde« under Kunder.	Create a lead with “New customer” under Customers.	Opprett et lead med «Ny kunde» under Kunder.
+9418	Opret lead	Create lead	Opprett lead
+9419	Oprettet	Created	Opprettet
+9420	Postnummer	Postcode	Postnummer
+9421	Ret lead	Edit lead	Rediger lead
+9422	Sag: %s	Case: %s	Sak: %s
+9423	Sagen har allerede et tilbud eller en ordre. Genindlæs siden for at åbne det.	This case already has a quote or order. Reload the page to open it.	Saken har allerede et tilbud eller en ordre. Last inn siden på nytt for å åpne det.
+9424	Skriv en gyldig e-mailadresse.	Enter a valid email address.	Skriv en gyldig e-postadresse.
+9425	Skriv et navn på kunden.	Enter a customer name.	Skriv et navn på kunden.
+9426	Telefon	Phone	Telefon
+9427	Vælg en debitorgruppe. Hvis listen er tom, skal en debitorgruppe oprettes under Indstillinger.	Select a debtor group. If the list is empty, create a debtor group in Settings.	Velg en debitorgruppe. Hvis listen er tom, må en debitorgruppe opprettes under Innstillinger.
+9428	»%s« er et lead. Når du fortsætter, oprettes kunden automatisk i debitorkartoteket. Historik og sager bevares.	“%s” is a lead. Continuing automatically registers the customer in the debtor register. History and cases are retained.	«%s» er et lead. Når du fortsetter, opprettes kunden automatisk i debitorkartoteket. Historikk og saker beholdes.
+9429	Oprettet som debitor %s	Created as debtor %s	Opprettet som debitor %s
+9430	Opret ny kunde	Create new customer	Opprett ny kunde
+9431	Vælg en eksisterende kunde, eller opret en ny.	Choose an existing customer, or create a new one.	Velg en eksisterende kunde, eller opprett en ny.
+9432	Prøv en anden søgning.	Try another search.	Prøv et annet søk.
+9433	Opret og fortsæt	Create and continue	Opprett og fortsett
+9500	Fold menuen sammen	Collapse the menu	Fold sammen menyen
+9501	Fold menuen ud	Expand the menu	Fold ut menyen
+9502	Fortsæt samtalen	Continue the conversation	Fortsett samtalen

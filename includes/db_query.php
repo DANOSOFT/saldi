@@ -67,7 +67,12 @@
 // 20261104 CL/ASR A failed query shows the error box of includes/errorReport.php (saldi_error_box()) instead of the alert that told everyone to call 4690 2208.
 //                 Logging, the automatic mail to fejl@saldi.dk with its rate limit, the webservice return value and exit/continue are unchanged; the mail now carries the box's reference (F-...).
 //                 Without a browser session (CLI, cron, API, webservice) the old alert stays.
+// 20261105 CL/LH db_query_connection() selects the master database on the master connection it opens, which db_connect() does not do on MySQL/MariaDB.
+//                A global query there failed with "No database selected", so tjek4opdat() could not read the version another login had reached.
+// 20261105 CL/LH db_escape_string() escapes for $db_type 'mysql' through mysqli_real_escape_string() on the mysqli connection db_connect() opens for it, as for 'mysqli'.
+//                It called mysql_real_escape_string(), which PHP 7 removed, so every escaped value was a fatal error there.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261114 CL/ASR db_modify() puts changes to master data (varer, adresser, kontoplan) in the activity log through includes/dataAudit.php: a look at the rows just before and after the statement, never in its way.
 // 20261116 CL/ASR db_query_connection() selects the master database on the cached global connection, since db_connect() selects none on MySQL/MariaDB; a $global query from a ledger's context failed there with "No database selected" (SD-731, review #785).
 // 20261118 CDX/NTR Allow bound write parameters without changing legacy query handling.
 // 20261118 CDX/NTR Normalize LIKE outside literals, quoted identifiers and comments in both query paths.
@@ -75,6 +80,11 @@
 // 20261118 CDX/NTR Preserve escape-string continuations and normalize LIKE after qualified AS columns.
 // 20261118 CDX/NTR Optionally report affected write rows while preserving legacy status returns.
 // 20261118 CDX/NTR Track expression operands so LIKE function calls retain their original names.
+// 20261124 CL/ASR Integration: a write with bound parameters skips the activity log's look at the rows.
+//                 That look runs the statement's where clause without the values, and a failed look inside a transaction would abort it.
+// 20261124 CL/ASR db_escape_string() reads text that is not UTF-8 as Windows-1252 only for a UTF8 connection; a LATIN9 connection gets its single-byte text as it is.
+//                 It was converted to UTF-8 there too, so the LATIN9 database stored æ, ø and å as two characters each and € as ¤.
+// 20261124 CL/ASR Integration: db_query_connection() selects the master database with master's guarded call (20261116, SD-731) only; the unguarded call of 20261105 fixed the same failure and is removed.
 // 20261126 CDX/NTR Allow bound SELECT parameters on the existing read path, preserving connection-encoded bytes.
 require_once __DIR__ . '/sharedFile.php';
 
@@ -406,6 +416,13 @@ if (!function_exists('db_modify')) {
 		// When $global=true, run the query against the global database instead of the user's database.
 		$use_connection = db_query_connection($global);
 
+		// 20261114 the activity log of master data (includes/dataAudit.php): only for a write in the company's own database
+		$dataAudit = null;
+		if (!$global && $params === null && preg_match('/^\s*(update|insert|delete)\b/i', $qtext)) {
+			if (!function_exists('data_audit_before')) include_once(__DIR__ . '/dataAudit.php');
+			$dataAudit = data_audit_before((string) $qtext, false, $use_connection);
+		}
+
 		#20190704 START
 		if ($db_type == "mysql" || $db_type == "mysqli") {
 
@@ -425,12 +442,14 @@ if (!function_exists('db_modify')) {
 				: pg_query_params($use_connection, $qtext, $params);
 		}
 		#20190704 END
+		// The count is read before the activity log's queries run on the same connection.
 		$affectedRows = null;
 		if ($returnAffectedRows && $db_query) {
 			$affectedRows = ($db_type === 'mysql' || $db_type === 'mysqli')
 				? mysqli_affected_rows($use_connection)
 				: pg_affected_rows($db_query);
 		}
+		if ($dataAudit && $db_query) data_audit_after($dataAudit, $db_query);
 		
 		(isset($db)) ? $db=trim($db) : $db='';
 		if ($db_skriv_id>1 && $db != $sqdb) {
@@ -725,14 +744,15 @@ if (!function_exists('transaktion')) {
 
 if (!function_exists('db_escape_string')) {
 	function db_escape_string($qtext) {
-		global $db_type;
+		global $db_type, $db_encode;
 		global $connection; #20190704
 		$qtext = str_replace("\0", "", $qtext);
-		if (!mb_check_encoding($qtext, 'UTF-8')) {
+		// Text that is not UTF-8 is read as Windows-1252 for a UTF8 connection. A LATIN9 connection ($db_encode not UTF8,
+		// includes/db_query.php db_connect()) expects single-byte text, so it gets the text as it is.
+		if ((!isset($db_encode) || $db_encode === 'UTF8') && !mb_check_encoding($qtext, 'UTF-8')) {
 			$qtext = mb_convert_encoding($qtext, 'UTF-8', 'Windows-1252');
 		}
-		if ($db_type=="mysql") return mysql_real_escape_string("$qtext");
-		elseif ($db_type=="mysqli") return mysqli_real_escape_string($connection, "$qtext"); #20190704
+		if ($db_type=="mysql" || $db_type=="mysqli") return mysqli_real_escape_string($connection, "$qtext"); #20261105 'mysql' has a mysqli connection too (db_connect())
 		else return pg_escape_string($connection, "$qtext");
 	}
 }

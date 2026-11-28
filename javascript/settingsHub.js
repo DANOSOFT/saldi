@@ -9,6 +9,7 @@
 //                 Enter or Down in the search goes to the first hit, Esc clears it, / jumps to it; ?g=<group> marks that panel.
 // 20261101 CL/ASR Review: the code is plain ASCII (the accent range as \u escapes), so it also runs on a latin-1 page, where the browser
 //                 reads this file as windows-1252 and the literal marks made the regular expression invalid and stopped the whole hub.
+// 20261110 CDX/ASR Rank direct task matches and hide empty groups during settings search.
 (function () {
 	'use strict';
 	var root = document.getElementById('sh-hub');
@@ -239,6 +240,7 @@
 	function apply() {
 		var q = state.q;
 		var remote = (state.remote && state.remote.q === q) ? state.remote : null;
+		root.classList.toggle('sh-searching', !!q);
 		var hits = 0;
 		model.forEach(function (p) {
 			var shown = 0;
@@ -292,12 +294,28 @@
 				});
 				s.el.hidden = !!q && n === 0;
 				setOpen(s, q ? n > 0 : !!openSet[s.id]);
+				// Keep the task's direct match first; restore the registry order after searching.
+				var ordered = s.rows.slice().sort(function (a, b) {
+					function rank(r) {
+						if (!q) { return 0; }
+						if (fold(r.t.text).indexOf(q) !== -1) { return 0; }
+						return remote && remote.ranks[r.id] !== undefined ? remote.ranks[r.id] + 1 : 100;
+					}
+					return rank(a) - rank(b);
+				});
+				ordered.forEach(function (r) { r.el.parentNode.appendChild(r.el); });
 				shown += s.el.hidden ? 0 : 1;
 			});
+			p.el.hidden = !!q && shown === 0;
 			if (p.empty) {
 				p.empty.hidden = !q || shown > 0;
 			}
 		});
+		if (grid) {
+			each(grid.querySelectorAll('.sh-col'), function (col) {
+				col.hidden = !!q && !col.querySelector('.sh-panel:not([hidden])');
+			});
+		}
 		hits += renderOther(q, remote);
 		if (live) {
 			live.textContent = !q ? '' : (hits ? (T.count || '%s').replace('%s', hits) : (T.none || ''));
@@ -351,11 +369,12 @@
 					if (state.q !== q || !data) {
 						return;
 					}
-					var remote = { q: q, rows: {}, fields: {}, personal: [] };
+					var remote = { q: q, rows: {}, ranks: {}, fields: {}, personal: [] };
 					// a page found by its name or by one search word that holds the whole query; not by words scattered over several
-					(data.results || []).forEach(function (e) {
+					(data.results || []).forEach(function (e, index) {
 						if (keyRow[e.key] && (e.matchType === 'label' || fold(e.matchedTerm).indexOf(q) !== -1)) {
 							remote.rows[keyRow[e.key]] = true;
+							remote.ranks[keyRow[e.key]] = index;
 						}
 					});
 					(data.fields || []).forEach(function (f) {

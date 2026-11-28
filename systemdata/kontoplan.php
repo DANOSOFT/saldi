@@ -29,6 +29,8 @@
 //                 Its links to Kontokort and the grid's search and paging forms carry the marker on.
 //                 Opened from Finans > Kontoplan (no marker) the page is exactly as before.
 // 20261102 CL/ASR Review: opened from Indstillinger the page keeps 16 px under the grid (not the section pages' 96 px), so only the grid scrolls.
+// 20261105 CL/LH An account whose exchange rate is stored as 0 (the REST API's account create) no longer stops the grid with a DivisionByZeroError.
+//                The Saldo column shows its balance unconverted, as for an account without a rate.
 // 20261109 CL/ASR Opened from Indstillinger the grid has the settings modules' frame and soft shadow (owner, 9 Nov 2026).
 //                 The frame is a ring around the wrapper, so the wrapper keeps its size and place; the table's outer #ddd line is hidden.
 //                 The content column shows overflow, so it does not cut the shadow off.
@@ -275,7 +277,8 @@ $grid_data = [
 				if ($row['kontotype'] == 'H' || $row['kontotype'] == 'X') {
 					return '';
 				}
-				if ($value && $row['valutakurs']) { #20260306 added $value
+				// The rate arrives as a string, and '0.0000' is truthy: compare the number before dividing by it.
+				if ($value && (float) $row['valutakurs'] != 0) { #20260306 added $value
 					return dkdecimal($value * 100 / $row['valutakurs'], 2);
 				}
 				return dkdecimal($value, 2);

@@ -1,6 +1,10 @@
 <?php
 // 20260921 CDX/MJ SST-745: Saving a formularkort must not create a duplicate VSPR sprogrække when
 // the language is spelled with a different capitalisation.
+// 20261105 CL/LH Stub perm_can(), which the block asks before it inserts a missing language since 03531dcd.
+//                Without it the first new language died on an undefined function and 6 of the 8 checks never ran.
+//                A read-only user is checked to insert no row, while an existing language still resolves.
+//                tests/characterization/systemdata/FormLanguageDuplicateTest.test.php runs this script in CI.
 //
 // The test does not assert on the SQL string. It lifts the real sprog_id block out of
 // systemdata/formularkort.php, runs it against an in-memory SQLite database standing in for
@@ -91,14 +95,27 @@ function db_modify($query, $origin)
     return true;
 }
 
+// The page has perm_can() from includes/permissions.php through includes/std_func.php. Here it answers from
+// $granted, the level per permission key that saveFormularkort() sets.
+$granted = [];
+
+function perm_can($key, $level = 'read')
+{
+    global $granted;
+    $rank = ['none' => 0, 'read' => 1, 'write' => 2];
+    return $rank[$granted[$key] ?? 'none'] >= $rank[$level];
+}
+
 /**
  * Run the extracted block for each saved spelling in turn against one shared grupper table,
- * mimicking a user saving several formularkort. Returns the resulting VSPR rows and the
- * sprog_id the block resolved for each save.
+ * mimicking a user saving several formularkort. $level is the user's level on settings.documents,
+ * the page's permission key. Returns the resulting VSPR rows and the sprog_id the block resolved
+ * for each save.
  */
-function saveFormularkort(array $spellings, array $existing, $block)
+function saveFormularkort(array $spellings, array $existing, $block, $level = 'write')
 {
-    global $pdo;
+    global $pdo, $granted;
+    $granted = ['settings.documents' => $level];
     $pdo = new PDO('sqlite::memory:');
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $pdo->exec('create table grupper (beskrivelse text, kodenr integer, art text, box1 text)');
@@ -188,6 +205,25 @@ check(
     'Dansk resolves to sprog_id 0 without creating a row',
     count($rows) === 1 && $resolved['Dansk'] === 0,
     json_encode([$rows, $resolved])
+);
+
+// 6. A user who may only read settings.documents only looks (03531dcd): a missing language is not
+//    created and resolves to the default 0, while an existing one still resolves to its kodenr.
+list($rows, $resolved) = saveFormularkort(['Tysk', 'engelsk'], [1 => 'Engelsk'], $block, 'read');
+check(
+    'a read-only user inserts no row for a new language',
+    count($rows) === 1,
+    json_encode($rows)
+);
+check(
+    'for a read-only user a new language resolves to sprog_id 0',
+    $resolved['Tysk'] === 0,
+    json_encode($resolved)
+);
+check(
+    'for a read-only user an existing language still resolves to its kodenr',
+    $resolved['engelsk'] == 1,
+    json_encode($resolved)
 );
 
 echo "\n" . ($failures === 0 ? "All checks passed.\n" : "$failures check(s) failed.\n");

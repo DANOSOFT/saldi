@@ -70,7 +70,9 @@ class VareGruppeModel
             $this->sellAccount = $r['box4'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box4']) : NULL;
             $this->buyEuAccount = $r['box11'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box11']) : NULL;
             $this->sellEuAccount = $r['box12'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box12']) : NULL;
-            $this->buyOutsideEuAccount = $r['box2'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box2']) : NULL;
+            // 20261105 CL/LH buyOutsideEuAccount is box13 (Alt. varekøbskonto uden for EU), the slot save() writes.
+            //                Both loaders read box2 (Lagertræk), so GET showed that account and a PUT without the field copied it into box13.
+            $this->buyOutsideEuAccount = $r['box13'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box13']) : NULL;
             $this->sellOutsideEuAccount = $r['box14'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box14']) : NULL;
 
             return true;
@@ -108,7 +110,7 @@ class VareGruppeModel
             $this->sellAccount = $r['box4'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box4']) : NULL;
             $this->buyEuAccount = $r['box11'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box11']) : NULL;
             $this->sellEuAccount = $r['box12'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box12']) : NULL;
-            $this->buyOutsideEuAccount = $r['box2'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box2']) : NULL;
+            $this->buyOutsideEuAccount = $r['box13'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box13']) : NULL;
             $this->sellOutsideEuAccount = $r['box14'] != "" ? new AccountModel($id = NULL, $kontonr = $r['box14']) : NULL;
 
             return true;
@@ -383,6 +385,18 @@ class VareGruppeModel
         return $this->sellOutsideEuAccount;
     }
 
+    /**
+     * The API's boolean options as SALDI stores them: 'on' when ticked, '' when not.
+     *
+     * @param mixed $value JSON true/false; "on", "1", 1 and "true" also count as ticked
+     * @return string 'on' or ''
+     */
+    private static function checkboxValue($value)
+    {
+        // 20261105 CL/LH A JSON true was stored as '1', which SALDI and toArray() read as not ticked.
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN) ? 'on' : '';
+    }
+
     // Setter methods
     public function setCodeNo($codeNo)
     {
@@ -398,23 +412,23 @@ class VareGruppeModel
     }
     public function setReversePayment($reversePayment)
     {
-        $this->reversePayment = $reversePayment;
+        $this->reversePayment = self::checkboxValue($reversePayment);
     }
     public function setTaxFree($taxFree)
     {
-        $this->taxFree = $taxFree;
+        $this->taxFree = self::checkboxValue($taxFree);
     }
     public function setInventory($inventory)
     {
-        $this->inventory = $inventory;
+        $this->inventory = self::checkboxValue($inventory);
     }
     public function setBatch($batch)
     {
-        $this->batch = $batch;
+        $this->batch = self::checkboxValue($batch);
     }
     public function setOperation($operation)
     {
-        $this->operation = $operation;
+        $this->operation = self::checkboxValue($operation);
     }
     public function setBuyAccount($buyAccount)
     {

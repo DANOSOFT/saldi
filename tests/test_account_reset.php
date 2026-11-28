@@ -1,11 +1,12 @@
 <?php
-// --- tests/test_account_reset.php --- 2026-10-05 ---
+// --- tests/test_account_reset.php --- 2026-11-24 ---
 // Copyright (c) 2003-2026 Danosoft ApS
 // 20260916 CDX/PHR Verify reset scope and preservation options without database writes.
 // 20260916 CDX/PHR Verify item texts follow the keep-items option.
 // 20260916 CDX/PHR Verify user year reset and tenant-scoped session updates.
 // 20260917 CL/LH Verify the reset is refused on MySQL/MariaDB before any statement is issued.
 // 20261005 SS Verify personal settings (USET) are not deleted by a reset.
+// 20261124 CL/ASR Verify the CRM's deals, meetings and participants are reset and a user's calendar feed (crm_ical) is not.
 require_once(__DIR__ . '/../systemdata/resetAccount.php');
 error_reporting(E_ALL);
 set_error_handler(function ($severity, $message, $file, $line) {
@@ -16,8 +17,8 @@ function resetCheck($condition, $message) {
 		throw new RuntimeException($message);
 	}
 }
-$added = explode(' ', 'documents paperflow pool_files betalingslink voucher voucheruse stripe_catalog stripe_customers stripe_events stripe_import_failures stocklog stockmovement order_stock_warning_log materialer emballage emballage_cat rental rentalclosed rentalitems rentalmail rentalpayment rentalperiod rentalremote rentalremoteperiods rentalreserved rentalsettings kds_records pos_events labels mylabel timereg_breaks timereg_sessions moms_periode_luk notifications datatables tekster');
-$existing = array_merge($added, array('ordrer','transaktioner','grupper','kontoplan','settings','adresser','ansatte','varer','vare_lev','styklister','varetilbud','variant_typer','variant_varer','varianter','brugere','formularer','pos_buttons','varetekster','unexpected_table'));
+$added = explode(' ', 'documents paperflow pool_files betalingslink voucher voucheruse stripe_catalog stripe_customers stripe_events stripe_import_failures stocklog stockmovement order_stock_warning_log materialer emballage emballage_cat rental rentalclosed rentalitems rentalmail rentalpayment rentalperiod rentalremote rentalremoteperiods rentalreserved rentalsettings kds_records pos_events labels mylabel timereg_breaks timereg_sessions moms_periode_luk notifications datatables tekster crm_deals crm_meetings crm_participants');
+$existing = array_merge($added, array('ordrer','transaktioner','grupper','kontoplan','settings','adresser','ansatte','varer','vare_lev','styklister','varetilbud','variant_typer','variant_varer','varianter','brugere','formularer','pos_buttons','varetekster','unexpected_table','crm_ical'));
 foreach (array(false, true) as $keepAccounts) {
 	foreach (array(false, true) as $keepItems) {
 		$sql = accountResetStatements($existing, $keepAccounts, $keepItems, 'postgresql');
@@ -25,7 +26,7 @@ foreach (array(false, true) as $keepAccounts) {
 		foreach ($added as $table) {
 			resetCheck(in_array($table, $truncated, true), 'Missing requested table: ' . $table);
 		}
-		foreach (array('brugere','formularer','pos_buttons','unexpected_table','crm','tabeller') as $table) {
+		foreach (array('brugere','formularer','pos_buttons','unexpected_table','crm','tabeller','crm_ical') as $table) {
 			resetCheck(!in_array($table, $truncated, true), 'Unexpected truncation: ' . $table);
 		}
 		resetCheck(in_array('ansatte', $truncated, true) === !$keepAccounts, 'Keep accounts option');

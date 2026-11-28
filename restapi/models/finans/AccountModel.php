@@ -22,6 +22,10 @@ class AccountModel {
     private $valuta;
     private $valutakurs;
     private $map_to;
+    // The kontonr as loaded, so save() can tell a renumbering from an edit
+    private $storedKontonr;
+    // Largest kontonr the numeric(15,0) column holds
+    private const MAX_KONTONR = 999999999999999;
 
     /**
      * Constructor - can create an empty Account or load an existing one by ID
@@ -63,9 +67,10 @@ class AccountModel {
         if ($r = db_fetch_array($q)) {
             $this->id = $r['id'];
             $this->kontonr = $r['kontonr'];
+            $this->storedKontonr = $r['kontonr'];
             $this->beskrivelse = $r['beskrivelse'];
             $this->kontotype = $r['kontotype'];
-            $this->moms = !empty($r['moms']) ? new VatModel($id=NULL, $vatcode=$r['moms']) : NULL;
+            $this->moms = ($r['moms'] ?? '') !== '' ? $r['moms'] : NULL;
             $this->fra_kto = $r['fra_kto'];
             $this->til_kto = $r['til_kto'];
             $this->lukket = $r['lukket'];
@@ -100,7 +105,7 @@ class AccountModel {
             $this->kontonr = (int)$r['kontonr'];
             $this->beskrivelse = $r['beskrivelse'];
             $this->kontotype = $r['kontotype'];
-            $this->moms = !empty($r['moms']) ? new VatModel($id=NULL, $vatcode=$r['moms']) : NULL;
+            $this->moms = ($r['moms'] ?? '') !== '' ? $r['moms'] : NULL;
             $this->fra_kto = (int)$r['fra_kto'];
             $this->til_kto = (int)$r['til_kto'];
             $this->lukket = $r['lukket'];
@@ -120,18 +125,51 @@ class AccountModel {
     }
 
     /**
+     * Refusal for a kontonr another account in the fiscal year already has
+     *
+     * The account card (systemdata/kontokort.php) refuses such a number on create and on renumbering.
+     *
+     * @param int|null $regnaar Fiscal year (kodenr of a grupper RA row)
+     * @return string|null The message, or null when the number is free
+     */
+    private function kontonrInUse($regnaar) {
+        $qtxt = "SELECT id FROM kontoplan WHERE kontonr = " . (int)$this->kontonr . " AND regnskabsaar = " . (int)$regnaar;
+        if ($this->id) {
+            $qtxt .= " AND id != " . (int)$this->id;
+        }
+        $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+        if (db_num_rows($q) > 0) {
+            return "Account number " . (int)$this->kontonr . " already exists in this fiscal year";
+        }
+        return null;
+    }
+
+    /**
      * Save/update the current account
      *
-     * @return bool Success status
+     * @return bool|string True on success, false or an error message when not saved
      */
     public function save() {
+        // 20261105 CL/LH A kontonr is a whole number from 1, and one its fiscal year already has is refused on create and on renumbering, as on the account card.
+        //                Before, a repeated POST inserted a second row and answered with the first row's id.
+        //                The number is checked and stored as one integer, so 1001.6 no longer passes the check as 1001 and is rounded to 1002 by the database.
+        // 20261105 CL/LH moms is the account's VAT code as kontoplan stores it (S1), so a PUT without vat writes back the code it read.
+        //                Before, it held a VatModel that was never loaded and the update wrote '' over the code, and a PUT with vat failed on the string.
+        $kontonr = (is_int($this->kontonr) || (is_string($this->kontonr) && ctype_digit($this->kontonr))) ? (int)$this->kontonr : 0;
+        if ($kontonr < 1 || $kontonr > self::MAX_KONTONR) {
+            return "Account number must be a whole number from 1 to " . self::MAX_KONTONR;
+        }
+        $this->kontonr = $kontonr;
         if ($this->id) {
+            if ($this->kontonr !== (int)$this->storedKontonr && ($inUse = $this->kontonrInUse($this->regnskabsaar))) {
+                return $inUse;
+            }
             // Update existing account
             $qtxt = "UPDATE kontoplan SET 
                 kontonr = '$this->kontonr', 
                 beskrivelse = '$this->beskrivelse', 
                 kontotype = '$this->kontotype', 
-                moms = '".($this->moms !== NULL ? $this->moms->getMomskode().$this->moms->getNr() : "")."',
+                moms = '" . db_escape_string((string)$this->moms) . "',
                 fra_kto = '$this->fra_kto', 
                 til_kto = '$this->til_kto', 
                 lukket = '$this->lukket', 
@@ -148,6 +186,10 @@ class AccountModel {
             $q = db_modify($qtxt, __FILE__ . " linje " . __LINE__);
             return explode("\t", $q)[0] == "0";
         } else {
+            $regnaar = self::getFiscalYear();
+            if ($inUse = $this->kontonrInUse($regnaar)) {
+                return $inUse;
+            }
 
             // get valutakurs from grupper where art = VK and box1 = $this->valuta
             if ($this->valuta) {
@@ -167,7 +209,6 @@ class AccountModel {
                     $this->valuta = 0; // Default to 0 if no currency found
                 }
             }
-            $regnaar = self::getFiscalYear();
             // Insert new account
             $qtxt = "INSERT INTO kontoplan (
                 kontonr, beskrivelse, kontotype, moms, fra_kto, til_kto, 

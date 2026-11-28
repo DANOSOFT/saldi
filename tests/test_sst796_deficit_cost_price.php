@@ -108,6 +108,7 @@ function poLine(array $over = []): array
         'modtaget'   => '0.000',
         'variant_id'  => '',
         'valutakurs' => '750.000',
+        'valuta'     => 'EUR',
         'ordrenr'    => '355',
     ];
 }
@@ -129,8 +130,17 @@ $GLOBALS['sst796_rows'] = [poLine(['rabat' => '10.000'])];
 check('line discount is applied', 124875.0, find_open_purchase_cost(1096)['pris']);
 
 // a missing kurs must not zero the price
-$GLOBALS['sst796_rows'] = [poLine(['valutakurs' => '0', 'pris' => '1234.000'])];
+$GLOBALS['sst796_rows'] = [poLine(['valutakurs' => '0', 'valuta' => '', 'pris' => '1234.000'])];
 check('missing valutakurs is treated as 100', 1234.0, find_open_purchase_cost(1096)['pris']);
+$GLOBALS['sst796_rows'] = [poLine(['valutakurs' => '0', 'valuta' => 'DKK', 'pris' => '1234.000'])];
+check('missing valutakurs on a DKK order is treated as 100', 1234.0, find_open_purchase_cost(1096)['pris']);
+
+// A foreign-currency order saved without a rate stores valutakurs 0 (kreditor/ordre.php): its EUR price is not
+// kroner, so that line is skipped and the next open line (or varer.kostpris) is used.
+$GLOBALS['sst796_rows'] = [poLine(['valutakurs' => '0', 'pris' => '10.000'])];
+check('a foreign order without a rate is not read as kroner', NULL, find_open_purchase_cost(1096));
+$GLOBALS['sst796_rows'] = [poLine(['valutakurs' => '0', 'pris' => '10.000']), poLine(['linje_id' => 27084, 'pris' => '20.000'])];
+check('the next line with a rate is used instead', 150.0, find_open_purchase_cost(1096)['pris']);
 
 // A line is outstanding by the goods-receipt screen's own measure: ordrelinjer.antal less the
 // batch_kob already booked against it (lager/modtagelse.php:258-261). Not ordrelinjer.leveret - the

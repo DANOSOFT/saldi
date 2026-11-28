@@ -219,14 +219,33 @@
 //                 numbers this save has already handed out are skipped, and a refused line stays staged so a resend writes nothing (tekst 7636).
 // 20261103 CL/LH SD-796 window.saldiBaseCurrency gives accountAutocomplete.js the base currency, so an invoice pick can tell an invoice in another currency than the line and write its Beløb and Valuta again.
 //                accountAutocomplete.js?v= bumped.
+// 20261105 CL/LH Hent showed only when the order settings row (grupper DIV/3) was missing, and every regnskab is created with it.
+//                Invoices left at status 3 with immediate posting unticked could therefore not be fetched into the journal.
+//                It now shows while sales or purchases are not posted right away and a non-POS order waits, as hentordrer.php lists them.
 // 20261105 CL/MMR SST-934 Voucher number 0 can be used again: a 0 the user types, also on the lines "=*" fills, is saved as 0.
 //                 A line saved under 0 shows 0 and keeps it when the journal is saved again, and lines under 0 are not held to one date.
 //                 Only an empty Bilag field is given the journal's next number (SST-817), see bilagFromInput() in bilagNumber.php.
 //                 The messages show a typed 0 as 0, and kontroller()'s includes use __DIR__.
 //                 The lookup return's $_GET reads use ifset(), and kontroller()'s line-check branch has braces on every multi-line body.
 //                 "0+2" keeps voucher 0 for the line and the two new lines, and the rest of the lookup return block uses ifset() too.
+// 20261107 CL/ASR Tour steps that exist on the page (bilag, debet, fakturanr., balance, Bogfør; on a posted journal Tilbagefør and Kopier til ny); #clip and #questionmark are gone. The tour no longer starts by itself (includes/tutorial.php).
+// 20261107 CL/ASR Review round 2: the tour's balance step says "debet" (new text 8778) instead of tekst 3369's "debit".
+// 20261108 CL/ASR Tour for new customers: the line's fields (Bilag, Dato, Debet/Kredit, Moms, Fakturanr., Beløb), the clip, the balance, Gem and Bogfør; on a posted journal the account link, Tilbagefør and Kopier til ny (texts 8780-8787).
+// 20261108 CL/ASR The link "Genveje til Kassekladden" (saldi.dk/dok/ledgerGuide.pdf) is gone: the help panel has the page's shortcuts and codes.
 // 20261110 CDX/NTR Document how the gear-box save encodes opt-in and opt-out preferences.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261114 CL/ASR A user who has not chosen columns yet (box3 NULL) sees the journal without Moms (Debet), Moms (Kredit), Afd. and Ansat; an empty box3 (Vis alle) still shows every column.
+// 20261114 CL/ASR The button of the first-time gear hint says Ok (text 8795) instead of Forstået (5148).
+// 20261114 CL/ASR The first-time hint bubble at the gear is gone (owner's wish); texts 5147 and 8795 are no longer used here.
+// 20261114 CL/ASR Instead a small amber dot on the gear says there is something new, until the user first opens the panel (the bubble's old storage key).
+// 20261117 CL/ASR ompost() (Tilbagefør postering) read the non-existent column valutakode, so a reversal of a foreign-currency line was written in DKK.
+//                 It now copies valuta and valutakurs from the line, casts the request ids and escapes faktura and projekt.
+// 20261117 CL/ASR Deleting the last journal line of an invoice that Hent ordrer moved here sets the invoice back to status 3, when nothing of it is in the ledger, so it can be fetched again.
+// 20261117 CL/ASR The reversal from ompost() names the line it reverses (ompost_id); posting and the DKK amount shown take the rate that line was posted at (journalLineInBaseCurrency() in bogfor_includes/postingRules.php).
+//                 A rate corrected in the rate table after the original was posted no longer leaves a remainder on the accounts.
+// 20261120 CL/ASR Hent shows whenever an order that Hent ordrer lists waits (orders_waiting_for_hent()), also with Omgående bogføring of sales and purchases on (owner's decision 20 Nov 2026: "Vis Hent ved efterladte").
+//                 An invoice fetched into a journal while a setting was off, whose journal lines were deleted after both were switched on, waited at status 3 again without a Hent button.
+//                 With nothing waiting there is still no Hent, and with vis_saet a sales order paid at a till, which Hent ordrer leaves to the register close, no longer shows it on its own.
 // 20261125 CDX/NTR Display the grid's prepared account text and use raw row values for escaped SQL and card links.
 
 require_once __DIR__ . '/kassekladde_includes/journalHistory.php';
@@ -236,6 +255,8 @@ require_once __DIR__ . '/kassekladde_includes/accountCard.php';
 require_once __DIR__ . '/kassekladde_includes/bilagNumber.php';
 require_once __DIR__ . '/kassekladde_includes/journalSaveLock.php';
 require_once __DIR__ . '/kassekladde_includes/sorting.php';
+require_once __DIR__ . '/bogfor_includes/postingRules.php';
+require_once __DIR__ . '/../includes/stdFunc/ordersWaitingForHent.php';
 
 # A line created during this request is rendered last, whatever the list is sorted by, so the line the
 # user just typed stays where they are working instead of jumping to its sorted position (with
@@ -840,13 +861,17 @@ if (isset($_POST['save_kk_cols']) && isset($bruger_id) && (int)$bruger_id != 0) 
 }
 
 
-$kk_hidden_cols = array();
+// Columns hidden until the user chooses in the gear box. box3 is NULL until the first choice;
+// an empty box3 is a choice too ("Vis alle"), so it shows every column.
+$kk_default_hidden = array('vat_d', 'vat_k', 'afd', 'ansat');
+$kk_hidden_cols = $kk_default_hidden;
 $kk_panel_hidden = array();
 $kk_opts_on = array();
 $kk_opts_off = array();
 $kk_shortcuts = kkShortcutProfile('');
 if (isset($bruger_id) && (int)$bruger_id != 0) {
     $kk_r = db_fetch_array(db_select("select box3 from grupper where ART='KASKL' and kode='1' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__));
+    if ($kk_r && $kk_r['box3'] !== null) $kk_hidden_cols = array();
     if ($kk_r && trim((string)$kk_r['box3']) !== '') {
         foreach (explode(',', $kk_r['box3']) as $c) {
             $c = trim($c);
@@ -3035,7 +3060,7 @@ print "<tr><td width='100%' valign='top' height='1%' align='center' class='kasse
 print "<tbody>"; # Tabel 1.2 -> bemærkningstekst
 print "<tr style='vertical-align: middle;'>"; # Added vertical-align
 print "<td width='14%' align='center'><span id='kk-balance-status'></span></td>";
-// The note field shrinks (up to 750px) so the row, help link included, fits a 1280px screen
+// The note field shrinks (up to 750px) so the row fits a 1280px screen
 print "<td align='left' style='white-space: nowrap; width: 100%;'><div style='display: flex; align-items: center; gap: 4px;'><b><span title='" . findtekst('1559|Her kan skrives en bemærkning til kladden', $sprog_id) . "'>" . findtekst('599|Bemærkning', $sprog_id) . ":</span></b>
 <input class='inputbox' type='text' style='flex: 1 1 auto; min-width: 120px; max-width: 750px; vertical-align: middle;' name='ny_kladdenote' value='$kladdenote'
 onchange='javascript:docChange = true;'></div></td>";
@@ -3050,15 +3075,9 @@ if ($bogfort == "-") {
     print "<td style='padding-left: 10px;'></td><td width='120px' align='left' style='vertical-align: middle;'><span title='" . findtekst('1561|Klik her for at opdatere', $sprog_id) . "'><input type='submit' class='button gray small' style='width:120px; vertical-align: middle;' accesskey='o' value='" . findtekst('898|Opdatér', $sprog_id) . "' name='updateNote' onclick='javascript:docChange = false;'></span></td>";
 }
 
-$help_icon  = '<svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" style="vertical-align: middle;"><path d="M478-240q21 0 35.5-14.5T528-290q0-21-14.5-35.5T478-340q-21 0-35.5 14.5T428-290q0 21 14.5 35.5T478-240Zm-36-154h74q0-33 7.5-52t42.5-52q26-26 41-49.5t15-56.5q0-56-41-86t-97-30q-57 0-92.5 30T342-618l66 26q5-18 22.5-39t53.5-21q32 0 48 17.5t16 38.5q0 20-12 37.5T506-526q-44 39-54 59t-10 73Zm38 314q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>';
-$help_txt   = findtekst('3354|Genveje til Kassekladden', $sprog_id);
-$help_title = findtekst('3355|Hjælp til Kassekladden',   $sprog_id);
-$help_link  = "'https://saldi.dk/dok/ledgerGuide.pdf' target='_blank' title='$help_title'";
-
 print "<td width='2%' align='center' style='vertical-align: middle;'>
     <a href='javascript:void(0)' onclick='window.print(); return false;'>
-    <img src='../ikoner/print.png' style='border: 0px solid; vertical-align: middle;' title='Print'></a></td>
-    <td width='12%' align='center' style='vertical-align: middle; white-space: nowrap;'><a href=$help_link>$help_txt</a> <a href=$help_link>$help_icon</a></td></tr>\n";
+    <img src='../ikoner/print.png' style='border: 0px solid; vertical-align: middle;' title='Print'></a></td></tr>\n";
 print "</tbody></table>"; # Tabel 1.2 <- bemærkningstekst
 	#}
 
@@ -3137,15 +3156,14 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		.kkVisSplit{margin:4px 6px;border:none;border-top:1px solid #dde5f0;}
 		.kkVisFoot{border-top:1px solid #dde5f0;padding:7px 10px;text-align:right;}
 		.kkVisFoot button{background:none;border:none;padding:0;font:inherit;color:#15488f;cursor:pointer;text-decoration:underline;}
-		#kkVisHint{position:fixed;z-index:9997;width:215px;background:#15488f;color:#fff;border-radius:8px;box-shadow:0 6px 18px rgba(21,72,143,.35);font-family:Verdana, Arial, sans-serif;font-size:11px;line-height:1.45;padding:10px 12px;display:none;}
-		#kkVisHint.kkVisHintShow{display:block;animation:kkVisHintIn .35s ease;}
-		#kkVisHint:after{content:'';position:absolute;right:-6px;top:14px;width:12px;height:12px;background:#15488f;transform:rotate(45deg);}
-		#kkVisHintOk{display:inline-block;margin-top:8px;background:#fff;color:#15488f;border:none;border-radius:4px;padding:4px 12px;font-size:11px;font-weight:bold;cursor:pointer;}
-		#kkVisHintOk:hover{background:#dce7f7;}
-		@keyframes kkVisHintIn{from{opacity:0;transform:translateX(10px);}to{opacity:1;transform:translateX(0);}}
-		@media print{#kkVisToggle,#kkVisPanel,#kkVisHint{display:none;}}
+		#kkVisToggle:not(.kkVisFab){position:relative;}
+		.kkVisNewDot{position:absolute;top:3px;right:4px;width:7px;height:7px;border-radius:50%;background:#E0913A;pointer-events:none;}
+		@media print{#kkVisToggle,#kkVisPanel{display:none;}}
 		</style>";
 		$kkVisTitle   = findtekst('3380|Tilpas visning', $sprog_id);
+		// Small dot on the gear until the panel has been opened once (key of the former first-time bubble)
+		$kkVisNewKey  = 'saldiKkHint_' . preg_replace('/[^a-zA-Z0-9_]/', '_', $db . '_' . $bruger_id . '_' . $brugernavn);
+		$kkVisNewTip  = str_replace(array('\\', "'", '"', '<'), array('\\\\', "\\'", '\\x22', '\\x3c'), findtekst('view.gear_new|Tilpas visning: vælg hvad der vises', $sprog_id));
 		$kkVisHelp    = findtekst('5145|Vælg hvilke kolonner og opslagssektioner der vises i kassekladden. Gælder kun visningen for dig.', $sprog_id);
 		# 5146, ikke 3382: pa nogle installationer holder tekster-tabellen allerede 3382 med en anden tekst
 		$kkVisShowAll = findtekst('5146|Vis alle', $sprog_id);
@@ -3193,12 +3211,6 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 		print "</div>";
 		print "<div class='kkVisFoot'><button type='button' id='kkVisShowAll'>" . htmlspecialchars($kkVisShowAll, ENT_QUOTES, $charset) . "</button></div>";
 		print "</div>";
-		// First-time hint bubble pointing at the gear (same pattern as the product card's
-		// fieldVisibility hint); dismissal is remembered per company db + user in the browser.
-		$kkVisHintTxt = findtekst('5147|Nyt! Klik på tandhjulet for at tilpasse din opsætning af kassekladden.', $sprog_id);
-		$kkVisGotIt   = findtekst('5148|Forstået', $sprog_id);
-		$kkVisHintKey = 'saldiKkHint_' . preg_replace('/[^a-zA-Z0-9_]/', '_', $db . '_' . $bruger_id . '_' . $brugernavn);
-		print "<div id='kkVisHint'>$kkVisHintTxt<br><button type='button' id='kkVisHintOk'>" . htmlspecialchars($kkVisGotIt, ENT_QUOTES, $charset) . "</button></div>";
 		print "<script>
 		function kkApplyColToggle(col,show){
 			if(col==='ac_forslag'||col==='ac_opslag'){
@@ -3241,25 +3253,22 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			var panel=document.getElementById('kkVisPanel');
 			var toggleBtn=document.getElementById('kkVisToggle');
 			if(!toggleBtn){return;}
-			var hint=document.getElementById('kkVisHint');
-			var hintKey='" . $kkVisHintKey . "';
-			function kkDismissHint(){
-				if(hint){hint.classList.remove('kkVisHintShow');}
-				try{localStorage.setItem(hintKey,'1');}catch(e){}
-			}
+			var newKey='" . $kkVisNewKey . "', newDot=null, oldTitle=toggleBtn.title;
 			try{
-				if(hint && !localStorage.getItem(hintKey)){
-					var hr=toggleBtn.getBoundingClientRect();
-					hint.style.top=Math.max(4,hr.top-4)+'px';
-					hint.style.right=(window.innerWidth-hr.left+10)+'px';
-					hint.classList.add('kkVisHintShow');
+				if(!localStorage.getItem(newKey)){
+					newDot=document.createElement('span');
+					newDot.className='kkVisNewDot';
+					toggleBtn.appendChild(newDot);
+					toggleBtn.title='" . $kkVisNewTip . "';
 				}
 			}catch(e){}
-			if(document.getElementById('kkVisHintOk')){
-				document.getElementById('kkVisHintOk').addEventListener('click',kkDismissHint);
-			}
 			toggleBtn.addEventListener('click',function(){
-				kkDismissHint();
+				if(newDot){
+					newDot.remove();
+					newDot=null;
+					toggleBtn.title=oldTitle;
+					try{localStorage.setItem(newKey,'1');}catch(e){}
+				}
 				var r=toggleBtn.getBoundingClientRect();
 				panel.style.top=(r.bottom+6)+'px';
 				panel.classList.toggle('kkVisOpen');
@@ -3570,7 +3579,8 @@ if ($kladde_id) {
 		}
 		if (!isset($valuta[$x]) || $valuta[$x] == $baseCurrency) $dkkamount[$x] = $amount[$x]; #20240419
 		elseif ($valutakode[$x]) {
-			list($dkkamount[$x], $diffkonto[$x], $valutakurs[$x]) = valutaopslag($amount[$x], $valutakode[$x], $transdate[$x]);
+			// The DKK amount posting will use: a reversal from Tilbagefør (ompost_id) at the rate its original was posted at.
+			list($dkkamount[$x], $diffkonto[$x], $valutakurs[$x]) = journalLineInBaseCurrency($amount[$x], $valutakode[$x], $transdate[$x], ifset($row, 'ompost_id'));
 		} else $dkkamount[$x] = (float) $amount[$x];
 		if (!$beskrivelse) $beskrivelse = '';
 		if (((!$d_type[$x]) || $d_type[$x] == 'F') && ($debet[$x]) && (!$fejl)) {
@@ -4333,12 +4343,14 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			if (!$fejl) {
 				print "<td align='center'><span title='" . findtekst('1546|Simulering af bogføring viser bevægelser i kontoplanen', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='s' value='" . findtekst('1064|Simulér', $sprog_id) . "' name='simulate' onclick='javascript:docChange = false;'></span></td>";
 				print "<td align='center'><span title='" . findtekst('1547|Bogfør - der foretages først en simulering, som du skal bekræfte', $sprog_id) . "'><input type='submit' class='button gray medium' style='width:120px;' accesskey='b' value='" . findtekst('1065|Bogfør', $sprog_id) . "' name='doPost' onclick='javascript:docChange = false;'></span></td>";
-				$qtxt = "select box5 from grupper where art = 'DIV' and kodenr = '3'";
-				if (!$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-					$qtxt = "select id from ordrer where status=3";
-					if ($r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
-						print "<td align='center'><span title='" . findtekst('1548|Henter afsluttede ordrer fra ordreliste', $sprog_id) . "'><input type='submit' style='width:120px;float:left' accesskey='h' value='" . findtekst('1078|Hent', $sprog_id) . "' name='upload' onclick='javascript:docChange = false;'></span></td>";
-					}
+				// Hent is how invoices that were not posted (status 3) reach the journal. It shows whenever an order that
+				// finans/hentordrer.php lists waits, whatever Omgående bogføring (DIV/3 box5) says: orders_waiting_for_hent()
+				// counts exactly those, sales (with reminders) and purchases, no POS order, and with vis_saet no sales order
+				// paid at a till, which the register close takes. With both settings on an order still waits when it was
+				// invoiced while one was off and fetched into a journal whose lines were deleted after both were switched on
+				// (the delete in kontroller() puts it back at status 3). Owner's rule: with nothing waiting there is no Hent.
+				if (orders_waiting_for_hent('sales') || orders_waiting_for_hent('purchases')) {
+					print "<td align='center'><span title='" . findtekst('1548|Henter afsluttede ordrer fra ordreliste', $sprog_id) . "'><input type='submit' style='width:120px;float:left' accesskey='h' value='" . findtekst('1078|Hent', $sprog_id) . "' name='upload' onclick='javascript:docChange = false;'></span></td>";
 				}
 				$qtxt = "select * from grupper where art = 'DIV' and kodenr = '2' and box6='on'";
 				if (db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
@@ -4779,8 +4791,19 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			if(db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__))) {
 				alert('Fjern vedhæftet bilag før du sletter linjen');
 			} else {
+				$id = (int)$id;
+				$r = db_fetch_array(db_select("select ordre_id from kassekladde where id = $id", __FILE__ . " linje " . __LINE__));
 				$qtxt = "delete from kassekladde where id = $id";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+				// 20261117 Hent ordrer (finans/hentordrer.php) sets an invoice to status 4 when it moves it here. When its last
+				// journal line is deleted and nothing of it is in the ledger, it goes back to status 3, so it can be fetched again.
+				$hentetOrdre = $r ? (int)$r['ordre_id'] : 0;
+				if ($hentetOrdre) {
+					$qtxt = "update ordrer set status = 3 where id = $hentetOrdre and status = 4 ";
+					$qtxt.= "and not exists (select 1 from kassekladde where ordre_id = $hentetOrdre) ";
+					$qtxt.= "and not exists (select 1 from transaktioner where ordre_id = $hentetOrdre)";
+					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+				}
 			}
 		}
 		$prebilag = $bilag;
@@ -5190,13 +5213,20 @@ if (($bogfort && $bogfort != '-') || $udskriv) {
 			print "<tbody></table>";
 			exit;
 		} else {
-			$r = db_fetch_array(db_select("select * from kassekladde where id = '$ompost'", __FILE__ . " linje " . __LINE__));
+			$r = db_fetch_array(db_select("select * from kassekladde where id = '" . (int)$ompost . "'", __FILE__ . " linje " . __LINE__));
 			$afd = $r['afd'] * 1;
 			$ansat = $r['ansat'] * 1;
-			$projekt = $r['projekt'];
-			$valutakode = $r['valutakode'] * 1;
+			$projekt = db_escape_string(if_isset($r['projekt'], ''));
+			// The reversal keeps the line's currency (column valuta) and its stored rate (valutakurs, which posting does not read).
+			$valutakode = (int)$r['valuta'];
+			$valutakurs = is_numeric($r['valutakurs']) ? "'" . (float)$r['valutakurs'] . "'" : "NULL";
+			// It names the line it reverses (ompost_id), so posting converts it at the rate that line was posted at
+			// (journalLineInBaseCurrency()) and it posts the same DKK amounts, whatever the rate table says by then.
+			// An account whose update at login has not added the column yet gets the reversal without it.
+			$ompostKolonne = is_array($r) && array_key_exists('ompost_id', $r) ? ",ompost_id" : "";
+			$ompostVaerdi = $ompostKolonne ? ",'" . (int)$r['id'] . "'" : "";
 			#20140718
-			db_modify("insert into kassekladde (bilag,kladde_id,transdate,beskrivelse,d_type,debet,k_type,kredit,debetvat,kreditvat,faktura,amount,momsfri,afd,ansat,projekt,valuta) values ('$r[bilag]','$ompost_til','$r[transdate]','" . db_escape_string(if_isset($r['beskrivelse'], '')) . "','$r[k_type]','$r[kredit]','$r[d_type]','$r[debet]','" . db_escape_string(if_isset($r['kreditvat'], '')) . "','" . db_escape_string(if_isset($r['debetvat'], '')) . "','$r[faktura]','$r[amount]','$r[momsfri]','$afd','$ansat','$projekt','$valutakode')", __FILE__ . " linje " . __LINE__);
+			db_modify("insert into kassekladde (bilag,kladde_id,transdate,beskrivelse,d_type,debet,k_type,kredit,debetvat,kreditvat,faktura,amount,momsfri,afd,ansat,projekt,valuta,valutakurs$ompostKolonne) values ('$r[bilag]','" . (int)$ompost_til . "','$r[transdate]','" . db_escape_string(if_isset($r['beskrivelse'], '')) . "','$r[k_type]','$r[kredit]','$r[d_type]','$r[debet]','" . db_escape_string(if_isset($r['kreditvat'], '')) . "','" . db_escape_string(if_isset($r['debetvat'], '')) . "','" . db_escape_string(if_isset($r['faktura'], '')) . "','$r[amount]','$r[momsfri]','$afd','$ansat','$projekt','$valutakode',$valutakurs$ompostVaerdi)", __FILE__ . " linje " . __LINE__);
 			print "<body onLoad=\"javascript:alert('".findtekst('2596|Posteringen er tilbageført på kladde', $sprog_id)." $ompost_til')\">";
 		}
 	} # endfunc ompost
@@ -5769,38 +5799,38 @@ document.addEventListener('click', function(e) {
 
 	########################
 
+	// Rundvisning (spec §5.4, round 8 Nov 2026): a new or open journal gets the line fields, the clip of a saved line,
+	// the balance, Gem and Bogfør; a posted one the account link, Tilbagefør and Kopier til ny. Steps whose target is
+	// not visible are left out (includes/tutorial.php available()), so a hidden Moms column or a new journal skips them.
 	$steps = array();
-	$steps[] = array(
-		"selector" => "#clip",
-		"content" => findtekst('2600|Her kan du tilføje bilag til kladden', $sprog_id).".",
-	);
-	$steps[] = array(
-		"selector" => "#undo",
-		"content" => findtekst('2601|"Klik her for at tilbageføre denne postering som en ompostering i en åben kassekladde', $sprog_id).".",
-	);
-	$steps[] = array(
-		"selector" => "#questionmark",
-		"content" => findtekst('2602|Klik her for yderligere hjælp', $sprog_id).".",
-	);
-	$steps[] = array(
-		"selector" => "[name^=debe], [name^=kred]",
-		"content" => findtekst('2603|Du kan slå op i Debet/Kredit-felterne: Hvis D/K-feltet er tomt eller indeholder \'F\', søger systemet i kontoplanen. Hvis feltet viser \'D\' (debitor) eller \'K\' (kreditor), søges der i henholdsvis kunder eller leverandører.', $sprog_id) ."<br>".
-					 findtekst('2604|Du kan også selv skrive \'D\' eller \'K\' for at vælge, hvor der skal søges. Når du begynder at skrive et navn eller kontonummer, vises der kun relevante forslag.', $sprog_id),
-	);
-	$steps[] = array(
-		"selector" => "[name^=fakt]",
-		"content" => findtekst('2605|Her kan du tilføje et fakturanummer til bilaget. Du kan også slå op i ikke-udlignede fakturaer ved at klikke på knappen \'Opslag\' i bunden, mens feltet er markeret', $sprog_id),
-	);
-	$steps[] = array(
-		"selector" => "[name=bila1]",
-		"content" => findtekst('2606|Du kan slette linjen ved at skrive \'-\' i feltet i stedet for et tal og trykke Enter', $sprog_id).".",
-	);
-	$steps[] = array(
-		"selector" => "#kk-balance-status",
-		"content" => findtekst('3369|Differencen mellem debit og kredit på denne kassekladde', $sprog_id).".",
-	);
-
-
+	$steps[] = array("selector" => 'input[name="bila1"]',
+		"content" => findtekst('8780|Bilagsnummeret. Linjer med samme nummer er ét bilag. Skriv = for samme nummer som linjen over, eller - for at slette linjen.', $sprog_id));
+	$steps[] = array("selector" => 'input[name="dato1"]',
+		"content" => findtekst('8781|Bilagets dato. En ny linje får datoen fra linjen over eller dags dato, så ret den til bilagets dato.', $sprog_id));
+	$steps[] = array("selector" => 'input[name="debe1"]',
+		"content" => findtekst('8782|Beløbet går fra kontoen i Kredit til kontoen i Debet. Et køb betalt med kort: udgiften i Debet og banken i Kredit.', $sprog_id) . " "
+			. findtekst('8764|Når du klikker i feltet, viser Saldi en liste, du kan vælge fra.', $sprog_id));
+	$steps[] = array("selector" => 'select[name="dvat1"]',
+		"content" => findtekst('8783|Momskoden hentes fra kontoen. Saldi beregner momsen, når kladden bogføres.', $sprog_id));
+	$steps[] = array("selector" => 'input[name="fakt1"]',
+		"content" => findtekst('8765|Skriv fakturanummeret. Når du klikker i feltet, viser Saldi de åbne poster.', $sprog_id));
+	$steps[] = array("selector" => 'input[name="belo1"]',
+		"content" => findtekst('8784|Skriv beløbet, som det står på bilaget. Med en almindelig momskode er det med moms, og Saldi trækker momsen ud.', $sprog_id));
+	$steps[] = array("selector" => 'form#kassekladde td.clip-cell.clip-no-doc', "first" => true,
+		"content" => findtekst('8785|Klik på clipsen for at sætte bilaget på linjen. Dokumentpuljen åbner, og har du ændringer, gemmer Saldi dem først.', $sprog_id));
+	$steps[] = array("selector" => "#kk-balance-status",
+		"content" => findtekst('8778|Differencen mellem debet og kredit på de gemte linjer.', $sprog_id) . " "
+			. findtekst('8766|Den opdateres, når du gemmer.', $sprog_id));
+	$steps[] = array("selector" => 'input[name="save"]',
+		"content" => findtekst('8786|Gem gemmer linjerne i kladden. Intet står på kontiene endnu.', $sprog_id));
+	$steps[] = array("selector" => 'input[name="doPost"]',
+		"content" => findtekst('8767|Bogfør viser først en oversigt. Der bogføres ikke noget, før du klikker Bogfør igen.', $sprog_id));
+	$steps[] = array("selector" => 'a.kk-card-link', "first" => true,
+		"content" => findtekst('8787|Klik på et kontonummer for at åbne kontoen. En finanskonto viser posteringerne, en kunde eller leverandør viser kortet.', $sprog_id));
+	$steps[] = array("selector" => 'a[href*="ompost="]', "first" => true,
+		"content" => findtekst('2601|Klik her for at tilbageføre denne postering som en ompostering i en åben kassekladde', $sprog_id) . ".");
+	$steps[] = array("selector" => "#kopier-button",
+		"content" => findtekst('8768|Laver en ny, åben kladde med de samme linjer. Sæt flueben i Vend fortegn (tilbagefør) for at vende hele kladden.', $sprog_id));
 	include(__DIR__ . "/../includes/tutorial.php");
 	create_tutorial("kasseklad", $steps);
 

@@ -1,4 +1,4 @@
-// ---- javascript/dashboard.js --- ver 5.1.0 --- 2026.11.01 ---
+// ---- javascript/dashboard.js --- ver 5.1.0 --- 2026.11.13 ---
 // 20261008 Sawaneh Oversigt (index/dashboard.php) after Adam's prototype_dashboard_tema.html v5: counting numbers,
 // 20261009 Sawaneh Prototype v8.13: blocks in the user's order (grip drag with pointer events, Alt+Up/Down, aria-live), one Ring
 //                  builder for both rings, the Ubetalte salgsfakturaer card (filter by group, row click opens the invoice).
@@ -14,6 +14,16 @@
 //                 måned and Ufakturerede ordrer were far wider than they need); a later block that fits moves up into a gap.
 // 20261101 CL/ASR fitGroups(): Omsætning pr. varegruppe shows every group when its row has room, else the five largest +
 //                 Øvrige; "Se alle" / "Vis færre" switch in place.
+// 20261108 CL/ASR Omsætningskonti show the range the figures use (the saved one or the chart's net revenue accounts), a 0 too instead of an empty field.
+// 20261108 CL/ASR Omsætningskonti: an empty field means automatic (owner, 8 Nov 2026).
+//                 A chosen number shows as the value, an automatic one as the placeholder, with "Automatisk: 1010-1390 fra din kontoplan" under the fields while one is empty.
+//                 Letters and Fra above Til are refused before saving (aria-invalid, a line with role=alert).
+//                 The "Se guiden" link is gone (the guide no longer exists).
+// 20261108 CL/ASR The "Automatisk" line names only the empty fields' numbers (Fra 1000 and an empty Til: "Automatisk: 1390 ..."), so it
+//                 no longer reads as if 1010-1390 counted when one field is chosen.
+// 20261113 CL/ASR fmtAxis(): an axis label has the decimals its step needs (2500 on a 500 step: "2,5 t.", not "3 t."), so no two labels read the same; the best bar's label keeps two digits in t. ("2,3 t.", not "2 t.") and two decimals in mio. as before.
+//                 Without a previous fiscal year (month.last null) Omsætning pr. måned draws no last-year bars and its table has no last-year or change column.
+//                 A week without a last-year series (weeks.list[].last null) draws none and hides its legend item.
 (function () {
 	'use strict';
 	const D = window.SALDI_DASH || {};
@@ -25,7 +35,14 @@
 	const da = (v, o) => Number(v).toLocaleString(locale, o);
 	const kr = (v) => da(Math.round(v)) + ' kr';
 	const kr2 = (v) => da(v, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' kr';
-	const fmtAxis = (v) => v >= 1e6 ? da(v / 1e6, { maximumFractionDigits: 2 }) + ' ' + (T.mioShort || 'mio.') : v >= 1e3 ? da(v / 1e3, { maximumFractionDigits: 0 }) + ' ' + (T.thousandShort || 't.') : String(Math.round(v));
+	/* An axis number in t. or mio.: a tick with the decimals its step needs (step 500: "1,5 t.", "2,5 t."; step 250 000: "1,25 mio."),
+	   a single value (no step: the best bar) with at least two digits in t. ("2,3 t.", "23 t.") and two decimals in mio. as before ("1,25 mio.") */
+	const fmtAxis = (v, step) => {
+		const u = v >= 1e6 ? 1e6 : v >= 1e3 ? 1e3 : 1, x = v / u;
+		let d = 0;
+		if (step) { while (d < 3 && Math.abs(Math.round(step / u * 10 ** d) - step / u * 10 ** d) > 1e-6) d++; } else if (u === 1e6) d = 2; else if (u === 1e3 && x < 10) d = 1;
+		return da(x, { maximumFractionDigits: d }) + (u === 1e6 ? ' ' + (T.mioShort || 'mio.') : u === 1e3 ? ' ' + (T.thousandShort || 't.') : '');
+	};
 	const pct = (v) => da(Math.abs(v), { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %';
 	const tpl = (s, ...a) => String(s || '').replace(/%s/g, () => a.shift());
 	const remScale = () => (parseFloat(getComputedStyle(root).fontSize) || 16) / 16;
@@ -93,7 +110,7 @@
 		for (let t = 0; t <= ticks; t++) {
 			const y = Math.round(base - ph / ticks * t) + .5;
 			if (t) s += '<line class="db-gl" x1="' + m.l + '" x2="' + (W - m.r) + '" y1="' + y + '" y2="' + y + '"/>';
-			s += '<text x="' + (m.l - 10) + '" y="' + (y + 4) + '" text-anchor="end">' + esc(fmtAxis(max / ticks * t)) + '</text>';
+			s += '<text x="' + (m.l - 10) + '" y="' + (y + 4) + '" text-anchor="end">' + esc(fmtAxis(max / ticks * t, max / ticks)) + '</text>';
 		}
 		s += '<line class="db-base" x1="' + m.l + '" x2="' + (W - m.r) + '" y1="' + (base + .5) + '" y2="' + (base + .5) + '"/>';
 		o.labels.forEach((lab, i) => {
@@ -140,22 +157,26 @@
 	/* ---- Omsætning pr. måned: compare select, "Vis som tabel" ---- */
 	const M = D.month || null;
 	if (M && $('#monthChart')) {
-		let showLast = true;
+		/* without a previous fiscal year (last null) there is no comparison: the page has no select and no last-year legend */
+		const hasLast = Array.isArray(M.last), mLast = M.last || [];
+		let showLast = hasLast;
 		const mNow = toDate(M.now, M.toDate);
-		const mc = chart($('#monthChart'), (box) => barChart(box, { labels: M.labels, now: mNow, last: M.last, showLast, H: 240, nowName: M.nowLabel, lastName: M.lastLabel,
+		const mc = chart($('#monthChart'), (box) => barChart(box, { labels: M.labels, now: mNow, last: mLast, showLast, H: 240, nowName: M.nowLabel, lastName: M.lastLabel,
 			aria: ($('[data-block="revgraph"] .db-t') || {}).textContent || '' }));
 		const cmp = $('#cmpSel');
-		if (cmp) cmp.addEventListener('change', (e) => { showLast = e.target.value === 'both'; const leg = $('#legLast'); if (leg) leg.hidden = !showLast; render(mc, true); });
+		if (cmp) cmp.addEventListener('change', (e) => { showLast = hasLast && e.target.value === 'both'; const leg = $('#legLast'); if (leg) leg.hidden = !showLast; render(mc, true); });
 		const tb = $('#monthTbl'), tog = $('#tblToggle'), view = $('#monthView');
 		if (tb && tog && view) {
 			tog.addEventListener('click', () => {
 				const showT = tb.hidden;
 				if (showT && !tb.firstChild) {
-					tb.innerHTML = '<table class="dt"><thead><tr><th>' + esc(T.month || 'Måned') + '</th><th class="dt-num">' + esc(M.nowLabel) + '</th><th class="dt-num">' + esc(M.lastLabel) + '</th><th class="dt-num">' + esc(T.change || 'Ændring') + '</th></tr></thead><tbody>'
+					tb.innerHTML = '<table class="dt"><thead><tr><th>' + esc(T.month || 'Måned') + '</th><th class="dt-num">' + esc(M.nowLabel) + '</th>'
+						+ (hasLast ? '<th class="dt-num">' + esc(M.lastLabel) + '</th><th class="dt-num">' + esc(T.change || 'Ændring') + '</th>' : '') + '</tr></thead><tbody>'
 						+ M.labels.map((mth, i) => {
-							const yet = mNow[i] != null, a = +mNow[i] || 0, b = +M.last[i] || 0, d = yet && b ? (a - b) / Math.abs(b) * 100 : null;
-							return '<tr><td>' + esc(mth) + '</td><td class="dt-num' + (yet ? '' : ' db-muted') + '">' + (yet ? esc(da(Math.round(a))) : '–') + '</td><td class="dt-num">' + esc(da(Math.round(b))) + '</td>'
-								+ '<td class="dt-num ' + (d == null ? 'db-muted' : d >= 0 ? 'db-up' : 'db-down') + '">' + (d == null ? '–' : (d >= 0 ? '▲ ' : '▼ ') + esc(pct(d))) + '</td></tr>';
+							const yet = mNow[i] != null, a = +mNow[i] || 0, b = +mLast[i] || 0, d = yet && b ? (a - b) / Math.abs(b) * 100 : null;
+							return '<tr><td>' + esc(mth) + '</td><td class="dt-num' + (yet ? '' : ' db-muted') + '">' + (yet ? esc(da(Math.round(a))) : '–') + '</td>'
+								+ (hasLast ? '<td class="dt-num">' + esc(da(Math.round(b))) + '</td>'
+								+ '<td class="dt-num ' + (d == null ? 'db-muted' : d >= 0 ? 'db-up' : 'db-down') + '">' + (d == null ? '–' : (d >= 0 ? '▲ ' : '▼ ') + esc(pct(d))) + '</td>' : '') + '</tr>';
 						}).join('') + '</tbody></table>';
 				}
 				tb.hidden = !showT; view.hidden = showT;
@@ -168,12 +189,12 @@
 	const WK = D.weeks || null;
 	if (WK && WK.list && WK.list.length && $('#dayChart')) {
 		let w = WK.list[0];
-		const dc = chart($('#dayChart'), (box) => barChart(box, { labels: D.days || [], now: w === WK.list[0] ? toDate(w.now, WK.dayToDate) : w.now, last: w.last, showLast: true, H: 176, nowName: tpl(T.week, w.no, w.year), lastName: tpl(T.sameWeek, w.lastYear),
+		const dc = chart($('#dayChart'), (box) => barChart(box, { labels: D.days || [], now: w === WK.list[0] ? toDate(w.now, WK.dayToDate) : w.now, last: w.last || [], showLast: w.last != null, H: 176, nowName: tpl(T.week, w.no, w.year), lastName: tpl(T.sameWeek, w.lastYear),
 			aria: ($('[data-block="revweek"] .db-t') || {}).textContent || '' }));
 		const sel = $('#weekSel');
 		if (sel) sel.addEventListener('change', (e) => {
 			const f = WK.list.find((x) => String(x.no) + '-' + x.year === e.target.value); if (!f) return; w = f;
-			const n = $('#wkNow'), l = $('#wkLast'); if (n) n.textContent = tpl(T.week, w.no, w.year); if (l) l.textContent = tpl(T.sameWeek, w.lastYear);
+			const n = $('#wkNow'), l = $('#wkLast'); if (n) n.textContent = tpl(T.week, w.no, w.year); if (l) { l.textContent = tpl(T.sameWeek, w.lastYear); l.parentNode.hidden = w.last == null; }
 			render(dc, true);
 		});
 	}
@@ -324,10 +345,28 @@
 		dBody.append(h('div', 'blist')); buildList();
 		if (D.accounts) {
 			const g = h('div', 'grp', T.accounts || 'Omsætningskonti'); g.append(h('span', 'tag', T.companyWide || 'Gælder hele regnskabet')); dBody.append(g);
-			const a = h('div', 'acct');
-			[[T.fromAcc || 'Fra kontonr.', 'kontomin'], [T.toAcc || 'Til kontonr.', 'kontomaks']].forEach(([l, k]) => { const lab = h('label', '', l), inp = h('input'); inp.inputMode = 'numeric'; inp.value = D.accounts[k] || ''; inp.disabled = !D.accounts.canEdit; inp.addEventListener('change', () => { D.accounts[k] = inp.value; save({ action: 'accounts', kontomin: D.accounts.kontomin, kontomaks: D.accounts.kontomaks }).then((r) => { markSaved(r); if (r && r.reload) location.reload(); }); }); lab.append(inp); a.append(lab); });
-			dBody.append(a);
-			const hp = h('div', 'help', (T.accountsHelp || '') + ' '); if (D.accounts.guide) { const lk = h('a', 'db-link', T.seeGuide || 'Se guiden'); lk.href = D.accounts.guide; lk.target = '_blank'; lk.rel = 'noopener'; hp.append(lk); } dBody.append(hp);
+			/* An empty field is automatic: the chart's from-account or net revenue sum account (dashData.php dash_revenue_accounts()),
+			   shown as the placeholder; a chosen number shows as the value. Both fields are saved together, an empty one as ''. */
+			const A = D.accounts, a = h('div', 'acct'), ins = {}, auto = { kontomin: A.autoMin, kontomaks: A.autoMaks };
+			const err = h('div', 'help acct-err'); err.setAttribute('role', 'alert'); err.hidden = true;
+			const showErr = (msg, keys) => { Object.keys(ins).forEach((k) => { if (keys.includes(k)) ins[k].setAttribute('aria-invalid', 'true'); else ins[k].removeAttribute('aria-invalid'); }); err.textContent = msg || ''; err.hidden = !msg; };
+			const saveAccounts = () => {
+				const v = { kontomin: ins.kontomin.value.trim(), kontomaks: ins.kontomaks.value.trim() };
+				const bad = Object.keys(v).filter((k) => !/^\d{0,15}$/.test(v[k]));
+				if (bad.length) { showErr(T.accountDigits || 'Skriv kontonummeret med tal, eller lad feltet stå tomt for automatisk.', bad); return; }
+				const lo = v.kontomin === '' ? auto.kontomin : Number(v.kontomin), hi = v.kontomaks === '' ? auto.kontomaks : Number(v.kontomaks);
+				if (lo > hi) { showErr(T.accountOrder || 'Fra kontonr. må ikke være større end Til kontonr.', Object.keys(v).filter((k) => v[k] !== '')); return; }
+				showErr('', []);
+				save({ action: 'accounts', kontomin: v.kontomin, kontomaks: v.kontomaks }).then((r) => {
+					markSaved(r); if (r && r.reload) location.reload();
+					else if (r && r.error) showErr(r.error === 'order' ? T.accountOrder : T.accountDigits, ['kontomin', 'kontomaks']);
+				});
+			};
+			[[T.fromAcc || 'Fra kontonr.', 'kontomin'], [T.toAcc || 'Til kontonr.', 'kontomaks']].forEach(([l, k]) => { const lab = h('label', '', l), inp = h('input'); inp.inputMode = 'numeric'; inp.value = A[k] != null ? String(A[k]) : ''; inp.placeholder = auto[k] != null ? String(auto[k]) : ''; inp.disabled = !A.canEdit; inp.addEventListener('change', saveAccounts); ins[k] = inp; lab.append(inp); a.append(lab); });
+			dBody.append(a, err);
+			const autoKeys = ['kontomin', 'kontomaks'].filter((k) => A[k] == null);
+			if (autoKeys.length) dBody.append(h('div', 'help', tpl(A.autoSource === 'chart' ? (T.accountsAuto || 'Automatisk: %s fra din kontoplan') : (T.accountsAutoNone || 'Automatisk: %s'), autoKeys.map((k) => auto[k]).join('-'))));
+			dBody.append(h('div', 'help', T.accountsHelp || ''));
 		}
 	}
 	function drawerOpen(on) {

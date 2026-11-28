@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -- debitor/pos_ordre_includes/settleCommission/moveToCustomerAccount.php --- ver 5.1.0 -- 2026-11-10 --
+// -- debitor/pos_ordre_includes/settleCommission/moveToCustomerAccount.php --- ver 5.1.1 -- 2026-11-14 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,6 +24,14 @@
 // ----------------------------------------------------------------------
 // 20210410 PHR Addad CreatePayList
 // 20231120	PHR Added checkLineId to avoid same line counnted more than once.
+// 20261105 CL/LH Afregn kommission posts each seller's share on the samlekonto of the seller's debtor group in the year posted and gives the seller an Afr open post.
+//                These sat behind $moveToCustomerAccount, which nothing set, so only the debits to the customer commission accounts were posted.
+//                A share is posted also when the item group's shares cancel out, and the payment list is made whenever the group adds a payment to it.
+//                The whole settlement is worked out before anything is written, so a seller without an account or samlekonto stops it with no payment, posting or open post written.
+//                A seller's payment carries the id of the seller's Afr open post in openpost_id, so Fra liste on the payment list does not pay that open post again; ordre_id stays 0.
+// 20261105 CL/LH Dan betalingsliste puts the settlement's payments on a new list owned by the user who settles, made as debitor/betalinger.php makes one.
+//                The list id was guessed from the payments' liste_id, so the payments went on an existing list without payments (list 1, then list 6, in the lab), whose date, note and user were overwritten while it stayed its old owner's.
+//                A guessed id with no list behind it left the payments on no list.
 // 20261109 CL/SS SST-919: Credit each customer (open post + collective account) against the commission account.
 //                Settle only orders that are not settled yet, and create the payment list before its payments.
 //                Refuse a period that is already settled in the journal.
@@ -34,6 +42,9 @@
 // 20261110 CL/SS SST-919 review: Link each open post and its payment to one of the customer's settled orders (refnr = ordre_id), so «Fra liste» doesn't pay it again.
 //                Write the open post with an empty faktnr, as the journal does, so the booked payment settles it.
 //                Skip journal posts whose period isn't a date, and use descriptive text keys.
+// 20261114 CL/ASR SST-919's settlement keeps the testlab's link from a payment to the open post it pays.
+//                 Each payment Dan betalingsliste makes stores the id of the customer's Afr open post in openpost_id and ordre_id 0, as debitor/betalinger.php's «Fra liste» reads it.
+//                 The open post's refnr stays one of the customer's settled orders.
 
 /**
  * Injected from the local scope of posbogfor() in ../../pos_ordre.php,
@@ -231,13 +242,18 @@ foreach ($customers as $customer) {
 	$qtxt.= "'','$ansat_id','0','0','$reportNumber','0')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	if ($payListId && $commission > 0) {
+		// The payment pays the open post just written. debitor/betalinger.php's «Fra liste» leaves out an open post without a
+		// kassekladde when a payment carries its id in openpost_id. ordre_id stays 0: the list and its XML export read it as an order.
+		$qtxt = "select max(id) as id from openpost where konto_id = '$customer[id]' and refnr = '$customer[ref]' ";
+		$qtxt.= "and kladde_id = '0' and beskrivelse = 'Afr: $custNo $periodText'";
+		$openpost = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 		$myRef = "Afr: " . $customer['no'] . " $refFromDate - $refToDate";
 		$qtxt = "insert into betalinger";
-		$qtxt.= "(bet_type,fra_kto,egen_ref,til_kto,modt_navn,kort_ref,belob, betalingsdato,valuta,bilag_id,ordre_id,liste_id) ";
+		$qtxt.= "(bet_type,fra_kto,egen_ref,til_kto,modt_navn,kort_ref,belob, betalingsdato,valuta,bilag_id,ordre_id,openpost_id,liste_id) ";
 		$qtxt.= "values ";
 		$qtxt.= "('ERH356','" . db_escape_string($myBank) . "','" . db_escape_string($myRef) . "','" . db_escape_string($customer['bank']) . "',";
 		$qtxt.= "'" . db_escape_string($customer['name']) . "','" . db_escape_string($myName) . "','" . dkdecimal($commission) . "','$payDay',";
-		$qtxt.= "'$myCurrency', '0', '$customer[ref]','$payListId')";
+		$qtxt.= "'$myCurrency', '0', '0', '" . (int)$openpost['id'] . "','$payListId')";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	}
 }

@@ -47,6 +47,8 @@
 //                 The kit and css/settingsHub.css are linked as ?v=20261102 (the kit places Tilbage now).
 // 20261103 CL/ASR QA: settings_hub_json() converts a single string too on latin-1 installations (array_walk_recursive() on a string was a fatal error).
 // 20261108 CL/ASR css/saldi-theme.css linked as ?v=8 and css/saldi-kit.css as ?v=20261108: the page ground is Saldi's classic page colour #eeeef0, the panels and fields stay white (owner, 8 Nov 2026).
+// 20261110 CDX/ASR Refresh assets for ranked settings search and hidden empty search groups.
+// 20261113 CL/ASR css/saldi-kit.css ?v=20261113 (side margin 16 px, the same as the top).
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -59,7 +61,7 @@
 $s_id = session_id();
 
 $title = "Indstillinger";
-$css = "../css/settingsHub.css?v=20261102";
+$css = "../css/settingsHub.css?v=20261110";
 $modulnr = 0; // access is per settings group (settings_require_any_access below), not the old Indstillinger bit
 $permission_key = 'any';
 
@@ -182,7 +184,7 @@ function settings_hub_view(array $vm, int $sprogId): void
 	}
 	$cols = array_values(array_filter($cols));
 	?>
-<link rel='stylesheet' href='../css/saldi-theme.css?v=8'><link rel='stylesheet' href='../css/saldi-kit.css?v=20261108'>
+<link rel='stylesheet' href='../css/saldi-theme.css?v=11'><link rel='stylesheet' href='../css/saldi-kit.css?v=20261114'>
 <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
 <script>document.title = <?= settings_hub_json(st_txt('122|Indstillinger')) ?>;</script>
 <?php if (function_exists('page_help')) { page_help(array('shortcuts' => '[data-keys]')); } ?>
@@ -252,7 +254,7 @@ function settings_hub_view(array $vm, int $sprogId): void
     <div class="sk-dialog-f"><button type="button" class="sk-btn sk-btn-primary" id="sh-dialog-close"><?= $t('2172|Luk') ?></button></div>
   </div>
   <script type="application/json" id="sh-cfg"><?= settings_hub_json($cfg) ?></script>
-  <script src="../javascript/settingsHub.js?v=20261101d"></script>
+  <script src="../javascript/settingsHub.js?v=20261110"></script>
 </div>
 	<?php
 }

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- remoteBooking/api.php --- ver 5.1.1 --- 2026-11-11 ---
+// --- remoteBooking/api.php --- ver 5.1.1 --- 2026-11-24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -26,8 +26,27 @@
 // 20261029 CL/MMR SST-840: The account name from the request is validated, and every request value is cast or escaped before it reaches SQL.
 //                 The includes in the entry block now use __DIR__.
 // 20261030 CL/MJ SST-876 Drain deferred webshop updates only after the caller commits successfully.
+// 20261105 CL/LH getClosedDates answers an empty list when no day is closed, instead of a message object the booking calendar cannot map over.
+// 20261105 CL/LH createBooking refuses a period that is not one, a stand that does not exist, and a stand that is booked or blocked on any calendar day of the period (rental_period_taken()), with the stand locked from that check until its hold is committed (rental_begin_stand_lock()).
+// 20261105 CL/LH updateBooking deletes a rejected hold's order lines (ordrelinjer) with its order, instead of leaving them behind.
+// 20261105 CL/LH getOrder is removed: nothing called it, and it answered anyone with the full order and its lines for a booking id.
+// 20261105 CL/LH createCust answers a handle for the customer instead of the customer's id (rental_booking_customer_handle()), so an e-mail that is already a customer's no longer tells anyone who that customer is.
+//                createBooking books for the customer the session's handle stands for (rental_booking_customer()) and refuses a customer id.
+// 20261105 CL/LH CreateOrder gives opret_ordrelinje() the order's VAT rate (global $momssats), so the item line gets the item's rate (25%) instead of 0% and approving the booking invoices its order, which fakturer_ordre() refused while the lines had no VAT.
+//                When no fiscal year covers today, the script takes the newest one for every request, the highest number also where grupper.kodenr is text, so CreateOrder finds the item's rate there, opening the order in debitor/ordre.php no longer drops its VAT, and approving the booking posts its invoice there instead of stopping at an empty fiscal year.
+//                CreateOrder looks the item group and the VAT code up by a quoted number, which Postgres compares with a text kodenr too.
+// 20261105 CL/LH fakturer_ordre() casts the paid amount (felt_2) to a number, so a Kreditkort order whose felt_2 is '' is invoiced instead of stopping with a TypeError (float - ''), as api/rest_api.php did with HTTP 500.
+//                It casts the order id and escapes the stored tidspkt in its SQL.
 // 20261111 CL/MMR SST-993 createCust no longer fails when an account number is not a number.
 //                 The next free number comes from bookingNextFreeKontonr(), which only reads four-digit numeric kontonr.
+// 20261116 CL/ASR updateBooking acts only on a booking the visitor's own session made: createBooking records it in the session (rental_booking_note_in_session()), and any other id is answered 403 with nothing written.
+//                 A booking made through Mit salg (mysale/api.php) is not one of them: Mit salg keeps its bookings apart (rental_booking_mysale_notes()).
+//                 A rejection never deletes an invoiced order (status 3 or more, or a fakturanr): it is answered 409 and the hold, the order and its lines stay.
+//                 An approval of an invoiced order answers approved and writes nothing more; when fakturer_ordre() refuses the order, the answer is an error (500) and the hold keeps its expiry.
+//                 $regnaar starts at 0, so a request logs no undefined-variable warning.
+//                 updateBooking asks about the id as the request sent it and casts it for SQL only after that, so a list, a float, true or text such as '41abc' is answered 403.
+//                 An approval of an invoiced order also ends its hold's expiry (expiry_time NULL), as an approval that invoices does, so rental/rental.php no longer removes the hold of an order staff invoiced while it waited.
+// 20261124 CL/ASR Comments state the current rule; no code change.
 //
 
 
@@ -36,6 +55,8 @@ $bg = "nix";
 include(__DIR__ . "/../includes/connect.php");
 include(__DIR__ . "/../includes/std_func.php");
 include_once(__DIR__ . "/../includes/publicTenantDb.php");
+include_once(__DIR__ . "/../includes/stdFunc/rentalPeriodTaken.php");
+include_once(__DIR__ . "/../includes/stdFunc/rentalBookingCustomer.php");
 $db = public_tenant_db(ifset($_GET, "id", ""));
 include(__DIR__ . "/../includes/ordrefunc.php");
 
@@ -43,7 +64,7 @@ $connection = db_connect($sqhost, $squser, $sqpass, $db);
 $query = db_select("SELECT box1, box2, box3, box4, kodenr FROM grupper WHERE art = 'RA'", __FILE__ . " linje " . __LINE__);
 $currentYear = date('Y');
 $currentMonth = date('m');
-$regnaar;
+$regnaar = 0;
 while($row = db_fetch_array($query)){
     $box1 = $row['box1']; // Starting month
     $box2 = $row['box2']; // Starting year
@@ -58,6 +79,10 @@ while($row = db_fetch_array($query)){
         // Do something with $kodenr
         $regnaar = $kodenr;
     }
+}
+if (!$regnaar) { // no fiscal year covers today: the newest, where a booking's order finds the item's VAT rate (CreateOrder, opret_ordrelinje()) and its approval posts the invoice (fakturer_ordre())
+    $r_ra = db_fetch_array(db_select("SELECT max(" . db_cast("kodenr", "integer") . ") AS kodenr FROM grupper WHERE art = 'RA'", __FILE__ . " linje " . __LINE__)); // a number also where kodenr is text, so 10 is newer than 9
+    $regnaar = $r_ra ? (int)$r_ra["kodenr"] : 0;
 }
 
 $baseCurrency = get_settings_value("baseCurrency", "globals", "");
@@ -151,7 +176,11 @@ if(isset($_GET["createBooking"])){
     $data = json_decode(file_get_contents('php://input'), true);
     if (!is_array($data)) $data = array();
     $data["item_id"] = (int)ifset($data, "item_id", 0);
-    $data["cust_id"] = (int)ifset($data, "cust_id", 0);
+    // cust_id is the handle createCust answered this visitor, not an adresser id: it stands for the customer createCust found or made.
+    if (session_status() === PHP_SESSION_NONE && isset($_COOKIE[session_name()])) {
+        session_start(["read_and_close" => true]);
+    }
+    $data["cust_id"] = rental_booking_customer($_SESSION ?? array(), ifset($data, "cust_id", ""), $db);
     $data["weeks"] = (float)ifset($data, "weeks", 0);
     if ($data["item_id"] <= 0 || $data["cust_id"] <= 0) {
         http_response_code(400);
@@ -159,8 +188,13 @@ if(isset($_GET["createBooking"])){
         exit;
     }
     // make timestamp to unix timestamp
-    $from = strtotime($data["start_date"]);
-    $to = strtotime($data["end_date"]);
+    $from = strtotime((string)ifset($data, "start_date", ""));
+    $to = strtotime((string)ifset($data, "end_date", ""));
+    if ($from === false || $to === false || $to < $from) {
+        http_response_code(400);
+        echo json_encode(["error" => "Invalid booking"]);
+        exit;
+    }
     $expiryTime = time() + 360;
     $expiryTime = date('Y-m-d H:i:s', $expiryTime);
     $query = db_select("SELECT * FROM rentalclosed", __FILE__ . " linje " . __LINE__);
@@ -171,9 +205,30 @@ if(isset($_GET["createBooking"])){
             $to = strtotime("+1 day", $to);
         }
     }
+    // The calendar only offers free days, but the request can name any stand and period: check the period as extended above.
+    // The stand stays locked from the check until its hold is committed, so a second request for it waits and then finds the hold.
+    if (!rental_begin_stand_lock($data["item_id"])) {
+        http_response_code(400);
+        echo json_encode(["error" => "Invalid booking"]);
+        exit;
+    }
+    if (rental_period_taken($data["item_id"], $from, $to)) {
+        transaktion('rollback');
+        http_response_code(409);
+        echo json_encode(["error" => "The stand is not free in that period"]);
+        exit;
+    }
     db_modify("INSERT INTO rentalperiod (item_id, cust_id, rt_from, rt_to, order_id, expiry_time) VALUES ($data[item_id], $data[cust_id], $from, $to, 0, TO_TIMESTAMP('$expiryTime', 'YYYY-MM-DD HH24:MI:SS'))", __FILE__ . " linje " . __LINE__);
     $query = db_select("SELECT id FROM rentalperiod WHERE item_id = $data[item_id] AND cust_id = $data[cust_id] AND rt_from = $from AND rt_to = $to", __FILE__ . " linje " . __LINE__);
     $data["booking_id"] = db_fetch_array($query)["id"];
+    // updateBooking approves or rejects only a booking this session made: without the record in the session there is no hold.
+    if (!rental_booking_note_in_session($db, $data["booking_id"])) {
+        transaktion('rollback');
+        http_response_code(400);
+        echo json_encode(["error" => "Invalid booking"]);
+        exit;
+    }
+    transaktion('commit');
     if($data["unit"] == "Dag"){
         $data["days"] = $data["weeks"];
     }else{
@@ -218,7 +273,7 @@ if(isset($_GET["createCust"])){
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         $response = curl_exec($ch);
         curl_close($ch);
-        echo json_encode(["id" => $id]);
+        echo json_encode(["id" => rental_booking_customer_handle($db, $id)]); // not the id: the e-mail is no claim to the customer
         return;
     }
     $data["cust_nr"] = bookingNextFreeKontonr();
@@ -247,7 +302,7 @@ if(isset($_GET["createCust"])){
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     $response = curl_exec($ch);
     curl_close($ch);
-    echo json_encode(["id" => $id]);
+    echo json_encode(["id" => rental_booking_customer_handle($db, $id)]);
 }
 
 /**
@@ -280,6 +335,7 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 	global $webservice; #20260729 SZ was a local shadow, so db_modify() never saw webservice mode as active on write failure and exited hard instead of returning an error (SD-595)
 	$brugernavn = "Booking";
 	$webservice = 1;
+	$saldi_id = (int)$saldi_id; // the order id goes into every query below
 	
 	
 	$log=fopen("../temp/$db/rest_api.log","a");
@@ -335,7 +391,7 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 	$svar=levering($saldi_id,'on',NULL,'on');
 	fwrite($log,__line__." Betalingsbet: $betalingsbet\n");
 	if ($betalingsbet!='Forud' && $betalingsbet!='Lb. Md' && $betalingsbet!='Netto') {
-		$betalingsdiff=abs($ordresum+$ordremoms-$betalingsum);
+		$betalingsdiff=abs($ordresum+$ordremoms-(float)$betalingsum); // felt_2 is text, '' on an order that has no payment
 		if ($pos_betaling && $betalingsdiff >= 0.01) {
 			fwrite($log,__line__." Ordresum : $ordresum\n");
 			fwrite($log,__line__." Ordremoms : $ordremoms\n");
@@ -354,7 +410,7 @@ function fakturer_ordre($saldi_id,$udskriv_til,$pos_betaling) {
 */		
 		$svar=bogfor($saldi_id,'on');
 		if ($tidspkt) {	
-			$qtxt="update ordrer set tidspkt='$tidspkt' where id='$saldi_id'";
+			$qtxt="update ordrer set tidspkt='" . db_escape_string((string)$tidspkt) . "' where id='$saldi_id'";
 			fwrite($log,__line__." $qtxt\n");
 			db_modify($qtxt,__FILE__ . " linje " . __LINE__);	
 		}
@@ -378,48 +434,68 @@ if(isset($_GET["updateBooking"])){
     $data = json_decode(file_get_contents("php://input"), true);
     if (!is_array($data)) $data = array();
     $status = ifset($data, "status", "");
-    $bookingId = (int)ifset($data, "id", 0);
+    // Only a booking this visitor's session made through this page (createBooking recorded it there; Mit salg keeps its
+    // own apart, rental_booking_mysale_notes()). The session stays open until the answer, so a second request of the
+    // session about the booking waits for this one and finds what it did. The id is asked about as the request sent it
+    // and cast only after that, so a list, a float or text such as '41abc' is answered 403.
+    if (!rental_booking_noted_in_session($db, ifset($data, "id", 0))) {
+        http_response_code(403);
+        echo json_encode(["error" => "Unknown booking"]);
+        exit;
+    }
+    $bookingId = (int)$data["id"];
+    $query = db_select("SELECT * FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
+    $res = db_fetch_array($query);
+    $orderId = $res ? (int)$res["order_id"] : 0;
     if($status != "approved"){
-        $query = db_select("SELECT * FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
-        $res = db_fetch_array($query);
-        $orderId = $res ? (int)$res["order_id"] : 0;
+        // An invoiced order is never deleted. Its row is locked before it is read, so an invoicing of the order at the
+        // same time is either seen here or waits until the order is gone.
+        transaktion('begin');
+        $order = $orderId > 0 ? db_fetch_array(db_select("SELECT status, fakturanr FROM ordrer WHERE id = $orderId FOR UPDATE", __FILE__ . " linje " . __LINE__)) : false;
+        if ($order && ((int)$order["status"] >= 3 || trim((string)$order["fakturanr"]) !== "")) {
+            transaktion('rollback');
+            http_response_code(409);
+            echo json_encode(["error" => "The booking is invoiced"]);
+            exit;
+        }
+        if ($orderId > 0) { // order_id is 0 for a hold whose order was not made: it has no lines to delete
+            db_modify("DELETE FROM ordrelinjer WHERE ordre_id = $orderId", __FILE__ . " linje " . __LINE__);
+        }
         db_modify("DELETE FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__);
         db_modify("DELETE FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
+        transaktion('commit');
+        rental_booking_unnote($_SESSION, $db, $bookingId); // saved with the session when the request ends
         echo json_encode(["status" => "deleted"]);
         exit;
     }else{
-        $query = db_select("SELECT * FROM rentalperiod WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
-        $res = db_fetch_array($query);
-        $orderId = $res ? (int)$res["order_id"] : 0;
+        $order = $orderId > 0 ? db_fetch_array(db_select("SELECT status, fakturanr FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__)) : false;
+        if (!$order) { // no hold, or a hold whose order was not made: nothing to invoice
+            http_response_code(409);
+            echo json_encode(["error" => "The booking has no order"]);
+            exit;
+        }
+        if ((int)$order["status"] >= 3 || trim((string)$order["fakturanr"]) !== "") {
+            // Invoiced already, by an earlier approval or by staff while the hold waited: nothing more to invoice. The
+            // hold is a booking now and no longer expires, so rental/rental.php does not remove it.
+            db_modify("UPDATE rentalperiod SET expiry_time = NULL WHERE id = $bookingId AND expiry_time IS NOT NULL", __FILE__ . " linje " . __LINE__);
+            echo json_encode(["status" => "approved"]);
+            exit;
+        }
+        // fakturer_ordre() answers the order id when it invoiced the order, and otherwise what stopped it.
+        if (fakturer_ordre($orderId, "email", 0) !== $orderId) {
+            http_response_code(500);
+            echo json_encode(["error" => "The booking could not be invoiced"]);
+            exit;
+        }
         db_modify("UPDATE rentalperiod SET expiry_time = NULL WHERE id = $bookingId", __FILE__ . " linje " . __LINE__);
-        fakturer_ordre($orderId, "email", 0);
         echo json_encode(["status" => "approved"]);
     }
-}
-
-if(isset($_GET["getOrder"])){
-    $id = (int)$_GET["getOrder"];
-    $query = db_select("SELECT * FROM rentalperiod WHERE id = $id", __FILE__ . " linje " . __LINE__);
-    $res = db_fetch_array($query);
-    $orderId = $res ? (int)$res["order_id"] : 0;
-    $query = db_select("SELECT * FROM ordrer WHERE id = $orderId", __FILE__ . " linje " . __LINE__);
-    $order = db_fetch_array($query);
-    $query = db_select("SELECT * FROM ordrelinjer WHERE ordre_id = $orderId", __FILE__ . " linje " . __LINE__);
-    $orderLines = [];
-    while($row = db_fetch_array($query)){
-        $orderLines[] = $row;
-    }
-    $order["orderLines"] = $orderLines;
-    echo json_encode($order);
 }
 
 if(isset($_GET["getClosedDates"])){
     $query = db_select("SELECT * FROM rentalclosed", __FILE__ . " linje " . __LINE__);
     $i = 0;
-    if(db_num_rows($query) <= 0){
-        echo json_encode(["msg" => "Der er ingen lukkede dage", "success" => false]);
-        exit();
-    }
+    $closedDays = []; // a list even when no day is closed: index.js maps over it to build the calendar
     while($res = db_fetch_array($query)){
         $closedDays[$i]["id"] = $res["id"];
         $closedDays[$i]["date"] = $res["day"];
@@ -430,6 +506,7 @@ if(isset($_GET["getClosedDates"])){
 
 function CreateOrder($data){
     global $regnaar;
+    global $momssats; // opret_ordrelinje() gives the item line no higher rate than the order's, which it reads from here
     $query = db_select("SELECT box1, box2, box3, box4, kodenr FROM grupper WHERE art = 'RA'", __FILE__ . " linje " . __LINE__);
     $currentYear = date('Y');
     $currentMonth = date('m');
@@ -438,7 +515,7 @@ function CreateOrder($data){
     $query = db_select("SELECT gruppe FROM varer WHERE varenr = '" . db_escape_string((string)ifset($data, "sku", "")) . "'", __FILE__ . " linje " . __LINE__);
     $gruppe = db_fetch_array($query)["gruppe"];
 
-    $q_vg = db_select("SELECT beskrivelse, kodenr, box4, box7 FROM grupper WHERE fiscal_year = " . (int)$regnaar . " AND art = 'VG' AND kodenr = " . (int)$gruppe, __FILE__ . " linje " . __LINE__);
+    $q_vg = db_select("SELECT beskrivelse, kodenr, box4, box7 FROM grupper WHERE fiscal_year = " . (int)$regnaar . " AND art = 'VG' AND kodenr = '" . (int)$gruppe . "'", __FILE__ . " linje " . __LINE__);
     $r_vg = db_fetch_array($q_vg);
 
     if ($r_vg && is_array($r_vg)) {
@@ -450,7 +527,7 @@ function CreateOrder($data){
 
             if ($momstype) {
                 $momstype = trim($momstype, 'S');
-                $q_moms = db_select("SELECT box2 FROM grupper WHERE fiscal_year = " . (int)$regnaar . " AND kode = 'S' AND kodenr = " . (int)$momstype . " AND art = 'SM'", __FILE__ . " linje " . __LINE__);
+                $q_moms = db_select("SELECT box2 FROM grupper WHERE fiscal_year = " . (int)$regnaar . " AND kode = 'S' AND kodenr = '" . (int)$momstype . "' AND art = 'SM'", __FILE__ . " linje " . __LINE__);
                 $moms_result = db_fetch_array($q_moms);
                 $momssats = $moms_result ? $moms_result["box2"] : 0;
             } else {

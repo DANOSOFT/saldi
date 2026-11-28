@@ -1,4 +1,7 @@
 <?php
+// 20261105 CL/LH Needs the Kreditorordre right (kreditor.ordre), as kreditor/ordre.php does; without it the request is refused with 403.
+//                It reads and adds lines only on its own module's orders ($orderArts); another module's order or line is "not found".
+//                A number field that is not a number (positionNumber "1', ...") is a 400 before anything is stored.
 require_once '../../../../models/orderlines/OrderLineModel.php';
 require_once '../../../../services/OrderLineService.php';
 require_once '../../../../core/BaseEndpoint.php';
@@ -6,6 +9,16 @@ require_once '../../../../core/logging.php';
 
 class OrderLineEndpoint extends BaseEndpoint
 {
+    protected $permissionKey = 'kreditor.ordre';
+
+    /**
+     * Order types (ordrer.art) whose lines this endpoint serves: the Kreditorordre side's purchase orders (KO) and credit
+     * notes (KK).
+     *
+     * @var array<string>
+     */
+    protected $orderArts = array('KO', 'KK');
+
     public function __construct()
     {
         parent::__construct();
@@ -16,15 +29,18 @@ class OrderLineEndpoint extends BaseEndpoint
         $orderId = $_GET['order_id'] ?? null;
         
         if ($id) {
-            // Get specific orderline
+            // Get specific orderline, when its order is one of this endpoint's order types
             $orderLine = new OrderLineModel($id);
-            if ($orderLine->getId()) {
+            if ($orderLine->getId() && OrderLineService::orderHasArt($orderLine->getOrdreId(), $this->orderArts)) {
                 $this->sendResponse(true, $orderLine->toArray());
             } else {
                 $this->sendResponse(false, null, 'Order line not found', 404);
             }
         } elseif ($orderId) {
-            // Get all orderlines for a specific order
+            // Get all orderlines for a specific order of this endpoint's order types
+            if (!OrderLineService::orderHasArt($orderId, $this->orderArts)) {
+                $this->sendResponse(false, null, 'Order not found', 404);
+            }
             $orderLines = OrderLineModel::getByOrderId($orderId);
             $items = [];
             foreach ($orderLines as $line) {
@@ -38,9 +54,11 @@ class OrderLineEndpoint extends BaseEndpoint
 
     protected function handlePost($data)
     {
+        // Outside the try below, so a malformed number answers 400 (ApiException), not 500
+        $this->validateNumericFields($data, OrderLineService::DECIMAL_FIELDS, OrderLineService::INTEGER_FIELDS);
         try {
             $service = new OrderLineService();
-            $result = $service->createOrderLine($data);
+            $result = $service->createOrderLine($data, $this->orderArts);
             
             if ($result['success']) {
                 $this->sendResponse(true, $result['data'], $result['message'], 201);

@@ -10,6 +10,7 @@
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20261104 LOE MB-62 A read-only Items user is refused: this page only saves and deletes packaging.
+// 20261124 CL/ASR The Hjælp cell in the old page bar is hidden; the top bar has Hjælp.
 
 @session_start();
 $s_id = session_id();
@@ -149,7 +150,7 @@ if ($menu == 'T') {
 
 	print "<td width='84%' style='$topStyle' align='center'>$h_title</td>";
 
-	print "<td id='tutorial-help' width='8%' style='$buttonStyle'>";
+	print "<td id='tutorial-help' hidden width='8%' style='$buttonStyle'>";
 	print "<button class='center-btn' style='$buttonStyle; width:100%' type='button' onMouseOver=\"this.style.cursor='pointer'\">";
 	print $help_icon . $lbl_help . "</button></td>";
 

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/rapport_includes/momsangivelse.php --ver 5.1.0 ----2026-11-03----
+// --- finans/rapport_includes/momsangivelse.php --ver 5.1.1 ----2026-11-13----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,7 +31,14 @@
 // 20260515 PK - Removed csv button as it should not be possible to print csv from here
 // 20261103 LOE SST-936 Use dimensionSqlFragment() for the department, employee and project filters.
 //              The account range is cast as well, and a year that is not a year falls back to the fiscal year.
+// 20261113 CL/ASR The VAT report range is read for the report's fiscal year with vat_report_range() (includes/vatReportRange.php), not from whichever grupper art='MR' row came first.
+//                 Only D and S accounts add to 'Afgiftsbeløb i alt', so a sum account (Z) in the range no longer counts its accounts twice.
+//                 A VAT account's sign is looked up among the VAT groups (SM, KM, EM, YM) of the year the range was read from.
+// 20261113 CL/ASR The 'Momsindberetning' section (automatic VAT filing to SKAT) is shown only when the company's settings row vat/skat_submission_preview is 'on'.
+//                 It is built on a canned SKAT response (another company, deadlines in 2018) and its buttons do nothing, so users no longer see it; the code stays until SKAT supports the filing.
+//                 The heredoc's end marker sits at the block's indentation again, so the XML starts with its declaration and the preview parses without warnings.
 
+include_once(__DIR__ . "/../../includes/vatReportRange.php");
 
 function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, $ansat_fra, $ansat_til, $afd, $projekt_fra, $projekt_til, $simulering, $lagerbev)
 {
@@ -241,10 +248,11 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 		$dim = dimensionSqlFragment($afd, $ansat_fra, $ansat_til, $ansatte_id, $projekt_fra, $projekt_til);
 	}
 
-	$row = db_fetch_array($query = db_select("select box1, box2 from grupper where art='MR'", __FILE__ . " linje " . __LINE__));
-	if (($row['box1']) && ($row['box2'])) {
-		$konto_fra = $row['box1'];
-		$konto_til = $row['box2'];
+	// The range of the report's own fiscal year (includes/vatReportRange.php); null when it is not set up.
+	$momsRange = vat_report_range((int)$regnaar);
+	if ($momsRange) {
+		$konto_fra = $momsRange['from'];
+		$konto_til = $momsRange['to'];
 
 		$x = 0;
 		$qtxt = "select * from kontoplan where regnskabsaar='$regnaar' " . kontoRangeSqlFragment($konto_fra, $konto_til) . "order by kontonr";
@@ -315,16 +323,22 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 				print "<td>$kontonr[$x] </td>";
 				$tmp = kontobemaerkning($kontobeskrivelse[$x]);
 				print "<td $tmp colspan=3>$kontobeskrivelse[$x] </td>";
-				$qtxt = "select art from grupper where box1='$kontonr[$x]' and art<>'MR'";
+				// The VAT groups of the year the range was read from (the report's year, or the nearest earlier year that has a range).
+				$qtxt = "select art from grupper where box1='$kontonr[$x]' and art in ('SM','KM','EM','YM') and fiscal_year='" . (int)$momsRange['fiscal_year'] . "'";
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				if (isset($r['art']) && ($r['art'] == 'SM' || $r['art'] == 'YM' || $r['art'] == 'EM')) {
 					print "<td>&nbsp;</td>";
 					$tmp = dkdecimal($aarsum[$x] * -1, 2);
-				} else
+				} else {
 					$tmp = dkdecimal($aarsum[$x], 2);
+				}
 				print "<td align=right>$tmp </td>";
 				print "</tr>\n";
-				$afgiftssum = $afgiftssum + $aarsum[$x];
+				// A sum account (Z) repeats the accounts it sums and a heading carries no amount, so only the
+				// D and S accounts make up the total.
+				if ($kontotype[$x] == 'D' || $kontotype[$x] == 'S') {
+					$afgiftssum = $afgiftssum + $aarsum[$x];
+				}
 			}
 		}
 		$tmp = dkdecimal($afgiftssum * -1, 2);
@@ -346,116 +360,122 @@ function momsangivelse($regnaar, $maaned_fra, $maaned_til, $aar_fra, $aar_til, $
 
 		/**************************************************************************************************** */
 		// Automatisk momsindberetning til skat
+		// Filing the VAT to SKAT waits for SKAT's support. Until then this section runs on a canned 'kalenderHent' response (another
+		// company, deadlines in 2018) and its buttons have no handler, so it is a developer preview: it is shown only when the
+		// company's settings row var_grp 'vat', var_name 'skat_submission_preview' is 'on'. Without that row nobody sees it.
+		$qtxt = "select var_value from settings where var_grp = 'vat' and var_name = 'skat_submission_preview' and (user_id is null or user_id = 0) order by id desc limit 1";
+		$skatRow = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
+		if ($skatRow && trim((string)$skatRow['var_value']) === 'on') {
+			// This is a response from 'kalenderHent'
+			$kalenderResponse = <<<XML
+			<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+			<ns4:VirksomhedKalenderHent_O xmlns="http://rep.oio.dk/skat.dk/basis/kontekst/xml/schemas/2006/09/01/" xmlns:ns2="http://rep.oio.dk/skat.dk/motor/class/virksomhed/xml/schemas/20080401/" xmlns:ns4="urn:oio:skat:nemvirksomhed:ws:1.0.0" xmlns:ns3="urn:oio:skat:nemvirksomhed:1.0.0">
+				<HovedOplysningerSvar>
+					<TransaktionIdentifikator>f26fe3e6-771b-4b3d-aeeb-0b500a9bc709</TransaktionIdentifikator>
+					<ServiceIdentifikator>NTSE</ServiceIdentifikator>
+					<TransaktionTid>2024-01-23T10:34:15.651+01:00</TransaktionTid>
+					<SvarStruktur/>
+				</HovedOplysningerSvar>
+				<ns2:VirksomhedSENummerIdentifikator>41250313</ns2:VirksomhedSENummerIdentifikator>
+				<ns3:PligtKode>63</ns3:PligtKode>
+				<ns4:AngivelseFrekvensListe>
+					<ns4:AngivelseFrekvens>
+						<ns3:AngivelseFrekvensForholdGyldigFraDate>2014-01-02</ns3:AngivelseFrekvensForholdGyldigFraDate>
+						<ns3:AngivelseFrekvensTypeCode>8</ns3:AngivelseFrekvensTypeCode>
+						<ns4:AngivelseBetalingFristDatoListe>
+							<ns4:AngivelseBetalingFristDato>
+								<ns3:AngivelseFristKalenderFristDato>2018-03-01</ns3:AngivelseFristKalenderFristDato>
+								<ns3:AngivelseFristKalenderBetalingDato>2018-03-01</ns3:AngivelseFristKalenderBetalingDato>
+							</ns4:AngivelseBetalingFristDato>
+							<ns4:AngivelseBetalingFristDato>
+								<ns3:AngivelseFristKalenderFristDato>2018-06-01</ns3:AngivelseFristKalenderFristDato>
+								<ns3:AngivelseFristKalenderBetalingDato>2018-06-01</ns3:AngivelseFristKalenderBetalingDato>
+							</ns4:AngivelseBetalingFristDato>
+							<ns4:AngivelseBetalingFristDato>
+								<ns3:AngivelseFristKalenderFristDato>2018-09-03</ns3:AngivelseFristKalenderFristDato>
+								<ns3:AngivelseFristKalenderBetalingDato>2018-09-03</ns3:AngivelseFristKalenderBetalingDato>
+							</ns4:AngivelseBetalingFristDato>
+							<ns4:AngivelseBetalingFristDato>
+								<ns3:AngivelseFristKalenderFristDato>2018-12-03</ns3:AngivelseFristKalenderFristDato>
+								<ns3:AngivelseFristKalenderBetalingDato>2018-12-03</ns3:AngivelseFristKalenderBetalingDato>
+							</ns4:AngivelseBetalingFristDato>
+						</ns4:AngivelseBetalingFristDatoListe>
+					</ns4:AngivelseFrekvens>
+				</ns4:AngivelseFrekvensListe>
+			</ns4:VirksomhedKalenderHent_O>
+			XML;
 
-		// This is a response from 'kalenderHent'
-		$kalenderResponse = <<<XML
-		<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-		<ns4:VirksomhedKalenderHent_O xmlns="http://rep.oio.dk/skat.dk/basis/kontekst/xml/schemas/2006/09/01/" xmlns:ns2="http://rep.oio.dk/skat.dk/motor/class/virksomhed/xml/schemas/20080401/" xmlns:ns4="urn:oio:skat:nemvirksomhed:ws:1.0.0" xmlns:ns3="urn:oio:skat:nemvirksomhed:1.0.0">
-			<HovedOplysningerSvar>
-				<TransaktionIdentifikator>f26fe3e6-771b-4b3d-aeeb-0b500a9bc709</TransaktionIdentifikator>
-				<ServiceIdentifikator>NTSE</ServiceIdentifikator>
-				<TransaktionTid>2024-01-23T10:34:15.651+01:00</TransaktionTid>
-				<SvarStruktur/>
-			</HovedOplysningerSvar>
-			<ns2:VirksomhedSENummerIdentifikator>41250313</ns2:VirksomhedSENummerIdentifikator>
-			<ns3:PligtKode>63</ns3:PligtKode>
-			<ns4:AngivelseFrekvensListe>
-				<ns4:AngivelseFrekvens>
-					<ns3:AngivelseFrekvensForholdGyldigFraDate>2014-01-02</ns3:AngivelseFrekvensForholdGyldigFraDate>
-					<ns3:AngivelseFrekvensTypeCode>8</ns3:AngivelseFrekvensTypeCode>
-					<ns4:AngivelseBetalingFristDatoListe>
-						<ns4:AngivelseBetalingFristDato>
-							<ns3:AngivelseFristKalenderFristDato>2018-03-01</ns3:AngivelseFristKalenderFristDato>
-							<ns3:AngivelseFristKalenderBetalingDato>2018-03-01</ns3:AngivelseFristKalenderBetalingDato>
-						</ns4:AngivelseBetalingFristDato>
-						<ns4:AngivelseBetalingFristDato>
-							<ns3:AngivelseFristKalenderFristDato>2018-06-01</ns3:AngivelseFristKalenderFristDato>
-							<ns3:AngivelseFristKalenderBetalingDato>2018-06-01</ns3:AngivelseFristKalenderBetalingDato>
-						</ns4:AngivelseBetalingFristDato>
-						<ns4:AngivelseBetalingFristDato>
-							<ns3:AngivelseFristKalenderFristDato>2018-09-03</ns3:AngivelseFristKalenderFristDato>
-							<ns3:AngivelseFristKalenderBetalingDato>2018-09-03</ns3:AngivelseFristKalenderBetalingDato>
-						</ns4:AngivelseBetalingFristDato>
-						<ns4:AngivelseBetalingFristDato>
-							<ns3:AngivelseFristKalenderFristDato>2018-12-03</ns3:AngivelseFristKalenderFristDato>
-							<ns3:AngivelseFristKalenderBetalingDato>2018-12-03</ns3:AngivelseFristKalenderBetalingDato>
-						</ns4:AngivelseBetalingFristDato>
-					</ns4:AngivelseBetalingFristDatoListe>
-				</ns4:AngivelseFrekvens>
-			</ns4:AngivelseFrekvensListe>
-		</ns4:VirksomhedKalenderHent_O>
-XML;
+			$dom = new DOMDocument;
 
-		$dom = new DOMDocument;
+			$dom->loadXML($kalenderResponse);
 
-		$dom->loadXML($kalenderResponse);
+			$angivelseFrekvensTypeCode = $dom->getElementsByTagName('AngivelseFrekvensTypeCode')->item(0);
+			$kalenderHent = $dom->getElementsByTagName('AngivelseFristKalenderFristDato');
 
-		$angivelseFrekvensTypeCode = $dom->getElementsByTagName('AngivelseFrekvensTypeCode')->item(0);
-		$kalenderHent = $dom->getElementsByTagName('AngivelseFristKalenderFristDato');
+			$frekvensTypeCode = array(
+				0 => "Ingen",
+				1 => "Straks",
+				2 => "Daglig",
+				5 => "Ugentlig",
+				6 => "14 dage",
+				7 => "Månedlig",
+				8 => "Kvartal",
+				9 => "Halvårlig",
+				10 => "Årlig",
+				16 => "Variabel",
+				17 => "Lejlighedsvis"
+			);
 
-		$frekvensTypeCode = array(
-			0 => "Ingen",
-			1 => "Straks",
-			2 => "Daglig",
-			5 => "Ugentlig",
-			6 => "14 dage",
-			7 => "Månedlig",
-			8 => "Kvartal",
-			9 => "Halvårlig",
-			10 => "Årlig",
-			16 => "Variabel",
-			17 => "Lejlighedsvis"
-		);
+			$errorCodes = array(
+				4801 => "RSU er ikke delegeret af virksomheden",
+				4802 => "Ikke åben periode",
+				4803 => "Periode ikke afsluttet",
+				4804 => "Periode er mere end 3 år gammel",
+				4810 => "Foreløbig statement ikke godkendt",
+				4813 => "Der findes ingen foreløbig momsindberetning",
+				4816 => "Værdien i <Angivelsestype> findes ikke. Skal være \"Moms\".",
+				4811 => "Ingen kvittering, den foreløbige momsangivelse er afvist",
+				4812 => "Kvittering findes ikke",
+				4817 => "Søgedato start er efter søgedatoslut"
+			);
 
-		$errorCodes = array(
-			4801 => "RSU er ikke delegeret af virksomheden",
-			4802 => "Ikke åben periode",
-			4803 => "Periode ikke afsluttet",
-			4804 => "Periode er mere end 3 år gammel",
-			4810 => "Foreløbig statement ikke godkendt",
-			4813 => "Der findes ingen foreløbig momsindberetning",
-			4816 => "Værdien i <Angivelsestype> findes ikke. Skal være \"Moms\".",
-			4811 => "Ingen kvittering, den foreløbige momsangivelse er afvist",
-			4812 => "Kvittering findes ikke",
-			4817 => "Søgedato start er efter søgedatoslut"
-		);
-
-		/**
-		 * Create a readable date from standart date format '2018-02-01' to '1. februar 2018'
-		 * @param mixed $newDate Date to convert
-		 */
-		function newDate($newDate)
-		{
-			global $md; // global variable with danish monthnames
-			$date = DateTime::createFromFormat('Y-m-d', $newDate);
-			$mn = $date->format('n');
-			$day = $date->format('j');
-			$year = $date->format('Y');
-			return $day . ". " . $md[$mn] . " " . $year;
-		}
-
-		// If RSU (Regnskabsudbyder) is NOT delegated to handle VAT returns for klient. Text and link to skat
-		print "<tr><td colspan=\"6\" style=\"font-size: large;font-weight: lighter;padding: 15px 0;\">Momsindberetning</td></tr>";
-		if (true) {
-			print "<tr><td colspan=\"6\" style=\"padding-bottom:5px;\"><p>Hvis du vil indberettes moms direkte til skat skal du give SALDI tilladelse til at indsende dine momsdata. Det gøres ved at tilmelde SALDI <a href=\"https://skat.dk/erhverv/moms/moms-saadan-goer-du/saadan-indberetter-du-moms\" target=\"_blank\" style=\"color:blue;\">Her</a>.</p></td></tr>";
-			print "<tr><td colspan=\"6\" style=\"padding-bottom:5px;\"><p>Under punktet <mark class=\"mark\"><b>Indberet moms direkte fra dit regnskabsprogram</b></mark> kan du finde en udførlig vejledning i hvordan du giver SALDI lov til at logge på TastSelv Erhverv på dine vegne.</p></td></tr>";
-		}
-		// If RSU is delegated to handle VAT returns for klient. Text and button to get VAT return kalender.
-		if (true) {
-			print "<tr><td colspan=\"6\">Her kan du hente en kalender som viser de datoer som der senest skal indberettes moms.</td></tr>";
-			print "<tr><td colspan=\"6\" style=\"padding-bottom:5px;\"><button>Hent kalender</button></td></tr>";
-		}
-		// If VAT return kalender is present. Text and button for return VAT.
-		if (true) {
-			$nodeValue = $angivelseFrekvensTypeCode->nodeValue;
-			print "<tr><td colspan=\"6\" style=\"padding-bottom:5px;\"><p>Kalender for momsindberetning hvor frekvensen er: " . $frekvensTypeCode[$nodeValue] . "</p></td></tr>";
-			print "<tr><td colspan=\"6\"><table class=\"kalender\">";
-			print "<tr><th>Skal være indberettet og betalt senest</th></tr>";
-			foreach ($kalenderHent as $kalender) {
-				print "<tr><td>" . newDate($kalender->nodeValue) . "</td></tr>";
+			/**
+			 * Create a readable date from standart date format '2018-02-01' to '1. februar 2018'
+			 * @param mixed $newDate Date to convert
+			 */
+			function newDate($newDate)
+			{
+				global $md; // global variable with danish monthnames
+				$date = DateTime::createFromFormat('Y-m-d', $newDate);
+				$mn = $date->format('n');
+				$day = $date->format('j');
+				$year = $date->format('Y');
+				return $day . ". " . $md[$mn] . " " . $year;
 			}
-			print "</table></td></tr>";
-			print "<tr><td colspan=\"6\" style=\"padding-bottom:5px;\"><button>Indberet moms</button></td></tr>";
+
+			// If RSU (Regnskabsudbyder) is NOT delegated to handle VAT returns for klient. Text and link to skat
+			print "<tr><td colspan=\"6\" style=\"font-size: large;font-weight: lighter;padding: 15px 0;\">Momsindberetning</td></tr>";
+			if (true) {
+				print "<tr><td colspan=\"6\" style=\"padding-bottom:5px;\"><p>Hvis du vil indberettes moms direkte til skat skal du give SALDI tilladelse til at indsende dine momsdata. Det gøres ved at tilmelde SALDI <a href=\"https://skat.dk/erhverv/moms/moms-saadan-goer-du/saadan-indberetter-du-moms\" target=\"_blank\" style=\"color:blue;\">Her</a>.</p></td></tr>";
+				print "<tr><td colspan=\"6\" style=\"padding-bottom:5px;\"><p>Under punktet <mark class=\"mark\"><b>Indberet moms direkte fra dit regnskabsprogram</b></mark> kan du finde en udførlig vejledning i hvordan du giver SALDI lov til at logge på TastSelv Erhverv på dine vegne.</p></td></tr>";
+			}
+			// If RSU is delegated to handle VAT returns for klient. Text and button to get VAT return kalender.
+			if (true) {
+				print "<tr><td colspan=\"6\">Her kan du hente en kalender som viser de datoer som der senest skal indberettes moms.</td></tr>";
+				print "<tr><td colspan=\"6\" style=\"padding-bottom:5px;\"><button>Hent kalender</button></td></tr>";
+			}
+			// If VAT return kalender is present. Text and button for return VAT.
+			if (true) {
+				$nodeValue = $angivelseFrekvensTypeCode->nodeValue;
+				print "<tr><td colspan=\"6\" style=\"padding-bottom:5px;\"><p>Kalender for momsindberetning hvor frekvensen er: " . $frekvensTypeCode[$nodeValue] . "</p></td></tr>";
+				print "<tr><td colspan=\"6\"><table class=\"kalender\">";
+				print "<tr><th>Skal være indberettet og betalt senest</th></tr>";
+				foreach ($kalenderHent as $kalender) {
+					print "<tr><td>" . newDate($kalender->nodeValue) . "</td></tr>";
+				}
+				print "</table></td></tr>";
+				print "<tr><td colspan=\"6\" style=\"padding-bottom:5px;\"><button>Indberet moms</button></td></tr>";
+			}
 		}
 
 

@@ -1,4 +1,6 @@
 <?php
+// 20261117 CL/ASR The copy keeps each line's VAT codes (debetvat/kreditvat), swapped with debit and credit when the sign is reversed.
+//                 Without them a line whose VAT code differed from its account's code was posted with the account's code.
 function copy2new($kladde_id,$bilagsnr,$ny_dato,$vend_fortegn) {
 	global $regnaar;
 	global $connection;
@@ -47,11 +49,15 @@ function copy2new($kladde_id,$bilagsnr,$ny_dato,$vend_fortegn) {
 					$gl_bilag = $row['bilag'];
 					$next_bilag = $bilag;
 				} elseif ($bilagsnr=='=') $bilag=$row['bilag']*1;
+				// The line's own VAT code per side (NULL: the account's code applies) follows its account.
+				$debetvat=isset($row['debetvat']) ? "'".db_escape_string($row['debetvat'])."'" : "NULL";
+				$kreditvat=isset($row['kreditvat']) ? "'".db_escape_string($row['kreditvat'])."'" : "NULL";
 				if ($vend_fortegn) {
 					$debet=$row['kredit']*1;
 					$kredit=$row['debet']*1;
 					$d_type=$row['k_type'];
 					$k_type=$row['d_type'];
+					list($debetvat,$kreditvat)=array($kreditvat,$debetvat);
 				} else {
 					$debet=$row['debet']*1;
 					$kredit=$row['kredit']*1;
@@ -67,10 +73,10 @@ function copy2new($kladde_id,$bilagsnr,$ny_dato,$vend_fortegn) {
 
 				if ($ny_dato && $ny_dato!="=") $date=usdate($ny_dato);
 				else $date=$row['transdate'];
-				$qtxt="insert into kassekladde (bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, faktura, amount, ";
+				$qtxt="insert into kassekladde (bilag, transdate, beskrivelse, d_type, debet, k_type, kredit, debetvat, kreditvat, faktura, amount, ";
 				$qtxt.="momsfri, afd, ansat, projekt, valuta, kladde_id, pos)";
 				$qtxt.=" values ";
-				$qtxt.="('$bilag','$date','$beskrivelse','$d_type','$debet','$k_type','$kredit',";
+				$qtxt.="('$bilag','$date','$beskrivelse','$d_type','$debet','$k_type','$kredit',$debetvat,$kreditvat,";
 				$qtxt.="'$faktura','$row[amount]','$row[momsfri]','$afd','$ansat','$projekt','$valuta','$ny_kladde_id','$pos')";
 				db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 			}

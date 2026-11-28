@@ -43,6 +43,7 @@
 // 20260604 CL/PHR reads baseCountry from settings, passes to cvrnr_land/cvrnr_omr
 // 20260908 CDX/LH Lock creditor orders before posting and update split purchase batches once (SST-765).
 // 20260916 Sawaneh Declared $permission_key (roles & permissions, phase 3)
+// 20261110 CDX/ASR Require module write access before this mutation endpoint runs.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261113 CDX/NTR Delegate supplier ledger posting to its dedicated module (SD-599).
 // 20261119 CDX/NTR Merge master while retaining supplier posting initialization and permission checks.
@@ -51,10 +52,11 @@
 $s_id=session_id();
 require_once __DIR__ . '/../includes/purchaseInvoicePosting.php';
 
-include("../includes/connect.php");
+include(__DIR__ . '/../includes/connect.php');
 $permission_key = 'kreditor.ordre';
-include("../includes/online.php");
-include("../includes/std_func.php");
+$permission_level = 'write';
+include(__DIR__ . '/../includes/online.php');
+include(__DIR__ . '/../includes/std_func.php');
 
 echo "<br>";
 

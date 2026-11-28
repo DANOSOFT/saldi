@@ -107,7 +107,7 @@ if ($valg == 'pbs') {
 	include("pbsliste.php");
 	exit;
 } else {
-	print "<td id='tutorial-help' width=5% style='$buttonStyle'>
+	print "<td id='tutorial-help' hidden width=5% style='$buttonStyle'>
 		   <button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
 		   print"$help_icon".findtekst('2564|Hjælp', $sprog_id)."</button></td>";
 	$ny_konto_param = ($konto_id) ? "&konto_id=$konto_id" : "";

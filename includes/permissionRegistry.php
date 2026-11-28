@@ -20,7 +20,7 @@
 // but WITHOUT ANY KIND OF CLAIM OR WARRANTY. See
 // GNU General Public License for more details.
 //
-// Copyright (c) 2026-2026 Danosoft ApS
+// Copyright (c) 2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260916 SS Central registry of permission keys (spec R1), their mapping to the legacy
 // 20261009 SS Oversigt keys (front-page addendum 4): dashboard.view + dashboard.block.* as read-only keys in a group of their own, first in the matrix, derived from the module keys ('derive_keys'); standard-role defaults per addendum §4.
@@ -38,6 +38,7 @@
 // 20261103 CL/ASR QA round 2: Kun visning no longer gets read on dangerous keys (settings.backup), and Bogholder and Revisor get no expiry block, which needs a lager key.
 // 20261104 CL/ASR The batch/expiry tools moved to Varerapport (owner, 4 Nov 2026), so the expiry warning goes to the roles with lager.rapporter: Lager gets Se Oversigt, the expiry warning and news, Indkøb loses the expiry warning.
 //                 dashboard.block.expiry derives from lager.rapporter alone (was lager.varer or lager.rapporter).
+// 20261110 CDX/ASR Add independent CRM access, inheriting the existing debtor level for standard role defaults.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 /**
  * Every permission key the system knows. A key is granted at level none / read / write.
@@ -77,6 +78,9 @@ function permission_registry(): array
 		'debitor.ordre'          => array('group' => 'debitor',  'label' => '1255|Debitorordre',       'legacy' => array(5),  'dangerous' => false),
 		'debitor.konti'          => array('group' => 'debitor',  'label' => '1256|Debitorkonti',       'legacy' => array(6),  'dangerous' => false),
 		'debitor.rapporter'      => array('group' => 'debitor',  'label' => '449|Debitorrapporter',    'legacy' => array(12), 'dangerous' => false),
+
+		// Inherit only at upgrade and legacy fallback; CRM never opens the debtor legacy position.
+		'crm.access' => array('group' => 'crm', 'label' => 'roles.permission.crm_access|Kunder, sager, aktiviteter og kalender', 'legacy' => array(), 'dangerous' => false, 'inherit_from' => 'debitor.konti', 'since' => '20261110'),
 
 		'kreditor.ordre'         => array('group' => 'kreditor', 'label' => '1257|Kreditorordre',      'legacy' => array(7),  'dangerous' => false),
 		'kreditor.konti'         => array('group' => 'kreditor', 'label' => '1258|Kreditorkonti',      'legacy' => array(8),  'dangerous' => false),
@@ -133,6 +137,7 @@ function permission_groups(): array
 		'dashboard' => '2224|Oversigt',
 		'finans'   => '600|Finans',
 		'debitor'  => '604|Debitor',
+		'crm'     => 'roles.group.crm|CRM',
 		'kreditor' => '607|Kreditorer',
 		'lager'    => '608|Lager',
 		'system'   => '2377|System',
@@ -171,7 +176,7 @@ function permission_default_roles(): array
 	$dashNoStock = $dashAll;
 	unset($dashNoStock['dashboard.block.expiry']);
 	$legacyRead += $dashAll;
-	return array(
+	$roles = array(
 		'administrator' => array(
 			'label'       => '330|Administrator',
 			'beskrivelse' => '5897|Alt, inkl. brugere, roller, integrationer og sikkerhedskopi.',
@@ -229,4 +234,9 @@ function permission_default_roles(): array
 			) + $dashNoStock,
 		),
 	);
+	foreach ($roles as &$role) {
+		$role['levels']['crm.access'] = $role['levels']['debitor.konti'] ?? 'none';
+	}
+	unset($role);
+	return $roles;
 }

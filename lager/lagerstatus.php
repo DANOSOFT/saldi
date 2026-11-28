@@ -73,6 +73,8 @@
 //              The filters that URL sends are read without warnings too.
 // 20261104 CL/ASR The item number links to the item trace (varespor.php) only for users who may open it; the trace moved to Varerapport (right 15, lager.rapporter).
 // 20261104 CL/ASR Final QA: the page is opened from Varerapport (lager/rapport.php, right 15), so reading it needs lager.rapporter instead of lager.varer; Ret skæve lagertal (ret_behold=2) still needs write on lager.varer.
+// 20261105 CL/LH The CSV link carries the Dato select's choice (dateType) and a GET request reads it, so the CSV, the page links and the Print view keep Fakturadato; they counted by Leveringsdato.
+// 20261110 CDX/ASR Allow known report filters with read access and gate every stock repair with item write.
 //
 // MB-31 - one <input> per grid search column (see $lsSFields further down); every such box uses this
 // same markup.
@@ -112,17 +114,29 @@ $linjebg=NULL;
 $kostvalue=0;$lagervalue=0;$salgsvalue=0;
 $dateType = 'levdate';
 
-include("../includes/connect.php");
+include(__DIR__ . '/../includes/connect.php');
 // Opened from Varerapport (lager/rapport.php, right 15): reading needs the report key.
 $permission_key = 'lager.rapporter';
-// "Ret skæve lagertal" (ret_behold=2) rewrites stock figures from a GET link, so it needs write on Varer.
-if (isset($_GET['ret_behold']) && (string) $_GET['ret_behold'] === '2') {
+$permission_post_read = true;
+$stockFilterFields = [
+	'dato', 'dateType', 'varegruppe', 'lagervalg', 'zStock', 'showClosed',
+	'varenr', 'varenavn', 'enhed', 'lss_tilgang', 'lss_afgang', 'lss_antal',
+	'lss_kobspris', 'lss_kostpris', 'lss_salgspris',
+];
+foreach ($_POST as $stockField => $stockValue) {
+	if (!in_array($stockField, $stockFilterFields, true) || !is_scalar($stockValue)) {
+		$permission_post_read = false;
+		break;
+	}
+}
+// All three repair links rewrite item/stock balances; date and search forms only read them.
+if ((int)($_GET['ret_behold'] ?? 0) === 2 || (int)($_GET['ajour'] ?? 0) === 1 || !empty($_GET['opdater'])) {
 	$permission_key = 'lager.varer';
 	$permission_level = 'write';
 }
-include("../includes/online.php");
-include("../includes/std_func.php");
-include("../includes/topline_settings.php");
+include(__DIR__ . '/../includes/online.php');
+include(__DIR__ . '/../includes/std_func.php');
+include(__DIR__ . '/../includes/topline_settings.php');
 include_once(__DIR__ . "/lagerstatusValue.php");
 
 db_modify("update varer set lukket = '0' where lukket is NULL or lukket = ''",__FILE__ . " linje " . __LINE__);
@@ -159,7 +173,7 @@ else {
 // meant showClosed silently reset on every plain GET navigation, incl. Grid Framework pagination.
 if (isset($_GET['dato']) && $_GET['dato']) {
 	$dato       = $_GET['dato'];
-	$dateType   = 'levdate';
+	$dateType   = ifset($_GET, 'dateType', null);
 	$varegruppe = ifset($_GET, 'varegruppe', null);
 	$lagervalg  = ifset($_GET, 'lagervalg', null);
 	$zStock     = ifset($_GET, 'zStock', null);
@@ -189,7 +203,8 @@ if (isset($_POST['dato']) && $_POST['dato']) {
 	foreach ($lsSFields as $lsSField) $lsS[$lsSField] = isset($_POST['lss_'.$lsSField]) ? trim($_POST['lss_'.$lsSField]) : null;
 	setcookie("saldi_lagerstatus", $varegruppe);
 }
-if (!$dateType) $dateType   = 'levdate';
+// The Dato select offers these two; anything else counts as Leveringsdato, as in the queries below.
+if ($dateType !== 'fakturadate') $dateType = 'levdate';
 $csv=ifset($_GET, 'csv', null);
 
 $dd=date("Y-m-d");
@@ -368,7 +383,8 @@ $lsPageStart = ($lsPage - 1) * $lsPerPage;
 $lsPageEnd = $lsPageStart + $lsPerPage;
 // MB-31/CodeRabbit - propagate every $lsSFields numeric filter (not just varenr/varenavn/enhed),
 // same as $lsBaseUrlParams below does for pagination, so a CSV export matches what the grid shows.
-$lsCsvHref = "lagerstatus.php?dato=$dato&varegruppe=$varegruppe&csv=1&zStock=$zStock&showClosed=$showClosed&lagervalg=$lagervalg&varenr=".urlencode((string)$varenrSoeg)."&varenavn=".urlencode((string)$varenavn)."&enhed=".urlencode((string)$enhedSoeg);
+// The date basis (dateType) goes along too, or the CSV is counted by Leveringsdato.
+$lsCsvHref = "lagerstatus.php?dato=$dato&dateType=".urlencode($dateType)."&varegruppe=$varegruppe&csv=1&zStock=$zStock&showClosed=$showClosed&lagervalg=$lagervalg&varenr=".urlencode((string)$varenrSoeg)."&varenavn=".urlencode((string)$varenavn)."&enhed=".urlencode((string)$enhedSoeg);
 foreach ($lsSFields as $lsSField) $lsCsvHref .= "&lss_".$lsSField."=".urlencode((string)$lsS[$lsSField]);
 
 if ($autoprint) {

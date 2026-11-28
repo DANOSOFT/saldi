@@ -18,6 +18,7 @@
 //
 // History:
 // 20261029 CL/SZ SD-751: created.
+// 20261115 CL/ASR Integration: formfunk.php is included by __DIR__, not by a path the bootstrap's chdir() resolves (include-paths guardrail).
 
 if ($argc < 4) {
     fwrite(STDERR, "usage: php run_formularprint.php <ordre_id> <formular> <tenant_db> [udskriv_alle_til] [headless]\n");
@@ -38,7 +39,7 @@ function send_mails($ordre_id, $filnavn, $email, $mailsprog, $form_nr, $subjekt,
 }
 
 require __DIR__ . '/bootstrap_ordrefunc.php';
-include("../includes/formfunk.php");
+include __DIR__ . '/../../../includes/formfunk.php';
 error_reporting(E_ALL);
 
 /** @return array<string, string> file name => contents */

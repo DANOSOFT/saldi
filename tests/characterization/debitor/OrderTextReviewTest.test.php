@@ -4,6 +4,7 @@
 // 20261118 CDX/NTR Exercise shared LIKE normalization in both query entry points.
 // 20261118 CDX/NTR Cover response status, lossless validation, SQL continuations and fresh driver captures.
 // 20261118 CDX/NTR Cover account binding, malformed submissions, deleted templates and leading blank lines.
+// 20261124 CL/ASR Integration: the fixture answers db_modify()'s activity-log hook (includes/dataAudit.php) with no audit, as the hook is not what these tests check.
 // 20261126 CDX/NTR Exercise bound reads through the production query wrapper on PostgreSQL and both MySQL driver names.
 
 namespace OrderTextReviewFixture {
@@ -58,6 +59,10 @@ namespace OrderTextReviewFixture {
     function injecttjek($sql) { return $sql; }
     function db_query_connection($global) { return null; }
     function audit_log($action, $details) {}
+    // db_modify() asks includes/dataAudit.php for a look at the rows before and after a write (the activity log). In this
+    // namespace its include path would be the test's own folder, and the activity log is not what these tests check.
+    function data_audit_before($qtext, $global = false, $connection = null) { return null; }
+    function data_audit_after($context, $result) {}
     function captureQuery($driverFunction, $sql, $params = null) {
         $GLOBALS['orderTextReviewDriverFunction'] = $driverFunction;
         $GLOBALS['orderTextReviewSql'] = $sql;

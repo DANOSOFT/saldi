@@ -33,8 +33,32 @@
 // 20261103 CL/ASR QA: "Gælder regnskabsåret" shows each year by its name (grupper RA beskrivelse, e.g.
 //                 2026), not its number (1, 2).
 //                 After a refused save a cell's data-orig is the stored value, not the posted one, so Fortryd and the unsaved-changes warning still see the change.
+// 20261105 CL/LH settings_rows_fields_by_sub(): a field the user may not see at all ('hide_without') is left out, so its sub-section has no empty heading (Momsperioder on Regnskabsår without Kassekladde).
+// 20261105 CL/LH A table card says whether its table has the inaktiv flag as data-can-inactive, not data-inactive, which only the eye carries.
+//                settingsRows.js took a click into a cell for a click on the eye (closest('[data-inactive]') found the card) and threw a TypeError on the card's missing row.
+// 20261105 CL/LH settingsRows.js?v=7, whose Gem posts only the cells that changed and the new rows, so a long table (a variant's values) stays under PHP's max_input_vars.
+//                The new version keeps a cached copy of the old script, which posted every cell, from being used.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 include_once(__DIR__ . '/rows.php');
+
+/**
+ * The section's fields per sub-section, drawn above its tables. Actions and mini rows are drawn elsewhere, and a field
+ * the user may not see at all (st_field_access() 'none', i.e. 'hide_without') is left out, so a sub-section holding
+ * only such fields gets no empty heading.
+ *
+ * @param array<string, array<string, mixed>> $defs the section's definitions, key => definition
+ * @return array<string, array<string, array<string, mixed>>> sub-section => key => definition
+ */
+function settings_rows_fields_by_sub(array $defs): array
+{
+	$fieldsBySub = array();
+	foreach ($defs as $key => $def) {
+		if (!in_array($def['type'], array('action', 'mini'), true) && st_field_access($def) !== 'none') {
+			$fieldsBySub[$def['sub']][$key] = $def;
+		}
+	}
+	return $fieldsBySub;
+}
 
 /**
  * @param array<string, mixed> $c everything the section view computed, plus 'tables', 'year', 'years', 'rowsPosted'
@@ -54,12 +78,7 @@ function settings_rows_render(array $c): void
 	foreach ($section['subsections'] as $sub => $label) {
 		$subs[$sub] = $label;
 	}
-	$fieldsBySub = array();
-	foreach ($defs as $key => $def) {
-		if (!in_array($def['type'], array('action', 'mini'), true)) {
-			$fieldsBySub[$def['sub']][$key] = $def;
-		}
-	}
+	$fieldsBySub = settings_rows_fields_by_sub($defs);
 	$tablesBySub = array();
 	foreach ($tables as $tableId => $t) {
 		$tablesBySub[$t['sub']][$tableId] = $t;
@@ -269,7 +288,7 @@ function settings_rows_render(array $c): void
   <div class="st-snack" id="st-snack" role="status" hidden></div>
 </div>
 <script>window.SALDI_SETTINGS = <?= json_encode($config) ?>;</script>
-<script src="../javascript/settingsRows.js?v=5"></script>
+<script src="../javascript/settingsRows.js?v=7"></script>
 	<?php
 }
 
@@ -358,7 +377,7 @@ function settings_rows_table(array $c, string $tableId, array $t, array $posted,
           </div>
 					<?php } ?>
         </div>
-        <div class="st-card st-rows" data-table="<?= st_h($tableId) ?>" data-inactive="<?= $t['inactive'] ? '1' : '0' ?>">
+        <div class="st-card st-rows" data-table="<?= st_h($tableId) ?>" data-can-inactive="<?= $t['inactive'] ? '1' : '0' ?>">
           <table class="st-rt" aria-labelledby="tbl-<?= st_h($tableId) ?>-h"<?= (!$rows && !$postedRows) ? ' hidden' : '' ?>>
             <thead>
               <tr>

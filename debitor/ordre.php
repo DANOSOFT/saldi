@@ -174,7 +174,15 @@
 //                 A price without moms at 3 decimals (2 x 139,648) showed moms 69,83 and 349,13 after a save, while the invoice posts 69,82 and 349,12.
 // 20261004 SS Danske Fragtmænd settings are read from their own group DFM as well as the old GLS group (settings redesign B-D5).
 // 20261103 CL/ASR QA round 2: GET links that create an order (konto_id or funktion opret_ordre without an id) or move an order to another customer (konto_id with fokus) need write.
+// 20261020 ASR ordrestatus=1 on a new order (from the CRM's Opret ordre) starts it as an order instead of an offer.
+// 20261020 ASR An order created from the CRM stores its crm.php returside, so Back still finds the customer after a save.
+// 20261020 ASR crm_deal=<id> on a new order links it to that CRM deal (crm_deals.ordre_id).
 // 20261104 CL/MMR SST-918 The product note (note_on_orderline) is looked up by the matched item's id, so a variant picked in the quick search or typed as its barcode gets its parent's note (CodeRabbit on PR #979).
+// 20261105 CL/LH ordreside() keeps the order's VAT rate in the global $momssats, which ordrelinjer() compares each line's rate with.
+//                Only a save set that global, so opening an order without saving counted every line as mixed VAT and stored the lines' VAT (5 x 125,01: 156,27) instead of the VAT of the net that Gem and the invoice give (156,26).
+// 20261105 CL/LH Two users adding lines to one order no longer give lines the same posnr (testlab concurrent-posting DEVY-1).
+//                The form carries the ids of the lines it was drawn with (order_lines_drawn), and its save puts a new line after the lines it did not show and keeps those off the positions it writes (includes/stdFunc/orderLinePositions.php).
+//                The save locks the order row first, so a second save reads the lines the first one wrote, and the sets are numbered under the same lock.
 // 20261105 CL/MMR SD-807 The order page shows Digitalt, the payment terms (Forud, Efterkrav, Netto, Lb. md., Konto), Nt/Bt and DB/DG (also in the line tooltips) in the user's language.
 //                 The selected Udskriv til and Betaling values are translated too, and their options post the stored Danish value through a value attribute.
 //                 Labels are escaped in the page charset, so a stored value with æøå keeps its option value on a non-UTF8 database.
@@ -184,14 +192,33 @@
 //                 The Danish fallback is converted to the page charset on a non-UTF8 database, like findtekst() does (CodeRabbit).
 // 20261107 CL/MMR SD-813 The translated texts are filled in by orderTekstUdfyld() instead of sprintf().
 //                 Only %s, %1$s and %% are used; any other format falls back to the Danish text, so a translation cannot build a huge string or stop the page (CodeRabbit, Codex).
+// 20261110 CDX/ASR Reject unconverted CRM leads as order accounts before creating or reassigning documents.
+// 20261110 CDX/ASR Link a new sales document to CRM only when the actor may change CRM.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261111 CL/MJ SST-1002 With Brug samlet pris, a line of a set item that is not a set (saet 0, e.g. a variant) gets a position number.
 //                Without one, the next Gem posted an empty position and stopped with a TypeError.
 // 20261111 CL/LH Approving a quote on a case order no longer stops: its "Kopi af original Tilbud" insert named lev_email and lev_land twice.
+// 20261114 CL/ASR Fakturér's question about today's invoice date carries data-confirm-key="invoice_date", so Saldi's message box offers Vis ikke igen for it.
+// 20261117 CL/ASR Del ordre: the remainder line keeps the line's rabatart, procent and omvbet.
+//                 A discount in kr per unit became a percentage on the remainder invoice, and a reverse-charge line was charged VAT.
+//                 The two orders' totals count the discount, procent and omvbet as momsupdat() does.
 // 20261117 CL/MMR SST-1026 An apostrophe in Bemærkning til ordre no longer stops Kredit and Kopier with Uforudset hændelse.
 //                 $notes is escaped when it is read from the form, like the other order fields, and the update no longer escapes it a second time.
+// 20261119 CL/ASR The credit-limit check on a foreign-currency order no longer stops the page on PHP 8.
+//                 An unpaid invoice in kroner looked up the order currency's rate with db_select() without its second argument (ArgumentCountError).
+//                 An unpaid invoice in a third currency is converted into kroner at its own rate and on into the order's currency at the order's rate; it multiplied by the currency code (TypeError).
+//                 Without a rate on the invoice date the warning now says Ingen valutakurs for faktura, and that invoice is left out of the total.
+//                 An order without a valuta is checked as a kroner order, so its kroner invoices count in full and no rate is looked up for them.
+//                 A credit note made with Kreditér keeps the credited order's reverse charge (omvbet), so its save no longer clears the lines' omvbet and it credits no VAT the invoice never charged.
+//                 An open order's VAT-free or reverse-charge line gets rate 0 even without a rate of its own, so a Genfakturer copy or a Del ordre remainder no longer shows and stores VAT on a reverse-charge line.
 // 20261124 CL/MMR SST-1049 The delivery-address dropdown's "Choose delivery address" and "No delivery address" options are translated (texts 8530 and 8531).
 // 20261126 CDX/NTR Pass original browser search text to item lookup without SQL escaping, with an explicit encoding marker.
+
+/**
+ * Injected by ../includes/online.php, included below:
+ * @var int $sprog_id
+ * @var string $charset
+ */
 @session_start();
 $s_id = session_id();
 
@@ -220,10 +247,10 @@ require_once dirname(__DIR__, 1) . '/includes/assist/RecordRules.php';
 
 $modulnr = 5;
 // GET links that change data need write: konto_id without an order id (or funktion opret_ordre / opret_ordre_kopi) creates an
-// order, and konto_id with fokus (the account lookup) moves an existing order to that customer.
+// order, and konto_id moves an existing order to that customer even without the optional fokus field.
 $ordreGetId = !empty($_GET['id']) || !empty($_GET['ordre_id']);
 if ((!$ordreGetId && (!empty($_GET['konto_id']) || in_array((string) (isset($_GET['funktion']) ? $_GET['funktion'] : ''), array('opret_ordre', 'opret_ordre_kopi'), true)))
-	|| ($ordreGetId && !empty($_GET['konto_id']) && !empty($_GET['fokus']))) {
+	|| ($ordreGetId && isset($_GET['konto_id']) && is_numeric($_GET['konto_id']))) {
 	$permission_level = 'write';
 }
 
@@ -232,11 +259,32 @@ $css = "../css/standard.css";
 include("../includes/std_func.php");
 
 
-include("../includes/connect.php");
-include("../includes/online.php");
+ob_start();
+include(__DIR__ . '/../includes/connect.php');
+include(__DIR__ . '/../includes/online.php');
+if (isset($_GET['crm_deal'])) {
+	require_permission('crm.access', 'write');
+	require_permission('debitor.ordre', 'write');
+	require_once __DIR__ . '/../includes/crmPermissions.php';
+	if (!crm_order_link_token_valid($_GET)) {
+		perm_refuse('csrf crm.order_link', (string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? 'ordre.php'), PHP_URL_PATH));
+	}
+}
+$crmLeadBootstrap = ob_get_clean();
+include_once(__DIR__ . '/../includes/crmLeadGuard.php');
+crm_guard_lead_accounts(
+	array($_GET['konto_id'] ?? null, $_POST['konto_id'] ?? null),
+	(string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'),
+	(int) ($sprog_id ?? 1),
+	array('inframe' => $_GET['inframe'] ?? $_POST['inframe'] ?? null, 'popup' => $_GET['popup'] ?? $_POST['popup'] ?? null),
+	(string) ($charset ?? 'UTF-8')
+);
+echo $crmLeadBootstrap;
+unset($crmLeadBootstrap);
 include_once(__DIR__ . '/orderIncludes/defaultInvoiceDate.php');
 include_once(__DIR__ . '/orderIncludes/orderLineReplay.php');
 include_once(__DIR__ . '/orderIncludes/einvoiceCvr.php');
+include_once(__DIR__ . '/../includes/stdFunc/orderLinePositions.php');
 
 // AJAX endpoint: clear persisted delivery address fields for an order (ntr variant)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_delivery']) && isset($_POST['id']) && is_numeric($_POST['id'])) {
@@ -891,6 +939,9 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	$ordredate = date("Y-m-d");
 	$vis_lev_addr = '';
 	$afd = (int)$afd;
+	// 20261020 ASR CRM "Opret ordre" (debitor/crm.php) opens ordre.php?konto_id=..&ordrestatus=1: the new order starts as an
+	//              order (status 1) instead of an offer (status 0). Without the flag nothing changes.
+	$newOrderStatus = (isset($_GET['ordrestatus']) && $_GET['ordrestatus'] === '1') ? '1' : '0';
 	$qtxt = "insert into ordrer (ordrenr,konto_id,kontonr,firmanavn,addr1,addr2,postnr,bynavn,land,betalingsdage,betalingsbet,";
 	$qtxt .= "cvrnr,ean,institution,email,mail_fakt,phone,notes,art,ordredate,momssats,tidspkt,ref,performed_by,";
 	$qtxt .= "valuta,sprog,kontakt,pbs,afd,status,restordre,lev_navn,lev_addr1,lev_addr2,lev_postnr,lev_bynavn,lev_land,lev_email,";
@@ -898,7 +949,7 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 	$qtxt .= " values ";
 	$qtxt .= "($ordrenr,'$konto_id','$kontonr','$firmanavn','$addr1','$addr2','$postnr','$bynavn','$land','$betalingsdage','$betalingsbet',";
 	$qtxt .= "'$cvrnr','$ean','$institution','$email','$mail_fakt','$phone','$notes','DO','$ordredate','$momssats','$tidspkt','" . db_escape_string((string) $ref) . "','" . db_escape_string((string) $performed_by) . "',";
-	$qtxt .= "'$valuta','$formularsprog','$kontakt','$pbs','$afd','0','0','$lev_firmanavn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_land','$lev_email',";
+	$qtxt .= "'$valuta','$formularsprog','$kontakt','$pbs','$afd','$newOrderStatus','0','$lev_firmanavn','$lev_addr1','$lev_addr2','$lev_postnr','$lev_bynavn','$lev_land','$lev_email',";
 	$qtxt .= "'$lev_kontakt','$vis_lev_addr','$felt_1','$felt_2','$felt_3','$felt_4','$felt_5','$default_procenttillag','$omkunde')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
@@ -915,6 +966,26 @@ if (!$id && $konto_id && $kontonr && !strstr($b_submit, 'Opslag')) {
 
 	$query = db_select("select id from ordrer where kontonr='$kontonr' and ordredate='$ordredate' order by id desc", __FILE__ . " linje " . __LINE__);
 	if ($row = db_fetch_array($query)) $id = $row['id'];
+	// 20261020 ASR An order created from the CRM keeps its way back (the customer's drawer): the returside is only in
+	//              the first request, and after a save the page would otherwise fall back to the nav stack.
+	if ($id && $returside && strpos($returside, 'crm.php?') === 0) {
+		db_modify("update ordrer set returside = '" . db_escape_string($returside) . "' where id = '" . (int) $id . "'", __FILE__ . " linje " . __LINE__);
+	}
+	// 20261020 ASR An offer/order started from a CRM deal is linked to it (crm_deals.ordre_id).
+	// Only an actor who may write CRM and sales orders can link a deal that has no document yet.
+	if ($id && perm_can('crm.access', 'write') && isset($_GET['crm_deal']) && ctype_digit((string) $_GET['crm_deal']) && tbl_exists('crm_deals')
+		&& perm_can('debitor.ordre', 'write')) {
+		$crmDeal = (int) $_GET['crm_deal'];
+		$crmD = db_fetch_array(db_select("select title from crm_deals where id = '$crmDeal' and konto_id = '" . (int) $konto_id . "' and state = 'open' and (ordre_id is null or ordre_id = 0)", __FILE__ . " linje " . __LINE__));
+		if ($crmD) {
+			db_modify("update crm_deals set ordre_id = '" . (int) $id . "' where id = '$crmDeal'", __FILE__ . " linje " . __LINE__);
+			// 20261026 ASR the deal's history says which quote/order was made for it (CRM review R32)
+			include_once(__DIR__ . "/../includes/crmFunctions.php");
+			if (function_exists('crm_insert_entry')) {
+				crm_insert_entry((int) $konto_id, 'deal', (int) $ansat_id, 0, crm_t('Handel »%s«: %s', crm_out($crmD['title']), crm_t($newOrderStatus === '1' ? 'Ordre %s' : 'Tilbud %s', (int) $ordrenr)), null);
+			}
+		}
+	}
 } elseif ($status < 3 && $id && $firmanavn) {
 	// The selected employee is independent of order ownership. Match on id only.
 	$query = db_select("select tidspkt,firmanavn from ordrer where id=$id", __FILE__ . " linje " . __LINE__);
@@ -1221,6 +1292,7 @@ if ($b_submit) {
 
 	$linjeantal      = if_isset($_POST, NULL, 'linjeantal');
 	$linje_id        = if_isset($_POST, NULL, 'linje_id');
+	$linesDrawn      = $_POST['order_lines_drawn'] ?? null; // the ids of the order's lines when the form was drawn
 	$kred_linje_id   = if_isset($_POST, NULL, 'kred_linje_id');
 	$posnr           = if_isset($_POST, NULL, 'posnr');
 	$sag_id          = if_isset($_POST, NULL, 'sag_id');
@@ -1730,6 +1802,9 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 		$valuta = $ny_valuta;
 	}
 	transaktion("begin");
+	// First in the transaction: a colleague's save of this order ends before this one reads its lines.
+	// Not for Kopi and Kred: they write a new order, and Kred locks the whole ordrer table for its number.
+	if ($id && !strstr($b_submit, "Kopi") && !strstr($b_submit, "Kred")) order_lines_lock($id);
 	if ($levdato) $levdate = usdate($levdato);
 	if ($fakturadato) $fakturadate = usdate($fakturadato);
 	#  if (($konto_id)&&(!$ref)&&($status<3)) {
@@ -1870,20 +1945,27 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 		$brugervalg = $r['box1']; # 20170419
 		if ($brugervalg) $ref = '';
 		$afd = (int)$afd;
+		// 20261119 A credit note keeps the credited order's reverse charge (ordrer.omvbet), as Del ordre and Kopier do.
+		// Without it the credit note drew no O/B box, its save cleared the lines' omvbet, and it credited VAT the invoice never charged.
+		$nyOmvbet = '';
+		if (strstr($b_submit, 'Kred') && $kred_ord_id) {
+			$kredRow = db_fetch_array(db_select("select omvbet from ordrer where id = '" . (int)$kred_ord_id . "'", __FILE__ . " linje " . __LINE__));
+			if ($kredRow && $kredRow['omvbet']) $nyOmvbet = 'on';
+		}
 		$qtxt = "INSERT INTO ordrer (";
 		$qtxt .= "ordrenr, konto_id, kontonr, kundeordnr, firmanavn, addr1, addr2, postnr, ";
 		$qtxt .= "bynavn, land, kontakt, lev_navn, lev_addr1, lev_addr2, lev_postnr, ";
 		$qtxt .= "lev_bynavn, lev_kontakt, lev_land, lev_email, betalingsdage, betalingsbet, ";
 		$qtxt .= "cvrnr, ean, institution, email, mail_fakt, phone, notes, art, ordredate,";
 		$qtxt .= " momssats, status, ref,performed_by, lev_adr, valuta, projekt, sprog, pbs, afd, restordre, ";
-		$qtxt .= "felt_1, felt_2, felt_3, felt_4, felt_5, vis_lev_addr";
+		$qtxt .= "felt_1, felt_2, felt_3, felt_4, felt_5, vis_lev_addr, omvbet";
 		$qtxt .= ") VALUES (";
 		$qtxt .= "'$ordrenr', '$konto_id', '$kontonr', '$kundeordnr', '$firmanavn', '$addr1', '$addr2', '$postnr', ";
 		$qtxt .= "'$bynavn', '$land', '$kontakt', '$lev_firmanavn', '$lev_addr1', '$lev_addr2', '$lev_postnr', ";
 		$qtxt .= "'$lev_bynavn', '$lev_kontakt', '$lev_land', '$lev_email', '$betalingsdage', '$betalingsbet', ";
 		$qtxt .= "'$cvrnr', '$ean', '$institution', '$email', '$mail_fakt', '$phone', '$notes', '$art', '$ordredate', ";
 		$qtxt .= "'$momssats', $status, '" . db_escape_string((string) $ref) . "','" . db_escape_string((string) $performed_by) . "', '$lev_adr', '$valuta', '$masterprojekt', '$formularsprog', '$pbs', '$afd', ";
-		$qtxt .= "'0', '$felt_1', '$felt_2', '$felt_3', '$felt_4', '$felt_5', '$vis_lev_addr')";
+		$qtxt .= "'0', '$felt_1', '$felt_2', '$felt_3', '$felt_4', '$felt_5', '$vis_lev_addr', '$nyOmvbet')";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 		# Porto vare system
@@ -1909,6 +1991,8 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 			}
 		}
 	} elseif ($id && ($kontonr) && ($status < 3)) {
+		// Lines this form did not show (added by a colleague, or moved in), before this save writes any line.
+		$linesAddedSinceForm = order_lines_added_since($id, $linesDrawn, $linje_id);
 		$sum = 0;
 		for ($x = 1; $x <= $linjeantal; $x++) {
 			#      $antal[$x]*=1;
@@ -2293,6 +2377,8 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 		}
 		// MB-74: a reload/resend or double-click of the POST that already added this line adds nothing.
 		$orderLineReplay = orderLineIsReplay($_SESSION, (int)$id, $orderLineReplayKey);
+		// A new line put after every line the form showed also goes after the lines added since.
+		$posnr_ny[0] = order_line_new_position($id, $linesAddedSinceForm, $posnr_ny[0]);
 		// User clicked 'Opslag'
 		if (($posnr_ny[0]) && (!strstr($b_submit, 'Opslag')) && !$orderLineReplay) {
 			// Varenr is not set
@@ -2460,6 +2546,8 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				$orderLineSaved = true;
 			}
 		}
+		// The positions this form wrote may be those of lines it never showed. The sets are numbered first, as below.
+		order_lines_keep_added_apart($id, $linesAddedSinceForm, (bool)$vis_saet);
 
 		if ($id) {
 			$timestamp = $who = NULL;
@@ -3242,24 +3330,29 @@ if ($b_submit == 'del_ordre') {
 			#        if ($r1=db_fetch_array(db_select("select gruppe from varer where id = '$vare_id[$x]'"))) {
 			#          if ($r2=db_fetch_array(db_select("select box7 from grupper where art = 'VG' and kodenr = '$r1[gruppe]'"))) {$momsfri[$x] = $r2['box7'];}
 			#        }
-			$r3 = db_fetch_array(db_select("select momsfri,leveret,samlevare,kostpris from ordrelinjer where id = '$linje_id[$x]'", __FILE__ . " linje " . __LINE__));
+			$r3 = db_fetch_array(db_select("select momsfri,leveret,samlevare,kostpris,rabatart,omvbet from ordrelinjer where id = '$linje_id[$x]'", __FILE__ . " linje " . __LINE__));
 			$ny_antal = $antal[$x] - $r3['leveret'];
 			$antal[$x] = $r3['leveret'];
-			$sum = $sum + $antal[$x] * $pris[$x];
-			$ny_sum = $ny_sum + $ny_antal * $pris[$x];
-			if ($r3['momsfri'] != 'on') {
-				$moms = $moms + $antal[$x] * $pris[$x] / 100 * $momssats;
-				$ny_moms = $ny_moms + $ny_antal * $pris[$x] / 100 * $momssats;
+			// the unit price after discount and procent, as momsupdat() counts it
+			if ($r3['rabatart'] == 'amount') $nettopris = $pris[$x] - $rabat[$x];
+			else $nettopris = $pris[$x] - $pris[$x] * $rabat[$x] / 100;
+			$nettopris *= $procent[$x] / 100;
+			$sum = $sum + $antal[$x] * $nettopris;
+			$ny_sum = $ny_sum + $ny_antal * $nettopris;
+			if ($r3['momsfri'] != 'on' && !$r3['omvbet']) {
+				$moms = $moms + $antal[$x] * $nettopris / 100 * $momssats;
+				$ny_moms = $ny_moms + $ny_antal * $nettopris / 100 * $momssats;
 			}
 			if ($ny_antal) {
 				if ($antal[$x]) {
 					$qtxt = "insert into ordrelinjer ";
-					$qtxt .= "(ordre_id,posnr,varenr,vare_id,beskrivelse,enhed,antal,pris,kostpris,rabat,";
-					$qtxt .= "lev_varenr,serienr,kred_linje_id,momsfri,samlevare,projekt) ";
+					$qtxt .= "(ordre_id,posnr,varenr,vare_id,beskrivelse,enhed,antal,pris,kostpris,rabat,rabatart,procent,";
+					$qtxt .= "lev_varenr,serienr,kred_linje_id,momsfri,omvbet,samlevare,projekt) ";
 					$qtxt .= "values ";
 					$qtxt .= "('$ny_id','$posnr_ny[$x]','$varenr[$x]','$vare_id[$x]','$beskrivelse[$x]','$enhed[$x]',";
-					$qtxt .= "$ny_antal,'$pris[$x]','$kostpris[$x]','$rabat[$x]','$lev_varenr[$x]','$serienr[$x]',";
-					$qtxt .= "'$linje_id[$x]','$momsfri[$x]','$r3[samlevare]','$projekt[$x]')";
+					$qtxt .= "$ny_antal,'$pris[$x]','$kostpris[$x]','$rabat[$x]','" . db_escape_string($r3['rabatart']) . "','$procent[$x]',";
+					$qtxt .= "'$lev_varenr[$x]','$serienr[$x]','$linje_id[$x]','$momsfri[$x]','" . db_escape_string($r3['omvbet']) . "',";
+					$qtxt .= "'$r3[samlevare]','$projekt[$x]')";
 					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 					$ny_linje = db_fetch_array(db_select("select id from ordrelinjer where ordre_id='$ny_id' order by id desc limit 1", __FILE__ . " linje " . __LINE__));
 					if ($ny_linje['id'] && $serienr[$x]) {
@@ -3394,20 +3487,12 @@ if ($id && $brugsamletpris && $rabatvare_nr && db_fetch_array(db_select("select 
 }
 
 if ($status < 3 && $vis_saet && $id) { #20170318
-	$saets = array();
-	$x = 0;
-	$qtxt = "select id,saet,samlevare,posnr from ordrelinjer where ordre_id=$id and saet>0 order by saet,samlevare,id";
-	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
-	while ($r = db_fetch_array($q)) {
-		if (in_array($r['saet'], $saets)) {
-			$posnr[$x]++;
-			db_modify("update ordrelinjer set posnr='$posnr[$x]' where id='$r[id]'", __FILE__ . " linje " . __LINE__);
-		} else {
-			$x++;
-			$saets[$x] = $r['saet'];
-			$posnr[$x] = $r['posnr'];
-		}
-	}
+	// Under the order's lock, so the sets are not numbered from positions a save is changing.
+	$setsOwnTransaction = empty($db_transaktion_depth);
+	if ($setsOwnTransaction) transaktion("begin");
+	order_lines_lock($id);
+	order_sets_number($id);
+	if ($setsOwnTransaction) transaktion("commit");
 }
 if ($status < 3 && isset($_GET['updateOrderCost']) && $_GET['updateOrderCost']) {
 	include('orderIncludes/updateOrderCost.php');
@@ -3430,6 +3515,7 @@ function ordreside($id, $regnskab)
 	global $hurtigfakt;
 	global $incl_moms;
 	global $lagerantal, $lagernavn, $lagernr, $localPrint;
+	global $momssats; // the order's VAT rate, which ordrelinjer() compares each line's rate with
 	global $oio, $oioubl, $omkunde, $ordresum;
 	global $popup, $isPopupRequest, $procentfakt, $procenttillag, $procentvare;
 	global $regnaar, $returside, $rvid, $rvnr;
@@ -3468,6 +3554,11 @@ function ordreside($id, $regnskab)
 	$sag_id = if_isset($r, NULL, 'sag_id') * 1; #20210719
 	if ($sag_id) {
 		$returside = urlencode("../sager/sager.php?funktion=vis_sag&amp;sag_id=$sag_id&amp;konto_id=$konto_id");
+	}
+	// 20261020 ASR A stored CRM returside (set when the order was created from crm.php) wins over the default below;
+	//              the general stored-returside read further down only runs after this default is set, so it never applies.
+	if (!$returside && !$isPopupRequest && strpos((string) if_isset($r, '', 'returside'), 'crm.php?') === 0) {
+		$returside = nav_sanitize_returside(html_entity_decode((string) $r['returside'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
 	}
 	if (!$returside) {
 		if ($isPopupRequest) $returside = "../includes/luk.php?id=$id&tabel=ordrer";
@@ -4781,6 +4872,8 @@ function ordreside($id, $regnskab)
 		print "<div class=\"ordreform\">\n";
 		print "<form name=\"ordre\" action=\"ordre.php?id=$id&amp;sag_id=$sag_id&amp;returside=$returside\" method=\"post\">\n";
 		print "<input type=\"hidden\" name=\"order_form_token\" value=\"" . orderFormToken() . "\">\n"; // MB-74
+		// Read before the lines are drawn, and printed before the fields each line repeats (max_input_vars).
+		if ($id) print "<input type=\"hidden\" name=\"order_lines_drawn\" value=\"" . order_lines_drawn($id) . "\">\n";
 		if (function_exists('is_stock_warning_enabled') && is_stock_warning_enabled()) {
 			$swTextsJson = json_encode(stock_warning_texts(isset($sprog_id) ? $sprog_id : null), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 			if ($swTextsJson === false) $swTextsJson = '{}';
@@ -5904,7 +5997,9 @@ function ordreside($id, $regnskab)
 				($row['omvbet']) ? $omvbet[$x] = 'checked' : $omvbet[$x] = NULL;
 				if (!$momsfri[$x] && !$varemomssats[$x]) $varemomssats[$x] = $momssats;
 				elseif ($varemomssats[$x] > $momssats) $varemomssats[$x] = $momssats;
-				elseif ($momsfri[$x] || $omvbet[$x]) $varemomssats[$x] = 0;
+				// 20261119 A VAT-free or reverse-charge line has no VAT whatever its rate, as in the posted order's block above.
+				// It was an elseif, so a line without a rate of its own (a Genfakturer copy, a Del ordre remainder) got the order's rate and the page showed and stored VAT on it.
+				if ($momsfri[$x] || $omvbet[$x]) $varemomssats[$x] = 0;
 				$serienr[$x] = trim($row['serienr']);
 				$samlevare[$x] = $row['samlevare'];
 				$projekt[$x] = $row['projekt'];
@@ -6330,8 +6425,7 @@ function ordreside($id, $regnskab)
 			print "<input type=\"hidden\" name=\"sum\" value=\"$sum\">\n";
 
 			// SST-902: from the unrounded net and rounded to øre, like momsupdat() in includes/ordrefunc.php does when the order is invoiced.
-			// This line runs after a save (the global $momssats that ordrelinjer() compares with is only set by the POST handling);
-			// with the rounded $sum, 2 x 139,648 showed and stored moms 69,825 (69,83 / 349,13) while the invoice is 69,82 / 349,12.
+			// With the rounded $sum, 2 x 139,648 showed and stored moms 69,825 (69,83 / 349,13) while the invoice is 69,82 / 349,12.
 			if (!$blandet_moms && !$incl_moms) $moms = afrund($sumBeforeRounding * $momssats / 100, 2); #tilfojet 20100923 grundet afrundingsfejl på ordre med rabat
 			$moms = afrund($moms * 1, 3);
 
@@ -6468,7 +6562,7 @@ function ordreside($id, $regnskab)
 					if ($udskriv_til == 'email') $tmp = "onclick=\"return confirm('$confirm2 $email')\"";
 					elseif ($udskriv_til == 'PBS') $tmp = "onclick=\"return confirm('$confirm3')\"";
 					elseif ($udskriv_til == 'oioubl') $tmp = "onclick=\"return confirm('$confirm4')\"";
-					elseif (!$fakturadato) $tmp = "onclick=\"return confirm('$confirm5 $dd!')\"";
+					elseif (!$fakturadato) $tmp = "data-confirm-key=\"invoice_date\" onclick=\"return confirm('$confirm5 $dd!')\"";
 					else $tmp = "";
 					if ($vis_saet) {
 						if (($betalingsbet == 'Netto' || $betalingsbet == 'Lb.md') && is_numeric($felt_2) && $felt_2 != 0) { #20150313
@@ -6583,18 +6677,26 @@ function ordreside($id, $regnskab)
 				if ($valutakurs) $kreditmax = $kreditmax * 100 / $valutakurs;
 				$q = db_select("select * from openpost where konto_id = '$konto_id' and udlignet='0'", __FILE__ . " linje " . __LINE__);
 				$tilgode = 0;
+				// 20261119 An order without a valuta is in kroner, as bogfor_nu() posts it; it was taken for a foreign currency without a rate.
+				$kreditValuta = $valuta ? $valuta : $baseCurrency;
 				while ($r = db_fetch_array($q)) {
 					if (!$r['valuta']) $r['valuta'] = $baseCurrency;
 					if (!$r['valutakurs']) $r['valutakurs'] = 100;
-					if ($valuta == $baseCurrency && $r['valuta'] != $baseCurrency) $opp_amount = $r['amount'] * $r['valutakurs'] / 100;
-					elseif ($valuta != $baseCurrency && $r['valuta'] == $baseCurrency) {
-						if ($r3 = db_fetch_array(db_select("select kurs from grupper,valuta where grupper.art='VK' and grupper.box1='$valuta' and valuta.gruppe = grupper.kodenr and valuta.valdate <= '$r[transdate]' order by valuta.valdate desc"))) {
+					if ($kreditValuta == $baseCurrency && $r['valuta'] != $baseCurrency) $opp_amount = $r['amount'] * $r['valutakurs'] / 100;
+					elseif ($kreditValuta != $baseCurrency && $r['valuta'] == $baseCurrency) {
+						// 20261119 db_select() gets its second argument (PHP 8 stopped the page), and the warning its text in the branch that shows it.
+						$alert = findtekst('1850|Ingen valutakurs for faktura', $sprog_id);
+						if ($r3 = db_fetch_array(db_select("select kurs from grupper,valuta where grupper.art='VK' and grupper.box1='$kreditValuta' and valuta.gruppe = grupper.kodenr and valuta.valdate <= '$r[transdate]' order by valuta.valdate desc", __FILE__ . " linje " . __LINE__))) {
 							$opp_amount = $r['amount'] * 100 / $r3['kurs'];
-							$alert = findtekst('1850|Ingen valutakurs for faktura', $sprog_id);
-						} elseif ($valuta) print "<BODY onLoad=\"javascript:alert('$alert $r[faktnr]')\">\n";
-					} elseif ($valuta != $baseCurrency && $r['valuta'] != $baseCurrency && $r['valuta'] != $valuta) {
-						$tmp == $r['amount'] * $r['valuta'] / 100;
-						$opp_amount = $tmp * 100 / $r['valutakurs'];
+						} else {
+							$opp_amount = 0; // no rate on the invoice date: the invoice is left out (not the previous one's amount again), and the warning says so
+							print "<BODY onLoad=\"javascript:alert('$alert $r[faktnr]')\">\n";
+						}
+					} elseif ($kreditValuta != $baseCurrency && $r['valuta'] != $baseCurrency && $r['valuta'] != $kreditValuta) {
+						// 20261119 Into kroner at the invoice's own rate, then into the order's currency at the order's rate, as the credit limit above.
+						// It multiplied by the currency code, a TypeError on PHP 8.
+						$tmp = $r['amount'] * $r['valutakurs'] / 100;
+						$opp_amount = $tmp * 100 / $valutakurs;
 					} else $opp_amount = $r['amount'];
 					$tilgode = $tilgode + $opp_amount;
 				}

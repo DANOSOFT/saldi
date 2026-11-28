@@ -1,15 +1,17 @@
 <?php
 // 20250130 migrate utf8_en-/decode() to mb_convert_encoding
 // 20260831 Sawaneh Corrected misplaced parenthesis in mb_convert_encoding calls from 20250130
+// 20261110 CDX/ASR Use the standard session and finance write gate for bank imports.
 
 @session_start();
 $s_id=session_id();
-include("../includes/connect.php");
-include("../includes/std_func.php");
-$query = db_select("SELECT * FROM online WHERE session_id = '$s_id' ORDER BY logtime DESC LIMIT 1", __FILE__ . " linje " . __LINE__);
-$res = db_fetch_array($query);
-$db = trim($res["db"]);
-$connection = db_connect($sqhost, $squser, $sqpass, $db);
+$header = 'nix';
+$bg = 'nix';
+$permission_key = 'finans.kassekladde';
+$permission_level = 'write';
+include(__DIR__ . '/../includes/connect.php');
+include(__DIR__ . '/../includes/online.php');
+include(__DIR__ . '/../includes/std_func.php');
 
 
 function randomString($db){

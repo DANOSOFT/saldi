@@ -18,6 +18,11 @@
 // test_a_level_1_dunning_inside_its_grace_period_is_not_escalated fails
 // against the pre-fix code.
 //
+// "Ny rykker" (rykker_id=...) raises the next level for reminders ticked
+// under Bogførte rykkere. It used to skip the grace period: an R1 posted
+// today got its R2 straight away (testlab dunning-run, R2 10809). It now
+// waits ffdage2 / ffdage3 days, the same cutoffs as (2) and (3).
+//
 // The grace-day counts and the fee item are tenant settings that a stock
 // installation does not ship - see Fixtures::dunningConfig().
 //
@@ -26,17 +31,34 @@
 // History:
 // 20260725 CL/LH Created for the end-to-end coverage push.
 // 20261028 CL/LH The first-grace-period test pinned a defect that #444 fixed; it now asserts the fix.
+// 20261105 CL/LH Ny rykker waits the grace period of the reminder it escalates.
 // 20261111 CDX/NTR Isolate the test class database and session.
+// 20261125 CL/ASR Dates as the page has them (support/AppTimezone.php): between midnight and 01:00 the UTC date of the test process was the day before.
 
 require_once __DIR__ . '/../support/CharacterizationTestCase.php';
+require_once __DIR__ . '/../support/AppTimezone.php';
 
 final class DunningCharacterizationTest extends CharacterizationTestCase
 {
+    use AppTimezone;
+
     private const FFDAGE1 = 8;   // days overdue before an invoice is dunned
     private const FFDAGE2 = 10;  // days an R1 may stand before escalation
     private const FFDAGE3 = 14;  // days an R2 may stand before escalation
 
     private static int $faktnrSeq = 7000;
+
+    public static function setUpBeforeClass(): void
+    {
+        parent::setUpBeforeClass();
+        self::useAppTimezone();
+    }
+
+    public static function tearDownAfterClass(): void
+    {
+        self::restoreTimezone();
+        parent::tearDownAfterClass();
+    }
 
     protected function setUp(): void
     {
@@ -58,6 +80,46 @@ final class DunningCharacterizationTest extends CharacterizationTestCase
     private function runDunning(): void
     {
         self::runChild('run_ny_rykker.php', [CharacterizationEnv::sessionId()]);
+    }
+
+    /**
+     * "Ny rykker" on the given reminders, as debitor/rapport.php sends it.
+     *
+     * @return string the page's output
+     */
+    private function newReminder(int $reminderId): string
+    {
+        return self::runChild('run_ny_rykker.php', [CharacterizationEnv::sessionId(), (string)$reminderId])['stdout'];
+    }
+
+    /**
+     * A debtor with one overdue invoice and the R1 the automatic run raises
+     * for it. ny_rykker.php does not read the status, so the R1 is not posted.
+     *
+     * @return array{0:array, 1:array<string,string>} the debtor and the R1 row
+     */
+    private function debtorWithLevelOneDunning(): array
+    {
+        $debtor = self::$fx->debtor();
+        self::$fx->openPost($debtor, 810.00, self::FFDAGE1 + 5, self::nextFaktnr());
+        $this->runDunning();
+        $dunnings = $this->dunningsFor($debtor);
+        $this->assertCount(1, $dunnings, 'precondition: a level-1 dunning exists');
+        return [$debtor, $dunnings[0]];
+    }
+
+    private static function ageDunning(int $dunningId, int $days): void
+    {
+        self::rows(
+            'UPDATE ordrer SET ordredate = $1 WHERE id = $2',
+            [date('Y-m-d', strtotime("-$days days")), $dunningId]
+        );
+    }
+
+    /** @return list<string> the levels of a debtor's dunnings, oldest first */
+    private function levelsFor(array $debtor): array
+    {
+        return array_map(static fn(array $d): string => trim((string)$d['art']), $this->dunningsFor($debtor));
     }
 
     /** @return list<array<string,string>> dunning orders for a debtor, oldest first */
@@ -258,5 +320,56 @@ final class DunningCharacterizationTest extends CharacterizationTestCase
             trim((string)$after['betalt']),
             'the dunning is booked once its grace period has passed'
         );
+    }
+
+    /**
+     * REGRESSION GUARD for testlab dunning-run (R2 10809): Ny rykker on an
+     * R1 raised today is refused, and the page says which løbenr.
+     */
+    public function test_a_new_reminder_on_a_level_1_dunning_raised_today_is_refused(): void
+    {
+        [$debtor, $r1] = $this->debtorWithLevelOneDunning();
+        $ordrenr = (string)self::one('SELECT ordrenr FROM ordrer WHERE id = $1', [(int)$r1['id']])['ordrenr'];
+
+        $page = $this->newReminder((int)$r1['id']);
+
+        $this->assertSame(['R1'], $this->levelsFor($debtor), 'no R2 is raised while ffdage2 = ' . self::FFDAGE2);
+        $this->assertMatchesRegularExpression('/<script>alert\((".*?")\);<\/script>/', $page, 'the refusal is shown');
+        preg_match('/<script>alert\((".*?")\);<\/script>/', $page, $alert);
+        $this->assertStringContainsString("løbenr. $ordrenr,", (string)json_decode($alert[1]), 'the refusal names the løbenr');
+    }
+
+    /** The cutoff is the automatic run's: an R1 must be more than ffdage2 days old. */
+    public function test_a_new_reminder_waits_until_the_level_1_dunning_is_past_ffdage2(): void
+    {
+        [$debtor, $r1] = $this->debtorWithLevelOneDunning();
+
+        self::ageDunning((int)$r1['id'], self::FFDAGE2);
+        $this->newReminder((int)$r1['id']);
+        $this->assertSame(['R1'], $this->levelsFor($debtor), 'an R1 exactly ffdage2 days old is not escalated, as in the automatic run');
+
+        self::ageDunning((int)$r1['id'], self::FFDAGE2 + 1);
+        $page = $this->newReminder((int)$r1['id']);
+        $this->assertSame(['R1', 'R2'], $this->levelsFor($debtor), 'an R1 past ffdage2 gets its R2');
+        $this->assertStringNotContainsString('<script>alert(', $page, 'no refusal for an escalation that is due');
+    }
+
+    /** R2 -> R3 waits ffdage3, not ffdage2. */
+    public function test_a_new_reminder_waits_until_the_level_2_dunning_is_past_ffdage3(): void
+    {
+        [$debtor, $r1] = $this->debtorWithLevelOneDunning();
+        self::ageDunning((int)$r1['id'], self::FFDAGE3 + 10);
+        $this->newReminder((int)$r1['id']);
+        $dunnings = $this->dunningsFor($debtor);
+        $this->assertSame(['R1', 'R2'], $this->levelsFor($debtor), 'precondition: an R2 exists');
+        $r2Id = (int)$dunnings[1]['id'];
+
+        self::ageDunning($r2Id, self::FFDAGE3);
+        $this->newReminder($r2Id);
+        $this->assertSame(['R1', 'R2'], $this->levelsFor($debtor), 'an R2 past ffdage2 but not past ffdage3 is not escalated');
+
+        self::ageDunning($r2Id, self::FFDAGE3 + 1);
+        $this->newReminder($r2Id);
+        $this->assertSame(['R1', 'R2', 'R3'], $this->levelsFor($debtor), 'an R2 past ffdage3 gets its R3');
     }
 }

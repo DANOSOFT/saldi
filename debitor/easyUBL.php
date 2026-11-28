@@ -3,11 +3,14 @@
 // 20261109 CL/MMR SST-983 Values from the webhook body are escaped or URL-encoded, and only an account on this installation is used.
 //                 Nothing runs for a company the locator does not know, and an order is only updated when the webhook names its invoice number.
 //                 The saved webhook files get a .ht_ name, which the web server does not hand out.
-
+// 20261110 CDX/ASR Update the resolved tenant invoice counter internally.
+// 20261124 CL/ASR Comments state the current rule; no code change.
+//
     // This file is used to receive webhooks from EasyUBL
 
-    include(__DIR__ . "/../includes/connect.php");
+    include(__DIR__ . '/../includes/connect.php');
     include_once(__DIR__ . "/../includes/std_func.php");
+    require_once __DIR__ . '/../includes/easyUblInvoiceCounter.php';
     // Mail function
     function sendSimpleMail($to, $subject, $message, $from = null) {
         // Set default sender if not provided
@@ -128,11 +131,11 @@
             // decode base64
             $decoded = base64_decode($base64["base64EncodedMessage"]);
             file_put_contents("../temp/$db/.ht_msg-$timestamp.json", ["message" => $decoded]);
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, "$serverName/debitor/increaseInvoiceNumber.php?db=$db");
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-            $res = curl_exec($ch);
-            curl_close($ch);
+            $res = json_encode([
+                'msg' => 'invoice counter updated',
+                'db' => $db,
+                'success' => easyubl_increment_invoice_counter($db),
+            ]);
             file_put_contents("../temp/$db/.ht_increase-$timestamp.json", $res);
         }
         file_put_contents("../temp/$db/.ht_res-$timestamp.json", $webhookData);

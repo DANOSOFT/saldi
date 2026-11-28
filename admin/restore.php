@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- admin/restore.php --- ver 5.1.1 --- 2026-11-13 ---
+// --- admin/restore.php --- ver 5.1.1 --- 2026-11-25 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -66,7 +66,20 @@
 //                 A successful restore writes its own audit row (restore_done) to the restored ledger, whose earlier rows the backup replaced, and the login page says the ledger was restored and from when (texts 7821-7822).
 //                 Work folders are also cleaned up from Sikkerhedskopi and at logout (includes/restorePending.php), a refused confirmation removes its pending upload, and the admin panel's audit rows no longer carry the master database's user id.
 //                 The warning about another company compares the backup's ledger name and says so (text 7815), the English sentence loses its double full stop, and the card uses the page's font with the checkbox on the line of its label.
+// 20261105 CL/LH A successful restore no longer reads $popup, undefined in restore(): a popup window is the request's popup=1, as elsewhere on this page (restore_done_redirect()).
+//                The alert inside the comment that hides the import output, which never showed, is gone; the login page's notice (texts 7821-7822) is the message, and index/index.php now takes its ?restored= along out of main.php's iframe.
+//                A popup window sends the window that opened it to that login page and closes, instead of the BODY tag without its > and luk.php, which the restore had already logged out.
+//                The ledger name is URL-encoded in the login address.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261114 CL/ASR A ledger with bookkeeping (postings, orders or a cash journal) is not restored from its own settings (owner, 14 Nov 2026: posted data and its trail are kept).
+//                 The page says so and sends the user to Saldi support, and the upload and the confirmation refuse it on the server too; an empty ledger restores as before.
+//                 The admin panel's restore asks for a reason, written in the ledger's activity log with the restore.
+//                 Every restore keeps the activity log: its rows are read before the database is replaced, and the rows the backup lacks go back in after (restore_log_snapshot(), restore_log_putback()).
+// 20261124 CL/ASR Comments state the current rule; no code change.
+// 20261124 CL/ASR Putting the activity log back after a restore selects the ledger's database after db_connect(), looks up tables with saldi_schema_filter() and sets the id sequence on PostgreSQL only, so it also runs on MySQL/MariaDB.
+// 20261124 CL/ASR The activity log rows that keep their id go back first; a row whose id the backup has gets a new id after them.
+//                 Drawn first, a new id could be one a row still to come had, and its insert stopped the page before the restore was done.
+// 20261125 CL/ASR The activity log's id sequence is set on every $db_type but mysql/mysqli: includes/online.php sets 'postgres' where connect.php names none, and the rows that get a new id collided there.
 @session_start();
 $s_id=session_id();
 ini_set('display_errors',0);
@@ -239,7 +252,11 @@ $restoreMsgOk = false;
 $restoreRan = false;
 $restoreConfirm = NULL; // the pending upload whose confirmation is shown
 restore_pending_housekeeping($db);
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+$restoreLocked = restore_locked(); // a ledger with bookkeeping cannot be overwritten from its own settings
+if ($restoreLocked && $_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['restore_upload']) || isset($_POST['restore_confirm']))) {
+	restore_audit('setting.action_refused', 'ledger_has_bookkeeping', array());
+	restore_pending_forget($db);
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	if (!$_POST && !$_FILES && (int) ifset($_SERVER, 'CONTENT_LENGTH', 0) > 0) {
 		$restoreMsg = 'Filen er for stor - Kontroller upload_max_filesize i php.ini';
 	} elseif (!hash_equals((string) $_SESSION['csrf_token'], (string) ifset($_POST, 'csrf_token', ''))) {
@@ -258,7 +275,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 if ($restoreMsg !== '') {
 	print "<tr><td align='center' style='color:" . ($restoreMsgOk ? 'var(--st-good, #15803d)' : 'red') . "; padding:8px'>$restoreMsg</td></tr>";
 }
-if ($restoreConfirm) {
+if ($restoreLocked) {
+	restore_render_locked();
+} elseif ($restoreConfirm) {
 	restore_render_confirm($formAction, $restoreConfirm);
 } elseif (!$restoreRan) {
 	upload($formAction);
@@ -340,6 +359,110 @@ function restore_password_ok($typed) {
 	if ($typed === '' || !$restoreAdmin || $restoreAdmin['id'] <= 0 || $restoreAdmin['kode'] === '') return false;
 	$stored = strtolower(trim($restoreAdmin['kode']));
 	return hash_equals($stored, md5($typed)) || hash_equals($stored, saldikrypt($restoreAdmin['id'], $typed));
+}
+
+/**
+ * A restore from the ledger's own settings (not the admin panel) over a ledger with bookkeeping: refused (owner, 14 Nov 2026).
+ * Posted data and the trail of it must not be removable by overwriting the ledger with an older backup; Saldi support restores
+ * from the admin panel, with a reason, when it really has to be done.
+ */
+function restore_locked() {
+	global $adminRestore;
+	return !$adminRestore && !restore_ledger_empty();
+}
+
+function restore_render_locked() {
+	global $sprog_id;
+	print "<tr><td align='center'>";
+	print "<div class='restore-locked' role='alert' style='font-family:inherit;max-width:660px;margin:16px auto;text-align:left;padding:12px 16px;border:1px solid var(--st-border, #d6dbe3);border-left:4px solid var(--st-warn, #D9822B);border-radius:6px;background:var(--st-surface, #fff);color:var(--st-text, #1f2937);line-height:1.5'>";
+	print "<h2 style='font-family:inherit;margin:0 0 8px;font-size:1.05rem'>" . findtekst('restore.locked_title|Regnskabet kan ikke overskrives', $sprog_id) . "</h2>";
+	print "<p style='margin:0 0 8px'>" . findtekst('restore.locked_text|Regnskabet indeholder bogføring (posteringer, ordrer eller kassekladder). Det kan derfor ikke overskrives med en sikkerhedskopi, for bogførte data og sporet af dem må ikke kunne fjernes.', $sprog_id) . "</p>";
+	print "<p style='margin:0'>" . findtekst('restore.locked_support|Skal regnskabet alligevel gendannes, fx efter en fejl, så kontakt Saldi support. Du kan stadig tage en sikkerhedskopi af regnskabet.', $sprog_id) . "</p>";
+	print "</div></td></tr>";
+}
+
+/**
+ * The ledger's activity log before its database is replaced: every row, so the rows the backup lacks can go back in.
+ *
+ * @return array<int, array<string, string>>
+ */
+function restore_log_snapshot() {
+	$rows = array();
+	if (!function_exists('tbl_exists') || !tbl_exists('audit_log')) return $rows;
+	$q = db_select("select * from audit_log order by id", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) {
+		$row = array();
+		foreach ($r as $k => $v) if (!is_int($k)) $row[$k] = $v;
+		$rows[] = $row;
+	}
+	return $rows;
+}
+
+/**
+ * After a restore: the activity log rows of the replaced database that the backup does not have (written after the backup
+ * was taken, or another ledger's history) go back into the restored ledger, with their own time. A row with the same id,
+ * time and action is already there. A row whose id another row has gets a new one, after the rows that keep theirs. A
+ * backup older than the table: the rows are kept in a file in temp/<db>.
+ *
+ * @return int the rows put back
+ */
+function restore_log_putback(array $rows) {
+	if (!$rows) return 0;
+	global $db;
+	$exists = db_fetch_array(db_select("select 1 as found from information_schema.tables where table_name = 'audit_log' " . saldi_schema_filter(), __FILE__ . " linje " . __LINE__));
+	if (!$exists) {
+		// a backup from before the table: the rows are kept in a file next to the ledger's other files (the table itself comes with the next login's update)
+		$file = "../temp/$db/audit_log_kept_" . date('Ymd_His') . ".json";
+		@file_put_contents($file, json_encode($rows, JSON_PARTIAL_OUTPUT_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE));
+		error_log("restore.php: the restored $db has no audit_log; " . count($rows) . " rows kept in $file");
+		return 0;
+	}
+	$cols = array();
+	$q = db_select("select column_name from information_schema.columns where table_name = 'audit_log' " . saldi_schema_filter(), __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) $cols[(string) $r['column_name']] = true;
+	$have = array();
+	$q = db_select("select id, tidspunkt, handling from audit_log", __FILE__ . " linje " . __LINE__);
+	while ($r = db_fetch_array($q)) $have[(int) $r['id']] = substr((string) $r['tidspunkt'], 0, 19) . '|' . (string) $r['handling'];
+	global $db_type;
+	$insert = function (array $row, bool $withId) use ($cols) {
+		$names = array(); $values = array();
+		foreach ($row as $col => $value) {
+			if (!isset($cols[$col]) || ($col === 'id' && !$withId)) continue;
+			$names[] = $col;
+			$values[] = ($value === null) ? 'NULL' : "'" . db_escape_string((string) $value) . "'";
+		}
+		if (!$names) return 0;
+		db_modify("insert into audit_log (" . implode(', ', $names) . ") values (" . implode(', ', $values) . ")", __FILE__ . " linje " . __LINE__);
+		return 1;
+	};
+	$sequencePastMax = function () use ($db_type) {
+		// MySQL/MariaDB's AUTO_INCREMENT moves past the rows put back by itself. PostgreSQL is every other $db_type:
+		// includes/online.php sets 'postgres' where connect.php names none.
+		if (!in_array($db_type, array('mysql', 'mysqli'), true)) {
+			db_modify("select setval(pg_get_serial_sequence('audit_log', 'id'), greatest((select max(id) from audit_log), 1))", __FILE__ . " linje " . __LINE__);
+		}
+	};
+	// The rows whose id is free go back with it first. A row whose id another row has gets a new one after that, once the
+	// sequence is past them all: drawn before, it could take the id of a row still to come.
+	$n = 0;
+	$newId = array();
+	foreach ($rows as $row) {
+		$id = (int) ifset($row, 'id', 0);
+		$sig = substr((string) ifset($row, 'tidspunkt', ''), 0, 19) . '|' . (string) ifset($row, 'handling', '');
+		if ($id > 0 && isset($have[$id]) && $have[$id] === $sig) continue;   // the backup has it
+		if ($id <= 0 || isset($have[$id])) {
+			$newId[] = $row;
+			continue;
+		}
+		$n += $insert($row, true);
+		$have[$id] = $sig;
+	}
+	if ($newId) {
+		$sequencePastMax();
+		foreach ($newId as $row) $n += $insert($row, false);
+	}
+	$sequencePastMax();
+	return $n;
 }
 
 function restore_ledger_empty() {
@@ -537,6 +660,7 @@ function restore_not_backup_text() {
 function restore_handle_upload() {
 	global $db, $sprog_id, $restoreKeepDirs;
 	restore_pending_forget($db); // an earlier upload of this ledger that was not confirmed
+	if (restore_locked()) return array('', NULL);   // the page shows why (restore_render_locked())
 	$up = restore_prepare_upload($db, true);
 	if ($up['error'] !== '') return array($up['error'], NULL);
 	if ($up['kind'] == 'mysql') {
@@ -588,8 +712,18 @@ function restore_handle_confirm() {
 		restore_pending_forget($db); // a refused confirmation leaves no copy of the ledger behind
 		return array(false, findtekst('7818|Bekræftelsen er ugyldig, udløbet eller allerede brugt. Intet er ændret. Indlæs sikkerhedskopien igen.', $sprog_id), NULL);
 	}
+	if (restore_locked()) return array(false, '', NULL);
 	if (empty($_POST['confirm_restore'])) {
 		return array(false, findtekst('6931|Sæt flueben for at bekræfte, at regnskabet må overskrives.', $sprog_id), $p);
+	}
+	global $adminRestore;
+	if ($adminRestore) {
+		// Saldi support overwrites a ledger only with a reason, kept in the ledger's activity log with the restore
+		$reason = trim((string) ifset($_POST, 'restore_reason', ''));
+		if (mb_strlen($reason) < 10) {
+			return array(false, findtekst('restore.reason_required|Skriv en begrundelse for gendannelsen (mindst 10 tegn).', $sprog_id), $p);
+		}
+		$p['reason'] = mb_substr($reason, 0, 500);
 	}
 	// Single use: the token leaves the session before the restore starts, and the session is saved at once.
 	unset($_SESSION['restore_pending'][$db]);
@@ -607,6 +741,7 @@ function restore_handle_confirm() {
 		return array(false, findtekst(2427, $sprog_id), NULL);
 	}
 	restore_audit('setting.action', 'confirm_restore', $p);
+	$keptLog = restore_log_snapshot(); // the activity log of the ledger that is about to be replaced
 	ignore_user_abort(true); // a restore that has started runs to its end, also when the browser leaves the page
 	try {
 		$done = restore($file, $p['encode'], $p['dbtype'], (string) ifset($p, 'backupdate', ''));
@@ -619,7 +754,7 @@ function restore_handle_confirm() {
 		return array(false, findtekst(2427, $sprog_id), NULL); // nothing was changed
 	}
 	if ($done === true) {
-		restore_audit_done($p);
+		restore_audit_done($p, $keptLog);
 	}
 	return array(true, '', NULL);
 }
@@ -724,7 +859,8 @@ function restore_audit_detail($step, array $p) {
 		'backup_date' => (string) ifset($p, 'backupdate', ''),
 		'backup_db' => (string) ifset($p, 'backupdb', ''),
 		'backup_version' => (string) ifset($p, 'backupver', ''),
-	), JSON_PARTIAL_OUTPUT_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE);
+	) + (isset($p['reason']) ? array('reason' => (string) $p['reason']) : array())
+	  + (isset($p['log_rows_kept']) ? array('log_rows_kept' => (int) $p['log_rows_kept']) : array()), JSON_PARTIAL_OUTPUT_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE);
 }
 
 /**
@@ -732,14 +868,22 @@ function restore_audit_detail($step, array $p) {
  * confirmation included) the backup replaced, and in the server log. The table and its columns are read from the restored
  * database (a backup may be older than them), the user id is that of the same login name there (0 in the admin panel).
  */
-function restore_audit_done(array $p) {
+function restore_audit_done(array $p, array $keptLog = array()) {
 	global $connection, $db, $sqhost, $squser, $sqpass, $adminRestore;
+	$connection = db_connect($sqhost, $squser, $sqpass, $db, __FILE__ . " linje " . __LINE__);
+	if ($connection && !db_select_database($connection, $db)) $connection = false;   // db_connect() selects no database on MySQL/MariaDB
+	if ($connection) {
+		try {
+			$p['log_rows_kept'] = restore_log_putback($keptLog);
+		} catch (\Throwable $e) {
+			error_log("restore.php: the activity log could not be put back in $db: " . $e->getMessage());
+		}
+	}
 	$detail = restore_audit_detail('restore_done', $p);
 	error_log("restore.php import_export.backup.restore setting.action $db $detail");
-	$connection = db_connect($sqhost, $squser, $sqpass, $db, __FILE__ . " linje " . __LINE__);
 	if (!$connection) return;
 	$cols = array();
-	$q = db_select("select column_name from information_schema.columns where table_name = 'audit_log' and table_schema = current_schema()", __FILE__ . " linje " . __LINE__);
+	$q = db_select("select column_name from information_schema.columns where table_name = 'audit_log' " . saldi_schema_filter(), __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) $cols[(string) $r['column_name']] = true;
 	if (!empty($cols['handling']) && !empty($cols['detaljer']) && !empty($cols['bruger_id']) && !empty($cols['brugernavn'])) {
 		$name = function_exists('audit_user_name') ? audit_user_name() : '';
@@ -862,6 +1006,11 @@ function restore_render_confirm($formAction, array $p) {
 	print "<input type='hidden' name='csrf_token' value='" . restore_h($_SESSION['csrf_token']) . "'>";
 	print "<input type='hidden' name='restore_token' value='" . restore_h($p['token']) . "'>";
 	print "<p style='margin:0 0 6px'>" . rtrim(findtekst('2425|Bemærk at alle brugere skal være logget ud', $sprog_id), '.') . ".</p>";
+	print "<p style='margin:0 0 8px;color:var(--st-text-2, #555)'>" . findtekst('restore.log_kept|Regnskabets aktivitetslog bevares: linjer skrevet efter sikkerhedskopien lægges tilbage efter gendannelsen.', $sprog_id) . "</p>";
+	if ($adminRestore) {
+		print "<p style='margin:0 0 10px'><label for='restore-reason' style='display:block;font-weight:600;margin:0 0 4px'>" . findtekst('restore.reason_label|Begrundelse (skrives i regnskabets aktivitetslog)', $sprog_id) . "</label>";
+		print "<textarea id='restore-reason' name='restore_reason' rows='3' required minlength='10' maxlength='500' style='width:100%;box-sizing:border-box;font:inherit'>" . restore_h((string) ifset($_POST, 'restore_reason', '')) . "</textarea></p>";
+	}
 	print "<p style='margin:0 0 12px'><label style='display:flex;align-items:center;gap:6px'><input type='checkbox' name='confirm_restore' value='1' required style='margin:0'> " . findtekst('6930|Jeg forstår, at regnskabet bliver overskrevet med sikkerhedskopien.', $sprog_id) . "</label></p>";
 	$restoreStyle = $adminRestore ? " style='" . restore_h($buttonStyle) . "background-color:#c2410c;color:#fff;padding:4px 12px'" : '';
 	$cancelStyle = $adminRestore ? " style='" . restore_h($buttonStyle) . "padding:4px 12px'" : '';
@@ -902,6 +1051,27 @@ function restore_handle_migration() {
 	error_log("restore.php $audit $db $detail");
 	migrateMySQLToPostgreSQL($sqhost, $squser, $sqpass, $db, $sqhost, $mysqlUser, $mysqlPass, $mysqlDb, $up['file']);
 	return array(true, '');
+}
+
+/**
+ * Leaves the page after a restore, which logged out every session of the ledger: to the login page, which says the ledger
+ * was restored and from when (index/index.php, ?restored=). From main.php's iframe the login page's frame check takes
+ * the query along to the top window. A popup window (popup=1) sends the window that opened it there and closes; without
+ * that window it shows the login page itself.
+ *
+ * @param string $regnskab the ledger's name, filled in on the login page
+ * @param string $backupdate the backup's date and time from backup.info (YYYYMMDD-HHMM)
+ * @param bool $popup whether this request is a popup window (popup=1 on the URL)
+ * @return string the HTML that leaves the page
+ */
+function restore_done_redirect($regnskab, $backupdate, $popup) {
+	$restored = preg_replace('/[^0-9-]/', '', substr((string) $backupdate, 0, 20)) ?: '1';
+	$url = '../index/index.php?regnskab=' . rawurlencode((string) $regnskab) . '&restored=' . rawurlencode($restored);
+	if ($popup) {
+		$js = jsString(array($url));
+		return "<script>if (window.opener && !window.opener.closed) {window.opener.location.href = $js; window.close();} else {window.location.href = $js;}</script>";
+	}
+	return "<meta http-equiv=\"refresh\" content=\"0;URL=" . htmlspecialchars($url, ENT_QUOTES) . "\">";
 }
 
 function restore($filnavn,$backup_encode,$backup_dbtype,$backupdate=''){
@@ -1046,15 +1216,10 @@ function restore($filnavn,$backup_encode,$backup_dbtype,$backupdate=''){
 		$restoredDbSql = db_escape_string($db);
 		db_modify("UPDATE regnskab SET version = '$restoredVersionSql' WHERE db = '$restoredDbSql'", __FILE__ . ' linje ' . __LINE__);
 		db_close($connection);
-		print "<BODY ONLOAD=\"javascript:alert('Regnskabet er genskabt. Du skal logge ind igen!')\">";
-	
 		unlink($filnavn);
 		unlink($filnavn2);
 		print "--> \n"; # Indsat da svar fra pg_dump kan resultere i besked genereres
-		if ($popup) {
-			print "<BODY ONLOAD=\"JavaScript:opener.location.reload();\"";
-			print "<meta http-equiv=\"refresh\" content=\"0;URL=../includes/luk.php\">";
-		} else print "<meta http-equiv=\"refresh\" content=\"0;URL=../index/index.php?regnskab=".htmlentities($regnskab,ENT_COMPAT,$charset)."&amp;restored=".rawurlencode(preg_replace('/[^0-9-]/', '', substr((string) $backupdate, 0, 20)) ?: '1')."\">"; // 20261104 CL/ASR the login page says the ledger was restored
+		print restore_done_redirect($regnskab, $backupdate, !empty($_GET['popup'])); // the login page says the ledger was restored
 		print "</tbody></table>";
 		return true;
 	} else {

@@ -45,6 +45,8 @@
 // 20261002 NTR - Dropped the returside parameter from both the normal and the locked-kladde links so kassekladde falls back to its own default return target.
 // 20261012 CL/SZ SD-730 Deleting an empty journal also deletes the journal's own documents (journalDocumentsDelete()); if a
 //                 document's file can't be removed, the journal and that document's row stay (CodeRabbit).
+// 20261107 CL/ASR Tour of three steps (Ny, a journal row, Vis alle/Vis egne); it no longer starts by itself (includes/tutorial.php).
+// 20261108 CL/ASR Tour step 1 (Ny) also says that the lines reach the accounts only when the journal is posted (text 8779).
 // 20261126 CDX/NTR Consume shared prepared journal-owner text without stripping highlights or escaping twice.
 
 @session_start();
@@ -838,7 +840,16 @@ function deleteKladde(kladdeId) {
 $steps = array();
 $steps[] = array(
 	"selector" => "#create-new",
-	"content" => findtekst('2607|Opret ny kassekladde ved at klikke her', $sprog_id).".",
+	"content" => findtekst('8779|Klik her for at oprette en ny kassekladde. Linjerne kommer først på kontiene, når du bogfører kladden.', $sprog_id),
+);
+$steps[] = array(
+	"selector" => "#datatable-kladdelst tbody tr:has(td[data-bogfort])",
+	"first" => true,
+	"content" => findtekst('8769|Klik på en kladde for at åbne den. Åbne kladder står øverst og bogførte nederst.', $sprog_id),
+);
+$steps[] = array(
+	"selector" => "#filter-toggle-btn",
+	"content" => findtekst('8770|Skift mellem dine egne kladder og alle brugeres kladder.', $sprog_id),
 );
 
 include(__DIR__ . "/../includes/tutorial.php");

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/diverseIncludes/saveOrderOptions.php --- ver 5.1.0 --- 2026-10-30 ---
+// --- systemdata/diverseIncludes/saveOrderOptions.php --- ver 5.1.1 --- 2026-11-20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,6 +30,12 @@
 // 20261030 CL/MMR SD-786 CodeRabbit (PR #959): a new DIV 5 row gets kostmetode in box6 and the set item id in box8, as the update writes them.
 //                 The legacy insert had kostmetode one column off in box7 (the shop encoding) and box8 empty.
 //                 orderOptionsAlert() shows all returned alerts in one alert, one per line.
+// 20261119 CL/ASR Omgående bogføring of sales or purchase orders (DIV 3 box5) that is stored on stays on whatever the form posts, as on Indstillinger » Ordrer & fakturering (owner, 19 Nov 2026).
+//                 The old page is no longer reached (diverse.php sends sektion=ordre_valg there, a POST too), so this only guards the function.
+// 20261119 CL/ASR A part that is off is not switched on while invoices of its kind wait at status 3 for Hent ordrer (orders_waiting_for_hent()); the save keeps it off and returns an alert that says to fetch them into a cash journal first. The last part that is off is not switched on while invoices of the other kind wait either (the cash journal has no Hent for any kind once both are on), and the alert names the kind that waits.
+// 20261120 CL/ASR Comment: the cash journal keeps Hent for an invoice left waiting after both parts are on (owner, 20 Nov 2026), so the save no longer gives its absence as the reason.
+
+include_once(__DIR__ . '/../../includes/stdFunc/ordersWaitingForHent.php');
 
 if (!function_exists('saveOrderOptions')) {
 	/**
@@ -59,7 +65,6 @@ if (!function_exists('saveOrderOptions')) {
 		$box2                   = ifset($post, 'box2'); #Rabatvarenr
 		$box3                   = ifset($post, 'box3'); #folge_s_tekst
 		$box4                   = ifset($post, 'box4'); #hurtigfakt
-		$box5                   = ifset($post, 'straks_deb') . ";" . ifset($post, 'straks_kred'); #straks_bogf
 		$box6                   = ifset($post, 'box6'); #fifo
 		$box7                   = ifset($post, 'box7'); #
 		$box8                   = ifset($post, 'box8'); #vis_nul_lev
@@ -119,17 +124,52 @@ if (!function_exists('saveOrderOptions')) {
 		}
 		# <- 20150907
 
+		// Omgående bogføring, "<sales>;<purchases>" (a lone 'on' from before 3.6 is both): a part that is stored on stays on
+		// (owner, 19 Nov 2026). Only a part that is off takes the posted box, so it can be switched on but not off.
+		// A part is not switched on while invoices of its kind wait at status 3 for Hent ordrer, and the last part that is off
+		// not while invoices of the other kind wait: Hent ordrer is for ledgers where a part is off. An invoice that still
+		// waits once both are on (its journal lines deleted after it was fetched) keeps Hent in the cash journal.
+		$div3 = db_fetch_array(db_select("select id, box5 from grupper WHERE art = 'DIV' and kodenr='3'", __FILE__ . " linje " . __LINE__));
+		$storedBox5 = explode(';', $div3 ? (string) ifset($div3, 'box5', '') : '');
+		$salesWasOn = ($storedBox5[0] === 'on');
+		$purchasesWasOn = (($storedBox5[1] ?? $storedBox5[0]) === 'on');
+		$waitingText = function ($kind) use ($sprog_id) {
+			return ($kind === 'sales')
+				? findtekst('settings.orders.post_immediately_waiting_sales|Salgsfakturaer venter på at blive hentet. Hent dem ind i en kassekladde med Hent ordrer først.', $sprog_id)
+				: findtekst('settings.orders.post_immediately_waiting_purchases|Købsfakturaer venter på at blive hentet. Hent dem ind i en kassekladde med Hent ordrer først.', $sprog_id);
+		};
+		$straksSales = $salesWasOn ? 'on' : (string) ifset($post, 'straks_deb');
+		$straksPurchases = $purchasesWasOn ? 'on' : (string) ifset($post, 'straks_kred');
+		if (!$salesWasOn && $straksSales !== '' && orders_waiting_for_hent('sales')) {
+			$alerts[] = $waitingText('sales');
+			$straksSales = '';
+		}
+		if (!$purchasesWasOn && $straksPurchases !== '' && orders_waiting_for_hent('purchases')) {
+			$alerts[] = $waitingText('purchases');
+			$straksPurchases = '';
+		}
+		if ($straksSales !== '' && $straksPurchases !== '') {
+			if (!$salesWasOn && $purchasesWasOn && orders_waiting_for_hent('purchases')) {
+				$alerts[] = $waitingText('purchases');
+				$straksSales = '';
+			} elseif (!$purchasesWasOn && $salesWasOn && orders_waiting_for_hent('sales')) {
+				$alerts[] = $waitingText('sales');
+				$straksPurchases = '';
+			}
+		}
+		$box5 = $straksSales . ';' . $straksPurchases; #straks_bogf
+
 		$boxes = array(
 			'box2' => $box2, 'box3' => $box3, 'box4' => $box4, 'box5' => $box5, 'box6' => $box6, 'box7' => $box7, 'box8' => $box8,
 			'box9' => $box9, 'box10' => $box10, 'box11' => $box11, 'box12' => $box12, 'box13' => $box13, 'box14' => $box14,
 		);
 		$boxSql = array_map($sqlText, $boxes);
-		if ($r = db_fetch_array(db_select("select id from grupper WHERE art = 'DIV' and kodenr='3'", __FILE__ . " linje " . __LINE__))) {
+		if ($div3) {
 			$set = array();
 			foreach ($boxSql as $name => $value) {
 				$set[] = "$name='$value'";
 			}
-			$qtxt = "update grupper set " . implode(',', $set) . " WHERE id = '" . (int) $r['id'] . "'";
+			$qtxt = "update grupper set " . implode(',', $set) . " WHERE id = '" . (int) $div3['id'] . "'";
 			db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 		} else {
 			$qtxt = "insert into grupper (beskrivelse,kodenr,art," . implode(',', array_keys($boxSql)) . ") ";

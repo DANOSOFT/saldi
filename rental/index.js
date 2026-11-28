@@ -1,3 +1,4 @@
+// 20261116 CL/ASR Deleting an invoiced booking from the booking view (showBooking) only goes ahead when its question is answered OK.
 
 // Make sure you're in an async context
 (async () => {
@@ -2277,7 +2278,7 @@ const showBooking = async () => {
     deleteButtons.forEach(button => {
         button.addEventListener("click", async (e) => {
             if(bookingInfo.orderStatus == 1){
-                confirm("Er du sikker på du vil slette en faktureret booking?")
+                if(confirm("Er du sikker på du vil slette en faktureret booking?") == false) return
                 const id = e.target.id
                 const response = await deleteBooking(id)
                 alert(response)

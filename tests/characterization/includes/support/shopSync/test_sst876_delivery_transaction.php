@@ -3,6 +3,7 @@ namespace Sst876DeliveryFixture;
 // Copyright (c) 2026 Danosoft ApS
 // 20261027 CDX/MJ SST-876 Execute the delivery page with transaction doubles to verify post-commit retries and rollback isolation.
 // 20261028 CDX/MJ SST-876 Relocate this isolated fixture under the CI-discovered regression suite.
+// 20261115 CL/ASR Integration: strip the page's __DIR__-anchored includes as well as the relative ones (the owner's include-paths form).
 require_once dirname(__DIR__, 5) . '/includes/std_func.php';
 $events = array();
 $depth = 0;
@@ -27,7 +28,8 @@ function shopSyncDrainQueue() {
 function shopSyncAlertFailedItems() { $GLOBALS['events'][] = 'warning'; }
 function shopSyncClearFailedItems() { $GLOBALS['events'][] = 'clear'; }
 $src = file_get_contents(dirname(__DIR__, 5) . '/debitor/levering.php');
-$src = preg_replace('/^[\t ]*include\("\.\.\/includes\/[^"\n]+"\);[\t ]*$/m', '', $src);
+// The target includes by __DIR__ (include-paths guardrail), and inside eval __DIR__ is this folder, so strip that form too.
+$src = preg_replace('/^[\t ]*include\((?:"\.\.\/includes\/[^"\n]+"|__DIR__ \. \'\/\.\.\/includes\/[^\'\n]+\')\);[\t ]*$/m', '', $src);
 $src = substr($src, strlen('<?php'));
 foreach (array('OK', 'Failed delivery') as $result) {
 	$events = array();

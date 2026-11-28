@@ -2,7 +2,7 @@
 	@session_start();
 	$s_id=session_id();
 
-// --------------debitor/levering.php--------ver 5.1.0 ----2026-10-29-----
+// --------------debitor/levering.php--------ver 5.1.1 ----2026-11-10-----
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -30,17 +30,19 @@
 // 2016.09.13 Tilf�jet oioubl S�g 20160913
 // 20261027 CDX/MJ SST-876 Drain older webshop updates after the delivery transaction commits.
 // 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
+// 20261110 CDX/ASR Require module write access before this mutation endpoint runs.
 
 $id=NULL;	
-if (isset($_GET['id'])) $id=($_GET['id']);
-echo __line__."<br>";
+if (isset($_GET['id'])) $id = (int)$_GET['id'];
 if ($id && $id>=1) { 
 	$modulnr=5;
-	include("../includes/connect.php");
-	include("../includes/online.php");
-	include("../includes/std_func.php");
-	include("../includes/ordrefunc.php");
-	include("../includes/fuld_stykliste.php");
+	include(__DIR__ . '/../includes/connect.php');
+	$permission_key = 'debitor.ordre';
+	$permission_level = 'write';
+	include(__DIR__ . '/../includes/online.php');
+	include(__DIR__ . '/../includes/std_func.php');
+	include(__DIR__ . '/../includes/ordrefunc.php');
+	include(__DIR__ . '/../includes/fuld_stykliste.php');
 	$hurtigfakt=if_isset($_GET['hurtigfakt']);
 	$genfakt=if_isset($_GET['genfakt']);
 	$pbs=if_isset($_GET['pbs']);

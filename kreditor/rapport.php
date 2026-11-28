@@ -1,6 +1,6 @@
 <?php
-
-// --- kreditor/rapport.php-----patch 4.0.8 ----2025-06-18--------------
+//
+// --- kreditor/rapport.php-----ver 5.1.1 ----2026-11-10--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -17,7 +17,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 2023.03.23 PBLM Fixed minor errors
 // 20250618 PHR - changed $modulnr from 8 to 13;
@@ -28,7 +28,18 @@
 //                normal HTML page instead of a CSV. Buffer/discard the includes' page shell the
 //                same way debitor/rapport.php does, before openpost_export_csv() sends its own
 //                Content-Type/Content-Disposition headers.
+//
+//
+// 20261110 CDX/ASR Restrict callable report names and permit only known read-only filter POSTs.
 
+require_once __DIR__ . '/../includes/accountReportPermissions.php';
+foreach ([$_GET, $_POST] as $reportRequest) {
+	if ((isset($reportRequest['rapportart']) && account_report_name($reportRequest['rapportart']) === null)
+		|| (isset($reportRequest['submit']) && !is_string($reportRequest['submit']))) {
+		http_response_code(400);
+		exit;
+	}
+}
 
 @session_start();
 $s_id = session_id();
@@ -40,12 +51,14 @@ $modulnr = 13;
 $openpostCsvRequest = isset($_GET['rapportart']) && $_GET['rapportart'] == 'openpost' && isset($_GET['openpost_csv']);
 if ($openpostCsvRequest) ob_start();
 
-include("../includes/connect.php");
-include("../includes/online.php");
-include("../includes/std_func.php");
-include("../includes/forfaldsdag.php");
-include("../includes/autoudlign.php");
-include("../includes/rapportfunc.php");
+$permission_key = 'kreditor.rapporter';
+$permission_post_read = account_report_post_is_read($_POST);
+include(__DIR__ . '/../includes/connect.php');
+include(__DIR__ . '/../includes/online.php');
+include(__DIR__ . '/../includes/std_func.php');
+include(__DIR__ . '/../includes/forfaldsdag.php');
+include(__DIR__ . '/../includes/autoudlign.php');
+include(__DIR__ . '/../includes/rapportfunc.php');
 
 if ($openpostCsvRequest) {
 	ob_end_clean();
@@ -90,7 +103,7 @@ if (isset($_GET['ny_rykker'])) {
 		exit;
 	}
 	if ($rapportart == 'accountChart') include('../includes/reportFunc/accountChart.php');
-	$rapportart($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, 'K');
+	account_report_dispatch($rapportart, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, 'K');
 	exit;
 }
 $rapportart = NULL;
@@ -113,7 +126,7 @@ if (isset($_POST['konto'])) {
 
 $husk = if_isset($_POST['husk']);
 if (isset($_POST['salgsstat']) && $_POST['salgsstat']) {
-	if ($husk) db_modify("update grupper set box1='$husk',box2='$dato_fra',box3='$dato_til',box4='$konto_fra',box5='$konto_til',box6='$rapportart' where art='DRV' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
+	if ($husk) db_modify("update grupper set box1='" . db_escape_string((string)$husk) . "',box2='" . db_escape_string((string)$dato_fra) . "',box3='" . db_escape_string((string)$dato_til) . "',box4='" . db_escape_string((string)$konto_fra) . "',box5='" . db_escape_string((string)$konto_til) . "',box6='" . db_escape_string((string)$rapportart) . "' where art='DRV' and kodenr='" . (int)$bruger_id . "'", __FILE__ . " linje " . __LINE__);
 	print "<meta http-equiv=\"refresh\" content=\"1;URL=../includes/salgsstat.php?dato_fra=$dato_fra&dato_til=$dato_til&konto_fra=$konto_fra&konto_til=$konto_til&art=K\">";
 	exit;
 }
@@ -126,7 +139,7 @@ if (isset($_POST['submit']) || $rapportart) {
 		$dato_til = $_POST['dato_til'];
 	} else {
 		# echo "update grupper set box1='$regnaar',box2='$dato_fra',box3='$dato_til',box4='$konto_fra',box5='$konto_til',box6='$rapportart' where art='KRV' and kodenr='$bruger_id'<br>";
-		db_modify("update grupper set box1='$husk',box2='$dato_fra',box3='$dato_til',box4='$konto_fra',box5='$konto_til',box6='$rapportart' where art='KRV' and kodenr='$bruger_id'", __FILE__ . " linje " . __LINE__);
+		db_modify("update grupper set box1='" . db_escape_string((string)$husk) . "',box2='" . db_escape_string((string)$dato_fra) . "',box3='" . db_escape_string((string)$dato_til) . "',box4='" . db_escape_string((string)$konto_fra) . "',box5='" . db_escape_string((string)$konto_til) . "',box6='" . db_escape_string((string)$rapportart) . "' where art='KRV' and kodenr='" . (int)$bruger_id . "'", __FILE__ . " linje " . __LINE__);
 		$submit = 'ok';
 	}
 	#	$md=$_POST['md'];
@@ -258,7 +271,7 @@ if ($submit != 'ok') $submit = 'forside';
 elseif ($rapportart) $submit = $rapportart;
 
 #echo "$dato_fra,$dato_til,$konto_fra,$konto_til,$rapportart,'K'<br>";
-$submit(if_isset($dato_fra), if_isset($dato_til), if_isset($konto_fra), if_isset($konto_til), $rapportart, 'K');
+account_report_dispatch($submit, if_isset($dato_fra), if_isset($dato_til), if_isset($konto_fra), if_isset($konto_til), $rapportart, 'K');
 
 ?>
 

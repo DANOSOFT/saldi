@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- systemdata/sys_div_func.php --- ver 5.1.1 -- 2026.11.13 ---
+// --- systemdata/sys_div_func.php --- ver 5.1.1 -- 2026.11.19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -158,7 +158,13 @@
 // 20261008 SS Settings 4e: the dead prislister() removed (price lists live in Indstillinger » Prislister).
 // 20261010 SS G5.8: the label template functions moved unchanged to includes/labelTemplates.php (shared with systemdata/labels.php); labels() stays only for the old page, which now redirects.
 // 20261011 SS The include of sys_div_func_includes/chooseProvision.php removed: the file left with 4a on 2 October (provision lives in Organisation » Provision) and the include has warned on every load since.
+// 20261105 CL/LH kontoindstillinger() keeps the regnskab's name, reset and delete where Abonnement & konto (G1.4) does not exist, i.e. without the hosted module.
+//                Its 'Flyttet til' line there links only to Lokalisering; the link to Abonnement & konto redirected to settings.php?err=module.
+//                The three forms post thisDb, so online.php refuses them once the session has moved to another regnskab.
+//                The regnskab's name is escaped in the installation's charset (st_h()), so a LATIN9 name such as 'Jørgens ApS' is not dropped.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261114 CL/ASR Without the hosted module kontoindstillinger() keeps the name and Slet regnskab, but not Nulstil regnskab (owner, 14 Nov 2026): a ledger is reset only from the admin panel (admin/admin_panel.php).
+// 20261119 CL/ASR ordre_valg(): an Omgående bogføring box that is on cannot be unticked (owner, 19 Nov 2026), as saveOrderOptions() keeps it on; the page itself is no longer reached (diverse.php redirects it).
 include_once("../includes/connect.php"); 
 include_once(__DIR__ . "/../includes/labelTemplates.php");
 
@@ -212,10 +218,46 @@ function kontoindstillinger($regnskab, $skiftnavn)
 		}
 	</script>\n";
 
-	// 20261005 Sawaneh G1.3/G1.4: name, reset and delete moved to Indstillinger » Virksomhed » Abonnement & konto, the
-	// time zone to Lokalisering; only the user count stays here until the billing spec replaces it.
 	print "<tr><td colspan='6'><hr></td></tr>\n";
-	print "<tr><td colspan='6'>" . findtekst('6645|Flyttet til', $sprog_id) . " <a href='settingsSection.php?s=company.account'>" . findtekst('6630|Abonnement & konto', $sprog_id) . "</a> · <a href='settingsSection.php?s=company.localisation'>" . findtekst('6524|Lokalisering', $sprog_id) . "</a></td></tr>\n";
+	if (settings_has_module('hosted')) {
+		// 20261005 Sawaneh G1.3/G1.4: name, reset and delete moved to Indstillinger » Virksomhed » Abonnement & konto, the
+		// time zone to Lokalisering; only the user count stays here until the billing spec replaces it.
+		print "<tr><td colspan='6'>" . findtekst('6645|Flyttet til', $sprog_id) . " <a href='settingsSection.php?s=company.account'>" . findtekst('6630|Abonnement & konto', $sprog_id) . "</a> · <a href='settingsSection.php?s=company.localisation'>" . findtekst('6524|Lokalisering', $sprog_id) . "</a></td></tr>\n";
+		print "<tr><td colspan='6'><br></td></tr>\n";
+		return;
+	}
+	// Abonnement & konto (G1.4) exists only where the hosted module is on (Saldi's own servers). Elsewhere the
+	// regnskab's name and delete stay here, as before the redesign; systemdata/diverse.php saves them.
+	// The reset is not offered here: a ledger is reset only from the admin panel (admin/admin_panel.php).
+	print "<tr><td colspan='6'>" . findtekst('6645|Flyttet til', $sprog_id) . " <a href='settingsSection.php?s=company.localisation'>" . findtekst('6524|Lokalisering', $sprog_id) . "</a></td></tr>\n";
+	print "<tr><td colspan='6'><hr></td></tr>\n";
+	$name = st_h($regnskab); // in the installation's charset (includes/settings/components.php, loaded by top.php): a LATIN9 name is not UTF-8
+	// Each of these forms carries the regnskab it was drawn in, as stamkort.php's did: includes/online.php refuses the post
+	// once the session has moved to another regnskab (admin/aaben_regnskab.php keeps the session and its CSRF token).
+	$thisDb = "<input type='hidden' name='thisDb' value='" . st_h($db) . "'>";
+	if ($skiftnavn) {
+		print "<form name='diverse' action='diverse.php?sektion=kontoindstillinger' method='post'>$thisDb\n";
+		print "<tr><td colspan='6'>" . findtekst('2524|Skriv nyt navn på regnskab', $sprog_id) . "<input class='inputbox' type='text' style='width:400px' name='newName' value='$name'> ";
+		print findtekst('2525|og klik', $sprog_id) . " <input class='button gray medium' style='width:75px' type='submit' value='" . findtekst('2526|Skift navn', $sprog_id) . "' name='changeAccountName'></td></tr>\n";
+		print "</form>\n";
+		print "<tr><td colspan='6'><br></td></tr>\n";
+		return;
+	}
+	$klik = explode(" ", findtekst('149|Klik her for at sortere på telefonnummer.', $sprog_id)); #20210710
+	print "<tr><td colspan='6'>" . findtekst('1237|Dit regnskab hedder', $sprog_id) . " <span style='font-weight:bold'>$name</span>. ";
+	print "$klik[0] <a href='diverse.php?sektion=kontoindstillinger&amp;skiftnavn=ja'>" . findtekst('2157|her', $sprog_id) . "</a> " . findtekst('1238|for at ændre navnet.', $sprog_id) . "</td></tr>\n";
+	print "<tr><td colspan='6'><hr></td></tr>\n";
+	$r = db_fetch_array(db_select("select count(id) as transantal from transaktioner where logdate >= '" . date('Y-m-d', time() - 60 * 60 * 24 * 365) . "'", __FILE__ . " linje " . __LINE__));
+	print "<tr><td>" . findtekst('1233|Der er foretaget', $sprog_id) . " " . (int) $r['transantal'] . " " . findtekst('1234|posteringer de sidste 12 mdr.', $sprog_id) . "</td></tr>";
+	print "<tr><td colspan='6'><hr></td></tr>\n";
+	print "<tr><td colspan='6'><br></td></tr>\n";
+	print "<form name='slet_regnskab' action='diverse.php?sektion=kontoindstillinger' method='post'>$thisDb\n"; #20170731 ->
+	$tekst1 = findtekst('852|Slet regnskab', $sprog_id);
+	$tekst2 = findtekst('853|Hvis du sætter flueben i feltet og klikker på &apos;Slet&apos; slettes regnskabet og din konto lukkes. Vi beholder en sikkerhedskopi i 5 år jf. bogføringsloven.', $sprog_id);
+	print "<tr><td title='$tekst2'><b>$tekst1: $name</b></td><td title='$tekst2'><input type='checkbox' name='slet_regnskab'></td></tr>";
+	$confirm = htmlspecialchars(jsString(array(findtekst('851|Er du sikker på at du vil slette dit regnskab? Denne handling kan ikke fortrydes! - Tag en sikkerhedskopi først!', $sprog_id))), ENT_QUOTES, 'UTF-8');
+	print "<tr><td></td><td><input class='button gray medium' title='$tekst2' style='width:200px' type='submit' name='slet' value='" . findtekst('1099|Slet', $sprog_id) . "' onclick=\"return confirm($confirm)\"></td></tr>";
+	print "</form>\n"; # <- 20170731
 	print "<tr><td colspan='6'><br></td></tr>\n";
 } # endfunc kontoindstillinger
 
@@ -556,6 +598,13 @@ function ordre_valg() {
 	}
 	($straks_deb == 'on') ? $straks_deb = 'checked' : $straks_deb = NULL;
 	($straks_kred == 'on') ? $straks_kred = 'checked' : $straks_kred = NULL;
+	// Omgående bogføring that is on cannot be switched off again (owner, 19 Nov 2026): the ticked box cannot be unticked.
+	if ($straks_deb) {
+		$straks_deb = "checked onclick='return false'";
+	}
+	if ($straks_kred) {
+		$straks_kred = "checked onclick='return false'";
+	}
 	($grupper_data['box6'] == 'on') ? $fifo = "checked" : $fifo = NULL;
 	$kontantkonto = $grupper_data['box7'];
 	($grupper_data['box8'] == 'on') ? $vis_nul_lev = "checked" : $vis_nul_lev = NULL;

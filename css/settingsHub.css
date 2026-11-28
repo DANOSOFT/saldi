@@ -23,6 +23,8 @@
 /* the grid: columns of panels; each column stacks its own panels, so a row unfolding in one column never pushes another down */
 .sk .sh-grid { display: grid; grid-template-columns: repeat(var(--sh-n, 2), minmax(0, 1fr)); align-items: start; gap: var(--sk-gap); }
 .sk .sh-col { display: flex; flex-direction: column; gap: var(--sk-gap); min-width: 0; }
+.sk.sh-searching .sh-grid { grid-template-columns: minmax(0, 1fr); max-width: 64rem; }
+.sk .sh-col[hidden], .sk .sh-panel[hidden] { display: none; }
 
 /* a group panel: its name and grey description in the header band; the rows are clipped to the 4 px corners */
 .sk .sh-panel { overflow: hidden; transition: border-color 900ms var(--sk-ease); }

@@ -26,6 +26,8 @@
 // 20261004 LOE Support original-upload hashes and cache column availability per tenant.
 // 20261005 CL/SZ SD-727 poolContentHashStore() and poolContentHashBackfill(): a row an upload's extraction created had no hash, so the
 //                  same bilag arriving again was never recognised (MB-42) and an archived one never restored.
+// 20261105 CL/LH Two first logins at once lost one of them: both sent CREATE INDEX IF NOT EXISTS and the later one failed on pg_class_relname_nsp_index.
+//                PostgreSQL now takes the schema lock MySQL already took, so the second login waits and then finds the index.
 
 if (!function_exists('poolContentHashColumnExists')) {
 	/**
@@ -73,14 +75,17 @@ if (!function_exists('poolContentHashColumnExists')) {
 			}
 		}
 
-		// MySQL lacks ADD COLUMN/CREATE INDEX IF NOT EXISTS. Hold the same schema lock
-		// through both operations so concurrent login/API requests cannot race either one.
-		$lock = "CONCAT('saldi:pool_files_hash_schema:', MD5(DATABASE()))";
+		// MySQL lacks ADD COLUMN/CREATE INDEX IF NOT EXISTS, and on PostgreSQL CREATE INDEX IF NOT EXISTS does not
+		// wait for an index another request is still creating: the later one fails on pg_class_relname_nsp_index.
+		// Hold the same schema lock through both operations so concurrent login/API requests cannot race either one.
+		$lock = $mysql ? "CONCAT('saldi:pool_files_hash_schema:', MD5(DATABASE()))" : "hashtext('saldi:pool_files_hash_schema:' || current_schema())";
 		if ($mysql) {
 			$lockResult = db_fetch_array(db_select("SELECT GET_LOCK($lock, 30) AS acquired", __FILE__ . " linje " . __LINE__));
 			if ((int) (isset($lockResult['acquired']) ? $lockResult['acquired'] : 0) !== 1) {
 				return false;
 			}
+		} else {
+			db_select("SELECT pg_advisory_lock($lock)", __FILE__ . " linje " . __LINE__);
 		}
 		try {
 			if (!db_fetch_array(db_select($probe, __FILE__ . " linje " . __LINE__))) {
@@ -104,9 +109,7 @@ if (!function_exists('poolContentHashColumnExists')) {
 				$indexes[$key] = true;
 			}
 		} finally {
-			if ($mysql) {
-				db_select("SELECT RELEASE_LOCK($lock)", __FILE__ . " linje " . __LINE__);
-			}
+			db_select($mysql ? "SELECT RELEASE_LOCK($lock)" : "SELECT pg_advisory_unlock($lock)", __FILE__ . " linje " . __LINE__);
 		}
 		return $exists;
 	}

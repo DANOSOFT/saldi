@@ -2,6 +2,7 @@
 // 20260914 CDX/LH Regress MB-48: completed cash sales must leave the change screen.
 // 20260914 CDX/LH Cover secure remote printers, loopback exceptions and rejected drawer endpoints.
 // 20261006 CL/LH SST-839: LAN print servers (private IPs, localhost, .local, single-label names) are reached over HTTP again; other hosts keep the HTTPS rule.
+// 20261117 CL/ASR afslut() calls shopSyncDrainQueue() after its commit (SST-876): the stubs have it.
 // 20261125 CL/SS MB-49: the real pos_payment_is_card() is loaded, as afslut() now uses it.
 
 /**
@@ -43,6 +44,7 @@ if (($argv[1] ?? '') === '--case') {
     function betaling(...$args) { return 20; }
     function pos_afrund($amount, ...$args) { return round($amount, 2); }
     function afrund($amount, $decimals) { return round($amount, $decimals); }
+    function shopSyncDrainQueue() { $GLOBALS['events'][] = 'shopSyncDrainQueue'; } // master SST-876: runs after the commit
     require_once __DIR__ . '/../includes/orderFuncIncludes/posPaymentType.php';
     function db_select($sql, ...$args) {
         global $case;

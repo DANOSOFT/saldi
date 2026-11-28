@@ -51,6 +51,8 @@
 //                  evaluates - a failed attach answered http 200 and looked like a success.
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
 // 20261018 SS Review 2 (PR #803): the documents' own module decides access (source), not 'any'; uploading needs write.
+// 20261110 CDX/ASR Require write access for document and pool unlink, delete, move, link and cleanup actions.
+// 20261113 CL/ASR The Hjælp cell is hidden (the top bar has Hjælp); it stays in the page for the tour.
 //
 // SST-868: must stay above every include. online.php prints the page frame as it is included,
 // and php.ini buffers only 4096 bytes, so without a buffer of our own the response is already
@@ -68,13 +70,21 @@ $fokus=$dokument = $openPool=$docFocus=$deleteDoc=$showDoc= $poolFile=$moveDoc=$
 
 $globalId = 0;
 
-include("../includes/connect.php");
+require_once __DIR__ . '/docsIncludes/documentAccess.php';
+include(__DIR__ . '/../includes/connect.php');
 $docSource = isset($_POST['source']) ? (string) $_POST['source'] : (isset($_GET['source']) ? (string) $_GET['source'] : '');
-$permission_key = ($docSource === 'kassekladde') ? 'finans.kassekladde' : (($docSource === 'debitorOrdrer') ? 'debitor.ordre' : (($docSource === 'creditorOrder') ? 'kreditor.ordre' : 'debitor.konti|kreditor.konti'));
-include("../includes/online.php");
-include("../includes/std_func.php");
-include("../includes/topline_settings.php");
-include("docsIncludes/invoiceExtractionApi.php");
+$permission_key = docAccessSourcePermission($docSource);
+$permission_level = 'read';
+foreach (['deleteDoc', 'unlinkDoc', 'moveDoc', 'doLink', 'unlink', 'unlinkFile', 'cleanupOrphans'] as $documentAction) {
+	if (!empty($_GET[$documentAction])) {
+		$permission_level = 'write';
+		break;
+	}
+}
+include(__DIR__ . '/../includes/online.php');
+include(__DIR__ . '/../includes/std_func.php');
+include(__DIR__ . '/../includes/topline_settings.php');
+include(__DIR__ . '/docsIncludes/invoiceExtractionApi.php');
 include_once(__DIR__ . "/docsIncludes/poolCapture.php");
 include_once(__DIR__ . "/docsIncludes/FileReservation.php");
 include_once(__DIR__ . "/docsIncludes/docFileFunc.php");
@@ -116,6 +126,14 @@ if(($_GET)||($_POST)) {
 		$poolFile = $_GET['poolFile'];
 	}
 }
+
+// The same validated context drives both the gate and every following document query.
+if ($docSource !== '' && docAccessSourcePermission($docSource) === null) {
+	docAccessDeny();
+}
+$source = $docSource;
+$sourceId = (int)$sourceId;
+$kladde_id = (int)$kladde_id;
 
 if (file_exists('../owncloud')) $docFolder = '../owncloud';
 elseif (file_exists('../bilag')) $docFolder = '../bilag';
@@ -321,7 +339,7 @@ if ($menu == 'T') {
 		print "<table class='topLine' width='100%' align='center' border='0' cellspacing='2' cellpadding='0'><tbody><tr class='header-row'>";
 		print "<td width=5% style='$buttonStyle'><a href='$backUrl' accesskey='L'><button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$icon_back ".findtekst('30|Tilbage', $sprog_id)."</button></a></td>";
 		print "<td width=90% style='$topStyle' align=left><table border=0 cellspacing=2 cellpadding=0><tbody><td width='200px' align=center id='documents-btn'><button class='headerbtn navbtn-top' style='$butDownStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$icon_documents ".findtekst('1408|Dokumenter', $sprog_id)."</button></td></tbody></table></td>";
-		print "<td id='tutorial-help' width=5% style='$buttonStyle'><button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$help_icon ".findtekst('2564|Hjælp', $sprog_id)."</button></td>";
+		print "<td id='tutorial-help' hidden width=5% style='$buttonStyle'><button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">$help_icon ".findtekst('2564|Hjælp', $sprog_id)."</button></td>";
 		print "</tr></tbody></table></td></tr>";
 	}
 	print "</tbody></table>";
@@ -397,9 +415,12 @@ $linkDocId = isset($_GET['linkDocId']) ? intval($_GET['linkDocId']) : 0;
 
 if ($doLink && $linkDocId && $sourceId && $source == 'kassekladde') {
 	// Get the original document info
-	$qtxt = "SELECT * FROM documents WHERE id = '$linkDocId'";
+	$qtxt = "SELECT * FROM documents WHERE id = '$linkDocId' AND source = 'kassekladde'";
 	$origDoc = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 	
+	if ($origDoc && !docAccessFindDocument("$docFolder/$db", "$docFolder/$db/$origDoc[filepath]/$origDoc[filename]", 'kassekladde', (int)$origDoc['source_id'])) {
+		docAccessDeny();
+	}
 	if ($origDoc) {
 		// Check if this exact document is already linked to this source_id
 		$checkQtxt = "SELECT id FROM documents WHERE source = 'kassekladde' AND source_id = '$sourceId' AND filename = '" . db_escape_string($origDoc['filename']) . "' AND filepath = '" . db_escape_string($origDoc['filepath']) . "'";

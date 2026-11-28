@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/rows.php --- ver 5.1.1 --- 2026.11.19 ---
+// ---- includes/settings/rows.php --- ver 5.1.1 --- 2026.11.23 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,8 +28,19 @@
 // 20261008 SS Table option 'confirm_skip' (button text, explanation) for the confirm box. Warehouse usage follows
 // 20261018 SS Review 2 (PR #803): an empty cell in a number column is written as NULL (SettingsService::sqlValue). master's warehouseDeletion.php (history, order lines, departments; duplicates may go).
 // 20261019 SS Review 2 (PR #803): numeric codes compared as numbers ("01" = "1") in the uniqueness check, a row's own unchanged code is not checked again (legacy duplicates), copy-year keeps inaktiv, next auto code and the AFD default-warehouse cleanup without Postgres regex / same-table subquery (MySQL).
+// 20261105 CL/LH A background's usage counts customers and suppliers through their group's language (DG/KG box4); adresser has no sprog column, so the old count failed on every background row.
+// 20261105 CL/LH A bool cell is ticked only for its true_value, as SALDI reads it (Varegrupper showed Lagerført for box8 = '1', which the stock code treats as not stock-managed); saving, 'requires' and the standard set read it the same way.
+// 20261105 CL/LH Valuta counts a currency's postings, journal lines, orders and open items, and a rate's postings, for all rows of the table in one read per table (settings_rows_count_each()).
+//                The count per row read transaktioner (no index on valuta) once for every currency and every rate, so the section took about 15 s to open on a book with 1M postings.
+//                The database still judges each row's own condition, so a code compares as before (case and trailing spaces on MySQL and MariaDB).
+// 20261105 CL/LH A rate's usage also counts the postings on the currency's accounts, as its edit check does (settings_currency_rate_postings()), so Slet refuses a rate whose revaluation is posted.
+//                A revaluation is booked on those accounts with valuta -1, so the count by valuta found nothing, and the delete left the postings and the accounts' valutakurs behind.
+//                The accounts are the currency's in every fiscal year, so the refusal does not depend on the year the user has open.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261114 CL/ASR Table option 'keep': stored columns the table no longer shows. Saving never touches them (only shown columns are written) and copying a fiscal year carries them along.
 // 20261119 CL/ASR G6.2 Baggrunde: the usage count (and the delete check) counts the debtor and creditor groups (grupper DG/KG box4) that name the background, not adresser.sprog, a column that does not exist.
+// 20261123 CL/ASR Integration: G6.2 Baggrunde counts the customers and suppliers whose group (DG/KG box4, any fiscal year, any case) names the background (20261031).
+//                 It also counts the DG/KG groups that name it, each group once over its fiscal years and in any case (#870), so a group without members still blocks the delete.
 /**
  * The tables of a rows section with their defaults filled in.
  *
@@ -42,7 +53,7 @@ function settings_rows_tables(array $section): array
 		$t += array('sub' => $tableId, 'fiscal' => false, 'usage' => null, 'inactive' => false, 'exclude' => '', 'help' => null,
 			'propagate' => array(), 'kode' => null, 'on_save' => null, 'row_name' => null, 'defaults' => array(),
 			'no_add' => false, 'filter' => null, 'auto_code' => false, 'row_actions' => array(), 'confirm' => null, 'row_check' => null,
-			'before_row' => null, 'on_delete' => null, 'order' => null, 'row_locked' => null, 'create' => null, 'standard' => null, 'hide_empty' => false, 'confirm_skip' => null);
+			'before_row' => null, 'on_delete' => null, 'order' => null, 'row_locked' => null, 'create' => null, 'standard' => null, 'hide_empty' => false, 'confirm_skip' => null, 'keep' => array());
 		$st = $t['storage'];
 		$t['kind'] = $st[0] === 'grupper' ? 'grupper' : 'table';
 		$t['art'] = $t['kind'] === 'grupper' ? (string) $st[1] : '';
@@ -96,9 +107,10 @@ function settings_rows_standard(array $t): array
 	$out = array();
 	foreach ($rows as $row) {
 		$r = array();
-		foreach (array_keys($t['columns']) as $col) {
+		foreach ($t['columns'] as $col => $def) {
 			if (isset($row[$col])) {
-				$r[$col] = (string) $row[$col];
+				// A bool cell as the editor shows a stored one ('1' ticked, '' not), so the seeded checkbox is ticked only for true_value.
+				$r[$col] = $def['type'] === 'bool' ? settings_rows_form_value($def, (string) $row[$col]) : (string) $row[$col];
 			}
 		}
 		if ($r) {
@@ -155,34 +167,107 @@ function settings_rows_load(array $t, ?int $year): array
 		foreach ($t['columns'] as $col => $def) {
 			$row['cells'][$col] = ($def['type'] === 'derived' || $def['transient']) ? '' : (isset($r[$col]) ? (string) $r[$col] : '');
 		}
-		$usage = settings_rows_usage($t, $row);
+		$rows[$row['id']] = $row;
+	}
+	// The usage once every row is read, so a count over a large table is made for all rows at once; $counted holds
+	// those counts for this load only, so each load counts what is in the database at that moment.
+	$counted = array();
+	foreach ($rows as $id => $row) {
+		$usage = settings_rows_usage($t, $row, $rows, $counted);
 		$row['usage'] = $usage['count'];
 		$row['usage_text'] = $usage['text'];
 		$row['locked'] = $t['row_locked'] !== null && function_exists('settings_rows_hook_locked') && settings_rows_hook_locked((string) $t['row_locked'], $row);
-		$rows[$row['id']] = $row;
+		$rows[$id] = $row;
 	}
 	return $rows;
 }
 
 /**
+ * How many rows of $from meet each condition, as "select count(*) from $from where <condition>" gives it, with one
+ * read of $from for up to 1000 conditions (one sum(case when <condition> ...) column each; Postgres allows 1664
+ * columns). The database judges every condition, so it compares exactly as that count does (a case-insensitive
+ * collation or trailing spaces on MySQL and MariaDB, a date column against a date).
+ *
+ * @param string             $from   a table, or a grouped subquery with its alias, from the code
+ * @param array<int, string> $conds  key => condition, every outside value in it already cast or escaped
+ * @param string             $weight what a row of $from counts for: 1, or the count column of a grouped subquery
+ * @return array<int, int> key => number of rows
+ */
+function settings_rows_count_each(string $from, array $conds, string $weight = '1'): array
+{
+	$counts = array();
+	foreach (array_chunk(array_values(array_unique($conds)), 1000) as $chunk) {
+		$sums = array();
+		foreach ($chunk as $i => $cond) {
+			$sums[] = "sum(case when $cond then $weight else 0 end) as n$i";
+		}
+		$r = db_fetch_array(db_select("select " . implode(', ', $sums) . " from $from", __FILE__ . " linje " . __LINE__));
+		foreach ($chunk as $i => $cond) {
+			$counts[$cond] = $r ? (int) $r["n$i"] : 0;
+		}
+	}
+	$out = array();
+	foreach ($conds as $key => $cond) {
+		$out[$key] = $counts[$cond];
+	}
+	return $out;
+}
+
+/**
+ * The postings a rate of currency $gruppe stands behind, as a condition on transaktioner: those in the currency, and
+ * those in any currency on an account that is in the currency in a fiscal year. A rate's revaluation is booked on the
+ * currency's accounts with valuta -1 (settings_currency_book()), so only the accounts show it. The accounts are those
+ * of every fiscal year, not of the year the user has open: a posting does not say which year's chart it was booked
+ * on, and a revaluation is dated on its rate, which may lie outside that year. A revaluation booked in one year then
+ * still stands behind its rate when another year is open. A rate dated on or before one of these postings can be
+ * neither changed (settings_rows_row_check()) nor deleted (its usage), as on the old valutakort.php.
+ */
+function settings_currency_rate_postings(int $gruppe): string
+{
+	return "(" . db_cast('valuta', 'text') . " = '$gruppe' or " . db_cast('kontonr', 'text') . " in (select " . db_cast('kontonr', 'text')
+		. " from kontoplan where valuta = $gruppe))";
+}
+
+/**
  * Where a row is referenced, as a count and a short text ("14 ordrer · 3 ansatte"), for the delete dialog (spec §8.2).
  *
+ * @param array<int, array<string, mixed>> $rows    the rows loaded with $row (settings_rows_load()), or none
+ * @param array<string, array<int, int>>   $counted the counts made for $rows so far, kept by the caller between its rows
  * @return array{count: int, text: string}
  */
-function settings_rows_usage(array $t, array $row): array
+function settings_rows_usage(array $t, array $row, array $rows = array(), array &$counted = array()): array
 {
 	$parts = array();
 	$total = 0;
 	$code = isset($row['cells'][$t['code_col']]) ? trim((string) $row['cells'][$t['code_col']]) : '';
 	$esc = db_escape_string($code);
 	$isInt = ($code !== '' && ctype_digit($code));
-	$add = function (string $sql, int $textId) use (&$parts, &$total) {
-		$r = db_fetch_array(db_select($sql, __FILE__ . " linje " . __LINE__));
-		$n = $r ? (int) $r['n'] : 0;
+	$addCount = function (int $n, int $textId) use (&$parts, &$total) {
 		if ($n > 0) {
 			$parts[] = sprintf(st_txt($textId), number_format($n, 0, ',', '.'));
 			$total += $n;
 		}
+	};
+	$add = function (string $sql, int $textId) use ($addCount) {
+		$r = db_fetch_array(db_select($sql, __FILE__ . " linje " . __LINE__));
+		$addCount($r ? (int) $r['n'] : 0, $textId);
+	};
+	// A count over a table with no index on the column it tests is made for every row in $rows at once
+	// (settings_rows_count_each()), so the table is read once for all of them, not once per row. $cond gives a row's
+	// condition from its escaped code and stored row: the WHERE of that row's own count, judged by the database.
+	$addEach = function (string $from, callable $cond, int $textId, string $weight = '1') use ($t, $row, $rows, &$counted, $addCount) {
+		$key = $textId . ' ' . $from;
+		if (!isset($counted[$key][$row['id']])) {
+			$conds = array();
+			foreach (isset($rows[$row['id']]) ? $rows : array($row['id'] => $row) as $id => $r) {
+				$c = isset($r['cells'][$t['code_col']]) ? trim((string) $r['cells'][$t['code_col']]) : '';
+				if ($c !== '') {
+					$conds[$id] = $cond(db_escape_string($c), isset($r['raw']) ? $r['raw'] : array());
+				}
+			}
+			$counted[$key] = settings_rows_count_each($from, $conds, $weight) + (isset($counted[$key]) ? $counted[$key] : array());
+		}
+		$addCount($counted[$key][$row['id']], $textId);
 	};
 	if ($t['usage'] === 'fiscal_year' && function_exists('settings_fiscal_year_usage')) {
 		foreach (settings_fiscal_year_usage($row) as $u) {
@@ -250,23 +335,34 @@ function settings_rows_usage(array $t, array $row): array
 				$add("select count(*) as n from varer where " . db_cast('gruppe', 'text') . " = '$esc'", 6427);
 				break;
 			case 'background':
-				// G6.2: debtor and creditor groups (grupper.box4) and orders name their background (form language)
-				// by its name. adresser has no sprog column - a customer's language comes from its group.
-				$add("select count(*) as n from grupper where art in ('DG', 'KG') and box4 = '$esc'", 6464);
+				// G6.2: orders name their background (form language) by its name. Customers and suppliers take it from
+				// their group (DG/KG box4, in any fiscal year and any case); a new customer order copies it from there.
+				// The groups count too, each once over its fiscal years, so a group without members still keeps its background.
+				$add("select count(*) as n from (select distinct art, kodenr from grupper where art in ('DG', 'KG')"
+					. " and lower(box4) = lower('$esc')) g", 6464);
+				$add("select count(*) as n from adresser a where exists (select 1 from grupper g where g.kodenr = a.gruppe"
+					. " and ((a.art = 'D' and g.art = 'DG') or (a.art = 'K' and g.art = 'KG')) and lower(g.box4) = lower('$esc'))", 6682);
 				$add("select count(*) as n from ordrer where sprog = '$esc'", 6422);
 				break;
 			case 'currency':
+				// Postings, journal lines, orders and open items have no index on valuta, so each is counted for all
+				// currencies at once. Postings and journal lines name the currency by its number, orders and open
+				// items by its code.
 				$k = isset($row['raw']['kodenr']) ? (int) $row['raw']['kodenr'] : 0;
 				$add("select count(*) as n from kontoplan where valuta = $k", 6601);
-				$add("select count(*) as n from transaktioner where " . db_cast('valuta', 'text') . " = '$k'", 6423);
-				$add("select count(*) as n from kassekladde where valuta = $k", 6566);
-				$add("select count(*) as n from ordrer where valuta = '$esc'", 6422);
-				$add("select count(*) as n from openpost where valuta = '$esc'", 6568);
+				$addEach('transaktioner', fn (string $escaped, array $raw) => db_cast('valuta', 'text') . " = '" . (int) ($raw['kodenr'] ?? 0) . "'", 6423);
+				$addEach('kassekladde', fn (string $escaped, array $raw) => "valuta = " . (int) ($raw['kodenr'] ?? 0), 6566);
+				$addEach('ordrer', fn (string $escaped) => "valuta = '$escaped'", 6422);
+				$addEach('openpost', fn (string $escaped) => "valuta = '$escaped'", 6568);
 				$add("select count(*) as n from valuta where gruppe = $k", 6602);
 				break;
 			case 'currency_rate':
+				// The postings the rate stands behind (settings_currency_rate_postings()) on or after its date, for all
+				// the currency's rates at once. The postings are counted per date first, so each rate's date is compared
+				// once per date, not per posting.
 				$g = isset($row['raw']['gruppe']) ? (int) $row['raw']['gruppe'] : 0;
-				$add("select count(*) as n from transaktioner where " . db_cast('valuta', 'text') . " = '$g' and transdate >= '$esc'", 6423);
+				$addEach("(select transdate, count(*) as n from transaktioner where " . settings_currency_rate_postings($g) . " group by transdate) d",
+					fn (string $escaped) => "transdate >= '$escaped'", 6423, 'n');
 				break;
 			case 'discount_debtor_group':
 				if ($isInt) {
@@ -328,6 +424,27 @@ function settings_rows_derived(string $name, array $row): string
 }
 
 /**
+ * Whether a stored bool cell is ticked: only the column's true_value ('on' unless the column names another), as SALDI's
+ * own code reads it. A product group is Lagerført for box8 = 'on' (lager/lagerstatus.php, includes/ordrefunc.php); a
+ * '1' there, as the REST API once wrote it, is not stock-managed and so is not shown ticked.
+ */
+function settings_rows_bool_on(array $def, string $raw): bool
+{
+	return trim($raw) === (string) $def['true_value'];
+}
+
+/**
+ * Whether a cell counts as filled in for a 'requires' rule: a bool cell when it is ticked, any other cell when it holds a value.
+ */
+function settings_rows_filled(array $def, ?string $raw): bool
+{
+	if ($raw === null) {
+		return false;
+	}
+	return $def['type'] === 'bool' ? settings_rows_bool_on($def, $raw) : $raw !== '';
+}
+
+/**
  * The stored string shown in a cell.
  */
 function settings_rows_form_value(array $def, string $raw): string
@@ -336,7 +453,7 @@ function settings_rows_form_value(array $def, string $raw): string
 		return $raw === '' ? '' : str_replace('.', ',', rtrim(rtrim(number_format((float) $raw, 4, '.', ''), '0'), '.'));
 	}
 	if ($def['type'] === 'bool') {
-		return (trim($raw) !== '' && trim($raw) !== (string) $def['false_value']) ? '1' : '';
+		return settings_rows_bool_on($def, $raw) ? '1' : '';
 	}
 	if ($def['type'] === 'date' && preg_match('/^(\d{4})-(\d{2})-(\d{2})/', $raw, $m)) {
 		return $m[3] . '-' . $m[2] . '-' . $m[1];
@@ -439,10 +556,8 @@ function settings_rows_same(array $def, string $stored, string $raw): bool
 		return abs((float) $stored - (float) $raw) < 0.000001;
 	}
 	if ($def['type'] === 'bool') {
-		$on = function ($v) use ($def) {
-			return trim((string) $v) !== '' && trim((string) $v) !== (string) $def['false_value'];
-		};
-		return $on($stored) === $on($raw);
+		// A stored '1' is not ticked, so ticking it writes true_value and leaving it alone keeps the stored value.
+		return settings_rows_bool_on($def, $stored) === settings_rows_bool_on($def, $raw);
 	}
 	if ($def['type'] === 'date') {
 		return substr(trim($stored), 0, 10) === $raw;
@@ -525,8 +640,8 @@ function settings_rows_save(string $sectionId, array $tables, array $post, ?int 
 			}
 			foreach ($t['columns'] as $col => $def) {
 				// "requires": when this cell is filled in, another one must be too (batch control needs stock-managed).
-				if (is_array($def['requires']) && !isset($rowErrors[$col]) && isset($clean[$col]) && $clean[$col] !== ''
-					&& (!isset($clean[$def['requires'][0]]) || $clean[$def['requires'][0]] === '')) {
+				if (is_array($def['requires']) && !isset($rowErrors[$col]) && settings_rows_filled($def, $clean[$col] ?? null)
+					&& !settings_rows_filled($t['columns'][$def['requires'][0]], $clean[$def['requires'][0]] ?? null)) {
 					$rowErrors[$col] = (int) $def['requires'][1];
 				}
 			}
@@ -753,6 +868,12 @@ function settings_rows_copy_year(string $sectionId, string $tableId, array $t, i
 	$cols = array_keys(array_filter($t['columns'], function ($def) {
 		return $def['type'] !== 'derived' && !$def['transient'];
 	}));
+	// Stored columns the table no longer shows ('keep') go along with the year, so hiding a column never drops its values.
+	foreach ($t['keep'] as $col) {
+		if (!in_array($col, $cols, true)) {
+			$cols[] = (string) $col;
+		}
+	}
 	if (!in_array('inaktiv', $cols, true) && db_fetch_array(db_select("select column_name from information_schema.columns where table_name = 'grupper' and column_name = 'inaktiv'" . saldi_schema_filter(), __FILE__ . " linje " . __LINE__))) {
 		$cols[] = 'inaktiv';
 	}

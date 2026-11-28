@@ -5,7 +5,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- index/main.php --- ver 5.1.1 --- 2026-11-13 ---
+// ---- index/main.php --- ver 5.1.1 --- 2026-11-14 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -72,6 +72,7 @@
 // 20261014 Sawaneh Review: the landing page without Se Oversigt is a page the role's own key allows.
 // 20261016 Sawaneh Tester feedback (PR #803): the sidebar mark follows the page in the frame, not only sidebar clicks.
 // 20261028 CL/LH SALDI Assist Guide is the default widget; SALDI_ASSIST_GUIDE=off brings back v1.
+// 20261030 LOE MB-62 Read-only (2) counts as access in the menu, as it already does on the pages.
 // 20261031 CL/ASR The sidebar mark changes on sidebar clicks only, as on master: sidebarFollow() and the Indstillinger mark on frame load are gone.
 // 20261031 CL/ASR The Assist widget keeps its own sidebar entry, as on master (the sidebar differs from master only by the Indstillinger item).
 // 20261101 CL/ASR Sidebar: Kontoplan under Finans (Finans also shown on right 0); Kontakt removed; the Assist
@@ -83,17 +84,58 @@
 // 20261104 CL/ASR Lager » Udløbsrapport follows the report to Varerapport (right 15 and lager.rapporter instead of right 12, owner 4 Nov 2026).
 // 20261104 LOE SST-922 The Print button loads a page's autoprint view when the page offers one.
 // 20261104 CL/ASR Merge: the top bar's Print side goes through saldiPrintIframe() as well, so it also prints a page's autoprint view (SST-922).
+// 20261107 CL/ASR Hjælp variant B: the topbar's Hjælp symbol opens one help panel docked beside the page (javascript/saldi-help.js), for now only for tenants with settings help/panel=on (SALDI_HELP_PANEL unset or pilot); everyone else keeps the Assist menu.
+// 20261107 CL/ASR The Assist menu offers "Rundvisning af siden" wherever the page has a tour with visible steps, also without the old Hjælp button (the booking pages), and starts it through SaldiTour.start(). The help panel's css and scripts are linked as ?v=2 (review round 1).
+// 20261107 CL/ASR The help panel's css and scripts are linked as ?v=3 (review round 2).
+// 20261108 CL/ASR The help content for the finance module is its own file, javascript/saldi-help-finans.js, loaded after saldi-help-content.js (?v=4).
+// 20261108 CL/ASR Round 2 of the bookkeeping help (saldi-help-finans.js ?v=5) and the pool re-read in saldi-help.js (?v=4).
+// 20261108 CL/ASR The help panel asks first (spec §18): saldi-help.js ?v=5, saldi-help.css ?v=4, saldi-help-finans.js ?v=6.
+// 20261108 CL/ASR Hjælp inside Saldi Assist (spec §19): javascript/saldi-help-state.js (?v=1) before saldi-help.js (?v=6).
+// 20261108 CL/ASR Merge review of the page help in Saldi Assist (spec §19): saldi-help-state.js ?v=2, saldi-help.js ?v=7.
+// 20261108 ASR Vis mig audit (spec §21): saldi-help-finans.js ?v=7 (the fixed targets), saldi-help.js ?v=8 (the callout's Ok).
+// 20261108 CL/ASR Page help for Oversigt (spec §20): saldi-help-content.js ?v=5, saldi-help.js ?v=8.
+// 20261108 CL/ASR Page help for Debitor and Kreditor: javascript/saldi-help-debitor.js and saldi-help-kreditor.js (?v=1) after saldi-help-finans.js.
+// 20261108 CL/ASR Debitor and Kreditor page help integrated (spec §22): saldi-help-debitor.js and saldi-help-kreditor.js ?v=2.
+// 20261108 CL/ASR Debitor and Kreditor help reviews merged: saldi-help-debitor.js and saldi-help-kreditor.js ?v=3.
+// 20261108 CL/ASR Debitor and Kreditor help after the live check (spec §22.9): saldi-help-debitor.js and saldi-help-kreditor.js ?v=4.
+// 20261108 ASR Saldi Assist in the shell (spec §23): with the help panel on, .home-content carries data-saldi-assist-page, the only area the chat narrows; topbar.css ?v=24 ("+ Ny chat"), saldi-help.js ?v=9 (Hjælp resumes the conversation).
 // 20261108 CL/ASR css/saldi-theme.css linked as ?v=8 (--page in light is Saldi's classic page colour #eeeef0).
-// 20261030 LOE MB-62 Read-only (2) counts as access in the menu, as it already does on the pages.
+// 20261109 CL/ASR Page help for Lager and Indstillinger: javascript/saldi-help-lager.js and saldi-help-settings.js (?v=1) after saldi-help-kreditor.js; saldi-help-state.js ?v=3 and saldi-help.js ?v=10 (variants, spec §24).
+// 20261109 CL/ASR Lager and Indstillinger page help integrated (spec §24.5): saldi-help-lager.js and saldi-help-settings.js ?v=2.
+// 20261109 CL/ASR Lager and Indstillinger help reviews merged (spec §24.13, §24.14): saldi-help-lager.js and saldi-help-settings.js ?v=3.
+// 20261109 CL/ASR Lager and Indstillinger help after the live check (spec §24.15): saldi-help-lager.js and saldi-help-settings.js ?v=4.
+// 20261109 CL/ASR Integrationer help: till payments first only when a provider is set up (saldi-help-settings.js ?v=5).
+// 20261109 CL/ASR Page questions in Saldi Assist (spec §25): saldi-help-state.js ?v=4, saldi-help.js ?v=11.
+// 20261109 CL/ASR Finance and Oversigt questions on the chat's start screen reviewed (spec §25): saldi-help-content.js ?v=6, saldi-help-finans.js ?v=8.
+// 20261109 CL/ASR Page questions reviews merged (spec §25): saldi-help-debitor.js, saldi-help-kreditor.js and saldi-help-lager.js ?v=5, saldi-help-settings.js ?v=6.
+// 20261110 CDX/ASR CRM navigation follows its own permission, and restricted roles land on an accessible module.
 // 20261110 CL/MMR SST-991 The System menu shows only "Sikkerhedskopi" (text 521, as the other menus use), so it is no longer cut off as "Sikkerhedskopi/Genda".
+// 20261112 ASR Hjælp + Saldi AI merged into the CRM line: topbar.css ?v=27 (the merged file: this line's navy bar + "+ Ny chat").
+// 20261112 CL/ASR Page help for the CRM, which replaced the customer history: saldi-help-debitor.js ?v=6.
+// 20261112 CL/ASR CRM help review: the CRM is read again after a click or a key (saldi-help.js ?v=12), saldi-help-debitor.js ?v=7, saldi-help-settings.js ?v=7 (no ML3).
+// 20261113 CL/ASR CRM help follow-up: the drawer opened after a fetch and typing in the search are read again, Mine is searchable (saldi-help.js ?v=13), saldi-help-debitor.js ?v=8, and the panel head wraps a long page name (saldi-help.css ?v=6).
+// 20261113 ASR Sidebar head: a plain chevron (< open, > collapsed) instead of the arrow-to-bar, and the Saldi mark stays when the sidebar is collapsed (sidebar_style.css ?v=29); the mark centred on the menu icons, the chevron small at the edge, level with the mark (?v=32); the chevron under the mark, both on the icons' axis, the menu where it was (?v=34). The mark stands still on the icons' axis, the wordmark slides away, > on hover when collapsed (?v=35). The logo centred in the topbar's band, the chevron fixed under it, logo, chevron and icons on one axis (?v=36). Open: the chevron beside the logo, over the menu's arrows (?v=37). Collapsed: the chevron on top, the mark under it (?v=38), 4 px higher (?v=39). Open as originally; collapsed, the mark where the chevron was and the chevron above it (?v=40).
+// 20261113 ASR Sidebar head: a tooltip and label that say what a click does (9500 Fold menuen sammen, 9501 Fold menuen ud), and Enter/space fold it from the keyboard.
+// 20261113 ASR Open: a click on the sidebar's empty space folds it in as well (the chevron stays).
+// 20261113 ASR The topbar's Hjælp symbol is a question mark that turns into the Saldi AI symbol as it flies into the chat (javascript/saldi-help-qmark.js ?v=1); the dot falls into the chat (variant C, ?v=2).
+// 20261113 ASR Collapsed: no chevron, a click anywhere in the bar folds it out (sidebar_style.css ?v=41). The sidebar's Log ud and Print are gone (both are in the top bar); only the version is left at the bottom.
+// 20261113 CDX/ASR Align the topbar and frame with the sidebar gradient while retaining the latest help, logo and sidebar changes (sidebar_style.css ?v=43, topbar.css ?v=28).
+// 20261113 CL/ASR Sidebar scroll cue: an opened menu scrolls itself into view, and the edge with hidden items fades with a chevron that scrolls (texts sidebar.more_above/below, sidebar_style.css ?v=44).
+// 20261113 CL/ASR The version moved from the bottom of the sidebar to the bottom of the user menu, with the database number (sidebar_style.css ?v=45, topbar.css ?v=29).
+// 20261113 CL/ASR The chat loader's round button at the bottom left is hidden; Hjælp and "+ Ny chat" in the top bar open the chat (topbar.css ?v=30).
+// 20261113 CL/ASR The sidebar is 190 px wide instead of 210 (sidebar_style.css ?v=46).
+// 20261113 CL/ASR The chat's container in the frame's navy, without the loader's light border and ground (topbar.css ?v=32).
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261114 ASR Saldi AI: closing the chat ends the conversation, Hjælp on an open chat minimises it and a dot says one is waiting (saldi-help.js ?v=14, saldi-help-qmark.js ?v=3); no "+ Ny chat".
+// 20261114 CL/ASR Page help for Brugere og roller (systemdata/usersRoles.php): saldi-help-settings.js ?v=8.
+// 20261114 CL/ASR topbar.css ?v=34 for the Kassesystem label on the PoS shortcut.
 @session_start();
 if (!isset($_SESSION['csrf_token'])) {
 	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 $s_id = session_id();
 
-$css = "../css/sidebar_style.css?v=26";
+$css = "../css/sidebar_style.css?v=46";
 
 /**
  * Injected by ../includes/connect.php and ../includes/online.php, included below:
@@ -119,6 +161,13 @@ include("../includes/std_func.php");
 include("../includes/stdFunc/dkDecimal.php");
 include_once("../includes/settings/SettingsService.php");
 $topbar = topbar_context($topbarOnlineRows, (string) $brugernavn, (int) $bruger_id, (string) $rettigheder, $revisor, $regnaar, (int) $sprog_id, (string) $regnskab);
+// the version line at the bottom of the user menu (it was at the bottom of the sidebar)
+$topbar['appVersion'] = isset($version) ? (string) $version : '';
+$topbar['dbNo'] = isset($db) ? (preg_match('/(\d+)$/', (string) $db, $dbMatch) ? $dbMatch[1] : (string) $db) : '';
+require_once __DIR__ . '/../includes/saldi_help_panel.php';
+$topbar['helpPanel'] = saldi_help_panel_enabled((string) getenv('SALDI_HELP_PANEL'), saldi_help_panel_needs_tenant((string) getenv('SALDI_HELP_PANEL')) ? saldi_help_panel_tenant_setting() : null);
+$topbar['helpSupportSend'] = saldi_help_support_to() !== '';
+$topbar['helpRecords'] = getenv('SALDI_ASSIST_RECORDS_ENABLED') === '1';
 include_once(__DIR__ . "/../systemdata/settingsRegistry.php");
 $settingsGroups = settings_accessible_groups();
 
@@ -153,9 +202,10 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
 <link rel="icon" href="../img/saldiLogo.png">
 <link href='../css/saldi-fonts.css?v=2' rel='stylesheet'>
 <script>window.SALDI_CSRF = <?= json_encode($_SESSION['csrf_token']) ?>;</script>
-<link href='../css/sidebar_style.css?v=26' rel='stylesheet'>
-<link href='../css/topbar.css?v=23' rel='stylesheet'>
-<link href='../css/saldi-theme.css?v=8' rel='stylesheet'>
+<link href='../css/sidebar_style.css?v=46' rel='stylesheet'>
+<link href='../css/topbar.css?v=34' rel='stylesheet'>
+<link href='../css/saldi-theme.css?v=11' rel='stylesheet'>
+<?php if (!empty($topbar['helpPanel'])) { ?><link href='../css/saldi-help.css?v=6' rel='stylesheet'><?php } ?>
 <script>document.documentElement.classList.add('saldi-shell');</script>
 <meta name="viewport" content="width=device-width, initial-scale=0.8">
 
@@ -165,9 +215,10 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
   "></div>
 <div class="sidebar">
 
-  <div class="logo wide">
+  <?php $sbFoldTxt = array('close' => topbar_utf8(findtekst('9500|Fold menuen sammen', $sprog_id)), 'open' => topbar_utf8(findtekst('9501|Fold menuen ud', $sprog_id))); ?>
+  <div class="logo wide" role="button" tabindex="0" data-txt-close="<?= topbar_h($sbFoldTxt['close']) ?>" data-txt-open="<?= topbar_h($sbFoldTxt['open']) ?>" title="<?= topbar_h($sbFoldTxt['close']) ?>" aria-label="<?= topbar_h($sbFoldTxt['close']) ?>">
     <div class="logo-img"></div>
-    <i id="icon-open" class="bx bx-arrow-from-right"></i>
+    <i id="icon-open" class="bx bx-chevron-left"></i>
   </div>
 
   <div class="logo small" onclick="
@@ -175,7 +226,7 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
       document.getElementsByClassName('modalbg')[0].style.display='none'; 
     ">
     <img class="logo-img" src="../img/sidebar_logo.png">
-    <i id="icon-open" class='bx bx-arrow-from-right'></i>
+    <i id="icon-open" class='bx bx-chevron-left'></i>
   </div>
 
   <ul class="nav-links top-links" style='margin-top: 1em;'>
@@ -231,7 +282,7 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
     </li>
 
     <!-- Debitor -->
-    <li style="display: <?php if (check_permissions(array(5, 6, 12))) {
+    <li style="display: <?php if (check_permissions(array(5, 6, 12)) || perm_can('crm.access')) {
                           echo 'block';
                         } else {
                           echo 'none';
@@ -255,8 +306,8 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
         if (check_permissions(array(12))) {
           echo '<li><a href="#" onclick=\'update_iframe("/debitor/rapport.php")\'>' . findtekst('603|Rapporter', $sprog_id) . '</a></li>';
         }
-        if (check_permissions(array(6))) {
-          echo '<li><a href="#" onclick=\'update_iframe("/debitor/crmkalender.php")\'>CRM</a></li>';
+        if (perm_can('crm.access')) {
+          echo '<li><a href="#" onclick=\'update_iframe("/debitor/crm.php")\'>CRM</a></li>';
         }
         ?>
       </ul>
@@ -373,26 +424,9 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
       </li>
       <?php } ?>
   </ul>
+  <button type="button" class="sidebar-more sidebar-more-up-btn" aria-label="<?= htmlspecialchars(findtekst('sidebar.more_above|Vis menupunkterne ovenfor', $sprog_id), ENT_QUOTES) ?>" title="<?= htmlspecialchars(findtekst('sidebar.more_above|Vis menupunkterne ovenfor', $sprog_id), ENT_QUOTES) ?>" tabindex="-1"><i class='bx bx-chevron-up'></i></button>
+  <button type="button" class="sidebar-more sidebar-more-down-btn" aria-label="<?= htmlspecialchars(findtekst('sidebar.more_below|Vis flere menupunkter', $sprog_id), ENT_QUOTES) ?>" title="<?= htmlspecialchars(findtekst('sidebar.more_below|Vis flere menupunkter', $sprog_id), ENT_QUOTES) ?>" tabindex="-1"><i class='bx bx-chevron-down'></i></button>
 
-  <ul class="nav-links">
-
-    <li>
-      <a href="#" onclick='redirect_uri("/index/logud.php")'>
-        <i class='bx bx-log-out'></i>
-        <span class="link_name"><?php print findtekst('93|Log ud', $sprog_id); ?></span>
-      </a>
-      <ul class="sub-menu blank">
-        <li><a class="" href="#" onclick='redirect_uri("/index/logud.php")'><?php print findtekst('93|Log ud', $sprog_id); ?></a>
-        </li>
-      </ul>
-    </li>
-
-  </ul>
-
-  <div id="desc-line">
-    <a href="#" onclick="saldiPrintIframe(); return false;">Print</a>
-    <p title="DB nummer <?php print $db; ?>">Saldi version <?php print $version; ?></p>
-  </div>
 </div>
 
 <div class="guide-overlay" id="guideOverlay" onclick="if (event.target === this) { this.classList.remove('active'); }">
@@ -408,7 +442,7 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
 <section class="home-section">
   <?php topbar_render($topbar, (int) $sprog_id); ?>
 
-  <div class="home-content">
+  <div class="home-content"<?= empty($topbar['helpPanel']) ? '' : ' data-saldi-assist-page' ?>>
     <iframe
       onLoad="
       document.title = 'Saldi - ' + this.contentWindow.document.title; 
@@ -424,6 +458,7 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
       name="iframe_a"
       title="Site"
       class="content-iframe"></iframe>
+    <?php if (!empty($topbar['helpPanel'])) { topbar_help_host($topbar, (int) $sprog_id); } ?>
   </div>
   <div id="loadingBar">
     <div></div>
@@ -435,7 +470,7 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
   function topbarCloseAll() {
     topbarSearchClose();
     document.querySelectorAll('.topbar-pop.open').forEach((el) => el.classList.remove('open'));
-    document.querySelectorAll('.topbar [aria-expanded="true"]').forEach((el) => el.setAttribute('aria-expanded', 'false'));
+    document.querySelectorAll('.topbar [aria-expanded="true"]:not(#topbar-help-btn)').forEach((el) => el.setAttribute('aria-expanded', 'false'));
   }
 
   function topbarToggle(event, popId) {
@@ -466,7 +501,7 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
   function topbarMenu() {
     topbarCloseAll();
     if (window.innerWidth <= 780) {
-      document.getElementsByClassName('sidebar')[0].setAttribute('style', 'width: 210px !important; height: ' + (window.screen.availHeight + 1) + 'px');
+      document.getElementsByClassName('sidebar')[0].setAttribute('style', 'width: 190px !important; height: ' + (window.screen.availHeight + 1) + 'px');
       document.getElementsByClassName('modalbg')[0].style.display = 'block';
       return;
     }
@@ -786,14 +821,20 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
     try { win.document.addEventListener('keydown', topbarSearchKeys); win.document.addEventListener('keydown', topbarAssistKeys); } catch (e) { /* page from another origin */ }
   }
   // Assist menu (topbar addendum 2026-10-05 §7). A page registers its tour, shortcut list and guide with page_help();
-  // a page not migrated yet still offers its tour when it has the old Hjælp button (#tutorial-help).
-  // A value is a selector clicked in the page ('#tutorial-help', '[data-keys]') or an address opened in a new tab.
+  // a page not migrated yet still offers its tour when it has one with visible steps (window.SaldiTour, includes/tutorial.php):
+  // through the old Hjælp button (#tutorial-help) where the page has it, else ('saldi:tour') through SaldiTour.start(),
+  // as on the booking pages, which have a tour but no Hjælp button.
+  // Any other value is a selector clicked in the page ('[data-keys]') or an address opened in a new tab.
   function topbarAssistPage() {
     const iframe = document.querySelector('.content-iframe');
     const help = (topbarCrumbMsg && topbarCrumbMsg.help) ? Object.assign({}, topbarCrumbMsg.help) : {};
     let doc = null;
     try { doc = iframe.contentWindow.document; } catch (e) { doc = null; }
-    if (!help.tour && doc && doc.getElementById('tutorial-help')) help.tour = '#tutorial-help';
+    if (!help.tour && doc) {
+      let n = 0;
+      try { n = (iframe.contentWindow.SaldiTour && iframe.contentWindow.SaldiTour.count()) || 0; } catch (e) { n = 0; }
+      if (n > 0) help.tour = doc.getElementById('tutorial-help') ? '#tutorial-help' : 'saldi:tour';
+    }
     let label = '';
     if (topbarCrumbMsg && Array.isArray(topbarCrumbMsg.items) && topbarCrumbMsg.items.length) {
       label = String(topbarCrumbMsg.items[topbarCrumbMsg.items.length - 1].label || '');
@@ -826,6 +867,10 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
     const page = topbarAssistPage();
     const target = page.help[kind];
     if (!target) return;
+    if (target === 'saldi:tour') {
+      try { page.doc.defaultView.SaldiTour.start({ focus: true }); } catch (e) { /* the page went away */ }
+      return;
+    }
     if (/^[#\[.]/.test(target)) {
       const el = page.doc ? page.doc.querySelector(target) : null;
       if (el) { el.click(); }
@@ -839,6 +884,7 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
   }
   // '?' when the caret is not in a field opens the page's shortcut list.
   function topbarAssistKeys(e) {
+    if (window.SaldiHelp && window.SaldiHelp.enabled) return;
     if (e.defaultPrevented || e.key !== '?' || e.ctrlKey || e.metaKey || e.altKey) return;
     const t = e.target;
     if (t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable)) return;
@@ -931,7 +977,7 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
   }
 
   // Notification center (spec §3): polled from the shell every 60 s, rendered client-side.
-  const topbarNotifIcons = { news: 'bx-news', warning: 'bx-error', suggestion: 'bx-bulb', system: 'bx-plug' };
+  const topbarNotifIcons = { news: 'bx-news', warning: 'bx-error', suggestion: 'bx-bulb', system: 'bx-plug', crm: 'bx-calendar-check' };
   function topbarNotifLoad() {
     fetch('notifications.php', { credentials: 'same-origin' })
       .then((r) => r.ok ? r.json() : null)
@@ -1060,15 +1106,65 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
 
   let sidebar = document.querySelector(".sidebar");
   let sidebarBtn = document.querySelector(".logo.wide");
+  // the head's tooltip and label say what a click does: fold the menu in, or out again
+  const sidebarFoldLabel = () => {
+    const t = sidebar.classList.contains("closed") ? sidebarBtn.dataset.txtOpen : sidebarBtn.dataset.txtClose;
+    sidebarBtn.title = t;
+    sidebarBtn.setAttribute("aria-label", t);
+  };
   sidebarBtn.addEventListener("click", () => {
     sidebar.classList.toggle("closed");
     document.cookie = `isSidebarOpen=${sidebar.classList.contains("closed")}`
+    sidebarFoldLabel();
   });
+  // a click anywhere in the bar folds it: collapsed (no chevron) anywhere except a link in a fly-out menu folds it out;
+  // open, a click on the bar's empty space (not a menu item) folds it in
+  sidebar.addEventListener("click", (e) => {
+    if (sidebarBtn.contains(e.target) || e.target.closest(".sidebar-more")) return;
+    const closed = sidebar.classList.contains("closed");
+    if (closed ? e.target.closest(".sub-menu") : e.target.closest("li, a")) return;
+    sidebar.classList.toggle("closed");
+    document.cookie = `isSidebarOpen=${sidebar.classList.contains("closed")}`
+    sidebarFoldLabel();
+  });
+  sidebarBtn.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); sidebarBtn.click(); }
+  });
+
+  // the scroll cue (sidebar_style.css ?v=44): the edge with hidden menu items fades and shows a chevron that scrolls,
+  // and a menu folded out near the bottom scrolls itself into view (its head never leaves the top)
+  const sidebarList = sidebar.querySelector("ul.top-links");
+  const sidebarUp = sidebar.querySelector(".sidebar-more-up-btn");
+  const sidebarDown = sidebar.querySelector(".sidebar-more-down-btn");
+  const sidebarStill = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const sidebarEdges = () => {
+    const open = !sidebar.classList.contains("closed");
+    sidebar.classList.toggle("sidebar-more-up", open && sidebarList.scrollTop > 2);
+    sidebar.classList.toggle("sidebar-more-down", open && sidebarList.scrollTop + sidebarList.clientHeight < sidebarList.scrollHeight - 2);
+    sidebarUp.style.top = (sidebarList.offsetTop + 6) + "px";
+  };
+  const sidebarScroll = (dy) => sidebarList.scrollBy({ top: dy, behavior: sidebarStill ? "auto" : "smooth" });
+  sidebarUp.addEventListener("click", () => sidebarScroll(-Math.max(80, sidebarList.clientHeight * 0.6)));
+  sidebarDown.addEventListener("click", () => sidebarScroll(Math.max(80, sidebarList.clientHeight * 0.6)));
+  sidebarList.querySelectorAll(".icon_link").forEach((link) => link.addEventListener("click", () => {
+    const li = link.parentElement;
+    if (!li.classList.contains("showMenu") || sidebar.classList.contains("closed")) return;
+    requestAnimationFrame(() => {
+      const lr = li.getBoundingClientRect(), cr = sidebarList.getBoundingClientRect(), pad = 16;
+      const dy = Math.min(lr.bottom - (cr.bottom - pad), lr.top - cr.top - pad);
+      if (dy > 0) sidebarScroll(dy);
+      sidebarEdges();
+    });
+  }));
+  sidebarList.addEventListener("scroll", sidebarEdges, { passive: true });
+  new ResizeObserver(sidebarEdges).observe(sidebarList);
+  new MutationObserver(sidebarEdges).observe(sidebar, { attributes: true, attributeFilter: ["class"] });
 
   console.log(getCookie("isSidebarOpen"));
   if (getCookie("isSidebarOpen") === "true") {
     sidebar.classList.toggle("closed");
   }
+  sidebarFoldLabel();
 
   const get_iframe_path = () => {
     const iframe = document.querySelector(".content-iframe")
@@ -1192,12 +1288,37 @@ if (substr($brugernavn, 0, 11) == "debitoripad") {
   // Without Se Oversigt the user lands on the first module in the sidebar they may use (addendum 4 §2.1).
   $landing = '/index/dashboard.php';
   if (!$dashView) {
-  	$may = function (array $keys, array $bits) { return function_exists('perm_can') ? (bool) array_filter($keys, 'perm_can') : check_permissions($bits); };
-  	if ($may(array('finans.kassekladde'), array(0, 2, 3, 4))) $landing = '/finans/kladdeliste.php';
-  	elseif ($may(array('debitor.ordre'), array(5, 6, 12))) $landing = '/debitor/ordreliste.php';
-  	elseif ($may(array('kreditor.ordre'), array(7, 8, 13))) $landing = '/kreditor/ordreliste.php';
-  	elseif ($may(array('lager.varer'), array(9, 10, 14, 15))) $landing = '/lager/lister/vareliste.php';
-  	else $landing = '/systemdata/personalSettings.php';
+    $landing = $settingsGroups ? '/systemdata/settings.php' : '/systemdata/personalSettings.php';
+    $landingPages = array(
+        'finans.kassekladde' => '/finans/kladdeliste.php',
+        'finans.regnskab' => '/finans/regnskab.php',
+        'finans.rapporter' => '/finans/rapport.php',
+        'system.kontoplan' => '/systemdata/kontoplan.php',
+        'debitor.ordre' => '/debitor/ordreliste.php',
+        'debitor.konti' => '/debitor/debitor.php',
+        'debitor.rapporter' => '/debitor/rapport.php',
+        'crm.access' => '/debitor/crm.php',
+    );
+    if (is_feature_licensed('kreditor')) {
+        $landingPages += array(
+            'kreditor.ordre' => '/kreditor/ordreliste.php',
+            'kreditor.konti' => '/kreditor/kreditor.php',
+            'kreditor.rapporter' => '/kreditor/rapport.php',
+        );
+    }
+    if (is_feature_licensed('lager')) {
+        $landingPages += array(
+            'lager.varer' => '/lager/varer.php',
+            'lager.varemodtagelse' => '/lager/modtageliste.php',
+            'lager.rapporter' => '/lager/rapport.php',
+        );
+    }
+    foreach ($landingPages as $landingKey => $landingPage) {
+        if (perm_can($landingKey)) {
+            $landing = $landingPage;
+            break;
+        }
+    }
   }
   ?>
   update_iframe(window.location.hash == "" ? <?= json_encode($landing) ?> : window.location.hash.replace("#", ""));
@@ -1337,5 +1458,16 @@ $assistWidgetUrl = saldi_assist_widget_url((string)getenv('SALDI_ASSIST_WIDGET_U
   window.SaldiAssist.getRecordContext = window.SaldiAssistRecords.getRecordContext;
   window.SaldiAssist.highlightRows = window.SaldiAssistRecords.highlightRows;
 </script>
+<?php } ?>
+<?php if (!empty($topbar['helpPanel'])) { ?>
+<script src="../javascript/saldi-help-content.js?v=6"></script>
+<script src="../javascript/saldi-help-finans.js?v=8"></script>
+<script src="../javascript/saldi-help-debitor.js?v=8"></script>
+<script src="../javascript/saldi-help-kreditor.js?v=5"></script>
+<script src="../javascript/saldi-help-lager.js?v=5"></script>
+<script src="../javascript/saldi-help-settings.js?v=8"></script>
+<script src="../javascript/saldi-help-state.js?v=4"></script>
+<script src="../javascript/saldi-help.js?v=14"></script>
+<script src="../javascript/saldi-help-qmark.js?v=3"></script>
 <?php } ?>
 </html>

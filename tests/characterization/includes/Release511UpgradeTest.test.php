@@ -4,6 +4,7 @@
 // 20261110 CDX/NTR Cover the 5.1.1 login upgrade, version stamps, retries and resumable MB-73 work.
 // 20261111 CDX/NTR Use common database ownership and inspection retention.
 // 20261113 CDX/NTR Isolate the released backfill continuation from newly merged pending migrations.
+// 20261115 CL/ASR Integration: tjek4opdat() holds the testlab's update lock to the end of the request (a shutdown function lets go of it); tearDown() lets go of it first, while the registry connection it was taken on is still open.
 
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -69,6 +70,10 @@ final class Release511UpgradeTest extends TestCase
 
     protected function tearDown(): void
     {
+        // The lock's shutdown function would otherwise release it on the registry connection closed below.
+        if (function_exists('tjek4opdat_frigiv')) {
+            tjek4opdat_frigiv();
+        }
         if ($this->tenant) {
             pg_close($this->tenant);
         }

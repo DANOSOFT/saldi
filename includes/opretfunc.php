@@ -1,11 +1,11 @@
 <?php
-
+//
 //                ___   _   _   ___  _     ___  _ _
 //               / __| / \ | | |   \| |   |   \| / /
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/opretfunc.php --- ver 5.1.1 --- 2026-11-10 ---
+// --- includes/opretfunc.php --- ver 5.1.1 --- 2026-11-17 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -39,7 +39,9 @@
 //                lookup precedence and '*' check, and skip that grant on the sign-up API.
 // 20261028 CL/LH MB-73: ordrelinjer.leveret defaults to 0, as includes/betweenUpdates.php sets it on
 //                existing accounts (moved here from admin/opret.php with opret_build_tenant()).
+// 20261105 CL/LH betalinger gets openpost_id, the open post a payment pays, as includes/betweenUpdates.php adds it on existing accounts.
 // 20261110 CDX/NTR Release 5.1.1: create tekst_key and its lookup index for new tenants.
+// 20261117 CL/ASR kassekladde gets ompost_id, the posted line a line written by Tilbagefør reverses, as includes/betweenUpdates.php adds it on existing accounts.
 
 /**
  * Create a new regnskab: a master `regnskab` row plus a full dedicated tenant
@@ -302,7 +304,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	$qtxt.= "momsfri varchar(2),medarb integer,ansat text,afd integer,projekt text,valuta integer,";
 	$qtxt.= "valutakurs $decimal_type(15,3),ordre_id integer,forfaldsdate date,betal_id text,dokument text,";
 	// $qtxt.= "saldo $decimal_type(15,3),PRIMARY KEY (id))";
-	$qtxt.= "saldo $decimal_type(15,3),pos integer DEFAULT 0,PRIMARY KEY (id))";
+	$qtxt.= "saldo $decimal_type(15,3),pos integer DEFAULT 0,ompost_id integer,PRIMARY KEY (id))";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 
 	// db_modify("CREATE TABLE tmpkassekl (id integer,lobenr integer,bilag text,transdate text,beskrivelse text,d_type text,debet text,k_type text,kredit text,faktura text,amount text,kladde_id integer,momsfri text,afd text,projekt text,ansat text,valuta text,valutakurs text,forfaldsdate text,betal_id text,dokument text)",__FILE__ . " linje " . __LINE__);
@@ -394,7 +396,7 @@ if ($db_type=="mysql" or $db_type=="mysqli") {
 	db_modify("CREATE TABLE historik ($id_column,konto_id int,kontakt_id int,ansat_id int,notat text,notedate date,kontaktet date,kontaktes date,dokument text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE valuta ($id_column,gruppe integer,valdate date,kurs $decimal_type(15,3),PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE betalingsliste ($id_column,listedate date,udskriftsdate date,listenote text,bogfort varchar(2),oprettet_af text,bogfort_af text,hvem text,tidspkt text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
-	db_modify("CREATE TABLE betalinger ($id_column,bet_type text,fra_kto text,egen_ref text,til_kto text,modt_navn text,belob text,betalingsdato text,valuta text,kort_ref text,kvittering text,ordre_id integer,bilag_id integer,liste_id integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
+	db_modify("CREATE TABLE betalinger ($id_column,bet_type text,fra_kto text,egen_ref text,til_kto text,modt_navn text,belob text,betalingsdato text,valuta text,kort_ref text,kvittering text,ordre_id integer,bilag_id integer,liste_id integer,openpost_id integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE tidsreg ($id_column,person integer,ordre integer,pnummer integer,operation integer,materiale integer,tykkelse $decimal_type(15,3),laengde $decimal_type(15,3),bredde $decimal_type(15,3),antal_plader $decimal_type(15,3), gaa_hjem integer,tid integer,forbrugt_tid integer,opsummeret_tid integer,beregnet integer,pause integer,antal $decimal_type(15,3), faerdig integer,circ_time integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE tabeller ($id_column,person integer,ordre integer,pnummer integer,	operation integer,materiale integer,tykkelse $decimal_type(15,3),laengde $decimal_type(15,3),bredde $decimal_type(15,3),antal_plader $decimal_type(15,3), gaa_hjem integer,tid integer,forbrugt_tid integer,opsummeret_tid integer,beregnet integer,pause integer,antal $decimal_type(15,3), faerdig integer,circ_time integer,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);
 	db_modify("CREATE TABLE tekster ($id_column,sprog_id integer,tekst_id integer,tekst_key varchar(190),tekst text,PRIMARY KEY (id))",__FILE__ . " linje " . __LINE__);

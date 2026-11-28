@@ -24,7 +24,8 @@ final class CashCountCommissionSettlementTest extends TestCase
         'The existing empty list is left alone',
         'The new list holds one payment per customer for the amount just settled',
         'The paid open posts are linked to their payments, so «Fra liste» skips them, and have an empty faktnr',
-        "Each customer's open post and payment point to one of that customer's own settled sales",
+        // The payment points to its open post (openpost_id, ordre_id 0) since the testlab merge, not to a sale.
+        "Each customer's open post points to one of that customer's own settled sales, and the payment to that open post with no order",
         "When one customer's payment is deleted from the list, «Fra liste» offers only that customer's post again",
         'Only the settled orders on this register with a POS payment are stamped',
         'A second run settles nothing again',

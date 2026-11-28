@@ -1,5 +1,5 @@
 <?php
-// --- docsIncludes/topLineDocuments.php -----patch 4.1.1 ----2025-12-01-------
+// --- docsIncludes/topLineDocuments.php -----ver 5.1.1 ----2026-11-13-------
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -16,12 +16,13 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2003-2025 Saldi.dk ApS
+// Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20251201 - LOE Created modern header for documents page
-
+// 20261113 CL/ASR The Hjælp cell is hidden (the top bar has Hjælp); it stays in the page for the tour.
+//
 // Note: oldDesign/header.php and topline_settings.php are included by documents.php
-
+//
 // Ensure style variables are accessible when included from within a function
 global $buttonStyle, $topStyle, $butDownStyle, $buttonColor, $buttonTxtColor;
 global $source, $sourceId, $kladde_id, $fokus, $sprog_id, $bgcolor;
@@ -63,7 +64,7 @@ print "<td width='200px' align=center id='documents-btn'>
 print "</tbody></table></td>";
 
 # Help button
-print "<td id='tutorial-help' width=5% style='$buttonStyle'>";
+print "<td id='tutorial-help' hidden width=5% style='$buttonStyle'>";
 print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
 print $help_icon;
 print findtekst('2564|Hjælp', $sprog_id)."</button></td>";

@@ -1,5 +1,5 @@
 <?php
-// ---- systemdata/importer_varianter.php --- ver 5.1.1 --- 2026.11.13 ---
+// ---- systemdata/importer_varianter.php --- ver 5.1.1 --- 2026.11.24 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,11 +28,12 @@
 //                 The two import forms sit in the content column beside the menu, unchanged; the layout links css/unified-components.css, the page's head links the theme tokens (css/saldi-theme.css) as the section pages.
 // 20261108 CL/ASR css/saldi-theme.css linked as ?v=8: the page ground is Saldi's classic page colour #eeeef0, the panels and fields stay white (owner, 8 Nov 2026).
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261124 CL/ASR css/saldi-theme.css linked as ?v=11: the theme file has the dark-ready tokens now, so browsers fetch it again.
 @session_start();
 $s_id = session_id();
 
 $title = "Importér varianter";
-$css = "../css/saldi-theme.css?v=8"; // the theme tokens, as the section pages; the layout links css/unified-components.css
+$css = "../css/saldi-theme.css?v=11"; // the theme tokens, as the section pages; the layout links css/unified-components.css
 $permission_key = 'settings.import_export';
 $permission_level = 'write';
 

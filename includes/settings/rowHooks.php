@@ -1,5 +1,5 @@
 <?php
-// ---- includes/settings/rowHooks.php --- ver 5.1.1 --- 2026.11.13 ---
+// ---- includes/settings/rowHooks.php --- ver 5.1.1 --- 2026.11.19 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -28,7 +28,13 @@
 // 20261019 SS Review 2 (PR #803): settings_fy_columns() reads information_schema for this database/schema only.
 //
 // 20261016 SS The discount transfer and the old-discount columns live in virtualStorage.php.
+// 20261105 CL/LH Testlab: a new fiscal year opens with the carry-forward (Overfør til, Resultat on its account) the year card's Gem writes, not each balance account's own saldo.
+// 20261105 CL/LH A rate change is checked against settings_currency_rate_postings() (rows.php), the postings a rate's delete is now refused for too.
+//                Those are on the currency's accounts of every fiscal year, not only of the open one.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261119 CL/ASR A new fiscal year carries the opening in place mode, so on a chart without a Sideskift (X) account it opens balanced with last year's result on 6940 (owner's decision 19 Nov 2026).
+// 20261119 CL/ASR A new fiscal year no longer copies last year's warehouse rows (grupper art 'LG'), as the year card has not since SST-829, so a warehouse no longer gets a second row per year (p1-yearend-F2).
+//                 Its carry runs under the opening-balance carry's lock, taken before the transaction, so a carry in another session is waited for (p1-pos-close-R1).
 include_once(__DIR__ . '/virtualStorage.php');
 
 // ---------------------------------------------------------------- fiscal years (grupper art RA)
@@ -234,9 +240,16 @@ function settings_fiscal_year_set_first(int $startMonth, int $startYear, int $en
 
 /**
  * Create a fiscal year (spec G1.2; shared with the onboarding guide). After the first year the start is fixed to the
- * month after the latest year, the year-dependent groups and the chart of accounts are copied from it, and balance
- * accounts open with last year's balance until the opening balance is reviewed. The first year also gets the voucher
- * defaults the old first-year page saved (RB).
+ * month after the latest year, the year-dependent groups (not the warehouses, art 'LG') and the chart of accounts are
+ * copied from it, and the opening balance is carried forward by updateFollowingOpeningBalances() in OPENING_CARRY_PLACE
+ * mode, under the carry's lock taken before the transaction so that a carry in another session is waited for: each
+ * balance account onto its Overfør til (or itself), and the result onto the Sideskift (X) account's Overfør til. On a
+ * chart without a Sideskift account, like the standard chart, the status account after the Resultat (R) account (6940
+ * Overført resultat, resultDestinationWithoutSideskift()) opens with minus the sum of the other balance accounts, which
+ * is its own balance plus the result, so the new year opens balanced also when the result was moved into 6940 within
+ * last year. When a balance or the result has no account to land on, nothing is carried: balance accounts open with
+ * last year's balance (the copy) until the card is saved. The first year also gets the voucher defaults the old
+ * first-year page saved (RB).
  *
  * @return array{error: int|null, error_args: array<int, mixed>, kodenr: int, id: int}
  */
@@ -263,6 +276,14 @@ function settings_fiscal_year_create(int $startMonth, int $startYear, int $endMo
 	if ($prev > 0 && function_exists('genberegn')) {
 		genberegn($prev);
 	}
+	// The opening-balance carry's lock before the transaction (p1-pos-close-R1), when the year is carried into: a carry
+	// in another session (a POS day close, a journal posted into last year, Gem on a year card) is waited for, the new
+	// year's opening is placed from what it committed, and no other carry runs until this one has committed.
+	$carryLock = $prev > 0 && function_exists('genberegn');
+	if ($carryLock) {
+		include_once(__DIR__ . '/../updateFollowingOpeningBalances.php');
+		openingCarryLockBeforeTransaction();
+	}
 	transaktion('begin');
 	db_modify("insert into grupper (beskrivelse, kodenr, kode, art, box1, box2, box3, box4, box5) values ('" . db_escape_string($description) . "', '$kodenr', '', 'RA', '"
 		. sprintf('%02d', $startMonth) . "', '$startYear', '" . sprintf('%02d', $endMonth) . "', '$endYear', '" . ($postingAllowed ? 'on' : '') . "')", __FILE__ . " linje " . __LINE__);
@@ -270,19 +291,33 @@ function settings_fiscal_year_create(int $startMonth, int $startYear, int $endMo
 	$id = $r ? (int) $r['id'] : 0;
 	if ($prev > 0) {
 		// Portable copies (no temporary table, audit F6), every column the table has so newer ones are not lost.
+		// Warehouses (art 'LG') are not per-year data: stock is keyed on grupper.kodenr and the warehouse lists read LG
+		// without fiscal_year, so a copy only listed every warehouse twice. They are left out as the year card leaves them
+		// out (systemdata/regnskabskort.php, SST-829); the guard still asks only whether this year has any group yet.
 		if (!settings_fy_count("select count(*) as n from grupper where fiscal_year = $kodenr and art != 'RA'")) {
 			$cols = settings_fy_columns('grupper', array('id', 'fiscal_year'));
-			db_modify("insert into grupper (" . implode(', ', $cols) . ", fiscal_year) select " . implode(', ', $cols) . ", $kodenr from grupper where fiscal_year = $prev and art != 'RA' order by id", __FILE__ . " linje " . __LINE__);
+			db_modify("insert into grupper (" . implode(', ', $cols) . ", fiscal_year) select " . implode(', ', $cols) . ", $kodenr from grupper where fiscal_year = $prev and art != 'RA' and art != 'LG' order by id", __FILE__ . " linje " . __LINE__);
 		}
 		if (!settings_fy_count("select count(*) as n from kontoplan where regnskabsaar = $kodenr")) {
 			$cols = settings_fy_columns('kontoplan', array('id', 'regnskabsaar', 'primo', 'saldo'));
 			db_modify("insert into kontoplan (" . implode(', ', $cols) . ", regnskabsaar, primo) select " . implode(', ', $cols) . ", $kodenr, case when kontotype = 'S' then coalesce(saldo, 0) else 0 end from kontoplan where regnskabsaar = $prev order by kontonr", __FILE__ . " linje " . __LINE__);
+		}
+		// The new year is active at once, so it opens with the carry-forward: without it Resultat is on no account and Y+1
+		// opens out of balance by it. Place mode, as only a new year gets: later postings into the previous year, the
+		// card's Gem and the POS day close move only the change. Like genberegn($prev) above, it needs the caller to have
+		// loaded genberegn() (settings_rows_create_submit() does).
+		if (function_exists('genberegn')) {
+			include_once(__DIR__ . '/../updateFollowingOpeningBalances.php');
+			updateFollowingOpeningBalances($prev, OPENING_CARRY_PLACE);
 		}
 	} elseif (!settings_fy_count("select count(*) as n from grupper where art = 'RB'")) {
 		db_modify("insert into grupper (beskrivelse, kodenr, kode, art, box1, box2, box3, box4, box5) values ('Regnskabsbilag', '1', '1', 'RB', '1', '1', '', 'on', 'on')", __FILE__ . " linje " . __LINE__);
 	}
 	SettingsService::auditRow('company.fiscal_years', 'years', 'company.fiscal_years.years#' . $kodenr, '', json_encode(array('beskrivelse' => $description, 'start' => sprintf('%02d-%04d', $startMonth, $startYear), 'slut' => sprintf('%02d-%04d', $endMonth, $endYear), 'box5' => $postingAllowed ? 'on' : ''), JSON_UNESCAPED_UNICODE), 'setting.row_created');
 	transaktion('commit');
+	if ($carryLock) {
+		openingCarryUnlock();
+	}
 	return array('error' => null, 'error_args' => array(), 'kodenr' => $kodenr, 'id' => $id);
 }
 
@@ -571,7 +606,6 @@ function settings_rows_forbidden(string $rule, string $raw): bool
  */
 function settings_rows_row_check(string $hook, array $t, array $clean, ?array $current): array
 {
-	global $regnaar;
 	if ($hook !== 'currency_rate') {
 		return array();
 	}
@@ -580,9 +614,9 @@ function settings_rows_row_check(string $hook, array $t, array $clean, ?array $c
 		return array('kurs' => 6604);
 	}
 	$date = db_escape_string((string) $clean['valdate']);
-	// No rate change dated before bookings in the currency or on its accounts (old valutakort.php).
-	if (settings_fy_count("select count(*) as n from transaktioner where " . db_cast('valuta', 'text') . " = '$gruppe' and transdate >= '$date'")
-		|| settings_fy_count("select count(*) as n from transaktioner where transdate >= '$date' and " . db_cast('kontonr', 'text') . " in (select " . db_cast('kontonr', 'text') . " from kontoplan where valuta = $gruppe and regnskabsaar = " . (int) $regnaar . ")")) {
+	// No rate change dated before bookings in the currency or on its accounts (old valutakort.php); a delete is refused
+	// for the same postings (the rate's usage, rows.php).
+	if (settings_fy_count("select count(*) as n from transaktioner where transdate >= '$date' and " . settings_currency_rate_postings($gruppe))) {
 		return array('valdate' => 6595);
 	}
 	$effect = settings_currency_step_effect($t, $current === null ? array('insert', '', $clean) : array('update', '', $current, $clean));

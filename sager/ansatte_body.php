@@ -1,5 +1,5 @@
 <?php
-// -------systemdata/ansatte_body.php--------ver 5.1.0-------2026-11-10---12:05----
+// -------systemdata/ansatte_body.php--------ver 5.1.1-------2026-11-24---12:05----
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -24,6 +24,7 @@
 // 20140923 PK - Indsat $messages efter nummer, som viser fejlmeddelelse
 // 20150610 PK - Har ændret fax til privattlf i tekst 656
 // 20261110 CDX/NTR Let the information card labels wrap through the existing CSS.
+// 20261124 CL/ASR Header only: the version marker moved from ver 5.1.0 to ver 5.1.1; no code change.
 
 print "<input type=\"hidden\" name=\"id\" value=\"$id\">\n";
 print "<input type=\"hidden\" name=\"konto_id\" value=\"$konto_id\">\n";

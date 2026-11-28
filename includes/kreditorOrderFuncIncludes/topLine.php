@@ -1,6 +1,6 @@
 <?php
-
-
+//
+//
 ###############
 $konto_id = if_isset($_GET, NULL,'konto_id');
 $returside = nav_back_url(if_isset($_GET, NULL,'returside'));
@@ -9,7 +9,8 @@ if (!isset($valg) || !$valg) {
     $valg = if_isset($_GET, 'ordrer','valg');
 }
 $sort = if_isset($_GET, NULL,'sort');
-$hreftext = if_isset($hreftext, NULL);
+// 20261105 CL/LH kreditor/ordreliste.php never sets $hreftext, so it is read with ?? instead of if_isset(), which warned (testlab DEVY-7).
+$hreftext = $hreftext ?? NULL;
 
 if (is_array($sort)) {
     $sort = implode(',', $sort);
@@ -107,7 +108,7 @@ if ($btkort) {
 	}
     print "</tbody></table></td>\n"; 
 	
-	print "<td id='tutorial-help' width=5% style='$buttonStyle'>";
+	print "<td id='tutorial-help' hidden width=5% style='$buttonStyle'>";
 	print "<button class='headerbtn navbtn-top' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
 	print "$help_icon".findtekst('2564|Hjælp', $sprog_id)."</button></td>";
 	$ny_konto_param = ($konto_id) ? "&konto_id=$konto_id" : "";

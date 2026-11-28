@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- kreditor/orderIncludes/openOrderData.php --- ver 5.1.0 --- 2026-11-05 ---
+// --- kreditor/orderIncludes/openOrderData.php --- ver 5.1.1 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -44,10 +44,11 @@
 //                 dropped by the join before the has_due_date check ran.
 // 20261013 CL/MJ On a purchase order the delivery-date field is labelled Forventet lev. dato (text 8407) instead of sharing text 886 with sales orders, where it keeps reading Dato for levering.
 // 20261030 CL/MJ Text 7636 is now 8407: #921 also adds 7636, and findtekst() keeps the first text a tenant stores for an id.
+// 20261105 CL/LH $firstEmployee starts empty, so the Afd fallback no longer reads it unset when Vor ref. is already the first employee or there are none (testlab DEVY-7).
 // 20261105 CL/MMR SST-951 The order's language (Baggrund, as on a sales order) can be chosen on a saved order when forms exist in more than one language.
 //                 A blank order has no field: the order gets its language from the supplier's group when it is created.
 //                 The mail subject and text placeholders follow the order's language instead of always Dansk.
-
+//
 /*
 $attachId    = null;
 $email       = null;
@@ -215,6 +216,7 @@ print "<tr><td>$txt1097</td>";
 #print "<td><input class='inputbox' style='width:110px;' name='ref' value='$ref' onfocus='document.forms[0].fokus.value=this.name;'></td>";
 print "<td>";
 print "<input type = 'hidden' name = 'oldRef' value = '$ref'>";
+$firstEmployee = '';
 if (count($employees)) {
 	$refInList = in_array($ref, $employees);
 	print "<select class='inputbox' style='width:110px;'  name = 'ref'>";

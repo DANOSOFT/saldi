@@ -1,5 +1,6 @@
 <?php
 // 20261030 CDX/NTR Reject incomplete budget saves before bootstrapping or database writes.
+// 20261105 CL/LH A grid post cut short by max_input_vars, or one whose budget_grid is not JSON, is refused the same way.
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -41,6 +42,15 @@ final class BudgetSubmissionTest extends TestCase
             'zero counts are present' => [['gem' => '1', 'kontoantal' => '0', 'maanedantal' => '0'], 200],
             'normal page load' => [[], 200],
             'fill takes precedence over save' => [['gem' => '1', 'udfyld' => 'OK'], 200],
+            // What PHP keeps of a long grid it cut at max_input_vars: the first fields, without the Gem, kontoantal
+            // and maanedantal at the end of the form (testlab round 2, budget-cycle on a 309-account book).
+            'grid cut short before the Gem' => [['plusminus' => '+', 'procent' => '0', 'kontonr' => ['1' => '1010', '2' => '1020'],
+                'amount' => ['1' => ['1' => '5']], 'id' => ['1' => ['1' => '0']]], 400],
+            'packed grid without the Gem' => [['budget_grid' => '{"kontonr":{"1":"1010"}}'], 400],
+            'packed grid that is not JSON' => [['gem' => '1', 'kontoantal' => '1', 'maanedantal' => '12', 'budget_grid' => '{"kontonr":'], 400],
+            'complete packed save' => [['gem' => '1', 'kontoantal' => '1', 'maanedantal' => '12',
+                'budget_grid' => '{"kontonr":{"1":"1010"},"amount":{"1":{"1":"5"}},"id":{"1":{"1":"0"}}}'], 200],
+            'fill with a cut grid still fills' => [['udfyld' => 'OK', 'kontonr' => ['1' => '1010']], 200],
         ];
     }
 

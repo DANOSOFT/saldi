@@ -1,9 +1,11 @@
 <?php
+// 20261110 CDX/ASR Require module write access before this mutation endpoint runs.
 @session_start();
 $s_id=session_id();
-include("../includes/connect.php");
+include(__DIR__ . '/../includes/connect.php');
 $permission_key = 'lager.varer';
-include("../includes/online.php");
+$permission_level = 'write';
+include(__DIR__ . '/../includes/online.php');
 
 echo "<h1>Starting Historic Price Update for Samlevare</h1>";
 

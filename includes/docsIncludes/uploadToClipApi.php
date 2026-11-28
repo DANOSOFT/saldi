@@ -1,8 +1,9 @@
 <?php
-// --- includes/docsIncludes/uploadToClipApi.php --- 2026-02-23 ---
+// --- includes/docsIncludes/uploadToClipApi.php --- 2026-11-10 ---
 // API endpoint for uploading a file directly to a kassekladde line via drag-and-drop
 // Used by clip drag-and-drop functionality in kassekladde.php
 // 20260223 Sawaneh Created for drag-and-drop file upload to clip
+// 20261110 CDX/ASR Require module write access before this mutation endpoint runs.
 
 @session_start();
 $s_id = session_id();
@@ -11,8 +12,10 @@ $header = 'nix';
 $bg = 'nix';
 $title = 'uploadToClipApi';
 
-include("../connect.php");
-include("../online.php");
+include(__DIR__ . '/../connect.php');
+$permission_key = 'finans.kassekladde';
+$permission_level = 'write';
+include(__DIR__ . '/../online.php');
 
 // Clean any existing output buffers
 while (ob_get_level()) {

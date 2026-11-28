@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// ---- includes/settings/components.php --- ver 5.1.1 --- 2026.11.13 ---
+// ---- includes/settings/components.php --- ver 5.1.1 --- 2026.11.20 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -46,8 +46,18 @@
 // 20261102 CL/ASR settings_back_button() takes the access key (default 'l', Alt+L), so callers no longer patch its markup.
 // 20261103 CL/ASR QA: a reader (no write) keeps navigation links (another settings page, an export, external documentation such as the data processing agreement); only links to pages that change data are disabled.
 // 20261104 CL/ASR Final QA: a setting marked 'empty_is_default' also shows its default when its stored value is empty (Landekonfiguration: an empty adresser.land is Danmark), so the field is not blank and saving the page does not change it.
+// 20261105 CL/LH st_options(): the department list's blank choice is the field's 'options_none' (default '0', a till's and an employee's "no department").
+//                A warehouse's Afd. passes '' (grupper LG box1), so a blank Afd. matches an option and a department 0 stays a choice of its own.
+// 20261105 CL/LH st_render_field(): a field with an 'impact' shows it under its text, as an action does, counted only while the field is visible (the batch details link on Lagerstyring & kostpris).
+// 20261105 CL/LH st_fill_city_from_zip(): a city field ('fill_from_zip') posted empty next to a postal code gets the code's town (bynavn()), as Stamdata and the employee card did on save.
+// 20261105 CL/LH st_decimal_number(): a 'decimal' field takes a Danish amount with thousands separators (32.456,78, 1.234.567) as usdecimal() did on the old pages.
+//                The employee card refused Løn 32.456,78 and saved nothing.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261119 CL/ASR st_locked() has the rule 'stays_on' (owner, 19 Nov 2026): a bool that is stored on cannot be switched off again, while switching it on stays possible; its locked_text may be a text key.
+// 20261119 CL/ASR st_posted_to_raw() has the rule 'hent_first' (validate): Omgående bogføring of sales or purchase orders is not switched on while invoices of that kind wait at status 3 for Hent ordrer (orders_waiting_for_hent()), and the error, a text key, says to fetch them into a cash journal first. The rule is st_hent_first_error(): when the other setting is on, invoices of the other kind keep it off too, as the cash journal has no Hent for any kind once both are on, and the error names the kind that waits; settings_section_save() asks it again under the row lock.
+// 20261120 CL/ASR Comment of st_hent_first_error(): the cash journal keeps Hent for an invoice left waiting after both settings are on (owner, 20 Nov 2026), so the rule no longer gives that as its reason.
 include_once(__DIR__ . '/SettingsService.php');
+include_once(__DIR__ . '/../stdFunc/ordersWaitingForHent.php');
 // The matrix check and the discount transfer run on a POST before any virtual value is read, so load them up front.
 include_once(__DIR__ . '/virtualStorage.php');
 
@@ -247,10 +257,61 @@ function st_current_form_value(array $def): string
 }
 
 /**
- * The stored string for a posted value, or an error text id when the value is not valid.
+ * A typed decimal number with a dot as its decimal separator, or null when it is not a number.
+ *
+ * One '.' or ',' is the decimal separator (2.5 and 2,5 are both 2.5), so 1.234 stays 1.234. Dots that cannot be a
+ * decimal separator are a Danish amount's thousands separators and are dropped, as usdecimal() drops them on the old
+ * pages: dots before a decimal comma (32.456,78 is 32456.78) or more than one dot (1.234.567 is 1234567). Each group
+ * after a dot has three digits, so a mistyped 32.45,78 is still refused.
+ */
+function st_decimal_number(string $value): ?string
+{
+	$value = trim($value);
+	if (preg_match('/^-?[0-9]+([.,][0-9]+)?$/', $value)) {
+		return str_replace(',', '.', $value);
+	}
+	if (preg_match('/^-?[0-9]{1,3}(\.[0-9]{3})+(,[0-9]+)?$/', $value)) {
+		return str_replace(array('.', ','), array('', '.'), $value);
+	}
+	return null;
+}
+
+/**
+ * The rule 'hent_first' ('validate' => ['hent_first', kind, text key, the other setting's key]) of Omgående bogføring of
+ * sales and of purchase orders (owner, 19 Nov 2026): the text key of the error when switching the setting on must wait
+ * for Hent ordrer, or null.
+ *
+ * Once on, it cannot be switched off again, and Hent ordrer is for ledgers where it is off. So it is not switched on while
+ * invoices of its own kind wait at status 3 (orders_waiting_for_hent()), nor, when the other setting is on, while invoices
+ * of the other kind wait; the error is the text of the kind that waits. An invoice that still waits once both are on (its
+ * journal lines deleted after it was fetched) keeps Hent in finans/kassekladde.php (owner, 20 Nov 2026).
+ * The other setting is on another page, so its stored value decides. settings_section_save() asks again after it has
+ * read the stored row again under a row lock (SettingsService::lockForSave()), so a save of the other setting that
+ * committed in between counts.
+ */
+function st_hent_first_error(array $def, string $value): ?string
+{
+	if (!is_array($def['validate'] ?? null) || $def['validate'][0] !== 'hent_first' || $def['type'] !== 'bool' || trim($value) !== '1'
+		|| st_current_form_value($def) === '1') {
+		return null;
+	}
+	if (orders_waiting_for_hent((string) $def['validate'][1])) {
+		return (string) $def['validate'][2];
+	}
+	$otherKey = isset($def['validate'][3]) ? (string) $def['validate'][3] : '';
+	$other = ($otherKey !== '') ? SettingsService::definition($otherKey) : null;
+	if ($other && is_array($other['validate'] ?? null) && $other['validate'][0] === 'hent_first' && st_current_form_value($other) === '1'
+		&& orders_waiting_for_hent((string) $other['validate'][1])) {
+		return (string) $other['validate'][2];
+	}
+	return null;
+}
+
+/**
+ * The stored string for a posted value, or an error text id (a text key for 'hent_first') when the value is not valid.
  *
  * @param array<string, string> $posted every posted field of the form, for 'requires' rules
- * @return array{raw: string, error: int|null}
+ * @return array{raw: string, error: int|string|null}
  */
 function st_posted_to_raw(array $def, string $value, array $posted): array
 {
@@ -277,14 +338,18 @@ function st_posted_to_raw(array $def, string $value, array $posted): array
 			}
 			break;
 		case 'decimal':
-			if ($value !== '' && !preg_match('/^-?[0-9]+([.,][0-9]+)?$/', $value)) {
-				$error = 5732;
+			$number = st_decimal_number($value);
+			if ($number === null) {
+				// An empty field stays empty.
+				if ($value !== '') {
+					$error = 5732;
+				}
 			} elseif (!empty($def['decimal_comma'])) {
 				// Read back through usdecimal() by its reader, so it keeps the Danish comma.
-				$raw = str_replace('.', ',', $value);
+				$raw = str_replace('.', ',', $number);
 			} else {
 				// Stored with a dot, as the old pages did through usdecimal().
-				$raw = str_replace(',', '.', $value);
+				$raw = $number;
 			}
 			break;
 		case 'date':
@@ -393,6 +458,9 @@ function st_posted_to_raw(array $def, string $value, array $posted): array
 	if ($error === null && $value !== '' && is_array($def['validate']) && $def['validate'][0] === 'range' && ((int) $value < (int) $def['validate'][1] || (int) $value > (int) $def['validate'][2])) {
 		$error = 5732;
 	}
+	if ($error === null) {
+		$error = st_hent_first_error($def, $value);
+	}
 	if ($error === null && is_array($def['validate']) && $def['validate'][0] === 'requires' && $def['type'] === 'bool' && $value === '1') {
 		$other = isset($posted[$def['validate'][1]]) ? trim($posted[$def['validate'][1]]) : null;
 		if ($other === null) {
@@ -404,6 +472,32 @@ function st_posted_to_raw(array $def, string $value, array $posted): array
 		}
 	}
 	return array('raw' => $raw, 'error' => $error);
+}
+
+/**
+ * A city field left empty next to a postal code gets the code's town from importfiler/postnr.csv (bynavn()), as the old
+ * Stamdata (stamkort.php) and employee card (ansatte_save.php) did on save. The city field names its postal code field
+ * in 'fill_from_zip'; a field expanded per employee uses the code field of the same employee. Both fields must be in the
+ * post, so a Gendan of the city alone restores what was stored.
+ *
+ * @param array<string, array<string, mixed>> $defs
+ * @param array<string, string>               $posted the posted fields by key
+ * @return array<string, string> $posted, with the towns filled in
+ */
+function st_fill_city_from_zip(array $defs, array $posted): array
+{
+	foreach ($defs as $key => $def) {
+		if (empty($def['fill_from_zip']) || !isset($posted[$key]) || trim($posted[$key]) !== '') {
+			continue;
+		}
+		$zipKey = (string) $def['fill_from_zip'] . (isset($def['per_key']) ? substr((string) $key, strlen((string) $def['per_key'])) : '');
+		$zip = isset($posted[$zipKey]) ? trim($posted[$zipKey]) : '';
+		$city = $zip !== '' ? (string) bynavn($zip) : '';
+		if ($city !== '') {
+			$posted[$key] = $city;
+		}
+	}
+	return $posted;
 }
 
 /**
@@ -445,7 +539,8 @@ function st_display_value(array $def, string $raw): string
 }
 
 /**
- * The options of a select: as defined, or computed ('options_from') from the company's own lists.
+ * The options of a select: as defined, or computed ('options_from') from the company's own lists. The department
+ * list's blank choice is 'options_none' (default '0').
  *
  * @return array<string, mixed> value => text id, or value => literal text when 'options_literal' is set
  */
@@ -464,7 +559,8 @@ function st_options(array $def): array
 				$cache[$from][(string) $r['kodenr']] = $r['kodenr'] . ' : ' . $r['beskrivelse'];
 			}
 		} elseif ($from === 'departments') {
-			$cache[$from] = array('0' => '');
+			// The blank choice is added on the way out: its value depends on the field ('options_none').
+			$cache[$from] = array();
 			$q = db_select("select kodenr, beskrivelse from grupper where art = 'AFD' order by kodenr", __FILE__ . " linje " . __LINE__);
 			while ($r = db_fetch_array($q)) {
 				$cache[$from][(string) $r['kodenr']] = (string) $r['beskrivelse'];
@@ -546,6 +642,12 @@ function st_options(array $def): array
 				$cache[$from][(string) $r['id']] = (string) $r['brugernavn'];
 			}
 		}
+	}
+	if ($from === 'departments') {
+		// "No department" is '0' for a till and an employee, and a department 0 takes that place in their list.
+		// A warehouse stores it as '' ('options_none' => ''), so its blank choice is '' and a department 0 stays a choice of its own.
+		$none = isset($def['options_none']) ? (string) $def['options_none'] : '0';
+		return array_replace(array($none => ''), $cache[$from]);
 	}
 	return $cache[$from];
 }
@@ -652,12 +754,15 @@ function st_visible(array $def, array $values): bool
 }
 
 /**
- * Text id of the reason a field cannot be changed, or 0.
+ * Text id or key of the reason a field cannot be changed, or 0.
  *
  * $current is the field's form value as stored, $wanted the form value a save or restore would write. Callers that
  * pass neither get the strict answer (locked whenever the rule applies).
+ *
+ * Rules ('locked_if'): 'ht_keys:<var>' (the installation manages the value), 'batch_control' (cannot be switched on
+ * while an item group has batch control) and 'stays_on' (a bool that is on cannot be switched off again).
  */
-function st_locked(array $def, ?string $current = null, ?string $wanted = null): int
+function st_locked(array $def, ?string $current = null, ?string $wanted = null): int|string
 {
 	if (empty($def['locked_if'])) {
 		return 0;
@@ -678,6 +783,15 @@ function st_locked(array $def, ?string $current = null, ?string $wanted = null):
 		$turnsOn = ($wanted !== null) ? ($wanted === '1') : ($current !== '1');
 		if ($turnsOn && db_fetch_array(db_select("select id from grupper where art = 'VG' and box9 = 'on'", __FILE__ . " linje " . __LINE__))) {
 			return (int) $def['locked_text'];
+		}
+	}
+	if ($def['locked_if'] === 'stays_on') {
+		// Omgående bogføring (owner, 19 Nov 2026): once it is on, it cannot be switched off again, so invoices are never
+		// again left at status 3 for Hent in the cash journal. Switching it ON stays possible. The stored value decides, not
+		// $current: after a refused save the form shows what was posted. Locked while it is stored on, unless the save or
+		// restore would write on as well (no change).
+		if (st_current_form_value($def) === '1' && $wanted !== '1') {
+			return is_int($def['locked_text']) ? $def['locked_text'] : (string) $def['locked_text'];
 		}
 	}
 	return 0;
@@ -807,6 +921,8 @@ function st_render_field(array $def, array $state): void
 	$defaultText = $hasDefault ? st_txt(5714) . ' ' . st_display_value($def, st_default_raw($def)) . '.' : '';
 	$nameAttr = $disabled ? '' : ' name="f[' . st_h($key) . ']"';
 	$invalid = !empty($state['error']) ? ' aria-invalid="true" aria-describedby="e-' . $id . '"' : '';
+	// A field's 'impact' (settings_impact_text(), as on an action) is counted only while the field shows, so a hidden one costs no query.
+	$impact = (!empty($def['impact']) && !empty($state['visible']) && function_exists('settings_impact_text')) ? settings_impact_text($def) : '';
 	?>
 <?php if (!empty($state['group_heading'])) { ?>
 <div class="st-grouphead"><?= st_h($state['group_heading']) ?></div>
@@ -825,6 +941,9 @@ function st_render_field(array $def, array $state): void
     </span>
 	<?php if ($help !== '' || $defaultText !== '') { ?>
     <span class="st-help"><?= st_h($help) ?><?= ($help !== '' && $defaultText !== '') ? ' ' : '' ?><?php if ($defaultText !== '') { ?><span class="st-default"><?= st_h($defaultText) ?></span><?php } ?><?php if ($hasDefault && !$disabled) { ?> <button type="button" class="st-reset" data-reset hidden><?= st_t(5717) ?></button><?php } ?></span>
+	<?php } ?>
+	<?php if ($impact !== '') { ?>
+    <span class="st-impact"><?= st_h($impact) ?></span>
 	<?php } ?>
 	<?php if (!empty($def['more'])) { ?>
     <details class="st-more"><summary><?= st_t(6894) ?></summary><p><?= st_t($def['more']) ?></p></details>

@@ -41,6 +41,7 @@ Regards:) 20260220 LOE
 //                 A stored legacy header is matched against the code's texts in decoded form.
 // 20261113 CL/LH SST-990 review: the kolonner editor's own header and description inputs use grid_html_exact(), so a saved text round-trips unchanged.
 //                Only displayed texts are decoded, including the placeholders of a column added since the setup.
+// 20261124 CL/ASR Header only: the two blank lines at the top of the editing notice are now // lines; no code change.
 // 20261125 CDX/NTR Escape all text and dropdown cell values with the shared grid text helper before rendering.
 // 20261126 CDX/NTR Pass the database encoding when preparing text and search highlighting.
 ######################### >>>>>>>EndNotice<<<<<<<<<<<<##############################

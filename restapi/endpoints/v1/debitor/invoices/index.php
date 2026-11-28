@@ -1,4 +1,7 @@
 <?php
+// 20261105 CL/LH Needs the Debitorordre right (debitor.ordre), as debitor/ordre.php and ordreliste.php do; without it the request is refused with 403.
+//                A POST creates a sales invoice draft (DO) whatever 'type' or 'art' the body sends.
+//                A number field that is not a number is a 400 before anything is stored.
 /**
  * Invoices Endpoints
  * 
@@ -25,6 +28,8 @@ include_once __DIR__ . '/../../../../../includes/ordrefunc.php';
 
 class InvoicesEndpoint extends BaseEndpoint
 {
+    protected $permissionKey = 'debitor.ordre';
+
     protected $userId;
     protected $username;
     protected $db;
@@ -130,16 +135,16 @@ class InvoicesEndpoint extends BaseEndpoint
         }
         
         // Create new invoice draft
+        $this->validateNumericFields($data, OrderService::DECIMAL_FIELDS, OrderService::INTEGER_FIELDS);
         if (!isset($data->accountId) && !isset($data->companyName)) {
             $this->sendResponse(false, null, 'Either accountId or companyName is required', 400);
             return;
         }
         
-        // Set art to DO for debitor orders (invoices)
-        $data->art = 'DO';
+        // A debitor order (DO) as a draft, whatever type the body names
         $data->status = 1; // Draft status
         
-        $result = OrderService::createOrder($data);
+        $result = OrderService::createOrder($data, 'DO');
         
         if ($result['success']) {
             $this->sendResponse(true, $result['data'], 'Invoice draft created successfully', 201);

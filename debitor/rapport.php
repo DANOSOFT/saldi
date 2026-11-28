@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------debitor/rapport.php------ver 5.1.0 ----2026-10-30--------------
+// -------debitor/rapport.php------ver 5.1.1 ----2026-11-10--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -23,7 +23,7 @@
 //
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
-
+//
 // 20121105 - Fejl ved "masseudligning (Klik på 0,00 i åbenpostoversigt) når kun 1 dato sat. Søg 20121105 
 // 20170303 - Inlføjet inkasso (ikke aktiv)
 // 20180207 - PHR Udlign kan nu bestå af flere kontonumre. Søg udlign
@@ -61,6 +61,17 @@
 //                URL for the attribute (a firm name with & or a quote broke the link).
 // 20261030 CDX/NTR Merge the sales-statistics redirect with one URL prefix and one HTML escaping pass.
 // 20261030 CDX/NTR Normalize the historical author tag to uppercase for file-history validation.
+//
+// 20261110 CDX/ASR Restrict callable report names and permit only known read-only filter POSTs.
+
+require_once __DIR__ . '/../includes/accountReportPermissions.php';
+foreach ([$_GET, $_POST] as $reportRequest) {
+	if ((isset($reportRequest['rapportart']) && account_report_name($reportRequest['rapportart']) === null)
+		|| (isset($reportRequest['submit']) && !is_string($reportRequest['submit']))) {
+		http_response_code(400);
+		exit;
+	}
+}
 
 @session_start();
 $s_id = session_id();
@@ -91,12 +102,14 @@ if ($openpostRequest)
 $openpostCsvRequest = $openpostRequest && isset($_GET['openpost_csv']);
 if ($openpostCsvRequest) ob_start();
 
-include("../includes/connect.php");
-include("../includes/online.php");
-include("../includes/std_func.php");
-include("../includes/forfaldsdag.php");
-include("../includes/autoudlign.php");
-include("../includes/rapportfunc.php");
+$permission_key = 'debitor.rapporter';
+$permission_post_read = account_report_post_is_read($_POST);
+include(__DIR__ . '/../includes/connect.php');
+include(__DIR__ . '/../includes/online.php');
+include(__DIR__ . '/../includes/std_func.php');
+include(__DIR__ . '/../includes/forfaldsdag.php');
+include(__DIR__ . '/../includes/autoudlign.php');
+include(__DIR__ . '/../includes/rapportfunc.php');
 
 if ($openpostCsvRequest) {
 	ob_end_clean();
@@ -422,7 +435,7 @@ if (isset($_GET['ny_rykker'])) {
 
 	if ($rapportart == 'accountChart')
 		include_once("../includes/reportFunc/accountChart.php");
-	$rapportart($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, 'D');
+	account_report_dispatch($rapportart, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, 'D');
 	
 	exit;
 }
@@ -679,7 +692,7 @@ if (in_array($submit, $asyncReports) && !$isInsideIframe && !isset($_GET[$asyncC
 	}
 }
 
-$submit($dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, 'D', $returside);
+account_report_dispatch($submit, $dato_fra, $dato_til, $konto_fra, $konto_til, $rapportart, 'D', $returside);
 
 ?>
 

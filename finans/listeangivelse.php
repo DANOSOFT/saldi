@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| | | |
 //                        |___/_/ \_|___|__/|_|
 //
-// --- finans/listeangivelse.php --- lap 5.0.0 --- 2026-06-04 ---
+// --- finans/listeangivelse.php --- ver 5.1.1 --- 2026-11-13 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -21,7 +21,7 @@
 // See GNU General Public License for more details.
 // http://www.saldi.dk/dok/GNU_GPL_v2.html
 //
-// Copyright (c) 2010-2026 Saldi.dk ApS
+// Copyright (c) 2010-2026 Danosoft ApS
 // ----------------------------------------------------------------------------
 // 
 // 20130210 Break ændret til break 
@@ -32,6 +32,12 @@
 // 20260303 PHR - PHP8
 // 20260522 PHR - Fiscal year
 // 20260604 CL/PHR reads baseCountry from settings, passes to cvrnr_land/cvrnr_omr
+// 20261113 CL/ASR Goods or services is decided by eu_sales_list_kind() (includes/euSalesListKind.php), not by MR box3/box4.
+//                 Those are the box A purchase accounts, so EU service sales were listed as goods.
+//                 The EU sales account the line was posted to decides (MR box6 services, box5 goods), then the item group's Varer/ydelser setting, then box4 as before.
+//                 The MR row is the one of the fiscal year (as the VAT report reads it), not the last row of any year.
+//                 The period's month and year are cast to whole numbers, and record 2 carries the period's last day again ($kvartal_slutdato was left undefined when the list went from quarters to months in 2014, so the field was empty).
+//                 Bulgaria and Croatia count as EU countries (cvrnr_omr() in includes/std_func.php).
 
 @session_start();
 $s_id=session_id();
@@ -42,6 +48,7 @@ $css="../css/standard.css";
 include("../includes/connect.php");
 include("../includes/online.php");
 include("../includes/std_func.php");
+include_once(__DIR__ . "/../includes/euSalesListKind.php");
 
 
 $listefilnavn = "../temp/listeangivelse_".trim($db)."_".date('ymdH').".csv";
@@ -73,13 +80,9 @@ while ($row=db_fetch_array($query)) {
 	$adrhtml.= $row['postnr']." ".$row['bynavn'];
 }
 
-# Kan forbedres ved at slaa op i kontoplan og se om kontiene er samlekonti og i stedet have euvarekonti[] og euydelsekonti[]
-$query=db_select("select box3, box4 from grupper where art = 'MR'",__FILE__ . " linje " . __LINE__);
-while ($row=db_fetch_array($query)) {
-        $euvarekonto=$row['box3'];
-        $euydelseskonto=$row['box4'];
-}
-$debughtml.="<p>[".$euvarekonto."|".$euydelseskonto."]</p>\n";
+// The EU sales accounts of Indstillinger > Moms (MR box5/box6, and box4 as the list read it before) for the fiscal year.
+$euAccounts = eu_sales_accounts((int) $regnaar);
+$debughtml.="<p>[".$euAccounts['goods']."|".$euAccounts['services']."|".$euAccounts['legacy_services']."]</p>\n";
 
 if ($_POST){ # 20140729 Start afsnit 1
         $listeperiode=isset($_POST['listeperiode'])? $_POST['listeperiode']:NULL;
@@ -93,7 +96,10 @@ if ($_POST){ # 20140729 Start afsnit 1
 	exit;
 }
 
-list($liste_md, $liste_aar) = explode(".", $listeperiode);
+// The period is month.year from the request: whole numbers only, as they go into the SQL below.
+$listeParts = explode(".", (string) $listeperiode);
+$liste_md = (int) $listeParts[0];
+$liste_aar = isset($listeParts[1]) ? (int) $listeParts[1] : 0;
 
 if ( $liste_md > 12 ) {
 	$liste_md=$liste_md-12;
@@ -143,16 +149,17 @@ while ($row = db_fetch_array($query)) {
 		$modtagerfirma=$r['firmanavn'];
 		$modtagerlandekode = strtoupper(substr($modtagercvrnr, 0, 2));
 		$modtagercvrnr = strtoupper(substr($modtagercvrnr, 2));
-		$qtxt="select ordrelinjer.pris as pris, ordrelinjer.antal as antal, ordrelinjer.rabat as rabat, grupper.box12 as konto from "; #20171130
-		$qtxt.="ordrelinjer, varer, grupper where ordrelinjer.ordre_id = '$r[id]' and ordrelinjer.vare_id=varer.id ";
-		$qtxt.="and varer.gruppe=grupper.kodenr and grupper.art='VG' and grupper.fiscal_year='$regnaar' order by ordrelinjer.posnr";
+		$qtxt="select ordrelinjer.pris as pris, ordrelinjer.antal as antal, ordrelinjer.rabat as rabat, grupper.box12 as konto, grupper.box5 as varetype from "; #20171130
+		$qtxt.="ordrelinjer, varer, grupper where ordrelinjer.ordre_id = '" . (int) $r['id'] . "' and ordrelinjer.vare_id=varer.id ";
+		$qtxt.="and varer.gruppe=grupper.kodenr and grupper.art='VG' and grupper.fiscal_year='" . (int) $regnaar . "' order by ordrelinjer.posnr";
 		$qq=db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($rr = db_fetch_array($qq)) {
 			$debughtml.="<tr><td>".$rr['antal']." a ".$rr['pris']." (-".$rr['rabat']."</td><td>Konto: ".$rr['konto']."</td></tr>\n";
-			if (( $euvarekonto && $rr['konto'] == $euvarekonto) ||  ($rr['konto'] && $rr['konto'] != $euydelseskonto) || (!$rr['konto'] && !$euydelseskonto)) { #20160824 #20160602
+			// A line of a group without an EU sales account only counts while no EU services account is set up (#20160824 #20160602).
+			$kind = eu_sales_list_kind($rr['varetype'], $rr['konto'], $euAccounts);
+			if ($kind == 'goods') {
 				$varesumdkk+= number_format($r['valutakurs']*$rr['pris']*$rr['antal']*((100-$rr['rabat'])/100)/100,0,'','');
-			}	
-			if ($euydelseskonto && $rr['konto'] == $euydelseskonto ) { #20160602
+			} elseif ($kind == 'services') {
 				$ydelsessumdkk+= number_format($r['valutakurs']*$rr['pris']*$rr['antal']*((100-$rr['rabat'])/100)/100,0,'','');
 			}
 		}
@@ -171,7 +178,7 @@ while ($row = db_fetch_array($query)) {
 		if ( $varesumdkk <> 0 || $ydelsessumdkk <> 0 ) {
 			$totalsumdkk+=$varesumdkk+$ydelsessumdkk;
 			$antal_poster++;
-			$datalinje="2,".$internref.",".$kvartal_slutdato.",".$egetcvrnr.",".$modtagerlandekode.",".$modtagercvrnr.",".$varesumdkk.",0,".$ydelsessumdkk;
+			$datalinje="2,".$internref.",".$liste_slutdato.",".$egetcvrnr.",".$modtagerlandekode.",".$modtagercvrnr.",".$varesumdkk.",0,".$ydelsessumdkk;
 			$datafil .= "\n".$datalinje;
 		}
 
@@ -207,7 +214,7 @@ if ( $antal_poster > 0 ) {
 	$bodyhtml.="<h2>Data til udfyldelse af papirblanket</h2>\n\n";
 	$bodyhtml.="<p>S&aelig;lgers CVR-/SE-nr.: <strong>".$egetcvrnr."</strong></p>\n";
 	$bodyhtml.="<p>S&aelig;lgers navn og adresse:<br /><strong>".$adrhtml."</strong></p>\n";
-	$bodyhtml.="<p>Periode (1): <strong>".$kvartal_slutdato_yymmdd."</strong></p>\n"; # Sidste dag i perioden i formatet YYMMDD
+	$bodyhtml.="<p>Periode (1): <strong>".$liste_slutdato_yymmdd."</strong></p>\n"; # Sidste dag i perioden i formatet YYMMDD
 	$bodyhtml.="<p>Periodens samlede varesalg, ydelsessalg og trekantshandel til EUlande<br />\nuden moms i hele danske kr. (2):<br />\n";
 	$bodyhtml.="<strong>".$totalsumdkk."</strong></p>\n";
 	$bodyhtml.="<table>\n";

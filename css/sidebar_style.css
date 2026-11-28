@@ -5,8 +5,31 @@
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
+/* 20261113 CDX/ASR Share the sidebar's colour stops with the frame and topbar. */
+:root {
+    --shell-sidebar-stops: #173a6a 0%, #16305a 18%, #162641 45%, #172038 70%, #1f1b3d 100%;
+}
+
 /* 20261101 CL/ASR Prototype D's fixed sidebar for every user (prototype_premium/shell.js .sh-side): navy-to-purple
-   gradient, white Saldi mark, text and icons, translucent hover/active pill. The personal colour no longer applies. */
+   gradient, white Saldi mark, text and icons, translucent hover/active pill. The personal colour no longer applies.
+   20261112 ASR "Blødere" (the owner's choice 12 Nov 2026): the same navy -> purple with a much smaller swing. No
+   near-black middle (the darkest stop is navy #172038, was #121019), about half the purple at the bottom (#1f1b3d, was
+   #2a113e) and both glows at half strength (.30 / .14, were .6 / .28). The navy topbar and the frame around the work
+   area (topbar.css, .home-section below) continue its right edge.
+   20261113 ASR The head's toggle is a plain chevron (bx-chevron-left, turned to > when collapsed), and the collapsed
+   sidebar keeps the Saldi mark: the same sidebar_logo.png mask, scaled to the row's height and cut at the mark's width,
+   ?v=36: the logo centred in the topbar's band, the chevron in a fixed place under it, both on the icons' axis
+   (collapsed: the bar's centre, the icons nudged onto it).
+   ?v=37: open, the chevron sits beside the logo on the menu arrows' axis; it goes under the mark only when collapsed.
+   ?v=38: collapsed, the chevron sits in the band and the mark under it (?v=39: 4 px higher).
+   ?v=40: the open logo and chevron back in their original places; collapsed, the mark where the chevron was and
+   the chevron above it.
+   ?v=41: collapsed, no chevron (a click anywhere in the bar folds it out); the bottom shows only the version.
+   ?v=42: open, a click on the bar's empty space folds it in too (pointer cursor).
+   ?v=44: the scroll cue (fade + chevrons) where the open menu runs past the window, below .top-links.
+   ?v=45: #desc-line (the version) gone; it is at the bottom of the topbar's user menu (topbar.css .topbar-pop-ver).
+   ?v=46: 190 px wide instead of 210 (the owner, 13 Nov 2026): the narrowest at which every menu name still fits
+   (the longest is Booking's "Udlejningsoversigt"); the head's chevron and the frame follow. */
 .sidebar {
     position: fixed;
     top: 0;
@@ -16,9 +39,9 @@
     /* hidden under the opaque gradient; finans/kladdeliste.php reads it for its "Vis egne" button (the standard colour) */
     background-color: #114691;
     background-image:
-        radial-gradient(110% 12% at 100% 0%, rgba(54,104,160,.6) 0%, rgba(54,104,160,0) 100%),
-        radial-gradient(160% 40% at 100% 100%, rgba(106,42,184,.28) 0%, rgba(106,42,184,0) 72%),
-        linear-gradient(168deg, #14396f 0%, #133261 10%, #132541 28%, #121a2a 42%, #121019 56%, #1a1027 70%, #2a113e 100%);
+        radial-gradient(110% 12% at 100% 0%, rgba(54,104,160,.30) 0%, rgba(54,104,160,0) 100%),
+        radial-gradient(160% 40% at 100% 100%, rgba(106,42,184,.14) 0%, rgba(106,42,184,0) 72%),
+        linear-gradient(170deg, var(--shell-sidebar-stops));
     color: #fff;
     font-family: var(--font-ui, Inter, system-ui, sans-serif);
     z-index: 100;
@@ -65,6 +88,43 @@
     mask: url("../img/sidebar_logo.png") no-repeat center / contain;
 }
 
+/* The head (13 Nov 2026, the owner's layout): the Saldi logo centred in the topbar's 48 px band, level with the
+   topbar and the frame's top corners, and the chevron in a fixed place under it, both on the menu icons' axis
+   (28.5 px open, the bar's centre 36 px collapsed). Nothing moves up or down when the sidebar folds: the logo and the
+   chevron only slide sideways with the icons, and the wordmark slides away under the edge (the mask keeps its scale
+   and is anchored left; the box narrows to the mark). The row stays 66 px high, so the menu keeps its place. */
+.sidebar .logo.wide {
+    position: relative;
+    display: block;
+    height: 66px;
+    padding: 0;
+}
+
+.sidebar .logo.wide .logo-img {
+    position: absolute;
+    top: 30px;             /* open: the original place and size (centre 50, 120 x 40, left 25) */
+    left: 25px;
+    width: 120px;
+    height: 40px;
+    -webkit-mask-size: 120px auto;
+    mask-size: 120px auto;
+    -webkit-mask-position: left center;
+    mask-position: left center;
+    transition: left .5s ease, top .5s ease, width .5s ease;
+}
+
+.sidebar .logo.wide i {
+    position: absolute;
+    top: 37px;             /* open: the original place, right of the logo (centre 50) */
+    left: 147px;           /* ?v=46: 190 px sidebar, 20 px in like the menu arrows */
+    opacity: .75;
+    transition: transform 0.5s ease, left .5s ease, top .5s ease, background-color 140ms, opacity 140ms;
+}
+
+.sidebar .logo.wide:hover i {
+    opacity: 1;
+}
+
 .sidebar .logo i {
     font-size: 22px;
     width: 28px;
@@ -87,23 +147,24 @@
     transform: rotate(180deg);
 }
 
-.sidebar.closed .logo .logo-img {
-    opacity: 0;
-    pointer-events: none;
+/* collapsed: the mark (the box cut at 33 px) and the chevron (turned to >) on the bar's centre, 36 px */
+.sidebar.closed .logo.wide .logo-img {
+    top: 30px;             /* collapsed: where the chevron used to be (centre 36, 50), same height as open */
+    left: 18px;            /* 36 - 18.2 (the mark's centre in the 120 px image) */
+    width: 36px;
 }
 
-/* collapsed: the arrow sits over the menu icons */
-.sidebar.closed .logo {
-    padding-left: 22px;
-    padding-right: 22px;
+.sidebar.closed .logo.wide i {
+    display: none;         /* collapsed: no chevron, a click anywhere in the bar folds it out */
 }
 
-.sidebar.closed .logo .logo-img {
-    flex: 0 0 0;
+.sidebar, .sidebar.closed {
+    cursor: pointer;       /* a click on the bar's empty space folds it in or out */
 }
 
-.sidebar.closed .logo i {
-    flex: none;
+/* the module icons on the same centre: their glyphs sat at 34 px in the 72 px bar */
+.sidebar.closed .nav-links > li i:not(.arrow) {
+    translate: 2px 0;
 }
 
 .sidebar .nav-links {
@@ -141,6 +202,53 @@
 }
 .sidebar ul.top-links::-webkit-scrollbar {
     display: none; /*Chrome(+) scrollbar*/
+}
+
+/* 20261113 CL/ASR Where the open menu runs past the window (a user did not find the hidden items): the edge with more
+   behind it fades the menu out, and a small chevron sits in that fade (top: more above, bottom: more below); a click
+   scrolls. index/main.php sets .sidebar-more-up / -down and the top chevron's place, and scrolls an opened menu into
+   view. Nothing shows when everything fits, and nothing when collapsed (its fly-outs must not be clipped). */
+@property --sidebar-fade-up { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --sidebar-fade-down { syntax: '<length>'; inherits: false; initial-value: 0px; }
+.sidebar:not(.closed) ul.top-links {
+    --sidebar-fade-up: 0px;
+    --sidebar-fade-down: 0px;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--sidebar-fade-up), #000 calc(100% - var(--sidebar-fade-down)), transparent 100%);
+            mask-image: linear-gradient(to bottom, transparent 0, #000 var(--sidebar-fade-up), #000 calc(100% - var(--sidebar-fade-down)), transparent 100%);
+    transition: --sidebar-fade-up .25s ease, --sidebar-fade-down .25s ease;
+}
+.sidebar.sidebar-more-up:not(.closed) ul.top-links { --sidebar-fade-up: 64px; }
+.sidebar.sidebar-more-down:not(.closed) ul.top-links { --sidebar-fade-down: 72px; }
+.sidebar .sidebar-more {
+    position: absolute;
+    left: 50%;
+    translate: -50% 0;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid rgba(255,255,255,.22);
+    border-radius: 50%;
+    background: rgba(18,20,44,.6);
+    color: rgba(255,255,255,.9);
+    -webkit-backdrop-filter: blur(6px);
+            backdrop-filter: blur(6px);
+    cursor: pointer;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .2s ease, visibility .2s, background-color .14s;
+}
+.sidebar .sidebar-more i { font-size: 20px; line-height: 1; }
+.sidebar .sidebar-more-down-btn { bottom: 6px; }
+.sidebar .sidebar-more-up-btn { top: 0; }
+.sidebar.sidebar-more-up:not(.closed) .sidebar-more-up-btn,
+.sidebar.sidebar-more-down:not(.closed) .sidebar-more-down-btn { opacity: 1; visibility: visible; }
+.sidebar .sidebar-more:hover { background: rgba(40,44,84,.75); }
+.sidebar .sidebar-more:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+    .sidebar:not(.closed) ul.top-links, .sidebar .sidebar-more { transition: none; }
 }
 
 .sidebar:not(.closed)  .nav-links li .sub-menu li a::before {
@@ -264,7 +372,7 @@
 
 /* collapsed sidebar: the flyout is a dark panel in the sidebar's own navy */
 .sidebar.closed ul.nav-links .sub-menu {
-    background: #15253f;
+    background: #172a4a;
     box-shadow: 0 8px 24px rgba(8,12,24,.32);
 }
 
@@ -364,16 +472,30 @@
     transform: translateY(-50%);
 }
 
+/* 20261112 ASR The frame (the owner's choice 12 Nov 2026, "Indrammet"): the work area is set into the sidebar's navy
+   like saldi.dk's light panel on its dark hero. The content's rounded top corners and the 6 px strip continue the sidebar.
+   While the help integration's chat is docked open, its loader's inline margin-right (!important) replaces the strip and the
+   chat's dark frame (Mørk) continues the column; the production loader is handled below #iframe_a. In every theme: the frame is brand, not surface (saldi-theme.css leaves it alone). */
 .home-section {
     position: fixed;
     top: 0;
-    background: #E4E9F7;
+    /* 20261113 CDX/ASR Continue the sidebar's rightmost column, including both glows, over the frame and bar.
+       A 170deg gradient projected onto that column is a vertical gradient stretched by width * tan(10deg),
+       then shifted up by the same amount. The glows fade over 12% and 40% * 72% of the viewport height.
+       All layers keep their full viewport height even when used on the 44/48px bar or the phone search overlay. */
+    --shell-edge-shift: calc(190px * .176327);
+    --shell-edge-background:
+        linear-gradient(180deg, rgba(54,104,160,.30), rgba(54,104,160,0) 12%) 0 0 / 100% 100vh no-repeat,
+        linear-gradient(180deg, rgba(106,42,184,0) 71.2%, rgba(106,42,184,.14)) 0 0 / 100% 100vh no-repeat,
+        #114691 linear-gradient(180deg, var(--shell-sidebar-stops)) 0 calc(-1 * var(--shell-edge-shift)) / 100% calc(100vh + var(--shell-edge-shift)) no-repeat;
+    background: var(--shell-edge-background);
     /* height: 100%; */
     transition: all 0.5s ease;
-    width: calc(100% - 210px);
+    width: calc(100% - 190px);
 }
 
 .sidebar.closed ~ .home-section{
+    --shell-edge-shift: calc(72px * .176327);
     left: 72px;
     width: calc(100vw - 72px);
 }
@@ -424,36 +546,19 @@
 	border: none;
 }
 
-#desc-line {
-    font-size: 11px;
-    line-height: 1.2;
-    padding: 0 24px;
-    padding-bottom: 22px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
+/* 20261112 ASR the frame (see .home-section): 6 px rounded top corners, also beside the docked chat, and a 6 px strip.
+   The iframe keeps .home-section's old ground (#E4E9F7; var(--page) in the dark theme, saldi-theme.css) under the page,
+   clipped by the corners: pages without a background of their own (Sager, Tjeklister, plain answers) and the moment before
+   a page paints stay light, not navy. */
+.home-section > .home-content { margin-right: 6px; }
+.home-section > .home-content > #iframe_a { border-radius: 6px 6px 0 0; background: #E4E9F7; }
+/* The production Assist loader (wuweiworkai.com/chaty-guide/widget.js) docks its light panel by narrowing .home-section
+   with an inline width (!important) and leaves .home-content alone: while it does, the page meets the chat directly as
+   before, without the strip and with a square corner. (The help integration reserves the space with an inline
+   margin-right on .home-content instead, and its dark chat continues the frame.) */
+.home-section[style*="width"] > .home-content { margin-right: 0; }
+.home-section[style*="width"] > .home-content > #iframe_a { border-top-right-radius: 0; }
 
-.sidebar #desc-line p, .sidebar #desc-line a {
-    color: rgba(236,244,252,.9);
-    white-space: nowrap;
-}
-
-.sidebar #desc-line a {
-    align-self: flex-start;
-    color: rgba(236,244,252,.72);
-    text-decoration: none;
-}
-
-.sidebar #desc-line a:hover {
-    color: #fff;
-    text-decoration: underline;
-}
-
-
-.sidebar.closed #desc-line {
-    display: none;
-}
 
 /*.sidebar.closed .logo #icon-open {
     display: none;
@@ -482,11 +587,11 @@ body {
 
 @media screen and (min-width: 780px) {
     .sidebar {
-        width: 210px;
+        width: 190px;
     }
     .home-section {
-        left: 210px;
-        /* width: calc(100% - 210px); */
+        left: 190px;
+        /* width: calc(100% - 190px); */
     }
     .small {
         display: none !important;
@@ -504,6 +609,9 @@ body {
 @media screen and (max-width: 780px) {
     .sidebar, .sidebar.closed {
         width: 0 !important;
+    }
+    .home-section, .sidebar.closed ~ .home-section {
+        --shell-edge-shift: 0px;
     }
     .home-section {
         width: 100% !important;

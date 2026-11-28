@@ -129,10 +129,32 @@
 //                 A box4 that is the "used in the till" flag '1' is no longer taken as account 1 for till 1.
 // 20261027 CDX/MJ SST-876 Drain webshop retry updates after the gift-card settlement transaction commits.
 // 20261029 CDX/MJ SST-876 Align the header version with this branch's behavior changes.
+// 20261104 CL/ASR function posbogfor: the till account per currency is read as findBoxSale() reads it, from settings VK/till_account_<currency> for the till and from the box4 list only while no such row is stored.
+//                 A box4 that is the "used in the till" flag '1' is no longer taken as account 1 for till 1.
 // 20261109 CL/SS SST-919: kasseoptalling: default commission from-date from commissionDefaultFromDate(), the day of the register's last settled sale.
 // 20261112 CL/SS MB-49: The card terminal's return shows afslut()'s error, as the other afslut() callers do.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261117 CL/ASR POS-F3: function posbogfor: a foreign-currency cash difference on a difference account with a VAT code posts a balanced voucher as the base-currency branch does.
+//                 The difference account takes the amount ex VAT, the VAT account the VAT on the same side, and the till account row carries no VAT.
+//                 POS-F8: The counted takings and difference in a foreign currency keep their decimals instead of being cut to whole units, and takings, difference and withdrawal are posted in the base currency rounded to whole cents.
+//                 POS-F2: function kasseoptalling: the turnover in the count form includes the takings counted in foreign currencies, which findBoxSale() no longer lists as a card named 'Kontant'.
+// 20261117 CL/ASR function posbogfor: a sale with a Konto part is posted once, on its own with its receivable, whatever the other tenders.
+//                 Unposted sales on account and sales dated before the active fiscal year are posted too, in their own fiscal year.
+//                 After a posting into an earlier fiscal year the following years' opening balances are updated.
+//                 The count stops with a message before posting when the period of a sale is locked, also in the active year.
+//                 It also stops when the year of a sale is missing, closed for posting, or its result cannot be carried to the active year.
+// 20261118 CL/ASR function posbogfor: a sale dated in a deleted fiscal year or in none is not posted and does not stop the close; it keeps status 3 and is listed in a warning after the close (owner's decision 18 Nov 2026).
+//                 The fiscal year of a sale comes from posSaleFiscalYear(), which findBoxSale() also uses, so the count expects only what the close posts.
+//                 The commission of a sale from an earlier fiscal year is moved to the commission account in that year, dated as the sale.
+//                 The checks that an earlier year's result reaches the active year moved unchanged to posSaleFiscalYear.php.
+//                 The count is also refused when the close posted into an earlier fiscal year on an account that is not in that year's chart.
+// 20261119 CL/ASR function posbogfor: a sale from an earlier fiscal year on a chart without a Sideskift account is posted and carried onto 6940, and where its year's result has no account at all it is posted and listed in a warning after the close instead of refusing the count (owner's decision 19 Nov 2026).
+// 20261119 CL/ASR function posbogfor: a close that posts a sale from an earlier fiscal year takes the opening-balance carry's lock before its transaction, so its snapshot never misses another session's carry and no other carry writes over its own (p1-pos-close-R1).
+//                 Such a sale that came after that check, or a lock the database refuses, rolls the close back and asks the clerk to approve the count again.
+//                 A till account of an earlier year that the carry does not take onto the till's account in the active year is listed for the bookkeeper after the close (p1-pos-close-F4).
+//                 A row of the active year that the carry writes and another session changed after the close's snapshot also rolls the close back and asks the clerk to approve again, instead of the database error box and its mail.
 // 20261125 CL/SS MB-49: The terminal and day-end refusal alerts go through jsString(), so a LATIN9 text with æøå is not blank.
+// 20261125 CL/ASR function posbogfor: the close's own refusals and warnings (fiscal years, carry, till accounts) go through posTextUtf8() and posTextHtml(), so on a LATIN9 ledger a fiscal year name with æøå no longer blanks the alert.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -2607,7 +2629,7 @@ function fejl($id, $fejltekst)
  * then records cash/card/account totals to the report table.
  *
  * @param int $kasse Cash register (kasse) number being closed.
- * @param string $regnstart Start-of-fiscal-year date, used to scope which orders are pending.
+ * @param string $regnstart Start-of-fiscal-year date. Not read: posSaleFiscalYear() gives each pending sale its fiscal year.
  * @param int $reportNumber Report batch number this closing is filed under.
  * @param string|null $cashCountSignature Optional signature for cash count verification.
  * @param bool $requireCashCountSignature Whether a cash count signature is required.
@@ -2624,7 +2646,28 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 	global $tracelog;
 
 	include_once(__DIR__ . '/pos_ordre_includes/boxCountMethods/cashCountSnapshot.php');
+	# 20261119 p1-pos-close-R1: a close that posts a sale from an earlier fiscal year carries it into the active year's
+	# opening balances. It takes the carry's lock before its transaction, so its REPEATABLE READ snapshot is taken after
+	# any other carry (a journal posted into last year, Gem on a year card, a new fiscal year, another till's close) has
+	# committed, and no other carry commits before this close has. A close of the active year only takes no lock.
+	# The close catches a refused lock itself (true), so the clerk is asked to approve the count again.
+	include_once(__DIR__ . '/pos_ordre_includes/boxCountMethods/posSaleFiscalYear.php');
+	include_once(__DIR__ . '/../includes/updateFollowingOpeningBalances.php');
+	$carryLocked = false;
+	if (posCloseCarries($kasse, $vis_saet)) {
+		try {
+			openingCarryLockBeforeTransaction(true);
+			$carryLocked = true;
+		} catch (OpeningCarryConflict $e) {
+			error_log('Saldi POS day close: ' . $e->getMessage());
+			$txt = "Kasseoptællingen er ikke bogført. Kasse " . (int) $kasse . ": " . posOpeningCarryConflictText() . "\nIntet er bogført. Godkend kasseoptællingen igen.";
+			echo "<br>Svar " . nl2br(posTextHtml($txt)) . "<br>\n";
+			print "<script>alert(" . json_encode(posTextUtf8($txt), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ");</script>\n";
+			exit;
+		}
+	}
 	if (!beginCashCountPosting($kasse, $baseCurrency, $cashCountSignature, $db_type, $requireCashCountSignature)) {
+		openingCarryUnlock();
 		return false;
 	}
 
@@ -2649,8 +2692,9 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 	$createPayList = if_isset($_POST['createPayList']);
 	for ($x = 0; $x < count($valuta); $x++) {
 		$ValutaUdtages[$x] = (float) usdecimal($ValutaUdtages[$x], 2);
-		$ValutaKasseDiff[$x] = (int) $ValutaKasseDiff[$x];
-		$ValutaTilgang[$x] = (int) $ValutaTilgang[$x];
+		// The count form posts these as plain decimal numbers (kasseoptalling()): keep the cents.
+		$ValutaKasseDiff[$x] = (float) $ValutaKasseDiff[$x];
+		$ValutaTilgang[$x] = (float) $ValutaTilgang[$x];
 	}
 	$qtxt = "select var_value from settings where var_name = 'change_cardvalue'";
 	$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
@@ -2725,14 +2769,95 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 		$qtxt .= "and (art = 'PO' or art like 'D%') and status='3' ";
 	}
 	else {
-		$qtxt .= "and (konto_id='0' or betalingsbet='Kontant') and art = 'PO' and status='3' ";
+		# 20261117 A sale on account counts too: its date was only listed when the same day had a cash sale.
+		$qtxt .= "and art = 'PO' and status='3' ";
 	}
-	$qtxt .= "and fakturadate >= '$regnstart' order by fakturadate";
+	# 20261117 No lower bound at regnstart: an unposted sale from before the active fiscal year is posted in its own year below.
+	$qtxt .= "order by fakturadate";
 	$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 	while ($r = db_fetch_array($q)) {
 		if ($r['fakturadate']) {
 			$fakturadate[$x] = $r['fakturadate'];
 			$x++;
+		}
+	}
+	# 20261117 Every listed date is checked before anything is posted. A date before regnstart is posted in the fiscal
+	# year it belongs to. Nothing is posted and the count is refused with a message when the period of a date is locked
+	# (moms_periode_luk, also in the active year), when the year of a date is closed for posting, or when a year between
+	# it and the active year is missing or deleted (posResultCarryRefusal()).
+	# 20261119 The year's result is no reason to refuse (owner's decision 19 Nov 2026): without a Sideskift account the
+	# carry puts it on the status account after the Resultat account (6940), and where it has no account at all the close
+	# goes through with a warning (posCarryOpeningBalances() below).
+	# 20261118 The fiscal year of a date is posSaleFiscalYear(), which findBoxSale() uses to count the same sales. A date
+	# in a deleted fiscal year or in no fiscal year (for example a test sale before the first year) does not stop the
+	# close (owner's decision 18 Nov 2026): its sales are not posted, keep status 3, and are listed in a warning.
+	# 20261119 With $retry the reason is another session's carry, not something to correct (p1-pos-close-R1).
+	$refuse = function ($reasons, $retry = false) use ($kasse) {
+		transaktion('rollback');
+		openingCarryUnlock();
+		$txt = "Kasseoptællingen er ikke bogført. Kasse $kasse har ikke-bogførte salg, som ikke kan bogføres nu:\n";
+		$txt.= implode("\n", $reasons) . ($retry ? "\nIntet er bogført. Godkend kasseoptællingen igen." : "\nRet forholdet, og godkend kasseoptællingen igen.");
+		echo "<br>Svar " . nl2br(posTextHtml($txt)) . "<br>\n";
+		print "<script>alert(" . json_encode(posTextUtf8($txt), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ");</script>\n";
+		exit;
+	};
+	$activeYear = $regnaar;
+	$fiscalYears = posFiscalYears();
+	$postYear = $refused = $noYearDates = array();
+	$listedDates = $fakturadate;
+	$fakturadate = array();
+	foreach ($listedDates as $listedDate) {
+		$saleYear = posSaleFiscalYear($listedDate);
+		if (!$saleYear) {
+			$noYearDates[] = $listedDate;
+			continue;
+		}
+		$x = count($fakturadate);
+		$fakturadate[$x] = $listedDate;
+		$postYear[$x] = $saleYear;
+		$saleDate = date('d-m-Y', strtotime($listedDate));
+		if (function_exists('check_periode_luk') && ($periodErr = check_periode_luk($listedDate))) {
+			$refused[] = "$saleDate: $periodErr";
+			continue;
+		}
+		if ($saleYear == $activeYear) {
+			continue;
+		}
+		if (trim((string) $fiscalYears[$saleYear]['box5']) != 'on') {
+			$fyName = trim((string) $fiscalYears[$saleYear]['beskrivelse']) ?: $saleYear;
+			$refused[] = "$saleDate: regnskabsåret $fyName er lukket for bogføring.";
+			continue;
+		}
+		if ($carryRefusal = posResultCarryRefusal($saleYear, $activeYear, $fiscalYears)) {
+			$refused[] = "$saleDate: $carryRefusal";
+		}
+	}
+	if ($refused) {
+		$refuse($refused);
+	}
+	# 20261119 p1-pos-close-R1: a sale from an earlier fiscal year that was not there when the close checked before its
+	# transaction (made or redated meanwhile) is not carried without the lock: nothing is posted, and approved again the
+	# close takes the lock first.
+	if (!$carryLocked && ($lateDates = array_keys(array_diff($postYear, array($activeYear))))) {
+		$refuse(array(implode(', ', array_map(function ($x) use ($fakturadate) {
+			return date('d-m-Y', strtotime($fakturadate[$x]));
+		}, $lateDates)) . ": " . posLateEarlierYearSaleText()), true);
+	}
+	# 20261118 The rows this close posts get transaktioner ids above this one (see posAccountsOutsideChart() below).
+	$r = db_fetch_array(db_select("select max(id) as id from transaktioner", __FILE__ . " linje " . __LINE__));
+	$firstTransId = (int) $r['id'];
+	# 20261118 The sales of the dates without a fiscal year, listed for the bookkeeper after the close is committed.
+	$noYearWarning = '';
+	if ($noYearDates) {
+		$qtxt = "select fakturanr, fakturadate, sum, moms from ordrer where felt_5='$kasse' and status='3' ";
+		$qtxt.= "and (art = 'PO'" . (($vis_saet) ? " or art like 'D%'" : "") . ") ";
+		$qtxt.= "and fakturadate in ('" . implode("','", array_map('db_escape_string', $noYearDates)) . "') order by fakturadate, id";
+		$noYearWarning = "Kasse $kasse har salg, som ikke er bogført, fordi regnskabsåret for salgsdatoen er slettet eller ikke findes. ";
+		$noYearWarning.= "De er ikke talt med i kassens forventede beløb og står fortsat som ikke bogført. Giv bogholderen denne liste:";
+		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
+		while ($r = db_fetch_array($q)) {
+			$noYearWarning.= "\n" . date('d-m-Y', strtotime($r['fakturadate'])) . ", bon " . $r['fakturanr'] . ": ";
+			$noYearWarning.= dkdecimal($r['sum'] + $r['moms'], 2) . ", kasse $kasse";
 		}
 	}
 
@@ -2741,7 +2866,7 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 		$betaling[$x] = array();
 		$qtxt = "select distinct COALESCE(pos_betalinger.betalingstype, ordrer.felt_1) as betaling ";
 		$qtxt.= "from ordrer left join pos_betalinger on ordrer.id = pos_betalinger.ordre_id where ";
-		$qtxt.= "ordrer.felt_5='$kasse' and ordrer.status='3' and ordrer.fakturadate >= '$regnstart' ";
+		$qtxt.= "ordrer.felt_5='$kasse' and ordrer.status='3' and ordrer.fakturadate = '$fakturadate[$x]' ";
 		$qtxt.= "order by betaling";
 		$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 		while ($r = db_fetch_array($q)) {
@@ -2769,9 +2894,10 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 		$kodenr = $r['kodenr'];
 		$r2 = db_fetch_array(db_select("select kurs from valuta where gruppe = '$kodenr' and valdate <= '$dd' order by valdate desc limit 1", __FILE__ . " linje " . __LINE__));
 		$valutakurs[$x] = $r2['kurs'];
-		$ValutaUdtages[$x] *= $valutakurs[$x] / 100;
-		$ValutaKasseDiff[$x] *= $valutakurs[$x] / 100;
-		$ValutaTilgang[$x] *= $valutakurs[$x] / 100;
+		// Posted in the base currency, rounded to whole cents.
+		$ValutaUdtages[$x] = afrund($ValutaUdtages[$x] * $valutakurs[$x] / 100, 2);
+		$ValutaKasseDiff[$x] = afrund($ValutaKasseDiff[$x] * $valutakurs[$x] / 100, 2);
+		$ValutaTilgang[$x] = afrund($ValutaTilgang[$x] * $valutakurs[$x] / 100, 2);
 		$ValutaDiffVatAccount[$x] = $ValutaDiffVatRate[$x] = 0;
 		if ($ValutaDifKonti[$x]) {
 			$qtxt = "select moms from kontoplan where kontonr = '$ValutaDifKonti[$x]' and regnskabsaar = '$regnaar'";
@@ -2807,6 +2933,7 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 */
 
 	$ko_id = NULL; #Salg på konto
+	$koYear = array();
 	include_once(__DIR__ . '/pos_ordre_includes/boxCountMethods/findBoxSale.php');
 	include_once(__DIR__ . '/pos_ordre_includes/boxCountMethods/assignCashReport.php');
 	$cashReportOrderIds = array();
@@ -2827,7 +2954,29 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	assignCashReport($cashReportOrderIds, $reportNumber);
 	if (count($fakturadate) && (($ownCommissionAccountNew) || ($ownCommissionAccountUsed))) {
-		include(__DIR__ . '/pos_ordre_includes/settleCommission/moveToOwnAccount.php');
+		# 20261118 moveToOwnAccount.php reclassifies the commission of the status 3 sales dated within $fakturadate in
+		# $regnaar, dated $commissionDate or else today. The dates of the active year are settled together as of today,
+		# as before. A date in an earlier fiscal year is settled on its own, dated that date in that year, so the
+		# commission is moved in the year and VAT period its sale is posted in.
+		$closeDates = $fakturadate;
+		$commissionRuns = array();
+		foreach ($closeDates as $x => $closeDate) {
+			$commissionRuns[($postYear[$x] == $activeYear) ? 'active' : $closeDate][] = $x;
+		}
+		foreach ($commissionRuns as $commissionRun) {
+			$fakturadate = array();
+			foreach ($commissionRun as $x) {
+				$fakturadate[] = $closeDates[$x];
+			}
+			$commissionDate = null;
+			if ($postYear[$commissionRun[0]] != $activeYear) {
+				$regnaar = $postYear[$commissionRun[0]];
+				$commissionDate = $fakturadate[0];
+			}
+			include(__DIR__ . '/pos_ordre_includes/settleCommission/moveToOwnAccount.php');
+			$regnaar = $activeYear;
+		}
+		$fakturadate = $closeDates;
 	}
 	if (($settleCommission || $createPayList) && (($customerCommissionAccountNew && $commissionAccountNew) || ($customerCommissionAccountUsed && $commissionAccountUsed))) {
 		include(__DIR__ . '/pos_ordre_includes/settleCommission/moveToCustomerAccount.php');
@@ -2844,11 +2993,18 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 				$qtxt .= "and ordrer.fakturadate='$fakturadate[$x]' ";
 				$qtxt .= "and COALESCE(pos_betalinger.betalingstype, ordrer.felt_1) = '" . $betaling[$x][$y] . "' ";
 				$qtxt .= "and COALESCE(pos_betalinger.valuta, ordrer.valuta) = '$valuta[$z]' and ordrer.status='3'";
+				if (strtolower($betaling[$x][$y]) != 'konto') {
+					# 20261117 A sale with a Konto part is posted on its own below, with its receivable, and only there.
+					$qtxt .= " and not exists (select 1 from pos_betalinger kp where kp.ordre_id = ordrer.id and lower(kp.betalingstype) = 'konto')";
+				}
 				$q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
 				while ($r = db_fetch_array($q)) {
 					if (strtolower($betaling[$x][$y]) == 'konto') {
 						#						($id)?$id.=",".$r['id']:$id=$r['id'];
-						($ko_id) ? $ko_id .= "," . $r['id'] : $ko_id = $r['id']; # salg på konto
+						if (!in_array($r['id'], explode(',', (string) $ko_id))) { # 20261117 once, also with two Konto parts
+							($ko_id) ? $ko_id .= "," . $r['id'] : $ko_id = $r['id']; # salg på konto
+							$koYear[$r['id']] = $postYear[$x];
+						}
 					} else {
 						($id) ? $id .= "," . $r['id'] : $id = $r['id'];
 						($kto_id) ? $kto_id .= "," . $r['konto_id'] : $kto_id = $r['konto_id'];
@@ -2861,7 +3017,9 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 				$r = db_fetch_array(db_select($qtxt, __FILE__ . " linje " . __LINE__));
 				if ($id) {
 					#				$svar='OK';
+					$regnaar = $postYear[$x]; # 20261117 posted in the fiscal year of the sale date
 					$svar = bogfor_nu("$id", "Dagsafslutning");
+					$regnaar = $activeYear;
 					if ($svar == 'OK') {
 						echo '';
 					} else {
@@ -2883,13 +3041,16 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 			for ($k = 0; $k < count($k_oid); $k++) {
 				if ($k_oid[$k]) {
 					#cho "bogfor_nu($k_oid[$k],'')<br>";
+					$regnaar = $koYear[$k_oid[$k]] ?? $activeYear; # 20261117 posted in the fiscal year of the sale date
 					$svar = bogfor_nu($k_oid[$k], '');
+					$regnaar = $activeYear;
 					if ($svar != 'OK') {
 						echo $svar . "<br>";
 						exit;
 					}
 				}
 			}
+			$ko_id = NULL; # 20261117 posted; not again for the next currency
 		}
 		if ($valuta[$z] == $baseCurrency || !$valuta[$z]) {
 			if ($kassekonto && $mellemkonto && $udtages) {
@@ -3008,11 +3169,15 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 			}
 			# --> 20140709
 			if ($ValutaKonti[$z] && $ValutaDifKonti[$z] && $ValutaKasseDiff[$z]) {
+				// As the base-currency difference above: the till account takes the whole difference, the difference
+				// account the amount ex VAT on the other side, and the VAT account the VAT on that same side.
 				if ($ValutaDiffVatRate[$z]) {
 					$ValutaDiffExVat[$z] = afrund($ValutaKasseDiff[$z] / (1 + $ValutaDiffVatRate[$z] / 100), 2);
 					$ValutaDiffVat[$z] = $ValutaKasseDiff[$z] - $ValutaDiffExVat[$z];
-				} else
+				} else {
+					$ValutaDiffExVat[$z] = $ValutaKasseDiff[$z];
 					$ValutaDiffVat[$z] = 0;
+				}
 				if ($ValutaKasseDiff[$z] > 0) {
 					$debet = $ValutaKasseDiff[$z];
 					$kredit = 0;
@@ -3023,34 +3188,34 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 				$qtxt = "insert into transaktioner  (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,";
 				$qtxt.= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number,moms) values ";
 				$qtxt.= "('0','$dd','Kassedifference $valuta[$z], kasse $kasse','$ValutaKonti[$z]','0','$debet','$kredit',";
-				$qtxt.= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber','$ValutaDiffVat[$z]')";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-				if ($ValutaKasseDiff[$z] < 0) {
-					$kredit = $ValutaKasseDiff[$z] * -1;
-					$debet = 0;
-				} else {
-					$kredit = 0;
-					$debet = $ValutaKasseDiff[$z];
-				}
-				$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,";
-				$qtxt.= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number,moms) values ";
-				$qtxt.= "('0','$dd','Kassedifference $valuta[$z], kasse $kasse','$ValutaDifKonti[$z]','0','$kredit','$debet',";
-				$qtxt.= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber','" . $ValutaDiffVat[$z] * -1 . "')";
-				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-			}
-			if ($ValutaDiffVat[$z]) {
-				if ($ValutaDiffVat[$z] > 0) {
-					$debet = $ValutaDiffVat[$z];
-					$kredit = 0;
-				} else {
-					$debet = 0;
-					$kredit = $ValutaDiffVat[$z] * -1;
-				}
-				$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,";
-				$qtxt.= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number,moms) values ";
-				$qtxt.= "('0','$dd','Kassedifference, kasse $kasse','$ValutaDiffVatAccount[$z]','0','$debet','$kredit',";
 				$qtxt.= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber','0')";
 				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+				if ($ValutaDiffExVat[$z] > 0) {
+					$debet = 0;
+					$kredit = $ValutaDiffExVat[$z];
+				} else {
+					$debet = $ValutaDiffExVat[$z] * -1;
+					$kredit = 0;
+				}
+				$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,";
+				$qtxt.= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number,moms) values ";
+				$qtxt.= "('0','$dd','Kassedifference $valuta[$z], kasse $kasse','$ValutaDifKonti[$z]','0','$debet','$kredit',";
+				$qtxt.= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber','" . $ValutaDiffVat[$z] * -1 . "')";
+				db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+				if ($ValutaDiffVat[$z]) {
+					if ($ValutaDiffVat[$z] > 0) {
+						$debet = 0;
+						$kredit = $ValutaDiffVat[$z];
+					} else {
+						$debet = $ValutaDiffVat[$z] * -1;
+						$kredit = 0;
+					}
+					$qtxt = "insert into transaktioner (bilag,transdate,beskrivelse,kontonr,faktura,debet,kredit,";
+					$qtxt.= "kladde_id,afd,logdate,logtime,projekt,ansat,ordre_id,kasse_nr,report_number,moms) values ";
+					$qtxt.= "('0','$dd','Kassedifference, kasse $kasse','$ValutaDiffVatAccount[$z]','0','$debet','$kredit',";
+					$qtxt.= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber','0')";
+					db_modify($qtxt, __FILE__ . " linje " . __LINE__);
+				}
 			}
 		}
 
@@ -3093,14 +3258,76 @@ function posbogfor($kasse, $regnstart, $reportNumber, $cashCountSignature = null
 		$qtxt.= "'0','$afd','$dd','$logtime','','$ansat_id','0','$kasse','$reportNumber')";
 		db_modify($qtxt, __FILE__ . " linje " . __LINE__); # 20161116
 	}
+	# 20261117 Sales posted into an earlier fiscal year change its closing balances: carry them into the following
+	# years' opening balances (primo), as finans/bogfor.php does after posting a journal into an earlier year. One walk
+	# from the oldest year also passes the later ones. If the walk does not reach the active year because a year is
+	# missing or a status account has no account in the next year, everything is rolled back and the count is refused.
+	# 20261119 If it stops because a year's result has no account in the next year's chart, the close is committed and
+	# the bookkeeper gets a warning after it, as for the sales without a fiscal year (owner's decision 19 Nov 2026).
+	# 20261119 The close took the carry's lock before its transaction (p1-pos-close-R1, above), so the carry reads what
+	# every other carry committed and no other carry can write over it before this close commits. Should the lock still
+	# be refused, or a posting into the active year (which takes no lock) have changed a row the carry writes after this
+	# close's snapshot, or a deadlock end the carry (posCarryOpeningBalances() 'retry'), everything is rolled back and the
+	# clerk approves the count again.
+	$earlierYears = array_diff($postYear, array($activeYear));
+	# 20261118 An amount on an account that is not in the chart of the year it was posted into would be left out of that
+	# year's result and of the active year's opening balances: everything is rolled back and the count is refused.
+	if ($earlierYears && ($outsideChart = posAccountsOutsideChart($kasse, $firstTransId, $earlierYears, $fiscalYears))) {
+		$refuse($outsideChart);
+	}
+	$carryWarning = $tillWarning = '';
+	if ($earlierYears) {
+		$carry = posCarryOpeningBalances(min($earlierYears), $activeYear, $fiscalYears);
+		$dates = array();
+		foreach (array_keys($earlierYears) as $x) {
+			$dates[] = date('d-m-Y', strtotime($fakturadate[$x]));
+		}
+		if ($carry['retry']) {
+			$refuse(array(implode(', ', $dates) . ": " . $carry['retry']), true);
+		}
+		if ($carry['refusal']) {
+			$refuse(array(implode(', ', $dates) . ": " . $carry['refusal']));
+		}
+		if ($carry['warning']) {
+			$carryWarning = "Kasse $kasse har salg fra et tidligere regnskabsår, som er bogført i deres eget regnskabsår, men ikke ført til primo i det aktive regnskabsår. ";
+			$carryWarning.= "Giv bogholderen denne besked:\n" . implode(', ', $dates) . ": " . $carry['warning'];
+			$carryWarning.= "\nEr salgene betalt kontant, mangler beløbet i kassens primo, indtil primo er opdateret, så næste kasseoptælling kan vise det som en difference. ";
+			$carryWarning.= "Bogføres en sådan difference, skal den tilbageføres, når primo er opdateret, ellers står beløbet to gange på kassekontoen.";
+		}
+		# 20261119 p1-pos-close-F4: the cash of an earlier year's sale is on that year's till account, and the carry takes it
+		# onto that account's Overfør til. When that is not the till's account in the active year, the count misses it
+		# there. The close goes through (owner's decision 19 Nov 2026) and the bookkeeper is told what to correct.
+		$currencyTills = array();
+		foreach ($valuta as $x => $currency) {
+			if ($currency != $baseCurrency && !empty($ValutaKonti[$x])) {
+				$currencyTills[$currency] = (int) $ValutaKonti[$x];
+			}
+		}
+		if ($tillLines = posTillCarryWarnings($kasse, $firstTransId, $earlierYears, $activeYear, $fiscalYears, (int) $kassekonto, $currencyTills)) {
+			$tillWarning = "Kasse $kasse har kontantsalg fra et tidligere regnskabsår, som er bogført på en kassekonto, som primo ikke fører over på kassens kassekonto i det aktive regnskabsår. ";
+			$tillWarning.= "Giv bogholderen denne besked:\n" . implode("\n", $tillLines);
+			$tillWarning.= "\nIndtil det er rettet, mangler beløbet på kassens kassekonto, så næste kasseoptælling kan vise det som en difference. ";
+			$tillWarning.= "Bogføres en sådan difference, skal den tilbageføres, når det er rettet, ellers står beløbet to gange.";
+		}
+	}
 	#	transaktion('rollback');
 	$qtxt = "insert into pos_events (ev_type,ev_time,cash_register_id,employee_id,order_id,file,line) ";
 	$qtxt.= "values ";
 	$qtxt.= "('13006','" . date('U') . "','$kasse','$bruger_id','0','" . __FILE__ . "','" . __LINE__ . "')";
 	db_modify($qtxt, __FILE__ . " linje " . __LINE__);
 	transaktion('commit');
+	openingCarryUnlock(); # 20261119 p1-pos-close-R1: the carry's lock, when the close took it
 	# <-- 20140709
 	setcookie("saldi_kasseoptael", NULL, time() - 10); #20200112
+	# 20261118 The count is posted; the sales without a fiscal year are listed for the bookkeeper.
+	# 20261119 So are the sales whose year's result could not be carried into the active year's opening balances, and the
+	# till accounts of earlier years that the carry does not take onto the till's account in the active year.
+	foreach (array($noYearWarning, $carryWarning, $tillWarning) as $warning) {
+		if ($warning) {
+			echo "<br>" . nl2br(posTextHtml($warning)) . "<br>\n";
+			print "<script>alert(" . json_encode(posTextUtf8($warning), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ");</script>\n";
+		}
+	}
 	$pfnavn = "../temp/" . $db . "/kasseopg" . str_replace("-", "", $kasse) . ".txt";
 	print "<meta http-equiv=\"refresh\" content=\"0;URL=pos_ordre.php?{$posNavigationQuery}udskriv_kasseopg=$pfnavn&kasse=$kasse\">\n"; #20190813
 	return true;
@@ -3301,6 +3528,15 @@ function kasseoptalling( // Called from cashBalance.php
 
 	$forventet = $byttepenge + $tilgang + $kortdiff;
 	(isset($_POST['calculate']) || (isset($_POST['optael']) && $_POST['optael'])) ? $ny_morgen = $optalt - $udtages : $ny_morgen = 0; #20200112
+	// The takings counted in each foreign currency are part of the day's turnover, which specifyAmount() puts in the
+	// form for the cash count report (printBoxCount.php), so they are found before it.
+	$foreignSales = array();
+	for ($x = 0; $x < count($valuta); $x++) {
+		if ($valuta[$x]) {
+			$foreignSales[$x] = findBoxSale($kasse, $optval[$x] * $valutakurs[$x] / 100, $valuta[$x]);
+			if (is_array($foreignSales[$x])) $omsatning += $foreignSales[$x][1];
+		}
+	}
 	specifyAmount($omsatning, $kassediff, $optalt, $db, $kasse, $ifs, $ore_10, $ore_20, $ore_50, $kr_1, $kr_2, $kr_5, $kr_10, $kr_20, $kr_50, $kr_100, $kr_200, $kr_500, $kr_1000, $kr_andet); #, $fiveRappen, $tenRappen, $twentyRappen
 	if ($valuta[0]) {
 		for ($x = 0; $x < count($valuta); $x++) {
@@ -3316,11 +3552,10 @@ function kasseoptalling( // Called from cashBalance.php
 
 	for ($x = 0; $x < count($valuta); $x++) {
 		if ($valuta[$x]) {
-			$svar = findBoxSale($kasse, $optval[$x] * $valutakurs[$x] / 100, $valuta[$x]);
+			$svar = $foreignSales[$x];
 			$cashCountSales[$valuta[$x]] = $svar;
 			if (is_array($svar)) { #20160824
 				$byttepenge = $svar[0] * 100 / $valutakurs[$x];
-				$omsatning += $svar[1];
 				$tilgang = $svar[1] * 100 / $valutakurs[$x];
 				$diff = $svar[2] * 100 / $valutakurs[$x];
 				$ValutaKasseDiff[$x] = $optval[$x] - ($byttepenge + $tilgang);

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/productcardIncludes/showLocations.php --- ver 5.1.0 --- 2026-11-04 ---
+// --- lager/productcardIncludes/showLocations.php --- ver 5.1.1 --- 2026-11-14 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,6 +29,11 @@
 // 20260923 CDX/PHR Deduplicate fiscal-year warehouses and preserve actual warehouse numbers.
 // 20261104 LOE MB-62 A read-only Items user gets the shop ID as text, without the delete link.
 //              The label drops the click hint it can no longer act on.
+// 20261105 CL/LH A warehouse with no lagerstatus row for the item shows an empty location instead of reading lok1 from a missing row (array offset on false).
+// 20261105 CL/LH The stock log tooltip's header row sets $linjebg instead of toggling it before it is set (undefined variable once the item has stocklog rows).
+// 20261114 CL/ASR The box is headed Minimum/maximum (items.card.minmax) instead of Diverse (782).
+// 20261114 CL/ASR The box is split in three: the output goes to $pcLocationHtml, $pcStockHtml and $pcSalesHtml, which varekort.php prints as Lokation, Beholdning and Salg.
+// 20261114 CL/ASR With more warehouses the Lokation heading and the rule under the locations are gone, as the box is called Lokation.
 /**
  * Warehouse names keyed by their actual numbers, supplied by ../varekort.php.
  * @var array<int, string> $warehouseNames
@@ -42,7 +47,8 @@
 }
 </style>
 <?php
-	print "<tr><td colspan=\"2\"><b>".findtekst(782,$sprog_id)."</b></td></tr>";
+	// One buffer per box on the card; the order of the code below is kept, as the stock part uses what the location part reads
+	ob_start(); // Lokation
 	if ($stockItem) {
 		$lagernavn = $warehouseNames;
 		$qtxt="update batch_kob set lager = '1' where (lager = '0' or lager is NULL) and vare_id='$id'";
@@ -61,7 +67,7 @@
 			$b_antal[$x]-=$r2['antal'];
 			$qtxt = "select lok1 from lagerstatus where vare_id = '$id' and lager = '$x'";
 			$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
-			$lagerlok[$x]=$r2['lok1'];
+			$lagerlok[$x]=$r2['lok1'] ?? '';
 			$qtxt="select sum(beholdning) as beholdning from lagerstatus where vare_id = '$id' and lager = '$x'";
 			$r2=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
 			$lagerbeh[$x]=$r2['beholdning']*1;
@@ -89,25 +95,26 @@
 			}
 		}
 		if (count($lagernavn)) {
-			print "<tr><td colspan=\"2\">
-			</td><td><b>".findtekst(2045,$sprog_id)."</b></td></tr>";
 			foreach ($lagernavn as $x => $warehouseName) {
 				if (!isset($lagerid[$x])) $lagerid[$x]=0;
 				print "<tr><td colspan=\"2\"><input type=\"hidden\" name=\"lagerid[$x]\" value=\"$lagerid[$x]\">$lagernavn[$x]</td>";
 				print "<td colspan=\"4\"><input class=\"inputbox\" type=\"text\" size=\"25\" name=\"lagerlok[$x]\"";
 				print "value=\"$lagerlok[$x]\" onchange=\"javascript:docChange = true;\"></td>";
 			}
-			print "<tr><td colspan=\"6\"><hr></td></tr>";
 		} else {
 			print "<tr><td colspan=\"2\">".findtekst(2045,$sprog_id)."</td>";
 			print "<td colspan=\"4\"><input class=\"inputbox\" type=\"text\" size=\"25\" name=\"location\" ";
 			print "value=\"$location\" onchange=\"javascript:docChange = true;\"></td>";
 		}
 	}
+	$pcLocationHtml = ob_get_clean();
+	ob_start(); // Salg
 	print "<input type='hidden' name='stockItem' value='$stockItem'>";
 	print "<tr><td colspan=\"2\">".findtekst(2046,$sprog_id)."</td>";
 	print "<td colspan=\"4\"><input class=\"inputbox\" type=text size=25 name=folgevarenr value=\"$folgevarenr\" ";
 	print "onchange=\"javascript:docChange = true;\"></td>";
+	$pcSalesHtml = ob_get_clean();
+	ob_start(); // Beholdning (Montage on an operation)
 	if ($operation) {
 		print "<tr><td colspan=\"2\">Montage</td><td colspan=\"4\">";
 		print "<input class=\"inputbox\" type=text style='text-align:right;' size='8' name='montage'
@@ -215,7 +222,7 @@
 						$s++;
 					}
 					if ($s) {
-						($linjebg!="bgcolor=$bgcolor")?$linjebg="bgcolor=$bgcolor":$linjebg="bgcolor=$bgcolor5";
+						$linjebg="bgcolor=$bgcolor";
 						$txt = "<table><tr $linjebg><td>$txt990</td><td>$txt647</td><td>$txt916</td><td>$txt930</td></tr>";
 						for ($s=0;$s<count($usNa);$s++) {
 							($linjebg!="bgcolor=$bgcolor")?$linjebg="bgcolor=$bgcolor":$linjebg="bgcolor=$bgcolor5";
@@ -253,6 +260,8 @@
 		print "<td align='right' class='CellWithComment'><span >".dkdecimal($outgoing,0)."&nbsp; $overlib4</span></td></tr>";
 		print "</td></tr>";
 	}
+	$pcStockHtml = ob_get_clean();
+	ob_start(); // Salg, continued
 		($provisionsfri)?$provisionsfri="checked":$provisionsfri="";
 		print "<tr><td colspan=\"2\">".findtekst(2048,$sprog_id)."</td><td align=\"center\"><input class=\"inputbox\"
 		type=\"checkbox\" name=\"provisionsfri\" $provisionsfri></td>";
@@ -269,4 +278,5 @@
 				print "<tr><td colspan=\"2\">Publiceret</td><td align=\"center\"><input class=\"inputbox\" type=\"checkbox\" name=\"publiceret\" $publiceret></td>";
 			}
 		}
+	$pcSalesHtml .= ob_get_clean();
 ?>

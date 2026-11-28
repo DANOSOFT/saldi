@@ -1,4 +1,6 @@
 <?php
+// 20261105 CL/LH A user whose IP limit (brugere.ip_address) does not list the client's address gets no new access token (403), as at login (user_ip_allowed()).
+//                A refresh token issued from a listed address renewed access from any address for 30 days.
 /**
  * POST /auth/refresh.php
  * Refresh access token using refresh token
@@ -25,6 +27,7 @@ require_once __DIR__ . '/../../../core/logging.php';
 
 include_once __DIR__ . '/../../../../includes/db_query.php';
 include_once __DIR__ . '/../../../../includes/connect.php';
+include_once __DIR__ . '/../../../../includes/stdFunc/userIpAllowed.php';
 
 class AuthRefreshEndpoint extends BaseEndpoint
 {
@@ -116,6 +119,13 @@ class AuthRefreshEndpoint extends BaseEndpoint
         
         if (array_key_exists('status', $user) && in_array($user['status'], array('f', false, '0', 0), true)) {
             $this->sendResponse(false, null, 'User is closed', 401);
+            return;
+        }
+
+        $clientIp = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
+        if (!user_ip_allowed($user['ip_address'] ?? null, $clientIp)) {
+            write_log("Token refresh refused: IP address $clientIp is not approved for user: {$user['brugernavn']} (ID: {$user['id']})", $tenant['db'], 'WARNING');
+            $this->sendResponse(false, null, 'Your IP address is not approved to log in.', 403);
             return;
         }
 

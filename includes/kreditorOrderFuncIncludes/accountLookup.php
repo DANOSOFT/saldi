@@ -4,6 +4,7 @@
 // 20260506 sawaneh Added create-new-supplier overlay when looked-up kontonr/firmanavn has no match
 // 20260902 CL/LH  Carry already-typed order/delivery dates along so the new order header
 //                 keeps them (kreditor/ordre.php reads ordredato/levdato from GET before insertAccount()).
+// 20261113 CL/ASR The Hjælp cell is hidden (the top bar has Hjælp); it stays in the page for the tour.
 
 function kontoopslag($sort, $fokus, $id, $find){
 
@@ -73,7 +74,7 @@ function kontoopslag($sort, $fokus, $id, $find){
 
 		print "<td width=85% style='$topStyle' align=center>$tekst</td>\n";
 
-		print "<td id='tutorial-help' width=5% style='$buttonStyle'>";
+		print "<td id='tutorial-help' hidden width=5% style='$buttonStyle'>";
 		print "<button class='center-btn' style='$buttonStyle; width:100%' onMouseOver=\"this.style.cursor='pointer'\">";
 		print "$help_icon " . findtekst('2564|Hjælp', $sprog_id) . "</button></td>";
 

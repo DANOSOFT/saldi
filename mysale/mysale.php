@@ -41,6 +41,9 @@
 // 20260915 CDX/PHR Resolve the shop from a logged-in Saldi session before customer lookup.
 // 20260915 CDX/PHR Customer logout returns to customer-number entry and preserves the staff session.
 // 20260916 SS Declared $permission_key (roles & permissions, phase 3)
+// 20261105 CL/LH Every sign-in records the regnskab with the customer (mySaleSignIn()).
+//                The password is skipped only for a session signed in as that customer of that regnskab (mySaleSignedInAs()), not for the same customer id at another shop.
+//                A temporary code signs in the customer number and regnskab of the recovery row it matches, not the regnskab of the file's last row or another customer with the same e-mail.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 @session_start();
 $s_id=session_id();
@@ -137,27 +140,39 @@ if ($tmpcode) {
 			list ($a,$b,$c,$d,$e) = explode (chr(9),$tmp);
 #cho "$a<br>$b<br>$c<br>$d<br>";
 
-			if ($a == $email && $b == $tmppw) {
+			if ($a === $email && $b === $tmppw) {
 				$found = 1;
 #cho "Found $found<br>";
 				if ($e <= date('U')+60*60) $found=2;
 #cho "Found $found<br>";
+				break; // $c and $d stay this row's: the regnskab and customer number the code was issued for
 			}
 		}
 		if ($found == 1) alert('Midertidig kode udløbet');
 		elseif ($found == 2) {	
-			$_SESSION['mySalePw'] = $s_id;
+			// resetPW (below) sent the code for customer number $d with this e-mail in regnskab $c.
+			// Sign in that customer of that regnskab, not the e-mail's link at another shop or another customer's with the same e-mail.
 			include ('../includes/connect.php');
-			$qtxt = "select deb_id,link from mysale where email = '$email' and db = '$c'";
-echo "$qtxt<br>";
-			if ($r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
-				$id = $r['link'];
-				$_SESSION['mySaleAcId'] = $r['deb_id'];
+			$tmpLinks = array();
+			$qtxt = "select deb_id,link from mysale where email = '". db_escape_string($email) ."' and db = '". db_escape_string($c) ."'";
+			$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+			while ($r = db_fetch_array($q)) $tmpLinks[(int)$r['deb_id']] = $r['link'];
+			$tmpAccountId = 0;
+			if ($tmpLinks && ($tmpConnection = db_connect($sqhost, $squser, $sqpass, $c)) && db_select_database($tmpConnection, $c)) {
+				$qtxt = "select id from adresser where lower(email) = '". db_escape_string($email) ."' and kontonr = '". db_escape_string($d) ."'";
+				$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
+				while (!$tmpAccountId && ($r = db_fetch_array($q))) {
+					if (isset($tmpLinks[(int)$r['id']])) $tmpAccountId = (int)$r['id'];
+				}
+			}
+			if ($tmpAccountId) {
+				$id = $tmpLinks[$tmpAccountId];
+				mySaleSignIn($_SESSION, $s_id, $tmpAccountId, $c);
 				print "<meta http-equiv=\"refresh\" content=\"0;URL='mysale.php?id=$id&condition=$condition&editProfile=1'\">";
 				exit;
 			}
 		}
-	} else $_SESSION['mySaleAcId'] = $_SESSION['mySalePw'] = NULL;
+	} else $_SESSION['mySaleDb'] = $_SESSION['mySaleAcId'] = $_SESSION['mySalePw'] = NULL;
 }
 
 if ($id) {
@@ -212,8 +227,7 @@ if (isset($_GET['st']) && $accountId && $db) {
 		$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 		while ($rs=db_fetch_array($q)) {
 			if (hash_equals(hash('sha256',(string)$rs['session_id']),$st)) {
-				$_SESSION['mySalePw'] = $s_id;
-				$_SESSION['mySaleAcId'] = $accountId;
+				mySaleSignIn($_SESSION, $s_id, $accountId, $db);
 				break;
 			}
 		}
@@ -244,7 +258,7 @@ if ($account && !$resetPW) {
 	if(!isset($_SESSION['linkLog']) && $_SESSION['mySaleAcId'] != $accountId){
 		$_SESSION['linkLog'] = 1;
 		}
-	($id && ($_SESSION['mySalePw'] != $s_id || $_SESSION['mySaleAcId'] != $accountId))?$askPW=1:$askPW=0;
+	($id && !mySaleSignedInAs($_SESSION, $s_id, $accountId, $db))?$askPW=1:$askPW=0;
 	if ($askPW) {
 		$qtxt="SELECT column_name FROM information_schema.columns WHERE table_name='adresser' and column_name='password'";
 		if (!$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__))) {
@@ -272,17 +286,15 @@ if ($account && !$resetPW) {
 			}
 			if ($acPw) {
 				if ($pw && saldikrypt($accountId,$pw) == $acPw) {
-				$_SESSION['mySalePw'] = $s_id;
-				$_SESSION['mySaleAcId'] = $accountId;
+					mySaleSignIn($_SESSION, $s_id, $accountId, $db);
 					print "<meta http-equiv=\"refresh\" content=\"0;URL='mysale.php?id=$id'\">";
 				} else {
 					$askPW = 1;
-					$_SESSION['mySaleAcId'] = $_SESSION['mySalePw'] = NULL;
+					$_SESSION['mySaleDb'] = $_SESSION['mySaleAcId'] = $_SESSION['mySalePw'] = NULL;
 				}
 			} else {
 				$askPW = 0;
-				$_SESSION['mySalePw'] = $s_id;
-				$_SESSION['mySaleAcId'] = $accountId;
+				mySaleSignIn($_SESSION, $s_id, $accountId, $db);
 			}
 			if ($askPW) {
 				askPW($accountId,$email,$mobile);
@@ -408,8 +420,7 @@ if ($account && !$resetPW) {
 					if ($found) {
 						$qtxt = "select link from mysale where deb_id = '$accountId' and email = '$email' and db='$found'";
 #						setcookie("mySalePw", $s_id,0,"/");
-						$_SESSION['mySalePw'] = $s_id;
-						$_SESSION['mySaleAcId'] = $accountId;
+						mySaleSignIn($_SESSION, $s_id, $accountId, $found);
 						$q = db_select($qtxt,__FILE__ . " linje " . __LINE__);
 						if ($r=db_fetch_array($q)) {
 							$link = $r['link'];
