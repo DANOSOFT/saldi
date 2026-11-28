@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- ver 5.1.1 --- 2026.11.25 ---
+// --- debitor/pos_ordre.php --- ver 5.1.1 --- 2026.11.28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
