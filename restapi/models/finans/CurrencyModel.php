@@ -69,20 +69,24 @@ class CurrencyModel
      * 
      * @param string $orderBy Column to order by (default: beskrivelse)
      * @param string $orderDirection Sort direction (default: ASC)
-     * @param int $limit Maximum number of results (default: 50)
+     * @param int $limit Maximum number of results, 1-200 (default: 50)
      * @return CurrencyModel[] Array of Currency objects
      */
     public static function getAllItems($orderBy = 'beskrivelse', $orderDirection = 'ASC', $limit = 50)
     {
         // Whitelist allowed order by columns to prevent SQL injection
         $allowedOrderBy = ['id', 'beskrivelse', 'box1'];
-        $orderBy = in_array($orderBy, $allowedOrderBy) ? $orderBy : 'beskrivelse';
+        $orderBy = in_array($orderBy, $allowedOrderBy, true) ? $orderBy : 'beskrivelse';
         
-        // Validate order direction
-        $orderDirection = strtoupper($orderDirection) === 'DESC' ? 'DESC' : 'ASC';
+        // Validate order direction against a fixed list
+        $allowedDirection = ['ASC', 'DESC'];
+        $orderDirection = is_string($orderDirection) ? strtoupper($orderDirection) : '';
+        $orderDirection = in_array($orderDirection, $allowedDirection, true) ? $orderDirection : 'ASC';
         
-        // Validate limit
-        if ($limit > 200 || $limit < 1) {
+        // Validate limit: only an int or a digit string reaches SQL, clamped to 1-200; anything else gets the default
+        if (is_int($limit) || (is_string($limit) && ctype_digit($limit))) {
+            $limit = max(1, min(200, (int)$limit));
+        } else {
             $limit = 50;
         }
         

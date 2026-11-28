@@ -200,15 +200,25 @@ class AccountModel {
      *
      * @param string $orderBy Column to order by (default: kontonr)
      * @param string $orderDirection Sort direction (default: ASC)
+     * @param int $limit Maximum number of results, 1-200 (default: 50)
      * @return AccountModel[] Array of Account objects
      */
-    public static function getAllItems($orderBy = 'kontonr', $orderDirection = 'ASC', $limit) {
+    public static function getAllItems($orderBy = 'kontonr', $orderDirection = 'ASC', $limit = 50) {
         // Whitelist allowed order by columns to prevent SQL injection
         $allowedOrderBy = ['id', 'kontonr', 'beskrivelse', 'kontotype', 'regnskabsaar'];
-        $orderBy = in_array($orderBy, $allowedOrderBy) ? $orderBy : 'kontonr';
+        $orderBy = in_array($orderBy, $allowedOrderBy, true) ? $orderBy : 'kontonr';
         
-        // Validate order direction
-        $orderDirection = strtoupper($orderDirection) === 'DESC' ? 'DESC' : 'ASC';
+        // Validate order direction against a fixed list
+        $allowedDirection = ['ASC', 'DESC'];
+        $orderDirection = is_string($orderDirection) ? strtoupper($orderDirection) : '';
+        $orderDirection = in_array($orderDirection, $allowedDirection, true) ? $orderDirection : 'ASC';
+        
+        // Validate limit: only an int or a digit string reaches SQL, clamped to 1-200; anything else gets the default
+        if (is_int($limit) || (is_string($limit) && ctype_digit($limit))) {
+            $limit = max(1, min(200, (int)$limit));
+        } else {
+            $limit = 50;
+        }
         
         $qtxt = "SELECT id FROM kontoplan ORDER BY $orderBy $orderDirection LIMIT $limit";
         $q = db_select($qtxt, __FILE__ . " linje " . __LINE__);
