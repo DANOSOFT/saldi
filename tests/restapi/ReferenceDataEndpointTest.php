@@ -15,6 +15,7 @@
 // 20260725 CL/LH Created for the end-to-end coverage push.
 // 20261022 CL/NTR Product groups joined listEndpoints() (fixed in MB-67; the "always empty" pin is gone).
 //                 The tenant-list test follows the registry user the endpoint actually resolves instead of assuming none.
+// 20261128 CL/LH The accounts limit pin now expects a SQL fragment in limit to fall back to the default page.
 
 require_once __DIR__ . '/support/RestApiTestCase.php';
 
@@ -157,15 +158,14 @@ final class ReferenceDataEndpointTest extends RestApiTestCase
     }
 
     /**
-     * `limit` on accounts and currencies is passed to the model without an
-     * int cast (accounts/index.php:54, currencies/index.php:30), the same
-     * shape as the products defect - see ProductsEndpointTest. Pinned here so
-     * the fix covers all three call sites, not just products.
+     * `limit` on accounts must never carry SQL: a fragment such as
+     * "1 OFFSET 3" is not a number, so the model falls back to the default
+     * page instead of executing it (MB-98, same fix as products in MB-67).
      */
-    public function test_the_accounts_limit_parameter_accepts_a_sql_fragment(): void
+    public function test_the_accounts_limit_parameter_ignores_a_sql_fragment(): void
     {
         $baseline = $this->assertSuccessEnvelope(
-            self::api('GET', '/restapi/endpoints/v1/accounts/?limit=5'),
+            self::api('GET', '/restapi/endpoints/v1/accounts/'),
             'baseline'
         );
         $this->assertGreaterThan(4, count($baseline), 'precondition: the chart has at least five accounts');
@@ -173,11 +173,10 @@ final class ReferenceDataEndpointTest extends RestApiTestCase
         $res = self::api('GET', '/restapi/endpoints/v1/accounts/?limit=' . rawurlencode('1 OFFSET 3'));
         $items = $this->assertSuccessEnvelope($res, 'limit with a fragment');
 
-        $this->assertCount(1, $items, 'the fragment reached the SQL');
         $this->assertSame(
-            $baseline[3]['id'] ?? null,
-            $items[0]['id'] ?? null,
-            'and OFFSET was executed - the fourth account came back'
+            array_column($baseline, 'id'),
+            array_column($items, 'id'),
+            'the fragment did not reach the SQL - the default page came back'
         );
     }
 }
