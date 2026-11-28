@@ -192,6 +192,7 @@
 //                 $notes is escaped when it is read from the form, like the other order fields, and the update no longer escapes it a second time.
 // 20261124 CL/MMR SST-1049 The delivery-address dropdown's "Choose delivery address" and "No delivery address" options are translated (texts 8530 and 8531).
 // 20261126 CDX/NTR Pass original browser search text to item lookup without SQL escaping, with an explicit encoding marker.
+// 20261128 CL/LH MB-198: Opret ny kunde only accepts Kontant, Netto, Lb. md. or Forud as betalingsbet; any other posted value is stored as Netto.
 @session_start();
 $s_id = session_id();
 
@@ -404,6 +405,7 @@ if (isset($_POST['create_debtor'])) {
 		}
 	}
 	if ($betalingsbet == findtekst('370|Kontant', $sprog_id)) $betalingsbet = 'Kontant';
+	if (!in_array($betalingsbet, array('Kontant', 'Netto', 'Lb. md.', 'Forud'), true)) $betalingsbet = 'Netto';
 	$betalingsdage = (int)if_isset($_POST['betalingsdage'], 8);
 	$kontakt = if_isset($_POST['kontakt']);
 

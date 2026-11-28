@@ -27,6 +27,7 @@
 // 20260827 Sawaneh create_debtor: kontonr availability is checked across all arts (a creditor's
 //                 number is refused too) and also for auto-assigned numbers right before
 //                 insert, so a concurrent creation cannot slip in a duplicate (SST-753)
+// 20261128 CL/LH MB-198 create_debtor: betalingsbet is escaped with db_escape_string() in the insert
 //
 function create_debtor($kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$email,$tlf,$cvrnr,$grp,$ean,$betalingsbet,$betalingsdage,$kontakt) {
 	if (!$kontonr) {
@@ -46,7 +47,7 @@ function create_debtor($kontonr,$firmanavn,$addr1,$addr2,$postnr,$bynavn,$email,
 	$qtxt.= "('".db_escape_string($kontonr)."','".db_escape_string($firmanavn)."','".db_escape_string($addr1)."',";
 	$qtxt.= "'".db_escape_string($addr2)."','".db_escape_string($postnr)."','".db_escape_string($bynavn)."',";
 	$qtxt.="'".db_escape_string($email)."','".db_escape_string($tlf)."','".db_escape_string($cvrnr)."','".db_escape_string($ean)."',";
-	$qtxt.="'".db_escape_string($grp)."','".db_escape_string($kontakt)."','D','','$betalingsbet','$betalingsdage')";
+	$qtxt.="'".db_escape_string($grp)."','".db_escape_string($kontakt)."','D','','".db_escape_string($betalingsbet)."','$betalingsdage')";
 	db_modify($qtxt,__FILE__ . " linje " . __LINE__);
 	$qtxt="select id from adresser where kontonr='".db_escape_string($kontonr)."' and art='D'";
 	$r=db_fetch_array(db_select($qtxt,__FILE__ . " linje " . __LINE__));
