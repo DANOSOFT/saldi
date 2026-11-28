@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/pos_ordre.php --- ver 5.1.1 --- 2026.11.25 ---
+// --- debitor/pos_ordre.php --- ver 5.1.1 --- 2026.11.28 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -133,6 +133,7 @@
 // 20261112 CL/SS MB-49: The card terminal's return shows afslut()'s error, as the other afslut() callers do.
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261125 CL/SS MB-49: The terminal and day-end refusal alerts go through jsString(), so a LATIN9 text with æøå is not blank.
+// 20261128 CL/LH MB-198: opdater_konto escapes betalingsbet with db_escape_string() in its update ordrer, like the other fields.
 @session_start();
 $s_id = session_id();
 ob_start();
@@ -2451,7 +2452,7 @@ function opdater_konto($konto_id, $kontonr, $id, $o_art = 'PO') {
 		$qtxt = "update ordrer set konto_id='$konto_id', kontonr='$r[kontonr]',firmanavn='" . db_escape_string($r['firmanavn']) . "',";
 		$qtxt .= "addr1='" . db_escape_string($r['addr1']) . "',addr2='" . db_escape_string($r['addr2']) . "',postnr='" . db_escape_string($r['postnr']) . "',";
 		$qtxt .= "bynavn='" . db_escape_string($r['bynavn']) . "',land='" . db_escape_string($r['land']) . "',";
-		$qtxt .= "betalingsdage='$betalingsdage',betalingsbet='$betalingsbet',cvrnr='" . db_escape_string($r['cvrnr']) . "',";
+		$qtxt .= "betalingsdage='$betalingsdage',betalingsbet='" . db_escape_string($betalingsbet) . "',cvrnr='" . db_escape_string($r['cvrnr']) . "',";
 		$qtxt .= "ean='" . db_escape_string($r['ean']) . "',institution='" . db_escape_string($r['institution']) . "',";
 		$qtxt .= "email='" . db_escape_string($r['email']) . "',kontakt='" . db_escape_string($r['kontakt']) . "',art='PO',valuta='$baseCurrency',valutakurs='100' ";
 		$qtxt .= "where id = '$id'";
