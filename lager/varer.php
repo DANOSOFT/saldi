@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- lager/varer.php --- ver 5.1.1 --- 2026-11-24 ---
+// --- lager/varer.php --- ver 5.1.0 --- 2026-11-05 ---
 //                           LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -24,7 +24,7 @@
 // Copyright (c) 2003-2026 Danosoft ApS
 // ----------------------------------------------------------------------
 // 20260904 Sawaneh WP-1.3c: luk.php returside now set on the popup=1 request flag, not the popup preference
-//
+
 // 2013.01.15 Wildcard forsvinder efter søgning - tak til Henrik Thomsen fra Basslab for rettelse - søg 20130115
 // 2014.07.28 Timeout ændret fra 30 til 60 - Søg timeout.
 // 2014.12.17	Omskrevet funktionen "find_beholdning" se evt. find_beholdning_xx 
@@ -91,7 +91,6 @@
 // 20261030 LOE MB-62 A read-only user is not offered the list's Ny controls.
 //              The two list views and the popup view all print Ny only for a user who may create an item.
 // 20261105 CL/MMR SST-951 A purchase proposal order (genbestil) takes the language (Sprog) of the supplier's creditor group.
-// 20261124 CL/ASR Header only: the version marker moved from ver 5.1.0 to ver 5.1.1 and the blank line inside the history block is now a // line; no code change.
 
 @session_start();
 $s_id=session_id();

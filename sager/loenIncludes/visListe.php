@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/loenIncludes/visListe.php --- ver 5.1.1 --- 2026-11-24 ---
+// --- sager/loenIncludes/visListe.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,7 +29,6 @@
 // 20260319 LOE Added $categorySum to calculate sum per category for use in ret_loen.php
 // 20261104 CL/MMR SST-943 The empty transport line is not deleted while a save that was stopped for a missing date is shown (new parameter $datoMangler, default false).
 // 20261105 CL/MMR SST-943 The item category clean-up (update varer) is also skipped while a stopped save is shown.
-// 20261124 CL/ASR Header only: the version marker moved from ver 5.1.0 to ver 5.1.1; no code change.
 
 /**
  * Prints the piecework (akkord) lines of a wage slip for the chosen list type and works out their total.

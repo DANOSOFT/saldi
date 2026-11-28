@@ -215,6 +215,8 @@
 //                MB-81 no longer counts the "<bilag>+N" lines this save inserted as another user taking the proposed number.
 // 20261029 LOE SST-888 (review) A voucher number the column cannot hold is replaced or refused wherever it is allocated, numbers this save has already handed out are skipped, and a refused line stays staged so a resend writes nothing (tekst 7636).
 // 20261103 CL/ASR QA round 2: the GET link ompost (Tilbagefør postering) needs write on the journal.
+// 20261029 LOE SST-888 (review) A voucher number the column cannot hold is replaced or refused wherever it is allocated,
+//                 numbers this save has already handed out are skipped, and a refused line stays staged so a resend writes nothing (tekst 7636).
 // 20261103 CL/LH SD-796 window.saldiBaseCurrency gives accountAutocomplete.js the base currency, so an invoice pick can tell an invoice in another currency than the line and write its Beløb and Valuta again.
 //                accountAutocomplete.js?v= bumped.
 // 20261105 CL/LH Hent showed only when the order settings row (grupper DIV/3) was missing, and every regnskab is created with it.

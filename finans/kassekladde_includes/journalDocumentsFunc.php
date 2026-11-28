@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kassekladde_includes/journalDocumentsFunc.php --- ver 5.1.1 --- 2026.11.24 ---
+// --- finans/kassekladde_includes/journalDocumentsFunc.php --- ver 5.1.0 --- 2026.11.04 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -31,7 +31,6 @@
 //                 No @ any more, because the delete in kladdeliste.php turns every warning into an error.
 // 20261104 CL/MMR SST-929 unlink(), scandir() and rmdir() run through journalDocumentsQuietly(), so a warning from them is a failed step (row kept, folder left) and not an ErrorException from the kladdeliste.php handler.
 //                 The warning is still written to the PHP error log, and other error types are passed on (CodeRabbit on PR #1004).
-// 20261124 CL/ASR Header only: the version marker moved from ver 5.1.0 to ver 5.1.1; no code change.
 
 /**
  * The document folder as seen from finans/ (owncloud, bilag or documents, as insertDoc.php picks it).

@@ -4,7 +4,7 @@
 //                        \__ \/ _ \| |_| |) | |
 //                        |___/_/ \_|___|___/|_|
 //
-// --- systemdata/ansatte_save.php --- ver 5.1.1 --- 2026-11-24 ---
+// --- systemdata/ansatte_save.php --- ver 5.1.0 --- 2026-11-05 ---
 // LICENS
 //
 // Dette program er fri software. Du kan gendistribuere det og / eller
@@ -31,7 +31,6 @@
 // 20260127 PHR update settings value
 // 20261105 CL/MMR SD-807 The employee card's save messages (number must be a number, number already in use, name missing) follow the user's language.
 //                 The number-in-use alert is passed to JavaScript through json_encode().
-// 20261124 CL/ASR Header only: the version marker moved from ver 5.1.0 to ver 5.1.1; no code change.
 
 if ($konto_id=$_POST['konto_id']) {
 	$id=$_POST['id']*1;

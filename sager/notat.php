@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- sager/notat.php --- ver 5.1.1 -- 2026-11-24 --
+// --- sager/notat.php --- ver 5.1.0 -- 2026-11-10 --
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -22,7 +22,7 @@
 //
 // Copyright (c) 2009-2026 Danosoft ApS
 // --------------------------------------------------------------------------
-//
+
 // Har lagt javascript i en separat fil ved navn 'jquery.notat.js' 
 // Har rettet diverse html fejl
 // 20141803 email ved 'gem og afslut' er fjernet. søg 20141803-1
@@ -38,7 +38,6 @@
 // 20261104 CL/MMR SD-799 The project status, the "by" labels, the search suggestion labels and the list counter follow the user's language.
 // 20261104 LOE SST-940 Format datotid through datotidTilTekst(), so a text date cannot stop the report.
 // 20261110 CDX/NTR SST-968 Restrict funktion to the page routes and ignore unknown request values.
-// 20261124 CL/ASR Header only: the version marker moved from ver 5.1.0 to ver 5.1.1 and the blank line under the separator is now a // line; no code change.
 
 @session_start();
 $s_id = session_id();

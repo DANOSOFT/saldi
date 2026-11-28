@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// -------- kreditor/ansatte.php --------ver 5.1.1--- 2026.11.24 -------
+// -------- kreditor/ansatte.php --------ver 5.1.0--- 2026.11.01 -------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -29,7 +29,6 @@
 // 20261003 CL/SZ SD-698: returside is sanitized like kreditorkort.php (nav_sanitize_returside), so an array no longer
 //                breaks urlencode() and a quote can't escape the hidden returside field.
 // 20261101 CL/SZ MB-129 A contact with an apostrophe in a field can be saved: the fields use db_escape_string instead of addslashes, which Postgres rejects.
-// 20261124 CL/ASR Header only: the version marker moved from ver 5.1.0 to ver 5.1.1; no code change.
 
 @session_start();
 $s_id = session_id();

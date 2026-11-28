@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- api/varesync.php --- ver 5.1.1 --- 2026.11.05 ---
+// --- api/varesync.php --- ver 5.1.0 --- 2026.11.05 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -40,8 +40,6 @@
 // 20261105 CL/SZ MB-133 Initialize $stockVariant and $vt_id so a new variant no longer hits a fatal count() on null when the file has no qty column or variant_typer is empty.
 // 20261105 CL/SZ MB-134 Product qty column is cast to float, so a qty file no longer dies on its header line under PHP 8.
 // 20261105 CL/SZ MB-119 'Opdater fra shop' only adds a shop_varer link when the row has a shop id, so a row without one no longer blocks the real link on a later sync.
-// 20261105 CL/LH $sProductNo, $svSaldiId and $variantVareId start as empty arrays, so in_array() no longer ends the import with a TypeError when the regnskab has no items or shop mappings yet, or the shop's variant file has no variants.
-//                The last of these stopped every catalog import without variants after its items were written, before the last stock pass and the notices.
 
 
 function varesync($valg) {

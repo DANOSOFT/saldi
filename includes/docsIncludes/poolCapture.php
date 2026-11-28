@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- includes/docsIncludes/poolCapture.php --- ver 5.1.1 --- 2026-11-24 ---
+// --- includes/docsIncludes/poolCapture.php --- ver 5.1.0 --- 2026-11-10 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,7 +35,6 @@
 //                lands under a suffixed name, and the snapshot is still read from the pool row under the old one.
 // 20261026 CL/LH poolCaptureClientTexts(): the texts of the Debet suggestion line and its list of other accounts.
 // 20261110 CDX/NTR Document the client text payload and its count placeholders.
-// 20261124 CL/ASR Header only: the version marker moved from ver 5.1.0 to ver 5.1.1; no code change.
 
 require_once __DIR__ . '/poolAmountNormalizer.php';
 require_once __DIR__ . '/poolDateNormalizer.php';
