@@ -42,7 +42,11 @@ Regards:) 20260220 LOE
 // 20261113 CL/LH SST-990 review: the kolonner editor's own header and description inputs use grid_html_exact(), so a saved text round-trips unchanged.
 //                Only displayed texts are decoded, including the placeholders of a column added since the setup.
 // 20261124 CL/ASR Header only: the two blank lines at the top of the editing notice are now // lines; no code change.
+// 20261125 CDX/NTR Escape all text and dropdown cell values with the shared grid text helper before rendering.
+// 20261126 CDX/NTR Pass the database encoding when preparing text and search highlighting.
 ######################### >>>>>>>EndNotice<<<<<<<<<<<<##############################
+include_once(__DIR__ . '/grid/text.php');
+
 /**
  * Extracts values from a specific column in a multi-dimensional array.
  *
@@ -1733,8 +1737,10 @@ function render_table_row($columns, $row, $searchTerms) {
             ? $column['valueGetter']($rawValue, $row, $column)
             : $rawValue;
 
-        // Optimize text search and highlighting - also highlight number fields with partial matching
-        if (($column["type"] == "text" || $column["type"] == "number") && $term !== '' && mb_stripos((string)$value, $term, 0, 'UTF-8') !== false) {
+        $textColumn = in_array($column['type'] ?? 'text', array('text', 'dropdown'), true);
+        if ($textColumn) {
+            $value = is_string($value) ? grid_text_html($value, $term, $GLOBALS['db_encode'] ?? 'UTF8') : $value;
+        } elseif ($column["type"] == "number" && $term !== '' && mb_stripos((string)$value, $term, 0, 'UTF-8') !== false) {
             $value = preg_replace_callback(
                 '/' . preg_quote($term, '/') . '/iu',
                 function ($match) {
@@ -1747,7 +1753,7 @@ function render_table_row($columns, $row, $searchTerms) {
         // Render the final data
         $data = isset($column['render']) && is_callable($column['render'])
             ? $column['render']($value, $row, $column)
-            : htmlspecialchars($value);
+            : ($textColumn ? $value : htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
 
         echo $data;
     }

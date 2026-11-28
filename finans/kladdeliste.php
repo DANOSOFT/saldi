@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kladdeliste.php --- ver 5.1.1 --- 2026-11-08 ---
+// --- finans/kladdeliste.php --- ver 5.1.1 --- 2026-11-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -47,6 +47,7 @@
 //                 document's file can't be removed, the journal and that document's row stay (CodeRabbit).
 // 20261107 CL/ASR Tour of three steps (Ny, a journal row, Vis alle/Vis egne); it no longer starts by itself (includes/tutorial.php).
 // 20261108 CL/ASR Tour step 1 (Ny) also says that the lines reach the accounts only when the journal is posted (text 8779).
+// 20261126 CDX/NTR Consume shared prepared journal-owner text without stripping highlights or escaping twice.
 
 @session_start();
 $s_id=session_id();
@@ -360,11 +361,8 @@ $columns[] = array(
     "width" => "1",
     "sqlOverride" => "k.oprettet_af",
     "render" => function ($value, $row, $column) {
-        global $charset;
         $url = "kassekladde.php?tjek={$row['id']}&kladde_id={$row['id']}&returside=kladdeliste.php";
-        $clean_value = strip_tags(stripslashes($value));
-        $safe_value = htmlentities($clean_value, ENT_QUOTES, $charset);
-        return "<td align='{$column['align']}' onclick=\"window.location.href='$url'\" style='cursor:pointer'>$safe_value</td>";
+        return "<td align='{$column['align']}' onclick=\"window.location.href='$url'\" style='cursor:pointer'>$value</td>";
     },
 );
 

@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- finans/kontospec.php --- ver 5.1.1 --- 2026.11.14 ---
+// --- finans/kontospec.php --- ver 5.1.1 --- 2026.11.26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -35,6 +35,7 @@
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
 // 20261114 CL/ASR The specification shows only what is posted.
 //                 The removed lagerbev() added stock movements computed from the stock, never posted, to the purchase account and the item groups' Lagertilgang and Lagertræk accounts (VG box1/box2), so the lines did not add up to the amount clicked under Regnskab.
+// 20261126 CDX/NTR Truncate raw statement text before shared escaping and use raw row values for links and tooltips.
 
 $fakturanr = array();
 $ordrenr   = array();
@@ -299,8 +300,8 @@ $columns = [
         'searchable' => true,
         'align' => 'left',
         'render' => function($value, $row, $column) {
-            if ($value) {
-                 return "<td><a href='kontospec.php?bilag=" . urlencode($value) . "' style='text-decoration: underline;'>$value</a></td>";
+            if ($row['bilag']) {
+                 return "<td><a href='kontospec.php?bilag=" . urlencode($row['bilag']) . "' style='text-decoration: underline;'>$value</a></td>";
             }
             return "<td></td>";
         }
@@ -351,13 +352,14 @@ $columns = [
         'sortable' => true,
         'searchable' => true,
         'align' => 'left',
+        'valueGetter' => function($value, $row, $column) {
+            $value = (string) $value;
+            $encoding = ($GLOBALS['db_encode'] ?? 'UTF8') === 'UTF8' ? 'UTF-8' : 'ISO-8859-15';
+            return mb_strlen($value, $encoding) > 100 ? mb_substr($value, 0, 100, $encoding) . '...' : $value;
+        },
         'render' => function($value, $row, $column) {
-            // Truncate very long descriptions for display
-            if (strlen($value) > 100) {
-                $short = substr($value, 0, 100) . '...';
-                return "<td title='$value'>$short</td>";
-            }
-            return "<td>$value</td>";
+            $title = grid_text_html((string) ($row['beskrivelse'] ?? ''), '', $GLOBALS['db_encode'] ?? 'UTF8');
+            return "<td title='$title'>$value</td>";
         }
     ],
     [
@@ -370,8 +372,8 @@ $columns = [
         'align' => 'right',
          'render' => function($value, $row, $column) use ($bilag) {
         // If we're viewing by invoice (bilag), make account numbers clickable
-        if ($value && $bilag) {
-            return "<td align='right'><a href='kontospec.php?kontonr=$value' style='text-decoration: underline;'>$value</a></td>";
+        if ($row['kontonr'] && $bilag) {
+            return "<td align='right'><a href='kontospec.php?kontonr=" . urlencode($row['kontonr']) . "' style='text-decoration: underline;'>$value</a></td>";
         } else {
             return "<td align='right'>$value</td>";
         }
@@ -426,7 +428,8 @@ $columns = [
         'searchable' => true,
         'align' => 'right',
         'render' => function($value, $row, $column) {
-            $title = isset($row['ordrenr']) && $row['ordrenr'] ? "title='Ordrenr: {$row['ordrenr']}'" : '';
+            $orderNo = grid_text_html((string) ($row['ordrenr'] ?? ''), '', $GLOBALS['db_encode'] ?? 'UTF8');
+            $title = $orderNo !== '' ? "title='Ordrenr: $orderNo'" : '';
             $ordre_id = isset($row['ordre_id']) ? intval($row['ordre_id']) : 0;
             if ($value !== '' && $value !== null && $ordre_id > 0) {
                 $target = (isset($row['pos']) && $row['pos']) ? '../debitor/pos_ordre.php' : '../debitor/ordre.php';
@@ -444,8 +447,8 @@ $columns = [
         'searchable' => true,
         'align' => 'right',
         'render' => function($value, $row, $column) {
-			if ($value) {
-				return "<td align='right'><a href='kassekladde.php?kladde_id=" . urlencode($value) . "&returside=../finans/kontospec.php' style='text-decoration: underline;'>$value</a></td>";
+			if ($row['kladde_id']) {
+				return "<td align='right'><a href='kassekladde.php?kladde_id=" . urlencode($row['kladde_id']) . "&returside=../finans/kontospec.php' style='text-decoration: underline;'>$value</a></td>";
 			}
 			return "<td align='right'></td>";
        }

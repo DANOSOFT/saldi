@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-19 ---
+// --- debitor/ordre.php --- ver 5.1.1 --- 2026-11-26 ---
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -211,6 +211,8 @@
 //                 An order without a valuta is checked as a kroner order, so its kroner invoices count in full and no rate is looked up for them.
 //                 A credit note made with Kreditér keeps the credited order's reverse charge (omvbet), so its save no longer clears the lines' omvbet and it credits no VAT the invoice never charged.
 //                 An open order's VAT-free or reverse-charge line gets rate 0 even without a rate of its own, so a Genfakturer copy or a Del ordre remainder no longer shows and stores VAT on a reverse-charge line.
+// 20261124 CL/MMR SST-1049 The delivery-address dropdown's "Choose delivery address" and "No delivery address" options are translated (texts 8530 and 8531).
+// 20261126 CDX/NTR Pass original browser search text to item lookup without SQL escaping, with an explicit encoding marker.
 
 /**
  * Injected by ../includes/online.php, included below:
@@ -2466,9 +2468,10 @@ if (($status < 3 || strstr($b_submit, "Kopi") || strstr($b_submit, "Kred")) && $
 				}
 				if (!$exact_match_check) {
 					// Not an exact match - redirect to product lookup with the entered value as search term
-					$find_param = urlencode($varenr0_original);
+					$find_param = urlencode((string) ($_POST['varenr0'] ?? $varenr0_original));
+					$find_encoding = isset($_POST['varenr0']) ? 'browser' : 'database';
 					$bordnr_param = isset($bordnr) ? "&bordnr=$bordnr" : "";
-					$url = "productLookup.php?id=$id&art=$art&sort=$sort&fokus=varenr&vis_kost=$vis_kost&ref=" . urlencode($ref) . "&find=$find_param$bordnr_param";
+					$url = "productLookup.php?id=$id&art=$art&sort=$sort&fokus=varenr&vis_kost=$vis_kost&ref=" . urlencode($ref) . "&find_encoding=$find_encoding&find=$find_param$bordnr_param";
 					if (isset($afd_lager)) $url .= "&lager=$afd_lager";
 					header("Location: $url");
 					exit;
@@ -3263,17 +3266,20 @@ if ($swap_account || strstr($b_submit, 'Opslag') || strstr($b_submit, 'Gem') && 
 
 	if ((strstr($fokus, 'vare')) && ($art != 'DK')) {
 		// Redirect to new grid-based product lookup page
-		$find_param = isset($varenr[0]) ? urlencode($varenr[0]) : '';
+		$find_param = urlencode((string) ($_POST['varenr0'] ?? $varenr[0] ?? ''));
+		$find_encoding = isset($_POST['varenr0']) ? 'browser' : 'database';
 		$bordnr_param = isset($bordnr) ? "&bordnr=$bordnr" : "";
-		$url = "productLookup.php?id=$id&art=$art&sort=$sort&fokus=varenr&vis_kost=$vis_kost&ref=" . urlencode($ref) . "&find=$find_param$bordnr_param";
+		$url = "productLookup.php?id=$id&art=$art&sort=$sort&fokus=varenr&vis_kost=$vis_kost&ref=" . urlencode($ref) . "&find_encoding=$find_encoding&find=$find_param$bordnr_param";
 		if (isset($afd_lager)) $url .= "&lager=$afd_lager";
 		header("Location: $url");
 		exit;
 	}
 	if (strstr($fokus, 'besk') && $beskrivelse[0] && $art != 'DK') {
 		// Redirect to new grid-based product lookup page
+		$find_param = urlencode((string) ($_POST['beskrivelse0'] ?? $beskrivelse[0]));
+		$find_encoding = isset($_POST['beskrivelse0']) ? 'browser' : 'database';
 		$bordnr_param = isset($bordnr) ? "&bordnr=$bordnr" : "";
-		$url = "productLookup.php?id=$id&art=$art&sort=$sort&fokus=beskrivelse&vis_kost=$vis_kost&ref=" . urlencode($ref) . "&find=" . urlencode($beskrivelse[0]) . "$bordnr_param";
+		$url = "productLookup.php?id=$id&art=$art&sort=$sort&fokus=beskrivelse&vis_kost=$vis_kost&ref=" . urlencode($ref) . "&find_encoding=$find_encoding&find=$find_param$bordnr_param";
 		if (isset($afd_lager)) $url .= "&lager=$afd_lager";
 		header("Location: $url");
 		exit;
@@ -4327,8 +4333,8 @@ function ordreside($id, $regnskab)
 				}
 				print "<tr class='tableTexting2'><td><b>$txt28</b></td><td colspan=\"2\">\n";
 				print "<select id='da_select_ntr' class='inputbox' style='width:200px' onchange='daFillDeliveryNtr(this.value)'>\n";
-				print "<option value=''>-- " . findtekst('Choose delivery address', $sprog_id) . " --</option>\n";
-				print "<option value='none'>-- " . findtekst('No delivery address', $sprog_id) . " --</option>\n";
+				print "<option value=''>-- " . findtekst('8530|Vælg leveringsadresse', $sprog_id) . " --</option>\n";
+				print "<option value='none'>-- " . findtekst('8531|Ingen leveringsadresse', $sprog_id) . " --</option>\n";
 				foreach ($da_options as $da_opt) {
 					$label = htmlspecialchars($da_opt['description'] ?: $da_opt['company_name'] ?: $da_opt['city']);
 					if ($da_opt['is_primary']) $label .= ' ★';
@@ -5568,8 +5574,8 @@ function ordreside($id, $regnskab)
 					print "<td colspan='1'></td>";  
 					print "<td id='delivery_dropdown' colspan='1' align='left' style='padding:0;'>\n";
 					print "<select id='da_select' class='inputbox' style='width:200px;' onchange='daFillDelivery(this.value)'>\n";
-					print "<option value=''>-- Choose delivery address --</option>\n";
-					print "<option value='none'>-- No delivery address --</option>\n";
+					print "<option value=''>-- " . findtekst('8530|Vælg leveringsadresse', $sprog_id) . " --</option>\n";
+					print "<option value='none'>-- " . findtekst('8531|Ingen leveringsadresse', $sprog_id) . " --</option>\n";
 					foreach ($da_options as $da_opt) {
 						$label = htmlspecialchars($da_opt['description'] ?: $da_opt['company_name'] ?: $da_opt['city']);
 						if ($da_opt['is_primary']) $label .= ' ★';

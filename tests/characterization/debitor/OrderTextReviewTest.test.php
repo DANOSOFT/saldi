@@ -5,6 +5,7 @@
 // 20261118 CDX/NTR Cover response status, lossless validation, SQL continuations and fresh driver captures.
 // 20261118 CDX/NTR Cover account binding, malformed submissions, deleted templates and leading blank lines.
 // 20261124 CL/ASR Integration: the fixture answers db_modify()'s activity-log hook (includes/dataAudit.php) with no audit, as the hook is not what these tests check.
+// 20261126 CDX/NTR Exercise bound reads through the production query wrapper on PostgreSQL and both MySQL driver names.
 
 namespace OrderTextReviewFixture {
     final class Saved extends \RuntimeException {}
@@ -219,6 +220,17 @@ namespace {
             self::assertSame('OrderTextReviewFixture\\' . ($driver === 'postgres' ? 'pg_query_params' : 'mysqli_execute_query'), $GLOBALS['orderTextReviewDriverFunction']);
             self::assertSame(200, $GLOBALS['orderTextReviewHttpStatus']);
             self::assertStringContainsString('URL=ordre.php?id=7&amp;ret_tekst=7', $html);
+        }
+
+        #[DataProvider('saveCases')]
+        public function testBoundReadPreservesConnectionEncodedValues(string $driver, string $encoding, string $stored): void
+        {
+            $GLOBALS['db_type'] = $driver;
+            $sql = $driver === 'postgres' ? 'select id from varer where varenr = $1' : 'select id from varer where varenr = ?';
+            \OrderTextReviewFixture\selectQuery($sql, __FILE__, false, [$stored]);
+            self::assertSame([$stored], $GLOBALS['orderTextReviewParams'] ?? null);
+            self::assertSame($sql, $GLOBALS['orderTextReviewSql']);
+            self::assertSame('OrderTextReviewFixture\\' . ($driver === 'postgres' ? 'pg_query_params' : 'mysqli_execute_query'), $GLOBALS['orderTextReviewDriverFunction']);
         }
 
         public function testEditorGeneratesAndRendersSessionToken(): void

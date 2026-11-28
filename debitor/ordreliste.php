@@ -4,7 +4,7 @@
 //               \__ \/ _ \| |_| |) | | _ | |) |  <
 //               |___/_/ \_|___|___/|_||_||___/|_\_\
 //
-// --- debitor/ordreliste.php -----ver 5.1.1 ----2026-11-13--------------
+// --- debitor/ordreliste.php -----ver 5.1.1 ----2026-11-25--------------
 // LICENSE
 //
 // This program is free software. You can redistribute it and / or
@@ -78,6 +78,7 @@
 //                 The list name (valg) is escaped in its SQL (review by Codex).
 // 20261001 SS Settings insert skipped when a parallel request already added the key (unique index on settings).
 // 20261113 CDX/NTR Align the file header with the release version and history conventions.
+// 20261125 CDX/NTR Use the grid's escaped text and highlighting instead of escaping again in individual renderers.
 @session_start();
 $s_id = session_id();
 
@@ -137,26 +138,6 @@ function clearOrderListSearch($datagrid_id, $valg, $bruger_id) {
 
     $qtxt = "update settings set var_value = NULL where var_name = 'debitorId' and var_grp = 'debitor' and user_id = '$bruger_id'";
     db_modify($qtxt, __FILE__ . " linje " . __LINE__);
-}
-
-// Helper function: escapes HTML but preserves search term highlight spans
-function ordreliste_safe_output($value) {
-    if (strpos($value, '<span style="background-color:#FF0">') !== false) {
-        // Value contains search highlighting - escape everything except the highlight spans
-        $value = str_replace(
-            array('<span style="background-color:#FF0">', '</span>'),
-            array('__HIGHLIGHT_OPEN__', '__HIGHLIGHT_CLOSE__'),
-            $value
-        );
-        $value = htmlspecialchars($value);
-        $value = str_replace(
-            array('__HIGHLIGHT_OPEN__', '__HIGHLIGHT_CLOSE__'),
-            array('<span style="background-color:#FF0">', '</span>'),
-            $value
-        );
-        return $value;
-    }
-    return htmlspecialchars($value);
 }
 
 // Lagerstatus colors
@@ -1043,8 +1024,6 @@ $custom_columns = array(
         "sqlOverride" => "o.performed_by",
         "searchable" => true,
         "render" => function ($value, $row, $column) {
-            // caused issues due to our use of <span> for highlighting each match in the value, so we will not escape it for now
-            // $value = htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
             return "<td align='{$column['align']}'>$value</td>";
         }
     ),
@@ -1223,7 +1202,7 @@ $custom_columns = array(
             return $value !== null ? $value : '';
         },
         "render" => function ($value, $row, $column) {
-            return "<td align='{$column['align']}'>" . htmlspecialchars($value) . "</td>";
+            return "<td align='{$column['align']}'>$value</td>";
         }
     ),
 
@@ -1242,7 +1221,7 @@ $custom_columns = array(
             return $value !== null ? $value : '';
         },
         "render" => function ($value, $row, $column) {
-            return "<td align='{$column['align']}'>" . ordreliste_safe_output($value) . "</td>";
+            return "<td align='{$column['align']}'>$value</td>";
         }
     ),
     
@@ -1484,7 +1463,7 @@ foreach ($all_db_columns as $field_name => $column_info) {
     // render: Format the date
     $column_def['render'] = function ($value, $row, $column) {
         $formatted = $value ? dkdato($value) : '';
-        return "<td align='{$column['align']}'>" . ordreliste_safe_output($formatted) . "</td>";
+        return "<td align='{$column['align']}'>" . htmlspecialchars($formatted, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . "</td>";
     };
 }elseif ($field_name == 'betalings_id') {
         // betalings_id (payment ID) should be displayed as plain text, not formatted as a number
@@ -1500,7 +1479,7 @@ foreach ($all_db_columns as $field_name => $column_info) {
         // render: Display as plain text, empty if no value
         $column_def['render'] = function ($value, $row, $column) {
             if ($value === null || $value === '' || $value == 0 || $value === 0) return "<td align='{$column['align']}'></td>";
-            return "<td align='{$column['align']}'>" . ordreliste_safe_output($value) . "</td>";
+            return "<td align='{$column['align']}'>$value</td>";
         };
     }elseif ($field_name == 'konto_id') {
         // konto_id should be text, not number
@@ -1512,9 +1491,9 @@ foreach ($all_db_columns as $field_name => $column_info) {
             return $value !== null ? $value : '';
         };
         
-        // render: Escape HTML
+        // The grid has already prepared text and search highlighting.
         $column_def['render'] = function ($value, $row, $column) {
-            return "<td align='{$column['align']}'>" . ordreliste_safe_output($value) . "</td>";
+            return "<td align='{$column['align']}'>$value</td>";
         };
     }elseif ($grid_type == 'number') {
         
@@ -1557,10 +1536,11 @@ foreach ($all_db_columns as $field_name => $column_info) {
         
         // render: Show checkmark or X
         $column_def['render'] = function ($value, $row, $column) {
-            if ($value == '1' || $value === true) {
+            $status = $row[$column['field']];
+            if ($status == '1' || $status === true) {
                 $display = '✓';
                 $color = '#008000';
-            } elseif ($value == '0' || $value === false) {
+            } elseif ($status == '0' || $status === false) {
                 $display = '✗';
                 $color = '#FF0000';
             } else {
@@ -1577,9 +1557,9 @@ foreach ($all_db_columns as $field_name => $column_info) {
             return $value !== null ? $value : '';
         };
         
-        // render: Escape HTML
+        // The grid has already prepared text and search highlighting.
         $column_def['render'] = function ($value, $row, $column) {
-            return "<td align='{$column['align']}'>" . ordreliste_safe_output($value) . "</td>";
+            return "<td align='{$column['align']}'>$value</td>";
         };
     }
     

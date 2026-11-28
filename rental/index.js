@@ -2848,6 +2848,8 @@ if (queryString !== "") {
     }else if(urlParams.has("singleItem")){
         const value = urlParams.get("singleItem")
         singleProductOverview(value)
+    } else {
+        createCalendar()
     }
 } else {
     createCalendar()
